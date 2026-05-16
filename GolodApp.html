@@ -370,6 +370,14 @@ function doLogin(){
   if(!found){err.textContent="Username หรือ Password ไม่ถูกต้องครับ";err.classList.remove("hidden");return;}
   if(!found.systems.includes(SEL_SYS)&&found.role!=="admin"){err.textContent="ไม่มีสิทธิ์เข้าระบบนี้ครับ";err.classList.remove("hidden");return;}
   err.classList.add("hidden");
+  // set default perms ถ้าไม่มี
+  if(!found.perms){
+    if(found.role==="admin"||found.role==="branch"){
+      found.perms={billing:true,transport:true,finance:true,reports:true,customers:true,drivers:true,users:true};
+    } else {
+      found.perms={billing:true,transport:true,finance:false,reports:false,customers:false,drivers:false,users:false};
+    }
+  }
   CU=found;CS=SEL_SYS;
   GolodSession.save(CU, CS); // บันทึก session ทันทีหลัง login
   // ถ้ามี redirect ที่ค้างไว้ (มาจากหน้าอื่น) ให้ redirect กลับไปเลย
@@ -421,7 +429,7 @@ var MENU=[
 function canAccess(k){
   var m=MENU.find(function(x){return x.k===k;});if(!m)return false;
   if(!m.roles.includes(CU.role))return false;
-  if(m.perm&&!CU.perms[m.perm])return false;
+  if(m.perm&&!(CU.perms&&CU.perms[m.perm]))return false;
   return true;
 }
 function buildSidebar(){
