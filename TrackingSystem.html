@@ -1,0 +1,533 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1"/>
+<title>โกโลด ทรานสปอร์ต — ติดตามสินค้า</title>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:Arial,sans-serif;background:#f5f5f2;min-height:100vh;max-width:480px;margin:0 auto}
+input,select,textarea,button{font-family:Arial,sans-serif}
+.hidden{display:none!important}
+
+/* tabs */
+.tab-bar{background:#052E25;display:flex;gap:4px;padding:6px 8px}
+.tab{flex:1;text-align:center;padding:7px 4px;border-radius:8px;cursor:pointer;transition:background .15s}
+.tab.active{background:rgba(255,255,255,0.18)}
+.tab .t1{font-size:11px;color:#fff;font-weight:600}
+.tab .t2{font-size:9px;color:#5DCAA5}
+.tab:not(.active) .t1{color:#9FE1CB;font-weight:400}
+
+/* hero */
+.hero{background:linear-gradient(135deg,#0F6E56,#085041,#052E25);padding:24px 16px 16px}
+.hero h1{font-size:22px;font-weight:800;color:#fff;letter-spacing:1px}
+.hero p{font-size:13px;color:#9FE1CB;margin-top:4px}
+.search-box{background:rgba(255,255,255,0.12);border-radius:16px;padding:16px;margin-top:16px}
+.search-box label{font-size:12px;color:#E1F5EE;font-weight:500;display:block;margin-bottom:8px}
+.search-row{display:flex;gap:8px}
+.search-row input{flex:1;padding:12px 14px;border-radius:10px;border:2px solid rgba(255,255,255,0.3);background:rgba(255,255,255,0.95);font-size:15px;font-weight:700;letter-spacing:1px;outline:none;text-transform:uppercase}
+.btn-search{padding:12px 20px;background:#1D9E75;color:#fff;border:none;border-radius:10px;font-size:14px;font-weight:700;cursor:pointer;min-width:80px}
+.demo-links{margin-top:10px;display:flex;gap:6px;flex-wrap:wrap;align-items:center}
+.demo-links span{font-size:11px;color:#9FE1CB}
+.demo-links a{font-size:11px;color:#fff;background:rgba(255,255,255,0.2);padding:2px 10px;border-radius:20px;cursor:pointer;text-decoration:underline}
+
+/* result card */
+.result-wrap{padding:0 16px 32px}
+.card{background:#fff;border-radius:16px;overflow:hidden;box-shadow:0 8px 32px rgba(0,0,0,.15);margin-top:16px}
+.status-hero{padding:18px 18px 14px}
+.status-hero.ok{background:#E1F5EE}
+.status-hero.warn{background:#FAEEDA}
+.status-hero.prob{background:#FBEAF0}
+.bill-no{font-size:20px;font-weight:800;color:#222;letter-spacing:2px}
+.updated{font-size:11px;color:#888}
+.status-badge{display:inline-flex;align-items:center;gap:8px;padding:10px 16px;border-radius:12px;margin-top:10px}
+.status-badge .icon{font-size:22px}
+.status-badge .name{font-weight:700;font-size:15px}
+.status-badge .time{font-size:11px;opacity:.75}
+.dest-row{margin-top:10px;display:flex;gap:10px;flex-wrap:wrap}
+.dest-chip{background:rgba(255,255,255,.6);border-radius:8px;padding:6px 12px;font-size:12px}
+.dest-chip b{color:#333}
+.cod-chip{background:#FFF8E7;border-radius:8px;padding:6px 12px;font-size:12px;color:#854F0B;font-weight:600;border:0.5px solid #F0C060}
+
+/* progress */
+.progress-wrap{padding:16px 18px;border-bottom:0.5px solid #f0f0f0}
+.progress-steps{display:flex;align-items:flex-start;position:relative}
+.progress-line-bg{position:absolute;top:14px;left:10%;right:10%;height:3px;background:#f0f0f0;z-index:0}
+.progress-line-fill{position:absolute;top:14px;left:10%;height:3px;background:#1D9E75;z-index:1;transition:width .5s}
+.step{display:flex;flex-direction:column;align-items:center;gap:4px;z-index:2;flex:1}
+.step-dot{width:28px;height:28px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:12px;border:2px solid #ddd;background:#eee;transition:all .3s}
+.step-dot.done{background:#1D9E75;border-color:#1D9E75;color:#fff;font-size:13px}
+.step-dot.active{background:#EF9F27;border-color:#EF9F27;font-size:14px}
+.step-label{font-size:9px;color:#aaa;text-align:center;line-height:1.3}
+.step-label.done{color:#0F6E56;font-weight:600}
+.step-label.active{color:#633806;font-weight:600}
+
+/* timeline */
+.timeline-wrap{padding:16px 18px}
+.tl-title{font-size:13px;font-weight:600;color:#333;margin-bottom:12px}
+.tl-list{position:relative;padding-left:28px}
+.tl-line{position:absolute;left:10px;top:8px;bottom:8px;width:2px;background:#e0e0e0}
+.tl-item{position:relative;margin-bottom:14px}
+.tl-dot{position:absolute;left:-22px;top:2px;width:16px;height:16px;border-radius:50%;background:#f5f5f2;border:2px solid #ddd;display:flex;align-items:center;justify-content:center;font-size:8px}
+.tl-dot.latest{font-size:10px}
+.tl-box{border-radius:10px;padding:10px 12px;background:#fafafa;border:0.5px solid #eee}
+.tl-box.latest{border:1.5px solid}
+.tl-box-top{display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:4px}
+.tl-status{font-size:13px;font-weight:600}
+.tl-time{font-size:10px;color:#aaa;white-space:nowrap;margin-left:8px}
+.tl-note{font-size:12px;color:#666}
+.tl-loc{font-size:11px;color:#888;margin-top:2px}
+.photo-box{margin-top:8px;background:#f0f0f0;border-radius:8px;padding:18px;text-align:center;border:0.5px dashed #ccc;font-size:11px;color:#888}
+.sig-box{margin-top:8px;background:#f9f9f7;border-radius:8px;padding:10px 14px;border:0.5px solid #ddd;font-size:11px;color:#888}
+.sig-line{height:40px;background:#fff;border-radius:6px;border:0.5px solid #ccc;margin-top:5px;display:flex;align-items:center;justify-content:center;font-size:11px;color:#bbb}
+
+/* not found */
+.not-found{background:#fff;border-radius:16px;padding:32px 20px;text-align:center;margin-top:16px}
+.card-footer{padding:12px 18px;background:#f9f9f7;border-top:0.5px solid #eee;text-align:center;font-size:11px;color:#888}
+
+/* staff page */
+.page{padding:12px}
+.staff-hdr{background:#0F6E56;color:#fff;border-radius:12px;padding:12px 16px;margin-bottom:12px;display:flex;justify-content:space-between;align-items:center}
+.staff-hdr h2{font-size:15px;font-weight:700}
+.staff-hdr p{font-size:11px;color:#9FE1CB}
+.badge-sm{font-size:11px;background:rgba(255,255,255,.2);padding:4px 10px;border-radius:20px}
+.section{background:#fff;border-radius:12px;padding:12px;margin-bottom:12px;border:0.5px solid rgba(0,0,0,.1)}
+.sec-title{font-size:12px;font-weight:600;color:#0F6E56;margin-bottom:8px}
+.inp{width:100%;padding:8px 12px;border:0.5px solid #ccc;border-radius:8px;font-size:13px;outline:none}
+.inp:focus{border-color:#1D9E75}
+.bill-item{display:flex;align-items:center;gap:8px;padding:8px 10px;border-radius:9px;border:1.5px solid #eee;background:#fafafa;cursor:pointer;margin-bottom:5px}
+.bill-item.sel{border-color:#1D9E75;background:#E1F5EE}
+.bill-no-sm{font-weight:700;color:#0F6E56;font-size:13px;width:88px;flex-shrink:0}
+.bill-dest{flex:1;font-size:11px;color:#555}
+.status-grid{display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-bottom:10px}
+.st-btn{display:flex;align-items:center;gap:6px;padding:8px 10px;border-radius:9px;border:1.5px solid #eee;background:#fafafa;cursor:pointer}
+.st-btn.sel{border-width:2px}
+.st-btn .ico{font-size:16px}
+.st-btn .lbl{font-size:11px}
+.lbl-row{font-size:11px;color:#777;margin-bottom:4px}
+textarea.inp{min-height:56px;resize:vertical}
+.photo-btn{padding:8px 16px;background:#f0f0f0;color:#555;border:0.5px solid #ccc;border-radius:8px;font-size:12px;cursor:pointer}
+.sig-canvas-wrap{border:1px solid #ccc;border-radius:10px;overflow:hidden}
+canvas#sig{width:100%;height:120px;display:block;background:#fff;cursor:crosshair;touch-action:none}
+.sig-footer{padding:6px 10px;background:#f9f9f7;display:flex;justify-content:space-between;align-items:center}
+.btn-clear{font-size:11px;padding:2px 10px;border:0.5px solid #ccc;border-radius:6px;cursor:pointer;background:#fff}
+.btn-save{width:100%;padding:12px;border:none;border-radius:10px;font-size:14px;font-weight:700;cursor:pointer;color:#fff;background:#1D9E75;margin-top:4px}
+.btn-save:disabled{background:#aaa;cursor:not-allowed}
+.success-msg{padding:10px 14px;background:#E1F5EE;border-radius:9px;border:0.5px solid #9FE1CB;font-size:13px;color:#0F6E56;font-weight:600;margin-bottom:10px}
+.recent-ev{display:flex;gap:8px;margin-bottom:6px;font-size:11px}
+
+/* admin */
+.stat-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:14px}
+.stat-box{border-radius:10px;padding:12px;display:flex;align-items:center;gap:10px}
+.stat-box .big{font-size:22px;font-weight:800}
+.stat-box .sm{font-size:11px;font-weight:500}
+table{width:100%;border-collapse:collapse;font-size:12px}
+th{padding:8px 10px;text-align:left;font-weight:500;color:#777;border-bottom:0.5px solid rgba(0,0,0,.08);font-size:11px;background:#f9f9f7}
+td{padding:8px 10px;border-bottom:0.5px solid rgba(0,0,0,.05)}
+tr:nth-child(even) td{background:#fafafa}
+.pill{display:inline-block;font-size:10px;padding:2px 8px;border-radius:20px;font-weight:500}
+</style>
+<script src="session.js"></script>
+<script>
+var _S = GolodSession.require("transport", null);
+if(!_S) throw new Error("no session");
+</script>
+</head>
+<body>
+<div id="golod-session-bar" style="background:#0F6E56;padding:0 14px;display:flex;align-items:center;gap:10px;height:44px;position:sticky;top:0;z-index:999">
+  <div style="color:#fff;font-size:13px;font-weight:700;flex:1">โกโลด ทรานสปอร์ต <span style="font-size:10px;color:#9FE1CB;margin-left:6px">ระบบติดตาม</span></div>
+  <div id="golod-user-chip"></div>
+  <a href="AuthSystem.html" style="font-size:11px;color:#9FE1CB;text-decoration:none;background:rgba(255,255,255,.15);padding:3px 10px;border-radius:20px">← เมนูหลัก</a>
+</div>
+<script>GolodSession.renderTopbar("golod-user-chip", "ระบบติดตาม", "#EF9F27");</script>
+
+
+<!-- TAB BAR -->
+<div class="tab-bar">
+  <div class="tab active" onclick="showTab('customer')" id="tab-customer">
+    <div class="t1">🔍 ลูกค้าค้นหา</div><div class="t2">หน้าสาธารณะ</div>
+  </div>
+  <div class="tab" onclick="showTab('staff')" id="tab-staff">
+    <div class="t1">📱 พนักงานอัปเดต</div><div class="t2">มือถือ</div>
+  </div>
+  <div class="tab" onclick="showTab('admin')" id="tab-admin">
+    <div class="t1">📋 ภาพรวม</div><div class="t2">เสมียน</div>
+  </div>
+</div>
+
+<!-- ===== CUSTOMER PAGE ===== -->
+<div id="page-customer">
+  <div class="hero">
+    <h1>โกโลด ทรานสปอร์ต</h1>
+    <p>ติดตามสถานะสินค้า · Track &amp; Trace</p>
+    <div class="search-box">
+      <label>กรอกเลขที่บิล เช่น A0503-12</label>
+      <div class="search-row">
+        <input id="track-input" placeholder="เลขบิล..." oninput="this.value=this.value.toUpperCase()" onkeydown="if(event.key==='Enter')doTrack()"/>
+        <button class="btn-search" onclick="doTrack()">🔍 ค้นหา</button>
+      </div>
+      <div class="demo-links">
+        <span>ทดลอง:</span>
+        <a onclick="quickTrack('A0503-12')">A0503-12</a>
+        <a onclick="quickTrack('B0503-08')">B0503-08</a>
+        <a onclick="quickTrack('H0503-03')">H0503-03</a>
+      </div>
+    </div>
+  </div>
+  <div class="result-wrap" id="track-result"></div>
+</div>
+
+<!-- ===== STAFF PAGE ===== -->
+<div id="page-staff" class="hidden">
+  <div class="page">
+    <div class="staff-hdr">
+      <div><h2>อัปเดตสถานะ</h2><p>สำหรับพนักงาน</p></div>
+      <span class="badge-sm">เข้าสู่ระบบแล้ว</span>
+    </div>
+    <div class="section">
+      <div class="sec-title">🔍 ค้นหา/เลือกบิล</div>
+      <input class="inp" id="staff-search" placeholder="พิมพ์เลขบิล..." oninput="renderBillList()" style="margin-bottom:8px"/>
+      <div id="staff-bill-list"></div>
+    </div>
+    <div id="staff-update-section" class="hidden">
+      <div class="section">
+        <div class="sec-title" id="staff-bill-title">อัปเดต: —</div>
+        <div class="lbl-row">สถานะใหม่</div>
+        <div class="status-grid" id="status-grid"></div>
+        <div class="lbl-row">สถานที่ปัจจุบัน</div>
+        <input class="inp" id="staff-loc" placeholder="เช่น อำเภอ · จังหวัด" style="margin-bottom:10px"/>
+        <div class="lbl-row">หมายเหตุ</div>
+        <textarea class="inp" id="staff-note" placeholder="รายละเอียดเพิ่มเติม..."></textarea>
+      </div>
+      <div class="section">
+        <div class="lbl-row">📷 รูปภาพ (ถ่ายจากมือถือ)</div>
+        <input type="file" id="photo-input" accept="image/*" capture="environment" onchange="handlePhoto()" style="display:none"/>
+        <button class="photo-btn" onclick="document.getElementById('photo-input').click()">📷 ถ่ายรูป / เลือกไฟล์</button>
+        <img id="photo-preview" style="display:none;width:90px;height:65px;object-fit:cover;border-radius:6px;border:0.5px solid #ccc;margin-left:8px;vertical-align:middle"/>
+        <div style="margin-top:12px" class="lbl-row">✍️ ลายเซ็นผู้รับ <span id="sig-toggle" onclick="toggleSig()" style="background:#f0f0f0;color:#555;font-size:11px;padding:2px 10px;border-radius:20px;cursor:pointer;border:0.5px solid #ccc;margin-left:6px">เปิดลายเซ็น</span></div>
+        <div id="sig-section" class="hidden" style="margin-top:6px">
+          <div class="sig-canvas-wrap">
+            <canvas id="sig"></canvas>
+            <div class="sig-footer"><span style="font-size:10px;color:#888">ลากนิ้วเพื่อเซ็น</span><button class="btn-clear" onclick="clearSig()">ล้าง</button></div>
+          </div>
+        </div>
+      </div>
+      <div id="save-success" class="success-msg hidden">✓ บันทึกสถานะเรียบร้อยแล้ว</div>
+      <button class="btn-save" id="btn-save" onclick="saveStatus()" disabled>บันทึกสถานะ ✓</button>
+      <div class="section" style="margin-top:10px">
+        <div class="sec-title">ประวัติล่าสุด</div>
+        <div id="staff-history"></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ===== ADMIN PAGE ===== -->
+<div id="page-admin" class="hidden">
+  <div class="page">
+    <div style="font-size:14px;font-weight:700;color:#0F6E56;margin-bottom:12px">ภาพรวมทุกสถานะ</div>
+    <div class="stat-grid" id="admin-stats"></div>
+    <div style="background:#fff;border-radius:12px;overflow:hidden;border:0.5px solid rgba(0,0,0,.1)">
+      <table><thead><tr><th>เลขบิล</th><th>ปลายทาง</th><th>สถานะล่าสุด</th><th>เวลา</th></tr></thead>
+      <tbody id="admin-table"></tbody></table>
+    </div>
+  </div>
+</div>
+
+<script>
+// ======= DATA =======
+const STATUSES={
+  issued:    {label:"ออกบิลรับของแล้ว",     icon:"📦",color:"#555",   bg:"#f5f5f2",border:"#ddd",    step:1},
+  hub:       {label:"ระหว่างเดินทางไปสาขา", icon:"🏭",color:"#0C447C",bg:"#E6F1FB",border:"#85B7EB",step:2},
+  transit:   {label:"ระหว่างวิ่งส่งลูกค้า", icon:"🚛",color:"#633806",bg:"#FAEEDA",border:"#EF9F27",step:3},
+  delivered: {label:"ส่งสำเร็จ",            icon:"✅",color:"#085041",bg:"#E1F5EE",border:"#5DCAA5",step:4},
+  nocontact: {label:"ติดต่อลูกค้าไม่ได้",   icon:"📵",color:"#4B1528",bg:"#FBEAF0",border:"#E9B8C0",step:4},
+  refused:   {label:"ลูกค้าไม่รับของ",       icon:"🚫",color:"#7C2D12",bg:"#FEF3C7",border:"#F59E0B",step:4},
+  returned:  {label:"ตีกลับ",               icon:"↩️",color:"#374151",bg:"#F3F4F6",border:"#9CA3AF",step:4},
+  reschedule:{label:"จัดส่งใหม่",           icon:"🔄",color:"#1E40AF",bg:"#DBEAFE",border:"#93C5FD",step:4},
+};
+const STEPS=[
+  {key:"issued",label:"รับของแล้ว",icon:"📦",step:1},
+  {key:"hub",label:"ไปสาขา",icon:"🏭",step:2},
+  {key:"transit",label:"กำลังส่ง",icon:"🚛",step:3},
+  {key:"delivered",label:"ส่งสำเร็จ",icon:"✅",step:4},
+];
+
+let BILLS={
+  "A0503-12":{billNo:"A0503-12",destProv:"นครราชสีมา",destAmphoe:"เมืองนครราชสีมา",codTotal:0,timeline:[
+    {status:"issued",  dt:"2568-05-03 08:30",loc:"กรุงเทพมหานคร",note:"รับสินค้าจากผู้ส่ง",photo:false,sig:false},
+    {status:"hub",     dt:"2568-05-03 11:00",loc:"ศูนย์กระจาย กรุงเทพ",note:"เข้าศูนย์กระจาย",photo:false,sig:false},
+    {status:"transit", dt:"2568-05-03 13:30",loc:"กรุงเทพ → นครราชสีมา",note:"พนักงาน A ออกเดินทาง",photo:false,sig:false},
+  ]},
+  "B0503-08":{billNo:"B0503-08",destProv:"อยุธยา",destAmphoe:"พระนครศรีอยุธยา",codTotal:1500,timeline:[
+    {status:"issued",   dt:"2568-05-03 08:00",loc:"กรุงเทพมหานคร",note:"รับสินค้าจากผู้ส่ง",photo:false,sig:false},
+    {status:"hub",      dt:"2568-05-03 09:30",loc:"ศูนย์กระจาย กรุงเทพ",note:"เข้าศูนย์กระจาย",photo:false,sig:false},
+    {status:"transit",  dt:"2568-05-03 11:00",loc:"กรุงเทพ → อยุธยา",note:"พนักงาน B ออกเดินทาง",photo:false,sig:false},
+    {status:"delivered",dt:"2568-05-03 14:20",loc:"อยุธยา",note:"ส่งถึงมือผู้รับแล้ว",photo:true,sig:true},
+  ]},
+  "H0503-03":{billNo:"H0503-03",destProv:"ระยอง",destAmphoe:"ปลวกแดง",codTotal:8000,timeline:[
+    {status:"issued",    dt:"2568-05-03 09:00",loc:"กรุงเทพมหานคร",note:"รับสินค้าจากผู้ส่ง",photo:false,sig:false},
+    {status:"hub",       dt:"2568-05-03 10:30",loc:"ศูนย์กระจาย กรุงเทพ",note:"เข้าศูนย์กระจาย",photo:false,sig:false},
+    {status:"transit",   dt:"2568-05-03 12:00",loc:"กรุงเทพ → ระยอง",note:"พนักงาน H ออกเดินทาง",photo:false,sig:false},
+    {status:"nocontact", dt:"2568-05-03 15:30",loc:"ระยอง",note:"โทรหาผู้รับ 3 ครั้ง ไม่รับสาย",photo:false,sig:false},
+    {status:"reschedule",dt:"2568-05-03 15:35",loc:"ระยอง",note:"นัดส่งใหม่วันถัดไป",photo:false,sig:false},
+  ]},
+};
+
+// ======= UTILS =======
+function dtDisplay(dt){
+  if(!dt)return"";
+  const[date,time]=dt.split(" ");
+  const[y,m,d]=date.split("-");
+  return parseInt(d)+"/"+parseInt(m)+"/"+y+" เวลา "+time+" น.";
+}
+function timeAgo(dt){
+  if(!dt)return"";
+  const d=new Date(dt.replace(/-/g,"/"));
+  const h=Math.floor((Date.now()-d)/3600000);
+  if(h<1)return"เมื่อกี้";
+  if(h<24)return h+" ชั่วโมงที่แล้ว";
+  return Math.floor(h/24)+" วันที่แล้ว";
+}
+function nowDT(){
+  const d=new Date();
+  return d.getFullYear()+"-"+String(d.getMonth()+1).padStart(2,"0")+"-"+String(d.getDate()).padStart(2,"0")
+    +" "+String(d.getHours()).padStart(2,"0")+":"+String(d.getMinutes()).padStart(2,"0");
+}
+
+// ======= TAB =======
+function showTab(t){
+  ["customer","staff","admin"].forEach(id=>{
+    document.getElementById("page-"+id).classList.toggle("hidden",id!==t);
+    document.getElementById("tab-"+id).classList.toggle("active",id===t);
+  });
+  if(t==="admin") renderAdmin();
+  if(t==="staff") renderBillList();
+}
+
+// ======= CUSTOMER TRACK =======
+function quickTrack(v){document.getElementById("track-input").value=v;doTrack();}
+function doTrack(){
+  const q=document.getElementById("track-input").value.trim().toUpperCase();
+  const el=document.getElementById("track-result");
+  if(!q){el.innerHTML="";return;}
+  const bill=BILLS[q];
+  if(!bill){
+    el.innerHTML=`<div class="not-found"><div style="font-size:40px;margin-bottom:12px">🔍</div>
+      <div style="font-size:16px;font-weight:600;color:#333;margin-bottom:8px">ไม่พบเลขบิล "${q}"</div>
+      <div style="font-size:13px;color:#888">กรุณาตรวจสอบเลขบิลอีกครั้ง<br>หรือติดต่อ Line: @golodtrans</div></div>`;
+    return;
+  }
+  const tl=bill.timeline;
+  const last=tl[tl.length-1];
+  const st=STATUSES[last.status]||STATUSES.issued;
+  const curStep=st.step;
+  const isProblem=["nocontact","refused","returned","reschedule"].includes(last.status);
+  const isDone=last.status==="delivered";
+  const heroClass=isDone?"ok":isProblem?"prob":"warn";
+
+  // progress
+  let fillPct=Math.max(0,Math.min(80,((curStep-1)/3)*80));
+  const stepsHtml=STEPS.map((s,i)=>{
+    const done=curStep>s.step||(curStep===s.step&&isDone);
+    const active=curStep===s.step&&!isDone;
+    const dotCls=done?"done":active?"active":"";
+    const lblCls=done?"done":active?"active":"";
+    return`<div class="step">
+      <div class="step-dot ${dotCls}">${done?"✓":s.icon}</div>
+      <div class="step-label ${lblCls}">${s.label}</div>
+    </div>`;
+  }).join("");
+
+  // timeline (newest first)
+  const tlHtml=[...tl].reverse().map((ev,i)=>{
+    const s=STATUSES[ev.status]||STATUSES.issued;
+    const isLatest=i===0;
+    return`<div class="tl-item">
+      <div class="tl-dot ${isLatest?"latest":""}" style="${isLatest?`background:${s.bg};border-color:${s.border}`:""}">${isLatest?s.icon:""}</div>
+      <div class="tl-box ${isLatest?"latest":""}" style="${isLatest?`background:${s.bg};border-color:${s.border}`:""}" >
+        <div class="tl-box-top">
+          <span class="tl-status" style="color:${isLatest?s.color:"#333"}">${s.icon} ${s.label}</span>
+          <span class="tl-time">${dtDisplay(ev.dt)}</span>
+        </div>
+        <div class="tl-note">${ev.note||""}</div>
+        ${ev.loc?`<div class="tl-loc">📍 ${ev.loc}</div>`:""}
+        ${ev.photo?`<div class="photo-box">📷 รูปภาพการส่งสินค้า</div>`:""}
+        ${ev.sig?`<div class="sig-box">✍️ ลายเซ็นผู้รับ<div class="sig-line">— ลายเซ็น —</div></div>`:""}
+      </div>
+    </div>`;
+  }).join("");
+
+  el.innerHTML=`<div class="card">
+    <div class="status-hero ${heroClass}">
+      <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:10px">
+        <div><div style="font-size:11px;color:#888;margin-bottom:3px">เลขที่บิล</div><div class="bill-no">${bill.billNo}</div></div>
+        <div style="text-align:right"><div style="font-size:11px;color:#888;margin-bottom:3px">อัปเดตล่าสุด</div><div class="updated">${timeAgo(last.dt)}</div></div>
+      </div>
+      <div class="status-badge" style="background:${st.bg};border:1.5px solid ${st.border}">
+        <span class="icon">${st.icon}</span>
+        <div><div class="name" style="color:${st.color}">${st.label}</div><div class="time" style="color:${st.color}">${dtDisplay(last.dt)}</div></div>
+      </div>
+      <div class="dest-row">
+        <div class="dest-chip">ปลายทาง: <b>${bill.destAmphoe} · ${bill.destProv}</b></div>
+        ${bill.codTotal>0?`<div class="cod-chip">★ COD ${bill.codTotal.toLocaleString("th-TH")} ฿</div>`:""}
+      </div>
+    </div>
+    <div class="progress-wrap">
+      <div class="progress-steps">
+        <div class="progress-line-bg"></div>
+        <div class="progress-line-fill" style="width:${fillPct}%"></div>
+        ${stepsHtml}
+      </div>
+    </div>
+    <div class="timeline-wrap">
+      <div class="tl-title">ประวัติการเคลื่อนไหว</div>
+      <div class="tl-list"><div class="tl-line"></div>${tlHtml}</div>
+    </div>
+    <div class="card-footer">สอบถามเพิ่มเติม Line OA: @golodtrans · โทร 02-XXX-XXXX</div>
+  </div>`;
+}
+
+// ======= STAFF =======
+let selectedBillNo="";
+let selectedNewStatus="";
+
+function renderBillList(){
+  const q=(document.getElementById("staff-search").value||"").toUpperCase();
+  const el=document.getElementById("staff-bill-list");
+  el.innerHTML=Object.values(BILLS).filter(b=>!q||b.billNo.includes(q)).map(b=>{
+    const last=b.timeline[b.timeline.length-1];
+    const st=STATUSES[last?.status]||STATUSES.issued;
+    const sel=b.billNo===selectedBillNo;
+    return`<div class="bill-item ${sel?"sel":""}" onclick="selectBill('${b.billNo}')">
+      <span class="bill-no-sm">${b.billNo}</span>
+      <span class="bill-dest">${b.destAmphoe}·${b.destProv}</span>
+      <span class="pill" style="background:${st.bg};color:${st.color};border:0.5px solid ${st.border}">${st.icon} ${st.label}</span>
+    </div>`;
+  }).join("");
+}
+
+function selectBill(no){
+  selectedBillNo=no;
+  selectedNewStatus="";
+  document.getElementById("staff-update-section").classList.remove("hidden");
+  const b=BILLS[no];
+  document.getElementById("staff-bill-title").textContent="อัปเดต: "+no+" → "+b.destAmphoe+" · "+b.destProv;
+  document.getElementById("staff-loc").placeholder="เช่น "+b.destAmphoe+" · "+b.destProv;
+  renderStatusGrid();
+  renderStaffHistory();
+  renderBillList();
+}
+
+function renderStatusGrid(){
+  document.getElementById("status-grid").innerHTML=Object.entries(STATUSES).map(([k,s])=>{
+    const sel=k===selectedNewStatus;
+    return`<div class="st-btn ${sel?"sel":""}" style="${sel?`border-color:${s.border};background:${s.bg}`:""}" onclick="pickStatus('${k}')">
+      <span class="ico">${s.icon}</span>
+      <span class="lbl" style="color:${sel?s.color:"#555"};font-weight:${sel?600:400}">${s.label}</span>
+    </div>`;
+  }).join("");
+  document.getElementById("btn-save").disabled=!selectedNewStatus;
+}
+
+function pickStatus(k){
+  selectedNewStatus=k;
+  renderStatusGrid();
+}
+
+function renderStaffHistory(){
+  const b=BILLS[selectedBillNo];if(!b)return;
+  document.getElementById("staff-history").innerHTML=[...b.timeline].reverse().slice(0,4).map(ev=>{
+    const s=STATUSES[ev.status]||STATUSES.issued;
+    return`<div class="recent-ev"><span>${s.icon}</span>
+      <div><span style="font-weight:600;color:${s.color}">${s.label}</span>
+      <span style="color:#aaa;margin-left:6px">${ev.dt?.split(" ")[1]} น.</span>
+      ${ev.note?`<div style="color:#777;font-size:10px">${ev.note}</div>`:""}
+      </div></div>`;
+  }).join("");
+}
+
+let photoDataUrl="";
+function handlePhoto(){
+  const f=document.getElementById("photo-input").files[0];if(!f)return;
+  const r=new FileReader();
+  r.onload=e=>{photoDataUrl=e.target.result;
+    const img=document.getElementById("photo-preview");img.src=e.target.result;img.style.display="inline-block";};
+  r.readAsDataURL(f);
+}
+
+let sigOpen=false,sigCtx=null,drawing=false;
+function toggleSig(){
+  sigOpen=!sigOpen;
+  const sec=document.getElementById("sig-section");
+  const tog=document.getElementById("sig-toggle");
+  sec.classList.toggle("hidden",!sigOpen);
+  tog.textContent=sigOpen?"✓ เปิดอยู่":"เปิดลายเซ็น";
+  tog.style.background=sigOpen?"#E1F5EE":"#f0f0f0";
+  tog.style.color=sigOpen?"#0F6E56":"#555";
+  if(sigOpen){
+    const c=document.getElementById("sig");
+    c.width=c.offsetWidth;c.height=120;
+    sigCtx=c.getContext("2d");
+    sigCtx.strokeStyle="#0F6E56";sigCtx.lineWidth=2.5;sigCtx.lineCap="round";
+    c.onmousedown=e=>{drawing=true;const r=c.getBoundingClientRect();sigCtx.beginPath();sigCtx.moveTo(e.clientX-r.left,e.clientY-r.top);};
+    c.onmousemove=e=>{if(!drawing)return;const r=c.getBoundingClientRect();sigCtx.lineTo(e.clientX-r.left,e.clientY-r.top);sigCtx.stroke();};
+    c.onmouseup=c.onmouseleave=()=>drawing=false;
+    c.ontouchstart=e=>{e.preventDefault();drawing=true;const r=c.getBoundingClientRect();const t=e.touches[0];sigCtx.beginPath();sigCtx.moveTo(t.clientX-r.left,t.clientY-r.top);};
+    c.ontouchmove=e=>{e.preventDefault();if(!drawing)return;const r=c.getBoundingClientRect();const t=e.touches[0];sigCtx.lineTo(t.clientX-r.left,t.clientY-r.top);sigCtx.stroke();};
+    c.ontouchend=()=>drawing=false;
+  }
+}
+function clearSig(){if(sigCtx){const c=document.getElementById("sig");sigCtx.clearRect(0,0,c.width,c.height);}}
+
+function saveStatus(){
+  if(!selectedBillNo||!selectedNewStatus)return;
+  const hasSig=sigOpen&&sigCtx&&!document.getElementById("sig").getContext("2d").getImageData(0,0,1,1).data.every(v=>v===0);
+  const ev={status:selectedNewStatus,dt:nowDT(),
+    loc:document.getElementById("staff-loc").value||BILLS[selectedBillNo].destProv,
+    note:document.getElementById("staff-note").value||STATUSES[selectedNewStatus].label,
+    photo:!!photoDataUrl,sig:hasSig};
+  BILLS[selectedBillNo].timeline.push(ev);
+  // reset
+  document.getElementById("staff-note").value="";
+  document.getElementById("staff-loc").value="";
+  document.getElementById("photo-preview").style.display="none";photoDataUrl="";
+  if(sigCtx)clearSig();
+  selectedNewStatus="";
+  renderStatusGrid();
+  renderStaffHistory();
+  const msg=document.getElementById("save-success");
+  msg.classList.remove("hidden");
+  setTimeout(()=>msg.classList.add("hidden"),3000);
+}
+
+// ======= ADMIN =======
+function renderAdmin(){
+  // count
+  const cnt={};
+  Object.values(BILLS).forEach(b=>{
+    const k=b.timeline[b.timeline.length-1]?.status||"issued";
+    cnt[k]=(cnt[k]||0)+1;
+  });
+  document.getElementById("admin-stats").innerHTML=Object.entries(STATUSES).filter(([k])=>cnt[k]).map(([k,s])=>`
+    <div class="stat-box" style="background:${s.bg};border:0.5px solid ${s.border}">
+      <span style="font-size:24px">${s.icon}</span>
+      <div><div class="sm" style="color:${s.color}">${s.label}</div><div class="big" style="color:${s.color}">${cnt[k]}</div></div>
+    </div>`).join("");
+  document.getElementById("admin-table").innerHTML=Object.values(BILLS).map(b=>{
+    const last=b.timeline[b.timeline.length-1];
+    const s=STATUSES[last?.status]||STATUSES.issued;
+    return`<tr>
+      <td style="font-weight:700;color:#0F6E56">${b.billNo}</td>
+      <td style="font-size:11px;color:#555">${b.destAmphoe}·${b.destProv}</td>
+      <td><span class="pill" style="background:${s.bg};color:${s.color};border:0.5px solid ${s.border}">${s.icon} ${s.label}</span></td>
+      <td style="font-size:11px;color:#aaa">${last?.dt?.split(" ")[1]} น.</td>
+    </tr>`;
+  }).join("");
+}
+
+// init
+renderBillList();
+</script>
+</body>
+</html>

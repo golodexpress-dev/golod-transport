@@ -1,0 +1,640 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1"/>
+<title>โกโลด — ระบบลูกค้า</title>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:Arial,sans-serif;background:#f5f5f2;min-height:100vh}
+.app{max-width:1100px;margin:0 auto}
+.hdr{background:#0F6E56;padding:10px 16px;display:flex;align-items:center;justify-content:space-between}
+.hdr h1{color:#fff;font-size:16px;font-weight:700;letter-spacing:1px}
+.hdr p{color:#9FE1CB;font-size:11px}
+.tabs{background:#fff;display:flex;border-bottom:0.5px solid #eee;overflow-x:auto}
+.tab{padding:11px 18px;cursor:pointer;font-size:13px;white-space:nowrap;color:#888;border-bottom:2.5px solid transparent;user-select:none}
+.tab.active{color:#0F6E56;font-weight:600;border-bottom-color:#1D9E75}
+.page{padding:16px;display:none}
+.page.active{display:block}
+.card{background:#fff;border:0.5px solid rgba(0,0,0,.1);border-radius:12px;padding:14px 16px;margin-bottom:12px}
+.ct{font-size:13px;font-weight:600;color:#0F6E56;margin-bottom:12px}
+.g2{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.g3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px}
+.g4{display:grid;grid-template-columns:1fr 1fr 1fr 1fr;gap:10px}
+.stat{border-radius:10px;padding:12px 14px;margin-bottom:0}
+.sl{font-size:11px;color:#888;margin-bottom:4px}
+.sv{font-size:20px;font-weight:700}
+.ss{font-size:11px;color:#aaa;margin-top:3px}
+.sg{background:#E1F5EE}.sg .sv{color:#085041}
+.sa{background:#FFF8E7}.sa .sv{color:#633806}
+.sb{background:#E6F1FB}.sb .sv{color:#0C447C}
+.sx{background:#f5f5f2}.sx .sv{color:#333}
+.pill{display:inline-block;font-size:10px;padding:2px 8px;border-radius:20px;font-weight:600;white-space:nowrap}
+.pg{background:#E1F5EE;color:#085041}
+.pr{background:#FBEAF0;color:#E24B4A}
+.pa{background:#FFF8E7;color:#854F0B}
+.pb{background:#E6F1FB;color:#0C447C}
+.pp{background:#EDE9FE;color:#5B21B6}
+.px{background:#f0f0f0;color:#555}
+.ta{background:#FEF3C7;color:#92400E;border:1px solid #FCD34D}
+.tb{background:#E1F5EE;color:#085041;border:1px solid #5DCAA5}
+.tc{background:#E6F1FB;color:#0C447C;border:1px solid #85B7EB}
+.tn{background:#f0f0f0;color:#555;border:1px solid #ccc}
+table{width:100%;border-collapse:collapse;font-size:12px}
+th{padding:8px 10px;text-align:left;font-weight:500;color:#777;border-bottom:0.5px solid rgba(0,0,0,.08);background:#f9f9f7;font-size:11px;white-space:nowrap}
+td{padding:8px 10px;border-bottom:0.5px solid rgba(0,0,0,.05);vertical-align:middle}
+tr:nth-child(even) td{background:#fafafa}
+.inp{width:100%;padding:7px 10px;border:0.5px solid #ccc;border-radius:8px;font-size:13px;outline:none;background:#fff;font-family:Arial,sans-serif}
+.inp:focus{border-color:#1D9E75}
+.lbl{font-size:11px;color:#777;margin-bottom:4px;display:block}
+.btn{padding:7px 16px;border-radius:8px;font-size:13px;cursor:pointer;font-weight:500;border:none;font-family:Arial,sans-serif}
+.btg{background:#1D9E75;color:#fff}
+.bto{background:#fff;border:0.5px solid #ccc;color:#555}
+.bts{padding:4px 10px;font-size:11px;border-radius:6px;cursor:pointer;border:0.5px solid #ccc;background:#fff;font-family:Arial,sans-serif}
+.frow{display:flex;gap:8px;margin-bottom:12px;flex-wrap:wrap;align-items:center}
+.alert{padding:10px 14px;border-radius:9px;margin-bottom:8px;font-size:12px}
+.ala{background:#FFF8E7;border:0.5px solid #F0C060;color:#633806}
+.alr{background:#FBEAF0;border:0.5px solid #E9B8C0;color:#4B1528}
+.alg{background:#E1F5EE;border:0.5px solid #9FE1CB;color:#085041}
+.pbar{height:6px;background:#f0f0f0;border-radius:3px;overflow:hidden;margin-top:4px}
+.pfill{height:6px;border-radius:3px}
+.ccard{background:#fff;border:0.5px solid rgba(0,0,0,.1);border-radius:12px;padding:14px;margin-bottom:8px;cursor:pointer}
+.ccard:hover{box-shadow:0 2px 12px rgba(0,0,0,.1)}
+.modal-bg{display:none;position:fixed;inset:0;background:rgba(0,0,0,.45);z-index:300;align-items:flex-start;justify-content:center;padding:16px;overflow-y:auto;pointer-events:none}.modal-bg.open{display:flex;pointer-events:all}
+.modal-bg.open{display:flex}
+.modal{background:#fff;border-radius:14px;width:100%;max-width:620px;padding:20px;margin:auto}
+.mtitle{font-size:15px;font-weight:700;color:#0F6E56;margin-bottom:14px;display:flex;justify-content:space-between;align-items:center}
+.hidden{display:none!important}
+@media(max-width:600px){.g3{grid-template-columns:1fr 1fr}.g4{grid-template-columns:1fr 1fr}}
+</style>
+<script src="session.js"></script>
+<script>
+var _S = GolodSession.require("billing","customers");
+if(!_S) throw new Error("no session");
+</script>
+</head>
+<body>
+<div id="golod-session-bar" style="background:#0F6E56;padding:0 14px;display:flex;align-items:center;gap:10px;height:44px;position:sticky;top:0;z-index:999">
+  <div style="color:#fff;font-size:13px;font-weight:700;flex:1">โกโลด ทรานสปอร์ต <span style="font-size:10px;color:#9FE1CB;margin-left:6px">ระบบลูกค้า</span></div>
+  <div id="golod-user-chip"></div>
+  <a href="AuthSystem.html" style="font-size:11px;color:#9FE1CB;text-decoration:none;background:rgba(255,255,255,.15);padding:3px 10px;border-radius:20px">← เมนูหลัก</a>
+</div>
+<script>GolodSession.renderTopbar("golod-user-chip", "ระบบลูกค้า", "#1D9E75");</script>
+
+<div class="app">
+<div class="hdr">
+  <div><h1>โกโลด ทรานสปอร์ต</h1><p>ระบบลูกค้า</p></div>
+  <div id="hdr-stat" style="font-size:11px;color:#9FE1CB"></div>
+</div>
+<div class="tabs">
+  <div class="tab active" id="tab-overview" onclick="showPage('overview')">📊 ภาพรวม</div>
+  <div class="tab" id="tab-list" onclick="showPage('list')">👥 รายชื่อลูกค้า</div>
+  <div class="tab" id="tab-credit" onclick="showPage('credit')">💳 เครดิต &amp; ชำระ</div>
+  <div class="tab" id="tab-vip" onclick="showPage('vip')">⭐ VIP &amp; รายใหญ่</div>
+</div>
+<!-- OVERVIEW -->
+<div class="page active" id="page-overview">
+  <div class="g4" id="ov-stats" style="margin-bottom:12px"></div>
+  <div class="g2">
+    <div class="card"><div class="ct">จัดกลุ่ม ABC ตามยอดใช้บริการ</div><div id="ov-tier"></div></div>
+    <div class="card"><div class="ct">Top 5 ลูกค้ายอดสูงสุด</div><div id="ov-top5"></div></div>
+  </div>
+  <div class="card"><div class="ct">⚠️ รายการต้องดูแล</div><div id="ov-alerts"></div></div>
+</div>
+<!-- LIST -->
+<div class="page" id="page-list">
+  <div class="frow">
+    <input class="inp" id="list-q" placeholder="ค้นหาชื่อ / เบอร์ / จังหวัด..." oninput="renderList()" style="max-width:240px"/>
+    <select class="inp" id="list-type" onchange="renderList()" style="width:130px">
+      <option value="all">ทุกประเภท</option>
+      <option value="sender">ผู้ส่ง</option>
+      <option value="receiver">ผู้รับ</option>
+    </select>
+    <select class="inp" id="list-tier" onchange="renderList()" style="width:110px">
+      <option value="all">ทุก Tier</option>
+      <option value="A">A — VIP</option>
+      <option value="B">B — ประจำ</option>
+      <option value="C">C — ปกติ</option>
+      <option value="N">ใหม่</option>
+    </select>
+    <button class="btn btg" onclick="openAddCust()">+ เพิ่มลูกค้า</button>
+    <div style="margin-left:auto;font-size:12px;color:#888" id="list-count"></div>
+  </div>
+  <div id="cust-list"></div>
+</div>
+<!-- CREDIT -->
+<div class="page" id="page-credit">
+  <div id="cr-alerts"></div>
+  <div class="g3" id="cr-stats" style="margin-bottom:12px"></div>
+  <div class="card" style="padding:0;overflow:hidden">
+    <div style="padding:10px 14px;background:#f9f9f7;border-bottom:0.5px solid #eee;font-size:13px;font-weight:600;color:#555">รายการเครดิตทั้งหมด</div>
+    <table><thead><tr>
+      <th>ลูกค้า</th><th>Tier</th><th>วงเงิน</th><th>ค้างชำระ</th><th>ใช้ไป</th><th>ครบกำหนด</th><th>วันเกิน</th><th>ประวัติ</th><th></th>
+    </tr></thead><tbody id="cr-table"></tbody></table>
+  </div>
+</div>
+<!-- VIP -->
+<div class="page" id="page-vip">
+  <div class="g3" id="vip-stats" style="margin-bottom:12px"></div>
+  <div id="vip-list"></div>
+</div>
+</div>
+
+<!-- MODAL -->
+<div class="modal-bg" id="modal-bg">
+  <div class="modal" id="modal-content"></div>
+</div>
+
+<script>
+// ===== UTILS =====
+function fmt(n){return Math.round(parseFloat(n)||0).toLocaleString("th-TH");}
+function today(){
+  var d=new Date();
+  return d.getFullYear()+"-"+pad(d.getMonth()+1)+"-"+pad(d.getDate());
+}
+function pad(n){return String(n).padStart(2,"0");}
+function thDate(dt){
+  if(!dt)return"—";
+  var p=dt.split("-");
+  return parseInt(p[2])+"/"+parseInt(p[1])+"/"+p[0];
+}
+function daysDiff(dt){
+  if(!dt)return 0;
+  return Math.floor((Date.now()-new Date(dt.replace(/-/g,"/")))/86400000);
+}
+function dateAdd(dt,n){
+  var d=new Date(dt.replace(/-/g,"/"));
+  d.setDate(d.getDate()+n);
+  return d.getFullYear()+"-"+pad(d.getMonth()+1)+"-"+pad(d.getDate());
+}
+function tierOf(total){
+  if(total>=50000)return"A";
+  if(total>=10000)return"B";
+  if(total>=1000)return"C";
+  return"N";
+}
+function tierLabel(t){return{A:"A — VIP",B:"B — ประจำ",C:"C — ปกติ",N:"ใหม่"}[t]||"";}
+function tierCls(t){return{A:"ta",B:"tb",C:"tc",N:"tn"}[t]||"tn";}
+function tierColor(t){return{A:"#92400E",B:"#085041",C:"#0C447C",N:"#555"}[t]||"#555";}
+function tierPill(t){return '<span class="pill '+tierCls(t)+'">'+tierLabel(t)+"</span>";}
+function custTotal(c){return c.bills.reduce(function(s,b){return s+b.amount;},0);}
+function custUnpaid(c){return c.bills.filter(function(b){return !b.paid;}).reduce(function(s,b){return s+b.amount;},0);}
+function custOverdue(c){return c.bills.filter(function(b){return !b.paid&&b.dueDate&&daysDiff(b.dueDate)>0;});}
+function custPayRate(c){
+  var done=c.bills.filter(function(b){return b.status==="delivered";});
+  if(!done.length)return 100;
+  return Math.round(done.filter(function(b){return b.paid;}).length/done.length*100);
+}
+
+// ===== DATA =====
+var T=today();
+var CUSTOMERS=[
+  {id:"cu1",name:"บริษัท เอ จำกัด",phone:"02-111-2222",type:"sender",
+   prov:"กรุงเทพมหานคร",amphoe:"พระนคร",addr:"ลาดพร้าว กทม.",
+   creditLimit:50000,creditDays:30,note:"ลูกค้าเก่า ส่งทุกวัน",
+   bills:[
+     {billNo:"A0503-12",date:T,dest:"นครราชสีมา",amount:850,status:"delivered",paid:true},
+     {billNo:"A0502-08",date:dateAdd(T,-1),dest:"ขอนแก่น",amount:1200,status:"delivered",paid:true},
+     {billNo:"A0430-05",date:dateAdd(T,-3),dest:"ชลบุรี",amount:420,status:"delivered",paid:false,dueDate:dateAdd(T,-2)},
+   ]},
+  {id:"cu2",name:"ห้างหุ้นส่วน บี",phone:"089-222-3333",type:"sender",
+   prov:"นนทบุรี",amphoe:"ปากเกร็ด",addr:"",
+   creditLimit:20000,creditDays:15,note:"",
+   bills:[
+     {billNo:"B0503-08",date:T,dest:"อยุธยา",amount:320,status:"delivered",paid:true},
+     {billNo:"B0430-12",date:dateAdd(T,-3),dest:"สุพรรณบุรี",amount:480,status:"delivered",paid:false,dueDate:dateAdd(T,3)},
+   ]},
+  {id:"cu3",name:"ร้านเบสท์",phone:"081-333-4444",type:"sender",
+   prov:"กรุงเทพมหานคร",amphoe:"บางเขน",addr:"",
+   creditLimit:0,creditDays:0,note:"จ่ายโอนทุกครั้ง",
+   bills:[
+     {billNo:"N0503-15",date:T,dest:"ขอนแก่น",amount:450,status:"transit",paid:false},
+     {billNo:"N0502-10",date:dateAdd(T,-1),dest:"อุดรธานี",amount:680,status:"delivered",paid:true},
+   ]},
+  {id:"cu4",name:"คุณสมหมาย",phone:"082-444-5555",type:"receiver",
+   prov:"นครราชสีมา",amphoe:"เมืองนครราชสีมา",addr:"ในเมือง โคราช",
+   creditLimit:0,creditDays:0,note:"รับของบ่อย ไม่อยู่บ้านบางครั้ง",
+   bills:[
+     {billNo:"A0503-12",date:T,dest:"นครราชสีมา",amount:850,status:"delivered",paid:true},
+     {billNo:"A0415-03",date:dateAdd(T,-18),dest:"นครราชสีมา",amount:620,status:"delivered",paid:true},
+   ]},
+  {id:"cu5",name:"บริษัท ซี จำกัด",phone:"02-555-6666",type:"sender",
+   prov:"กรุงเทพมหานคร",amphoe:"ลาดกระบัง",addr:"",
+   creditLimit:100000,creditDays:30,note:"ลูกค้า VIP ส่งทุกวัน จำนวนมาก",
+   bills:[
+     {billNo:"C0503-01",date:T,dest:"ขอนแก่น",amount:3200,status:"delivered",paid:true},
+     {billNo:"C0503-02",date:T,dest:"อุดรธานี",amount:2800,status:"delivered",paid:true},
+     {billNo:"C0502-01",date:dateAdd(T,-1),dest:"นครราชสีมา",amount:1500,status:"delivered",paid:true},
+     {billNo:"C0501-01",date:dateAdd(T,-2),dest:"อุบลราชธานี",amount:4200,status:"delivered",paid:false,dueDate:dateAdd(T,5)},
+     {billNo:"C0430-01",date:dateAdd(T,-3),dest:"ขอนแก่น",amount:2100,status:"delivered",paid:false,dueDate:dateAdd(T,-5)},
+   ]},
+  {id:"cu6",name:"คุณมานี มีสุข",phone:"083-666-7777",type:"sender",
+   prov:"ปทุมธานี",amphoe:"คลองหลวง",addr:"",
+   creditLimit:0,creditDays:0,note:"",
+   bills:[
+     {billNo:"H0503-03",date:T,dest:"ระยอง",amount:520,status:"problem",paid:false},
+   ]},
+  {id:"cu7",name:"ห้างหุ้นส่วน ดี",phone:"084-777-8888",type:"sender",
+   prov:"สมุทรปราการ",amphoe:"เมืองสมุทรปราการ",addr:"",
+   creditLimit:30000,creditDays:15,note:"",
+   bills:[
+     {billNo:"D0503-05",date:T,dest:"พิษณุโลก",amount:1100,status:"delivered",paid:true},
+     {billNo:"D0430-08",date:dateAdd(T,-3),dest:"สุโขทัย",amount:890,status:"delivered",paid:false,dueDate:dateAdd(T,-1)},
+     {billNo:"D0425-03",date:dateAdd(T,-8),dest:"ตาก",amount:1400,status:"delivered",paid:true},
+   ]},
+];
+
+// ===== NAV =====
+function showPage(id){
+  var pages=document.querySelectorAll(".page");
+  var tabs=document.querySelectorAll(".tab");
+  for(var i=0;i<pages.length;i++) pages[i].classList.remove("active");
+  for(var i=0;i<tabs.length;i++) tabs[i].classList.remove("active");
+  document.getElementById("page-"+id).classList.add("active");
+  document.getElementById("tab-"+id).classList.add("active");
+  if(id==="overview") renderOverview();
+  if(id==="list") renderList();
+  if(id==="credit") renderCredit();
+  if(id==="vip") renderVIP();
+}
+
+// ===== OVERVIEW =====
+function renderOverview(){
+  var total=CUSTOMERS.length;
+  var senders=CUSTOMERS.filter(function(c){return c.type==="sender";}).length;
+  var receivers=CUSTOMERS.filter(function(c){return c.type==="receiver";}).length;
+  var totalRev=CUSTOMERS.reduce(function(s,c){return s+custTotal(c);},0);
+  var withCredit=CUSTOMERS.filter(function(c){return c.creditLimit>0;}).length;
+  var overdue=CUSTOMERS.filter(function(c){return custOverdue(c).length>0;});
+  document.getElementById("hdr-stat").textContent="ลูกค้าทั้งหมด "+total+" ราย";
+  var statsData=[
+    ["ลูกค้าทั้งหมด",total+" ราย","sb","ผู้ส่ง "+senders+" · ผู้รับ "+receivers],
+    ["ยอดใช้บริการรวม",fmt(totalRev)+" ฿","sg",""],
+    ["มีวงเงินเครดิต",withCredit+" ราย","sa",""],
+    ["ค้างชำระเกินกำหนด",overdue.length+" ราย","sx",""],
+  ];
+  document.getElementById("ov-stats").innerHTML=statsData.map(function(x){
+    return '<div class="stat '+x[2]+'"><div class="sl">'+x[0]+'</div><div class="sv">'+x[1]+'</div><div class="ss">'+x[3]+'</div></div>';
+  }).join("");
+
+  // tier breakdown
+  var tiers={A:[],B:[],C:[],N:[]};
+  CUSTOMERS.forEach(function(c){tiers[tierOf(custTotal(c))].push(c);});
+  var tierDesc={A:"ยอดรวม >= 50,000 บาท",B:"10,000-49,999 บาท",C:"1,000-9,999 บาท",N:"น้อยกว่า 1,000 บาท / ใหม่"};
+  var tierCol={A:"#EF9F27",B:"#1D9E75",C:"#378ADD",N:"#aaa"};
+  var maxT=Math.max(tiers.A.length,tiers.B.length,tiers.C.length,tiers.N.length,1);
+  var tierHtml="";
+  ["A","B","C","N"].forEach(function(t){
+    var arr=tiers[t];
+    tierHtml+='<div style="display:flex;align-items:center;gap:10px;margin-bottom:10px">';
+    tierHtml+='<span class="pill '+tierCls(t)+'" style="width:60px;text-align:center">'+tierLabel(t)+'</span>';
+    tierHtml+='<div style="flex:1"><div class="pbar"><div class="pfill" style="background:'+tierCol[t]+';width:'+Math.round(arr.length/maxT*100)+'%"></div></div>';
+    tierHtml+='<div style="font-size:10px;color:#888;margin-top:2px">'+tierDesc[t]+"</div></div>";
+    tierHtml+='<div style="font-size:14px;font-weight:700;color:'+tierCol[t]+'">'+arr.length+"</div></div>";
+  });
+  document.getElementById("ov-tier").innerHTML=tierHtml;
+
+  // top 5
+  var sorted=CUSTOMERS.slice().sort(function(a,b){return custTotal(b)-custTotal(a);}).slice(0,5);
+  var maxRev=custTotal(sorted[0])||1;
+  var topHtml="";
+  sorted.forEach(function(c,i){
+    topHtml+='<div style="display:flex;align-items:center;gap:8px;margin-bottom:8px">';
+    topHtml+='<span style="width:18px;font-size:11px;color:#aaa;text-align:center">'+(i+1)+"</span>";
+    topHtml+=tierPill(tierOf(custTotal(c)));
+    topHtml+='<div style="flex:1;min-width:0"><div style="font-size:12px;font-weight:600;color:#222;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">'+c.name+"</div>";
+    topHtml+='<div class="pbar" style="margin-top:3px"><div class="pfill" style="background:#1D9E75;width:'+Math.round(custTotal(c)/maxRev*100)+'%"></div></div></div>';
+    topHtml+='<span style="font-size:12px;font-weight:600;color:#085041;white-space:nowrap">'+fmt(custTotal(c))+" ฿</span></div>";
+  });
+  document.getElementById("ov-top5").innerHTML=topHtml;
+
+  // alerts
+  var alerts=[];
+  overdue.forEach(function(c){
+    var od=custOverdue(c);
+    var odAmt=od.reduce(function(s,b){return s+b.amount;},0);
+    alerts.push('<div class="alert alr">⚠ <b>'+c.name+'</b> — ค้างชำระเกินกำหนด '+od.length+' บิล รวม '+fmt(odAmt)+' ฿</div>');
+  });
+  var vips=CUSTOMERS.filter(function(c){return tierOf(custTotal(c))==="A";});
+  vips.forEach(function(c){
+    alerts.push('<div class="alert alg">⭐ <b>'+c.name+'</b> — ลูกค้า VIP ยอดรวม '+fmt(custTotal(c))+' ฿ · '+c.bills.length+' บิล</div>');
+  });
+  document.getElementById("ov-alerts").innerHTML=alerts.length?alerts.join(""):'<div style="color:#aaa;font-size:13px;text-align:center;padding:16px">✓ ไม่มีรายการที่ต้องดูแล</div>';
+}
+
+// ===== LIST =====
+function renderList(){
+  var q=(document.getElementById("list-q").value||"").toLowerCase();
+  var type=document.getElementById("list-type").value;
+  var tier=document.getElementById("list-tier").value;
+  var data=CUSTOMERS.filter(function(c){
+    if(q && c.name.toLowerCase().indexOf(q)<0 && c.phone.indexOf(q)<0 && c.prov.indexOf(q)<0) return false;
+    if(type!=="all" && c.type!==type) return false;
+    if(tier!=="all" && tierOf(custTotal(c))!==tier) return false;
+    return true;
+  }).sort(function(a,b){return custTotal(b)-custTotal(a);});
+  document.getElementById("list-count").textContent=data.length+" ราย";
+  var html="";
+  if(!data.length){
+    html='<div style="text-align:center;padding:32px;color:#bbb">ไม่พบลูกค้า</div>';
+  } else {
+    data.forEach(function(c){
+      var t=tierOf(custTotal(c));
+      var unpaid=custUnpaid(c);
+      var od=custOverdue(c);
+      var rate=custPayRate(c);
+      var rateCol=rate>=80?"#1D9E75":rate>=50?"#EF9F27":"#E24B4A";
+      html+='<div class="ccard" onclick="openDetail(\''+c.id+'\')">';
+      html+='<div style="display:flex;align-items:flex-start;justify-content:space-between;gap:12px">';
+      html+='<div style="flex:1;min-width:0">';
+      html+='<div style="display:flex;align-items:center;gap:7px;margin-bottom:4px;flex-wrap:wrap">';
+      html+='<span style="font-size:14px;font-weight:700;color:#222">'+c.name+"</span>";
+      html+=tierPill(t);
+      html+='<span class="pill '+(c.type==="sender"?"pb":"pg")+'">'+(c.type==="sender"?"📤 ผู้ส่ง":"📥 ผู้รับ")+"</span>";
+      if(od.length) html+='<span class="pill pr">⚠ ค้าง '+od.length+' บิล</span>';
+      html+="</div>";
+      html+='<div style="font-size:12px;color:#888">📞 '+c.phone+' &nbsp;·&nbsp; 📍 '+c.amphoe+" · "+c.prov+"</div>";
+      if(c.note) html+='<div style="font-size:11px;color:#aaa;margin-top:3px">'+c.note+"</div>";
+      html+="</div>";
+      html+='<div style="text-align:right;flex-shrink:0">';
+      html+='<div style="font-size:18px;font-weight:700;color:#085041">'+fmt(custTotal(c))+" ฿</div>";
+      html+='<div style="font-size:11px;color:#888">'+c.bills.length+" บิล</div>";
+      if(unpaid>0) html+='<div style="font-size:11px;color:#E24B4A;font-weight:600">ค้าง '+fmt(unpaid)+" ฿</div>";
+      html+="</div></div>";
+      html+='<div style="display:flex;align-items:center;gap:10px;margin-top:8px">';
+      html+='<div style="flex:1"><div style="font-size:10px;color:#888;margin-bottom:2px">อัตราชำระ '+rate+'%</div>';
+      html+='<div class="pbar"><div class="pfill" style="background:'+rateCol+';width:'+rate+'%"></div></div></div>';
+      if(c.creditLimit>0) html+='<span class="pill pp">💳 เครดิต '+fmt(c.creditLimit)+" ฿</span>";
+      html+="</div></div>";
+    });
+  }
+  document.getElementById("cust-list").innerHTML=html;
+}
+
+// ===== DETAIL MODAL =====
+function openDetail(id){
+  var c=null;
+  for(var i=0;i<CUSTOMERS.length;i++){if(CUSTOMERS[i].id===id){c=CUSTOMERS[i];break;}}
+  if(!c) return;
+  var t=tierOf(custTotal(c));
+  var total=custTotal(c);
+  var unpaid=custUnpaid(c);
+  var od=custOverdue(c);
+  var rate=custPayRate(c);
+  var html='<div class="mtitle">';
+  html+='<div style="display:flex;align-items:center;gap:8px">'+c.name+" "+tierPill(t)+"</div>";
+  html+='<span onclick="closeModal()" style="cursor:pointer;font-size:20px;color:#aaa;font-weight:400">✕</span></div>';
+  html+='<div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:12px">';
+  html+='<div style="background:#f9f9f7;border-radius:9px;padding:10px">';
+  html+='<div class="lbl">ข้อมูลติดต่อ</div>';
+  html+='<div style="font-size:13px;font-weight:600">📞 '+c.phone+"</div>";
+  html+='<div style="font-size:12px;color:#888;margin-top:2px">📍 '+c.amphoe+" · "+c.prov+"</div>";
+  if(c.addr) html+='<div style="font-size:11px;color:#aaa">'+c.addr+"</div>";
+  html+='<div style="margin-top:6px"><span class="pill '+(c.type==="sender"?"pb":"pg")+'">'+(c.type==="sender"?"📤 ผู้ส่ง":"📥 ผู้รับ")+"</span></div>";
+  html+="</div>";
+  html+='<div style="background:#f9f9f7;border-radius:9px;padding:10px">';
+  html+='<div class="lbl">สถิติ</div>';
+  html+='<div style="font-size:18px;font-weight:700;color:#085041">'+fmt(total)+" ฿</div>";
+  html+='<div style="font-size:11px;color:#888">'+c.bills.length+" บิล · อัตราชำระ "+rate+"%</div>";
+  if(unpaid>0) html+='<div style="font-size:12px;color:#E24B4A;font-weight:600;margin-top:4px">ค้างชำระ '+fmt(unpaid)+" ฿</div>";
+  if(c.creditLimit>0) html+='<div style="font-size:11px;color:#7C3AED;margin-top:4px">💳 วงเงิน '+fmt(c.creditLimit)+" ฿ / "+c.creditDays+" วัน</div>";
+  html+="</div></div>";
+  if(c.note) html+='<div style="background:#FFF8E7;border-radius:9px;padding:8px 12px;margin-bottom:10px;font-size:12px;color:#633806">📌 '+c.note+"</div>";
+  if(od.length){
+    var odAmt=od.reduce(function(s,b){return s+b.amount;},0);
+    html+='<div class="alert alr" style="margin-bottom:10px">⚠ ค้างชำระเกินกำหนด '+od.length+' บิล รวม '+fmt(odAmt)+" ฿</div>";
+  }
+  html+='<div style="font-size:12px;font-weight:600;color:#555;margin-bottom:6px">ประวัติการส่งทั้งหมด</div>';
+  html+='<div style="overflow:auto;max-height:260px;border-radius:9px;border:0.5px solid #eee">';
+  html+='<table><thead><tr><th>เลขบิล</th><th>วันที่</th><th>ปลายทาง</th><th>ยอด</th><th>สถานะ</th><th>ชำระ</th><th></th></tr></thead><tbody>';
+  c.bills.forEach(function(b){
+    var stCls=b.status==="delivered"?"pg":b.status==="transit"?"pa":"pr";
+    var stTxt=b.status==="delivered"?"ส่งแล้ว":b.status==="transit"?"กำลังส่ง":"มีปัญหา";
+    var over=b.dueDate?daysDiff(b.dueDate):0;
+    var payCell="";
+    if(b.paid) payCell='<span class="pill pg">✓ ชำระแล้ว</span>';
+    else if(b.dueDate&&over>0) payCell='<span class="pill pr">เกิน '+over+' วัน</span>';
+    else if(b.dueDate) payCell='<span class="pill pa">ครบ '+thDate(b.dueDate)+"</span>";
+    else payCell='<span class="pill px">รอชำระ</span>';
+    var payBtn="";
+    if(!b.paid&&b.status==="delivered") payBtn='<button class="bts" style="background:#1D9E75;color:#fff" onclick="markPaid(\''+c.id+'\',\''+b.billNo+'\')">รับเงิน</button>';
+    html+="<tr>";
+    html+='<td style="font-weight:600;color:#0F6E56">'+b.billNo+"</td>";
+    html+="<td>"+thDate(b.date)+"</td>";
+    html+="<td>"+b.dest+"</td>";
+    html+='<td style="font-weight:600;text-align:right">'+fmt(b.amount)+" ฿</td>";
+    html+='<td><span class="pill '+stCls+'">'+stTxt+"</span></td>";
+    html+="<td>"+payCell+"</td>";
+    html+="<td>"+payBtn+"</td></tr>";
+  });
+  html+="</tbody></table></div>";
+  html+='<div style="margin-top:12px;display:flex;gap:8px">';
+  html+='<input class="inp" id="edit-note" value="'+( c.note||"").replace(/"/g,"&quot;")+'" placeholder="หมายเหตุ / บันทึก..."/>';
+  html+='<button class="btn bto" onclick="saveNote(\''+c.id+'\')">บันทึก</button>';
+  html+="</div>";
+  html+='<div style="margin-top:10px;display:flex;gap:8px">';
+  html+='<button class="btn btg" onclick="openEditCredit(\''+c.id+'\')">💳 ตั้งวงเงินเครดิต</button>';
+  html+='<button class="btn bto" onclick="closeModal()">ปิด</button>';
+  html+="</div>";
+  document.getElementById("modal-content").innerHTML=html;
+  var _mb=document.getElementById("modal-bg");_mb.style.display="flex";_mb.classList.add("open");
+}
+
+function markPaid(custId,billNo){
+  var c=null;
+  for(var i=0;i<CUSTOMERS.length;i++){if(CUSTOMERS[i].id===custId){c=CUSTOMERS[i];break;}}
+  if(!c) return;
+  var b=null;
+  for(var i=0;i<c.bills.length;i++){if(c.bills[i].billNo===billNo){b=c.bills[i];break;}}
+  if(!b) return;
+  if(confirm("ยืนยันรับเงิน "+b.billNo+" จำนวน "+fmt(b.amount)+" ฿?")){
+    b.paid=true;delete b.dueDate;
+    openDetail(custId);
+    renderOverview();renderCredit();
+  }
+}
+function saveNote(id){
+  var c=null;
+  for(var i=0;i<CUSTOMERS.length;i++){if(CUSTOMERS[i].id===id){c=CUSTOMERS[i];break;}}
+  if(!c) return;
+  c.note=document.getElementById("edit-note").value;
+  closeModal();renderList();
+}
+function openEditCredit(id){
+  var c=null;
+  for(var i=0;i<CUSTOMERS.length;i++){if(CUSTOMERS[i].id===id){c=CUSTOMERS[i];break;}}
+  if(!c) return;
+  var html='<div class="mtitle">💳 ตั้งวงเงินเครดิต — '+c.name;
+  html+=' <span onclick="closeModal()" style="cursor:pointer;font-size:20px;color:#aaa">✕</span></div>';
+  html+='<div style="display:flex;flex-direction:column;gap:10px">';
+  html+='<div><label class="lbl">วงเงินเครดิต (฿)</label><input type="number" class="inp" id="cr-limit" value="'+(c.creditLimit||0)+'"/></div>';
+  html+='<div><label class="lbl">เครดิต (วัน)</label><input type="number" class="inp" id="cr-days" value="'+(c.creditDays||15)+'"/></div>';
+  html+='<button class="btn btg" onclick="saveCredit(\''+id+'\')">บันทึกวงเงิน</button>';
+  html+="</div>";
+  document.getElementById("modal-content").innerHTML=html;
+}
+function saveCredit(id){
+  var c=null;
+  for(var i=0;i<CUSTOMERS.length;i++){if(CUSTOMERS[i].id===id){c=CUSTOMERS[i];break;}}
+  if(!c) return;
+  c.creditLimit=parseFloat(document.getElementById("cr-limit").value)||0;
+  c.creditDays=parseInt(document.getElementById("cr-days").value)||15;
+  closeModal();renderCredit();renderOverview();
+}
+
+// ===== ADD CUSTOMER =====
+function openAddCust(){
+  var html='<div class="mtitle">+ เพิ่มลูกค้า <span onclick="closeModal()" style="cursor:pointer;font-size:20px;color:#aaa">✕</span></div>';
+  html+='<div style="display:flex;flex-direction:column;gap:10px">';
+  html+='<div><label class="lbl">ชื่อ / บริษัท *</label><input class="inp" id="ac-name" placeholder="ชื่อ-นามสกุล / บริษัท"/></div>';
+  html+='<div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">';
+  html+='<div><label class="lbl">เบอร์โทร</label><input class="inp" id="ac-phone" placeholder="08x-xxx-xxxx"/></div>';
+  html+='<div><label class="lbl">ประเภท</label><select class="inp" id="ac-type"><option value="sender">ผู้ส่ง</option><option value="receiver">ผู้รับ</option></select></div>';
+  html+="</div>";
+  html+='<div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">';
+  html+='<div><label class="lbl">จังหวัด</label><input class="inp" id="ac-prov" placeholder="จังหวัด"/></div>';
+  html+='<div><label class="lbl">อำเภอ</label><input class="inp" id="ac-amphoe" placeholder="อำเภอ"/></div>';
+  html+="</div>";
+  html+='<div><label class="lbl">ที่อยู่</label><input class="inp" id="ac-addr" placeholder="บ้านเลขที่ ถนน"/></div>';
+  html+='<div><label class="lbl">วงเงินเครดิต (฿) — 0 = ไม่มีเครดิต</label><input type="number" class="inp" id="ac-credit" value="0"/></div>';
+  html+='<div><label class="lbl">หมายเหตุ</label><input class="inp" id="ac-note" placeholder="หมายเหตุ"/></div>';
+  html+='<button class="btn btg" onclick="saveAddCust()">+ เพิ่มลูกค้า</button>';
+  html+="</div>";
+  document.getElementById("modal-content").innerHTML=html;
+  var _mb=document.getElementById("modal-bg");_mb.style.display="flex";_mb.classList.add("open");
+}
+function saveAddCust(){
+  var name=document.getElementById("ac-name").value.trim();
+  if(!name){alert("กรุณากรอกชื่อครับ");return;}
+  CUSTOMERS.push({
+    id:"cu"+Date.now(),name:name,
+    phone:document.getElementById("ac-phone").value,
+    type:document.getElementById("ac-type").value,
+    prov:document.getElementById("ac-prov").value,
+    amphoe:document.getElementById("ac-amphoe").value,
+    addr:document.getElementById("ac-addr").value,
+    creditLimit:parseFloat(document.getElementById("ac-credit").value)||0,
+    creditDays:15,
+    note:document.getElementById("ac-note").value,
+    bills:[]
+  });
+  closeModal();renderList();renderOverview();
+}
+
+// ===== CREDIT PAGE =====
+function renderCredit(){
+  var wc=CUSTOMERS.filter(function(c){return c.creditLimit>0;});
+  var totalLimit=wc.reduce(function(s,c){return s+c.creditLimit;},0);
+  var totalUnpaid=wc.reduce(function(s,c){return s+custUnpaid(c);},0);
+  var overdue=wc.filter(function(c){return custOverdue(c).length>0;});
+  var alertHtml="";
+  overdue.forEach(function(c){
+    var od=custOverdue(c);
+    var odAmt=od.reduce(function(s,b){return s+b.amount;},0);
+    alertHtml+='<div class="alert alr">⚠ <b>'+c.name+"</b> — ค้างชำระเกินกำหนด "+od.length+" บิล · "+fmt(odAmt)+" ฿ · โทร "+c.phone+"</div>";
+  });
+  document.getElementById("cr-alerts").innerHTML=alertHtml;
+  document.getElementById("cr-stats").innerHTML=[
+    ["ลูกค้าเครดิต",wc.length+" ราย","sb"],
+    ["วงเงินรวม",fmt(totalLimit)+" ฿","sa"],
+    ["ค้างชำระรวม",fmt(totalUnpaid)+" ฿","sx"],
+  ].map(function(x){return '<div class="stat '+x[2]+'"><div class="sl">'+x[0]+'</div><div class="sv">'+x[1]+"</div></div>";}).join("");
+  var rows="";
+  wc.slice().sort(function(a,b){return custUnpaid(b)-custUnpaid(a);}).forEach(function(c){
+    var unpaid=custUnpaid(c);
+    var usePct=c.creditLimit>0?Math.min(100,Math.round(unpaid/c.creditLimit*100)):0;
+    var useBg=usePct>80?"#E24B4A":usePct>50?"#EF9F27":"#1D9E75";
+    var od=custOverdue(c);
+    var rate=custPayRate(c);
+    var overDays=od.length?Math.max.apply(null,od.map(function(b){return daysDiff(b.dueDate);})):0;
+    var stars="";for(var i=0;i<Math.round(rate/20);i++) stars+="★";
+    if(!stars) stars="☆☆☆☆☆";
+    var nearDue=od.length&&od.sort(function(a,b){return a.dueDate.localeCompare(b.dueDate);})[0];
+    rows+='<tr style="background:'+(od.length?"#FFF5F5":"")+'"><td>';
+    rows+='<div style="font-weight:600">'+c.name+"</div>";
+    rows+='<div style="font-size:10px;color:#888">'+c.phone+"</div></td>";
+    rows+="<td>"+tierPill(tierOf(custTotal(c)))+"</td>";
+    rows+='<td style="font-weight:600">'+fmt(c.creditLimit)+" ฿<div style=\"font-size:10px;color:#888\">"+c.creditDays+" วัน</div></td>";
+    rows+='<td style="font-weight:'+(unpaid>0?700:400)+';color:'+(unpaid>0?"#E24B4A":"#555")+'">'+fmt(unpaid)+" ฿</td>";
+    rows+='<td style="min-width:80px"><div style="font-size:10px;color:'+(usePct>80?"#E24B4A":"#555")+'">'+usePct+'%</div>';
+    rows+='<div class="pbar" style="margin-top:2px"><div class="pfill" style="background:'+useBg+';width:'+usePct+'%"></div></div></td>';
+    rows+="<td style=\"font-size:11px\">"+(nearDue?thDate(nearDue.dueDate):"—")+"</td>";
+    rows+='<td style="font-weight:'+(overDays>0?600:400)+';color:'+(overDays>0?"#E24B4A":"#555")+'">'+(overDays>0?overDays+" วัน":"—")+"</td>";
+    rows+='<td style="color:#EF9F27;font-size:14px" title="'+rate+'%">'+stars+"</td>";
+    rows+='<td><button class="bts" onclick="openDetail(\''+c.id+'\')">ดูประวัติ</button>';
+    if(od.length) rows+='<br/><button class="bts" style="margin-top:3px;background:#1D9E75;color:#fff" onclick="openDetail(\''+c.id+'\')">รับเงิน</button>';
+    rows+="</td></tr>";
+  });
+  document.getElementById("cr-table").innerHTML=rows||'<tr><td colspan="9" style="text-align:center;padding:24px;color:#bbb">ยังไม่มีลูกค้าเครดิต</td></tr>';
+}
+
+// ===== VIP PAGE =====
+function renderVIP(){
+  var vips=CUSTOMERS.filter(function(c){return tierOf(custTotal(c))==="A";}).sort(function(a,b){return custTotal(b)-custTotal(a);});
+  var bees=CUSTOMERS.filter(function(c){return tierOf(custTotal(c))==="B";}).sort(function(a,b){return custTotal(b)-custTotal(a);});
+  var vipRev=vips.reduce(function(s,c){return s+custTotal(c);},0);
+  var allRev=CUSTOMERS.reduce(function(s,c){return s+custTotal(c);},0);
+  var vipPct=allRev>0?Math.round(vipRev/allRev*100):0;
+  document.getElementById("vip-stats").innerHTML=[
+    ["ลูกค้า VIP (Tier A)",vips.length+" ราย","sa"],
+    ["รายได้จาก VIP",fmt(vipRev)+" ฿ ("+vipPct+"%)","sg"],
+    ["ลูกค้าประจำ (Tier B)",bees.length+" ราย","sb"],
+  ].map(function(x){return '<div class="stat '+x[2]+'"><div class="sl">'+x[0]+'</div><div class="sv">'+x[1]+"</div></div>";}).join("");
+  function cardHtml(c,badge){
+    var t=tierOf(custTotal(c));
+    var total=custTotal(c);
+    var unpaid=custUnpaid(c);
+    var od=custOverdue(c);
+    var rate=custPayRate(c);
+    var rateCol=rate>=80?"#1D9E75":rate>=50?"#EF9F27":"#E24B4A";
+    var lastBill=c.bills.slice().sort(function(a,b){return b.date.localeCompare(a.date);})[0];
+    var daysSince=lastBill?daysDiff(lastBill.date):999;
+    var sinceLabel=daysSince===0?"วันนี้":daysSince===1?"เมื่อวาน":daysSince+" วันที่แล้ว";
+    var h='<div class="ccard" onclick="openDetail(\''+c.id+'\')" style="border-left:4px solid '+tierColor(t)+'">';
+    h+='<div style="display:flex;align-items:flex-start;justify-content:space-between;gap:12px">';
+    h+='<div style="flex:1"><div style="display:flex;align-items:center;gap:7px;margin-bottom:5px;flex-wrap:wrap">';
+    h+='<span style="font-size:15px;font-weight:700;color:#222">'+c.name+"</span>"+tierPill(t);
+    if(badge) h+=badge;
+    if(od.length) h+='<span class="pill pr">⚠ ค้าง</span>';
+    h+="</div>";
+    h+='<div style="font-size:12px;color:#888">📞 '+c.phone+" &nbsp;·&nbsp; "+c.prov+"</div>";
+    if(c.note) h+='<div style="font-size:11px;color:#aaa;margin-top:3px">'+c.note+"</div>";
+    h+='<div style="margin-top:8px;display:flex;gap:12px;font-size:11px;flex-wrap:wrap">';
+    h+='<span style="color:#555">'+c.bills.length+" บิล</span>";
+    h+='<span style="color:#555">ส่งล่าสุด '+sinceLabel+"</span>";
+    h+='<span style="color:'+rateCol+'">ชำระ '+rate+"%</span>";
+    if(c.creditLimit>0) h+='<span style="color:#7C3AED">💳 เครดิต '+fmt(c.creditLimit)+" ฿</span>";
+    h+="</div></div>";
+    h+='<div style="text-align:right;flex-shrink:0">';
+    h+='<div style="font-size:20px;font-weight:800;color:'+tierColor(t)+'">'+fmt(total)+" ฿</div>";
+    h+=unpaid>0?'<div style="font-size:12px;color:#E24B4A;font-weight:600">ค้าง '+fmt(unpaid)+" ฿</div>":'<div style="font-size:11px;color:#1D9E75">✓ ชำระครบ</div>';
+    h+="</div></div></div>";
+    return h;
+  }
+  var html='<div style="font-size:14px;font-weight:700;color:#92400E;margin-bottom:8px">⭐ ลูกค้า VIP — Tier A (ยอด >= 50,000 บาท)</div>';
+  if(vips.length){
+    vips.forEach(function(c,i){
+      var badge=i===0?'<span class="pill ta">🏆 อันดับ 1</span>':"";
+      html+=cardHtml(c,badge);
+    });
+  } else {
+    html+='<div style="color:#aaa;font-size:13px;padding:16px">ยังไม่มีลูกค้า Tier A</div>';
+  }
+  html+='<div style="font-size:14px;font-weight:700;color:#085041;margin:16px 0 8px">🌟 ลูกค้าประจำ — Tier B (10,000–49,999 บาท)</div>';
+  if(bees.length){
+    bees.forEach(function(c){html+=cardHtml(c,"");});
+  } else {
+    html+='<div style="color:#aaa;font-size:13px;padding:16px">ยังไม่มีลูกค้า Tier B</div>';
+  }
+  document.getElementById("vip-list").innerHTML=html;
+}
+
+// ===== MODAL =====
+function closeModal(){var m=document.getElementById("modal-bg");m.classList.remove("open");m.style.display="none";}
+document.getElementById("modal-bg").addEventListener("click",function(e){if(e.target===this)closeModal();});
+
+// ===== INIT =====
+renderOverview();
+</script>
+</body>
+</html>

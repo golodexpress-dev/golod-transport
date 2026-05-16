@@ -1,0 +1,325 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1"/>
+<title>โกโลด ทรานสปอร์ต — Demo</title>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:Arial,sans-serif;background:#052E25;min-height:100vh;display:flex;align-items:center;justify-content:center;padding:20px}
+.wrap{width:100%;max-width:900px}
+.logo{text-align:center;margin-bottom:32px}
+.logo h1{color:#fff;font-size:28px;font-weight:800;letter-spacing:2px}
+.logo p{color:#9FE1CB;font-size:13px;margin-top:6px}
+.badge{display:inline-block;background:rgba(255,255,255,.1);color:#9FE1CB;font-size:11px;padding:4px 12px;border-radius:20px;margin-top:8px}
+/* GRID */
+.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:16px;margin-bottom:24px}
+.sys-card{background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.1);border-radius:16px;padding:20px;cursor:pointer;transition:all .2s;text-decoration:none;display:block}
+.sys-card:hover{background:rgba(255,255,255,.12);border-color:rgba(255,255,255,.25);transform:translateY(-2px)}
+.sys-card .ico{font-size:32px;margin-bottom:10px}
+.sys-card h2{color:#fff;font-size:15px;font-weight:700;margin-bottom:5px}
+.sys-card p{color:#9FE1CB;font-size:12px;line-height:1.5}
+.sys-card .tag{display:inline-block;font-size:10px;padding:2px 8px;border-radius:20px;margin-top:8px;font-weight:600}
+/* DATA SUMMARY */
+.summary{background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.1);border-radius:16px;padding:20px;margin-bottom:20px}
+.summary h3{color:#9FE1CB;font-size:12px;font-weight:600;letter-spacing:1px;text-transform:uppercase;margin-bottom:14px}
+.stats-row{display:grid;grid-template-columns:repeat(auto-fill,minmax(140px,1fr));gap:10px;margin-bottom:14px}
+.stat-mini{background:rgba(255,255,255,.06);border-radius:10px;padding:10px 12px}
+.stat-mini .lbl{font-size:10px;color:#9FE1CB;margin-bottom:3px}
+.stat-mini .val{font-size:18px;font-weight:700;color:#fff}
+.stat-mini .sub{font-size:10px;color:#5DCAA5;margin-top:2px}
+/* BILL TABLE */
+.bill-scroll{max-height:320px;overflow-y:auto;border-radius:10px;border:0.5px solid rgba(255,255,255,.1)}
+table{width:100%;border-collapse:collapse;font-size:11px}
+th{padding:8px 10px;text-align:left;font-weight:500;color:#9FE1CB;border-bottom:0.5px solid rgba(255,255,255,.1);background:rgba(0,0,0,.2);white-space:nowrap;position:sticky;top:0}
+td{padding:7px 10px;border-bottom:0.5px solid rgba(255,255,255,.06);color:#E1F5EE;vertical-align:middle}
+tr:hover td{background:rgba(255,255,255,.04)}
+.pill{display:inline-block;font-size:9px;padding:2px 7px;border-radius:20px;font-weight:600}
+.pg{background:#1D9E7533;color:#9FE1CB}
+.pa{background:#EF9F2733;color:#FAC775}
+.pr{background:#E24B4A33;color:#F4C0D1}
+.pb{background:#378ADD33;color:#B5D4F4}
+.px{background:rgba(255,255,255,.1);color:#9FE1CB}
+/* FILTERS */
+.filters{display:flex;gap:8px;margin-bottom:12px;flex-wrap:wrap}
+.filters select{padding:5px 10px;border:0.5px solid rgba(255,255,255,.2);border-radius:8px;background:rgba(255,255,255,.08);color:#E1F5EE;font-size:12px;outline:none;font-family:Arial,sans-serif}
+.filters select option{background:#052E25;color:#E1F5EE}
+.count-lbl{font-size:11px;color:#9FE1CB;margin-left:auto;align-self:center}
+/* FOOTER */
+.footer{text-align:center;color:#5DCAA5;font-size:11px;margin-top:16px}
+@media(max-width:600px){.grid{grid-template-columns:1fr}}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="logo">
+    <h1>🚛 โกโลด ทรานสปอร์ต</h1>
+    <p>ระบบจัดการโลจิสติกส์ — ส่งสินค้า 57 จังหวัด</p>
+    <span class="badge">Demo Mode — ข้อมูลตัวอย่าง 100 บิล</span>
+  </div>
+
+  <!-- SYSTEMS GRID -->
+  <div class="grid">
+    <div class="sys-card" onclick="openSys('billing')">
+      <div class="ico">📄</div>
+      <h2>ระบบออกบิล</h2>
+      <p>ออกบิล Thermal 80mm พร้อมคำนวณราคา Zone/ขนาด/น้ำหนัก</p>
+      <span class="tag" style="background:#1D9E7533;color:#9FE1CB">ThermalBill.html</span>
+    </div>
+    <div class="sys-card" onclick="openSys('transport')">
+      <div class="ico">🚛</div>
+      <h2>ระบบจัดการขนส่ง</h2>
+      <p>จ่ายงาน ค่าเที่ยว ไมล์รถ เคลียร์เงิน สรุปสิ้นเดือน</p>
+      <span class="tag" style="background:#378ADD33;color:#B5D4F4">TripManager.html</span>
+    </div>
+    <div class="sys-card" onclick="openSys('tracking')">
+      <div class="ico">📍</div>
+      <h2>ติดตามสินค้า</h2>
+      <p>ลูกค้าค้นหาด้วยเลขบิล พนักงานอัปสถานะ ถ่ายรูป ลายเซ็น</p>
+      <span class="tag" style="background:#EF9F2733;color:#FAC775">TrackingSystem.html</span>
+    </div>
+    <div class="sys-card" onclick="openSys('finance')">
+      <div class="ico">💰</div>
+      <h2>ระบบการเงิน</h2>
+      <p>รายรับ-รายจ่าย สลิปโอนค้าง BeM Merchant กระทบยอด BBL</p>
+      <span class="tag" style="background:#7C3AED33;color:#C4B5FD">FinanceSystem.html</span>
+    </div>
+    <div class="sys-card" onclick="openSys('customer')">
+      <div class="ico">👥</div>
+      <h2>ระบบลูกค้า</h2>
+      <p>ประวัติ เครดิต จัดกลุ่ม ABC VIP รายใหญ่ ติดตามชำระ</p>
+      <span class="tag" style="background:#1D9E7533;color:#9FE1CB">CustomerSystem.html</span>
+    </div>
+    <div class="sys-card" onclick="openSys('report')">
+      <div class="ico">📊</div>
+      <h2>รายงานยอดขาย</h2>
+      <p>รายวัน สาขา เสมียน Zone สัปดาห์ เดือน จังหวัด ธุรกิจ</p>
+      <span class="tag" style="background:#EF9F2733;color:#FAC775">MonthlyReport.html</span>
+    </div>
+    <div class="sys-card" onclick="openSys('auth')">
+      <div class="ico">🔐</div>
+      <h2>ระบบ Login & สิทธิ์</h2>
+      <p>5 ระดับสิทธิ์ — Admin / หัวหน้าสาขา / เสมียน / คนขับ / ลูกค้า</p>
+      <span class="tag" style="background:#378ADD33;color:#B5D4F4">AuthSystem.html</span>
+    </div>
+  </div>
+
+  <!-- DATA SUMMARY -->
+  <div class="summary">
+    <h3>ข้อมูลตัวอย่าง 100 บิล</h3>
+    <div class="stats-row" id="stats-row"></div>
+    <!-- Filters -->
+    <div class="filters">
+      <select id="fil-region" onchange="filterBills()">
+        <option value="all">ทุกภาค</option>
+        <option value="ภาคตะวันออก">ภาคตะวันออก (30)</option>
+        <option value="ภาคอีสาน">ภาคอีสาน (70)</option>
+      </select>
+      <select id="fil-clerk" onchange="filterBills()">
+        <option value="all">ทุกเสมียน</option>
+      </select>
+      <select id="fil-branch" onchange="filterBills()">
+        <option value="all">ทุกสาขา</option>
+        <option value="กรุงเทพ">กรุงเทพ</option>
+        <option value="ปทุมธานี">ปทุมธานี</option>
+        <option value="นครราชสีมา">นครราชสีมา</option>
+        <option value="ศรีสะเกษ">ศรีสะเกษ</option>
+      </select>
+      <select id="fil-status" onchange="filterBills()">
+        <option value="all">ทุกสถานะ</option>
+        <option value="delivered">ส่งแล้ว</option>
+        <option value="transit">กำลังส่ง</option>
+        <option value="nocontact">ติดต่อไม่ได้</option>
+        <option value="reschedule">จัดส่งใหม่</option>
+      </select>
+      <span class="count-lbl" id="bill-count"></span>
+    </div>
+    <!-- Bill table -->
+    <div class="bill-scroll">
+      <table>
+        <thead><tr>
+          <th>เลขบิล</th><th>วันที่</th><th>เสมียน</th><th>สาขา</th>
+          <th>ผู้ส่ง</th><th>ปลายทาง</th><th>ภาค</th><th>Zone</th>
+          <th>ชิ้น</th><th>ค่าส่ง</th><th>วิธีชำระ</th><th>สถานะ</th>
+        </tr></thead>
+        <tbody id="bill-tbody"></tbody>
+      </table>
+    </div>
+  </div>
+
+  <div class="footer">ข้อมูล Demo เท่านั้น · ยังไม่เชื่อม Firebase · เปิดไฟล์ .html แต่ละระบบเพื่อทดสอบ</div>
+</div>
+
+<script>
+// ===== INLINE SAMPLE DATA (100 bills) =====
+var CLERKS=[
+  {code:"A",name:"วัชรา",branch:"กรุงเทพ"},
+  {code:"B",name:"บุญมี",branch:"กรุงเทพ"},
+  {code:"N",name:"นภา",branch:"กรุงเทพ"},
+  {code:"P",name:"ปิยะ",branch:"ปทุมธานี"},
+  {code:"H",name:"หนึ่ง",branch:"นครราชสีมา"},
+  {code:"S",name:"สมศรี",branch:"ศรีสะเกษ"},
+];
+var EAST_PROVS=[
+  {prov:"ชลบุรี",amphoe:"เมืองชลบุรี",zone:"ใกล้"},
+  {prov:"ชลบุรี",amphoe:"พัทยา",zone:"ใกล้"},
+  {prov:"ชลบุรี",amphoe:"บางละมุง",zone:"ใกล้"},
+  {prov:"ระยอง",amphoe:"เมืองระยอง",zone:"ใกล้"},
+  {prov:"ระยอง",amphoe:"ปลวกแดง",zone:"ใกล้"},
+  {prov:"จันทบุรี",amphoe:"เมืองจันทบุรี",zone:"ไกล"},
+  {prov:"ตราด",amphoe:"เมืองตราด",zone:"ไกล"},
+  {prov:"ฉะเชิงเทรา",amphoe:"เมืองฉะเชิงเทรา",zone:"ใกล้"},
+  {prov:"ปราจีนบุรี",amphoe:"เมืองปราจีนบุรี",zone:"ใกล้"},
+  {prov:"สระแก้ว",amphoe:"เมืองสระแก้ว",zone:"ไกล"},
+];
+var ISAN_PROVS=[
+  {prov:"นครราชสีมา",amphoe:"เมืองนครราชสีมา"},
+  {prov:"นครราชสีมา",amphoe:"โคกกรวด"},
+  {prov:"นครราชสีมา",amphoe:"ปากช่อง"},
+  {prov:"ขอนแก่น",amphoe:"เมืองขอนแก่น"},
+  {prov:"ขอนแก่น",amphoe:"บ้านไผ่"},
+  {prov:"อุดรธานี",amphoe:"เมืองอุดรธานี"},
+  {prov:"อุบลราชธานี",amphoe:"เมืองอุบล"},
+  {prov:"อุบลราชธานี",amphoe:"วารินชำราบ"},
+  {prov:"สุรินทร์",amphoe:"เมืองสุรินทร์"},
+  {prov:"บุรีรัมย์",amphoe:"เมืองบุรีรัมย์"},
+  {prov:"ศรีสะเกษ",amphoe:"เมืองศรีสะเกษ"},
+  {prov:"ศรีสะเกษ",amphoe:"กันทรลักษ์"},
+  {prov:"ยโสธร",amphoe:"เมืองยโสธร"},
+  {prov:"อำนาจเจริญ",amphoe:"เมืองอำนาจเจริญ"},
+  {prov:"มหาสารคาม",amphoe:"เมืองมหาสารคาม"},
+  {prov:"ร้อยเอ็ด",amphoe:"เมืองร้อยเอ็ด"},
+  {prov:"กาฬสินธุ์",amphoe:"เมืองกาฬสินธุ์"},
+  {prov:"สกลนคร",amphoe:"เมืองสกลนคร"},
+  {prov:"นครพนม",amphoe:"เมืองนครพนม"},
+  {prov:"เลย",amphoe:"เมืองเลย"},
+];
+var SENDERS=["บ.เอ จำกัด","ห้าง บี","ร้านเบสท์","คุณสมชาย","บ.ซี จำกัด","คุณมานี","ห้าง ดี","บ.อี กรุ๊ป","ร้านดาวเรือง","คุณวิชัย","บ.เอฟ","คุณสมหญิง","ร้านรุ่งเรือง","บ.จี","คุณประสิทธิ์","ห้าง เอช","คุณนิดา","บ.ไอ","ร้านสมบูรณ์","คุณอนุชา"];
+var RECEIVERS=["คุณสมหมาย","ร้านดีดี","บ.ฉัตร","คุณวิไล","คุณนิด","ร้านดาว","คุณสมปอง","บ.รุ่งเรือง","คุณมนัส","ร้านสุขใจ","คุณพิมพ์","บ.เจริญ","คุณอรุณ","ร้านมั่งมี","คุณสุดา","บ.ก้าวหน้า","คุณทองดี","ร้านสว่าง","คุณประไพ","บ.สมบูรณ์"];
+var BIZTYPES=["ทั่วไป","อิเล็กทรอนิกส์","เฟอร์นิเจอร์","เสื้อผ้า","อาหารแห้ง","เครื่องใช้ไฟฟ้า","อุปกรณ์การเกษตร"];
+var METHODS=["origin","dest_cash","transfer","dest_transfer","credit"];
+var MWEIGHTS=[0.30,0.20,0.35,0.10,0.05];
+var STATUSES=["delivered","delivered","delivered","transit","nocontact","reschedule"];
+var METHOD_LABEL={origin:"ต้นทาง",dest_cash:"ปลายทาง(สด)",transfer:"โอน",dest_transfer:"ปลายทาง(โอน)",credit:"เครดิต"};
+var STATUS_LABEL={delivered:"ส่งแล้ว",transit:"กำลังส่ง",nocontact:"ติดต่อไม่ได้",reschedule:"จัดส่งใหม่",problem:"มีปัญหา"};
+
+var seed=54321;
+function ns(){seed=(seed*1103515245+12345)&0x7fffffff;return seed/0x7fffffff;}
+function pick(a){return a[Math.floor(ns()*a.length)%a.length];}
+function pickW(a,w){var c=0,r=ns();for(var i=0;i<a.length;i++){c+=w[i];if(r<c)return a[i];}return a[a.length-1];}
+function pad2(n){return String(n).padStart(2,"0");}
+function daysAgoStr(n){var d=new Date();d.setDate(d.getDate()-n);return d.getFullYear()+"-"+pad2(d.getMonth()+1)+"-"+pad2(d.getDate());}
+function rndInt(lo,hi){return Math.floor(lo+(hi-lo)*ns());}
+
+var BILLS=[];
+var mm=pad2(new Date().getMonth()+1);
+var dd=pad2(new Date().getDate());
+
+// East 30
+var eastC=["A","B","N","P"];
+for(var i=1;i<=30;i++){
+  var cc=eastC[i%4];
+  var cl=CLERKS.find(function(c){return c.code===cc;});
+  var dest=EAST_PROVS[i%EAST_PROVS.length];
+  var da=rndInt(0,30); var wt=rndInt(1,25); var it=rndInt(1,5);
+  var fr=200+wt*12+it*20;
+  var mt=pickW(METHODS,MWEIGHTS);
+  var cod=(mt==="dest_cash")?rndInt(500,5000):0;
+  var st=pick(STATUSES);
+  BILLS.push({billNo:cc+mm+dd+"-"+pad2(i),date:daysAgoStr(da),clerkCode:cc,clerkName:cl.name,branch:cl.branch,
+    region:"ภาคตะวันออก",senderName:pick(SENDERS),senderProv:"กรุงเทพมหานคร",
+    receiverName:pick(RECEIVERS),destProv:dest.prov,destAmphoe:dest.amphoe,zone:dest.zone,
+    weight:wt,items:it,freightNet:fr,codTotal:cod,freightPay:mt,status:st,bizType:pick(BIZTYPES)});
+}
+// Isan 70
+var isanGroups=[{range:[1,20],clerks:["A","B"],branch:"กรุงเทพ"},{range:[21,35],clerks:["N","P"],branch:"กรุงเทพ"},{range:[36,55],clerks:["H"],branch:"นครราชสีมา"},{range:[56,70],clerks:["S"],branch:"ศรีสะเกษ"}];
+for(var j=1;j<=70;j++){
+  var grp=isanGroups.find(function(g){return j>=g.range[0]&&j<=g.range[1];});
+  var cc2=grp.clerks[j%grp.clerks.length];
+  var cl2=CLERKS.find(function(c){return c.code===cc2;});
+  var dest2=ISAN_PROVS[j%ISAN_PROVS.length];
+  var da2=rndInt(0,30); var wt2=rndInt(1,50); var it2=rndInt(1,8);
+  var fr2=350+wt2*10+it2*25;
+  var mt2=pickW(METHODS,MWEIGHTS);
+  var cod2=(mt2==="dest_cash")?rndInt(500,8000):0;
+  var st2=pick(STATUSES);
+  var srcProv=grp.branch==="กรุงเทพ"?"กรุงเทพมหานคร":grp.branch==="นครราชสีมา"?"นครราชสีมา":"ศรีสะเกษ";
+  BILLS.push({billNo:cc2+mm+dd+"-"+pad2(30+j),date:daysAgoStr(da2),clerkCode:cc2,clerkName:cl2.name,branch:grp.branch,
+    region:"ภาคอีสาน",senderName:pick(SENDERS),senderProv:srcProv,
+    receiverName:pick(RECEIVERS),destProv:dest2.prov,destAmphoe:dest2.amphoe,zone:"ไกล",
+    weight:wt2,items:it2,freightNet:fr2,codTotal:cod2,freightPay:mt2,status:st2,bizType:pick(BIZTYPES)});
+}
+BILLS.sort(function(a,b){return b.date.localeCompare(a.date);});
+
+// ===== UI =====
+function fmt(n){return Math.round(n).toLocaleString("th-TH");}
+
+function renderStats(){
+  var east=BILLS.filter(function(b){return b.region==="ภาคตะวันออก";});
+  var isan=BILLS.filter(function(b){return b.region==="ภาคอีสาน";});
+  var totalRev=BILLS.reduce(function(s,b){return s+b.freightNet;},0);
+  var delivered=BILLS.filter(function(b){return b.status==="delivered";}).length;
+  var stats=[
+    {l:"บิลทั้งหมด",v:"100 ใบ",s:""},
+    {l:"ภาคตะวันออก",v:east.length+" บิล",s:fmt(east.reduce(function(s,b){return s+b.freightNet;},0))+" ฿"},
+    {l:"ภาคอีสาน",v:isan.length+" บิล",s:fmt(isan.reduce(function(s,b){return s+b.freightNet;},0))+" ฿"},
+    {l:"ยอดรวม",v:fmt(totalRev)+" ฿",s:""},
+    {l:"ส่งสำเร็จ",v:delivered+" บิล",s:Math.round(delivered/BILLS.length*100)+"%"},
+    {l:"เสมียน",v:"6 คน",s:"4 กทม/ปทุม · 1 นม · 1 ศก"},
+  ];
+  document.getElementById("stats-row").innerHTML=stats.map(function(x){
+    return'<div class="stat-mini"><div class="lbl">'+x.l+'</div><div class="val">'+x.v+'</div><div class="sub">'+x.s+"</div></div>";
+  }).join("");
+  // populate clerk filter
+  var cf=document.getElementById("fil-clerk");
+  CLERKS.forEach(function(c){
+    var o=document.createElement("option");o.value=c.code;o.textContent=c.name+" ("+c.code+") — "+c.branch;cf.appendChild(o);
+  });
+}
+
+function filterBills(){
+  var region=document.getElementById("fil-region").value;
+  var clerk=document.getElementById("fil-clerk").value;
+  var branch=document.getElementById("fil-branch").value;
+  var status=document.getElementById("fil-status").value;
+  var data=BILLS.filter(function(b){
+    if(region!=="all"&&b.region!==region)return false;
+    if(clerk!=="all"&&b.clerkCode!==clerk)return false;
+    if(branch!=="all"&&b.branch!==branch)return false;
+    if(status!=="all"&&b.status!==status)return false;
+    return true;
+  });
+  document.getElementById("bill-count").textContent=data.length+" บิล";
+  var stCls={delivered:"pg",transit:"pa",nocontact:"pr",reschedule:"pb"};
+  var mCls={origin:"pg",dest_cash:"pa",transfer:"pb",dest_transfer:"px",credit:"px"};
+  var zCls={ใกล้:"pg",ไกล:"pa",พิเศษ:"pb"};
+  var rows="";
+  data.forEach(function(b){
+    rows+="<tr>";
+    rows+="<td style='font-weight:600;color:#9FE1CB'>"+b.billNo+"</td>";
+    rows+="<td style='color:#aaa'>"+b.date.replace(/\d{4}/,function(y){return parseInt(y)+543;})+"</td>";
+    rows+="<td>"+b.clerkName+" ("+b.clerkCode+")</td>";
+    rows+="<td><span class='pill px'>"+b.branch+"</span></td>";
+    rows+="<td style='max-width:90px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap'>"+b.senderName+"</td>";
+    rows+="<td>"+b.destAmphoe+"·"+b.destProv+"</td>";
+    rows+="<td><span class='pill "+(b.region==="ภาคตะวันออก"?"pg":"pa")+"'>"+(b.region==="ภาคตะวันออก"?"ตะวันออก":"อีสาน")+"</span></td>";
+    rows+="<td><span class='pill "+(zCls[b.zone]||"px")+"'>"+b.zone+"</span></td>";
+    rows+="<td style='text-align:center'>"+b.items+"</td>";
+    rows+="<td style='text-align:right;font-weight:600'>"+fmt(b.freightNet)+"฿</td>";
+    rows+="<td><span class='pill "+(mCls[b.freightPay]||"px")+"'>"+(METHOD_LABEL[b.freightPay]||b.freightPay)+"</span></td>";
+    rows+="<td><span class='pill "+(stCls[b.status]||"px")+"'>"+(STATUS_LABEL[b.status]||b.status)+"</span></td>";
+    rows+="</tr>";
+  });
+  document.getElementById("bill-tbody").innerHTML=rows||"<tr><td colspan='12' style='text-align:center;padding:20px;color:#aaa'>ไม่พบบิล</td></tr>";
+}
+
+function openSys(sys){
+  var files={billing:"ThermalBill.html",transport:"TripManager.html",tracking:"TrackingSystem.html",finance:"FinanceSystem.html",customer:"CustomerSystem.html",report:"MonthlyReport.html",auth:"AuthSystem.html"};
+  if(files[sys])window.open(files[sys],"_blank");
+}
+
+renderStats();
+filterBills();
+</script>
+</body>
+</html>

@@ -1,0 +1,799 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1"/>
+<title>โกโลด — ระบบ Login & สิทธิ์ v2.5</title>
+<script src="session.js"></script>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:Arial,sans-serif;background:#f5f5f2;min-height:100vh}
+.hidden{display:none!important}
+/* LOGIN PAGE */
+.login-page{min-height:100vh;display:flex;align-items:center;justify-content:center;background:linear-gradient(135deg,#0F6E56 0%,#085041 50%,#052E25 100%);padding:16px}
+.login-box{background:#fff;border-radius:16px;padding:32px 28px;width:100%;max-width:380px;box-shadow:0 16px 48px rgba(0,0,0,.2)}
+.login-logo{text-align:center;margin-bottom:24px}
+.login-logo h1{font-size:20px;font-weight:700;color:#0F6E56;margin-bottom:4px}
+.login-logo p{font-size:12px;color:#888}
+.sys-select{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:20px}
+.sys-btn{padding:10px 8px;border:1.5px solid #eee;border-radius:10px;cursor:pointer;text-align:center;transition:all .15s;background:#fafafa}
+.sys-btn:hover{border-color:#1D9E75;background:#E1F5EE}
+.sys-btn.active{border-color:#1D9E75;background:#E1F5EE}
+.sys-btn .ico{font-size:20px;margin-bottom:4px}
+.sys-btn .lbl{font-size:11px;font-weight:600;color:#333}
+.sys-btn .sub{font-size:10px;color:#888}
+.form-group{margin-bottom:14px}
+.form-group label{font-size:11px;color:#666;margin-bottom:5px;display:block;font-weight:500}
+.form-group input{width:100%;padding:10px 12px;border:0.5px solid #ccc;border-radius:9px;font-size:14px;outline:none;background:#fff;color:#222}
+.form-group input:focus{border-color:#1D9E75;box-shadow:0 0 0 3px rgba(29,158,117,.1)}
+.btn-login{width:100%;padding:12px;background:#1D9E75;color:#fff;border:none;border-radius:10px;font-size:15px;font-weight:700;cursor:pointer;margin-top:4px}
+.btn-login:hover{background:#0F6E56}
+.login-err{background:#FBEAF0;color:#4B1528;border:0.5px solid #E9B8C0;border-radius:8px;padding:9px 12px;font-size:12px;margin-bottom:12px}
+/* MAIN APP */
+.app{display:none;flex-direction:column;min-height:100vh}
+.topbar{background:#0F6E56;padding:0 16px;display:flex;align-items:center;gap:12px;height:52px;position:sticky;top:0;z-index:100}
+.topbar h1{color:#fff;font-size:15px;font-weight:700;letter-spacing:.5px;flex:1}
+.topbar-sys{font-size:11px;color:#9FE1CB;background:rgba(255,255,255,.15);padding:3px 10px;border-radius:20px}
+.user-chip{display:flex;align-items:center;gap:7px;background:rgba(255,255,255,.15);padding:5px 12px;border-radius:20px;cursor:pointer}
+.user-chip .av{width:26px;height:26px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:700;color:#fff}
+.user-chip .nm{font-size:12px;color:#fff;font-weight:500}
+.user-chip .rl{font-size:10px;color:#9FE1CB}
+.btn-logout{padding:5px 12px;background:rgba(255,255,255,.15);color:#fff;border:none;border-radius:20px;font-size:12px;cursor:pointer}
+.main{display:flex;flex:1}
+.sidebar{width:220px;background:#fff;border-right:0.5px solid #eee;padding:12px 0;flex-shrink:0}
+.sb-section{font-size:10px;font-weight:600;color:#aaa;letter-spacing:1px;padding:8px 16px 4px;text-transform:uppercase}
+.sb-item{display:flex;align-items:center;gap:9px;padding:9px 16px;cursor:pointer;font-size:13px;color:#555;border-left:3px solid transparent;transition:all .1s;user-select:none}
+.sb-item:hover{background:#f5f5f2;color:#0F6E56}
+.sb-item.active{background:#E1F5EE;color:#0F6E56;font-weight:600;border-left-color:#1D9E75}
+.sb-item.locked{color:#ccc;cursor:not-allowed}
+.sb-item .ico{font-size:15px;width:20px;text-align:center}
+.sb-item .lock-ico{font-size:11px;margin-left:auto;color:#ccc}
+.content{flex:1;padding:16px;background:#f5f5f2;overflow-y:auto}
+/* CARDS */
+.card{background:#fff;border:0.5px solid rgba(0,0,0,.1);border-radius:12px;padding:14px 16px;margin-bottom:12px}
+.ct{font-size:13px;font-weight:600;color:#0F6E56;margin-bottom:12px;display:flex;justify-content:space-between;align-items:center}
+.g2{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.g3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px}
+.g4{display:grid;grid-template-columns:repeat(4,1fr);gap:10px}
+.stat{border-radius:10px;padding:12px 14px}
+.sg{background:#E1F5EE}.sg .sv{color:#085041}
+.sb2{background:#E6F1FB}.sb2 .sv{color:#0C447C}
+.sa{background:#FFF8E7}.sa .sv{color:#633806}
+.sx{background:#f5f5f2}.sx .sv{color:#333}
+.sl{font-size:11px;color:#888;margin-bottom:3px}
+.sv{font-size:20px;font-weight:700}
+.ss{font-size:11px;color:#aaa;margin-top:3px}
+/* TABLE */
+table{width:100%;border-collapse:collapse;font-size:12px}
+th{padding:8px 10px;text-align:left;font-weight:500;color:#777;border-bottom:0.5px solid rgba(0,0,0,.08);background:#f9f9f7;font-size:11px}
+td{padding:8px 10px;border-bottom:0.5px solid rgba(0,0,0,.05);vertical-align:middle}
+tr:nth-child(even) td{background:#fafafa}
+/* PILL */
+.pill{display:inline-block;font-size:10px;padding:2px 8px;border-radius:20px;font-weight:600;white-space:nowrap}
+.role-admin{background:#EDE9FE;color:#5B21B6}
+.role-branch{background:#FFF8E7;color:#92400E}
+.role-clerk{background:#E1F5EE;color:#085041}
+.role-driver{background:#E6F1FB;color:#0C447C}
+.role-customer{background:#f0f0f0;color:#555}
+/* FORM */
+input[type=text],input[type=password],select,textarea{width:100%;padding:7px 10px;border:0.5px solid #ccc;border-radius:8px;font-size:13px;outline:none;background:#fff;color:#222;font-family:Arial,sans-serif}
+input:focus,select:focus{border-color:#1D9E75}
+.lbl{font-size:11px;color:#777;margin-bottom:4px;display:block}
+.btn{padding:7px 14px;border-radius:8px;font-size:12px;cursor:pointer;font-weight:500;border:none;font-family:Arial,sans-serif}
+.btg{background:#1D9E75;color:#fff}
+.bto{background:#fff;border:0.5px solid #ccc;color:#555}
+.btr{background:#E24B4A;color:#fff}
+.bts{padding:4px 10px;font-size:11px;border-radius:6px;cursor:pointer;border:0.5px solid #ccc;background:#fff;font-family:Arial,sans-serif}
+.frow{display:flex;gap:8px;margin-bottom:12px;flex-wrap:wrap;align-items:center}
+/* PERMISSION GRID */
+.perm-grid{display:grid;grid-template-columns:1fr;gap:0}
+.perm-row{display:flex;align-items:center;padding:8px 0;border-bottom:0.5px solid #f0f0f0;gap:10px}
+.perm-row:last-child{border-bottom:none}
+.perm-name{flex:1;font-size:12px;color:#333}
+.perm-desc{font-size:10px;color:#aaa}
+.toggle{position:relative;width:36px;height:20px;flex-shrink:0}
+.toggle input{opacity:0;width:0;height:0}
+.slider{position:absolute;inset:0;background:#ddd;border-radius:20px;cursor:pointer;transition:.3s}
+.slider:before{content:"";position:absolute;width:14px;height:14px;left:3px;top:3px;background:#fff;border-radius:50%;transition:.3s}
+input:checked+.slider{background:#1D9E75}
+input:checked+.slider:before{transform:translateX(16px)}
+/* MODAL */
+.modal-bg{display:none;position:fixed;inset:0;background:rgba(0,0,0,.45);z-index:200;align-items:center;justify-content:center;padding:16px;pointer-events:none}
+.modal-bg.open{display:flex;pointer-events:all}
+.modal{background:#fff;border-radius:14px;width:100%;max-width:540px;max-height:90vh;overflow-y:auto;padding:20px}
+.modal-title{font-size:15px;font-weight:700;color:#0F6E56;margin-bottom:14px;display:flex;justify-content:space-between;align-items:center}
+/* ALERT */
+.alert-g{background:#E1F5EE;border:0.5px solid #9FE1CB;color:#085041;padding:9px 12px;border-radius:8px;font-size:12px;margin-bottom:10px}
+.alert-r{background:#FBEAF0;border:0.5px solid #E9B8C0;color:#4B1528;padding:9px 12px;border-radius:8px;font-size:12px;margin-bottom:10px}
+/* ACCESS DENIED */
+.denied{text-align:center;padding:60px 20px;color:#888}
+.denied .ico{font-size:48px;margin-bottom:12px}
+.denied h2{font-size:16px;color:#555;margin-bottom:6px}
+@media(max-width:700px){.sidebar{display:none}.g3{grid-template-columns:1fr 1fr}.g4{grid-template-columns:1fr 1fr}}
+</style>
+</head>
+<body>
+
+<!-- LOGIN PAGE -->
+<div id="login-page" class="login-page">
+  <div class="login-box">
+    <div class="login-logo">
+      <h1>โกโลด ทรานสปอร์ต</h1>
+      <p>ระบบจัดการโลจิสติกส์ <span style="font-size:10px;color:#ccc">v2.5</span></p>
+    </div>
+    <div style="font-size:11px;color:#888;margin-bottom:8px;font-weight:500">เลือกระบบที่ต้องการเข้าใช้งาน</div>
+    <div class="sys-select" id="sys-select">
+      <div class="sys-btn active" onclick="selSys('billing',this)"><div class="ico">📄</div><div class="lbl">ออกบิล</div><div class="sub">เสมียน</div></div>
+      <div class="sys-btn" onclick="selSys('transport',this)"><div class="ico">🚛</div><div class="lbl">ขนส่ง</div><div class="sub">คนขับ / เสมียน</div></div>
+      <div class="sys-btn" onclick="selSys('finance',this)"><div class="ico">💰</div><div class="lbl">การเงิน</div><div class="sub">เสมียน / แอดมิน</div></div>
+      <div class="sys-btn" onclick="selSys('admin',this)"><div class="ico">⚙️</div><div class="lbl">แอดมิน</div><div class="sub">ผู้ดูแลระบบ</div></div>
+    </div>
+    <div id="login-err" class="login-err hidden"></div>
+    <div class="form-group">
+      <label>Username</label>
+      <input type="text" id="inp-user" placeholder="กรอก username" autocomplete="username"/>
+    </div>
+    <div class="form-group">
+      <label>Password</label>
+      <input type="password" id="inp-pass" placeholder="กรอก password" autocomplete="current-password" onkeydown="if(event.key==='Enter')doLogin()"/>
+    </div>
+    <div style="font-size:11px;color:#aaa;margin-bottom:14px;line-height:1.6">
+      <b>ทดลอง:</b> admin/admin123 · clerk1/pass123 · driver1/pass123 · branch1/pass123 · customer1/pass123
+    </div>
+    <button class="btn-login" onclick="doLogin()">เข้าสู่ระบบ</button>
+  </div>
+</div>
+
+<!-- MAIN APP -->
+<div id="main-app" class="app">
+  <div class="topbar">
+    <h1>โกโลด ทรานสปอร์ต</h1>
+    <div class="topbar-sys" id="topbar-sys">—</div>
+    <div class="user-chip" onclick="showSection('profile')">
+      <div class="av" id="user-av" style="background:#1D9E75">A</div>
+      <div><div class="nm" id="user-nm">—</div><div class="rl" id="user-rl">—</div></div>
+    </div>
+    <button class="btn-logout" onclick="doLogout()">ออกจากระบบ</button>
+  </div>
+  <div class="main">
+    <div class="sidebar" id="sidebar"></div>
+    <div class="content" id="content"></div>
+  </div>
+</div>
+
+<!-- MODAL -->
+<div class="modal-bg" id="modal-bg">
+  <div class="modal" id="modal-content"></div>
+</div>
+
+<script>
+// ===== USER DATABASE =====
+var SYSTEMS={billing:"ระบบออกบิล",transport:"ระบบขนส่ง",finance:"ระบบการเงิน",admin:"ระบบแอดมิน"};
+var SYS_COLORS={billing:"#1D9E75",transport:"#378ADD",finance:"#EF9F27",admin:"#7C3AED"};
+
+var ROLES={
+  admin:{label:"แอดมิน",color:"#5B21B6",bg:"#EDE9FE"},
+  branch:{label:"หัวหน้าสาขา",color:"#92400E",bg:"#FFF8E7"},
+  clerk:{label:"เสมียน",color:"#085041",bg:"#E1F5EE"},
+  driver:{label:"คนขับ",color:"#0C447C",bg:"#E6F1FB"},
+  customer:{label:"ลูกค้า",color:"#555",bg:"#f0f0f0"},
+};
+
+// Permissions: what each role can see by default
+var DEFAULT_PERMS={
+  admin:{billing:true,transport:true,finance:true,reports:true,customers:true,drivers:true,users:true,settings:true},
+  branch:{billing:true,transport:true,finance:false,reports:true,customers:true,drivers:true,users:false,settings:false},
+  clerk:{billing:true,transport:true,finance:false,reports:false,customers:true,drivers:false,users:false,settings:false},
+  driver:{billing:false,transport:true,finance:false,reports:false,customers:false,drivers:false,users:false,settings:false},
+  customer:{billing:false,transport:false,finance:false,reports:false,customers:false,drivers:false,users:false,settings:false},
+};
+
+// Report sub-permissions (admin can grant to clerk individually)
+var REPORT_PERMS_DEFAULT={
+  rep_daily:false,rep_branch:false,rep_staff:false,rep_zone:false,
+  rep_weekly:false,rep_quarter:false,rep_biz:false,rep_province:false,
+};
+
+// ===== LOCAL STORAGE PERSISTENCE =====
+var STORAGE_KEY="golod_users_v1";
+function saveUsers(){
+  try{localStorage.setItem(STORAGE_KEY,JSON.stringify(USERS));}
+  catch(e){console.warn("saveUsers error:",e);}
+}
+function loadSavedUsers(){
+  try{
+    var raw=localStorage.getItem(STORAGE_KEY);
+    if(!raw)return;
+    var saved=JSON.parse(raw);
+    if(Array.isArray(saved)&&saved.length>0){USERS=saved;}
+  }catch(e){console.warn("loadUsers error:",e);}
+}
+
+var USERS=[
+  {id:"u1",username:"admin",password:"admin123",name:"วัตนา (เจ้าของ)",role:"admin",branch:"all",active:true,
+   perms:{...DEFAULT_PERMS.admin},reportPerms:{rep_daily:true,rep_branch:true,rep_staff:true,rep_zone:true,rep_weekly:true,rep_quarter:true,rep_biz:true,rep_province:true},systems:["billing","transport","finance","admin"],avatar:"ว"},
+  {id:"u2",username:"branch1",password:"pass123",name:"สมชาย (หัวหน้า กทม.)",role:"branch",branch:"กรุงเทพ",active:true,
+   perms:{...DEFAULT_PERMS.branch},reportPerms:{rep_daily:true,rep_branch:true,rep_staff:false,rep_zone:false,rep_weekly:true,rep_quarter:false,rep_biz:false,rep_province:false},systems:["billing","transport"],avatar:"ส"},
+  {id:"u3",username:"clerk1",password:"pass123",name:"สมหญิง (เสมียน)",role:"clerk",branch:"กรุงเทพ",active:true,
+   perms:{billing:true,transport:true,finance:false,reports:false,customers:true,drivers:false,users:false,settings:false},reportPerms:{...REPORT_PERMS_DEFAULT},systems:["billing","transport"],avatar:"ห"},
+  {id:"u4",username:"clerk2",password:"pass123",name:"มานี (เสมียน)",role:"clerk",branch:"นครราชสีมา",active:true,
+   perms:{billing:true,transport:true,finance:false,reports:true,customers:true,drivers:false,users:false,settings:false},reportPerms:{rep_daily:true,rep_branch:false,rep_staff:false,rep_zone:false,rep_weekly:false,rep_quarter:false,rep_biz:false,rep_province:false},systems:["billing","transport"],avatar:"ม"},
+  {id:"u5",username:"driver1",password:"pass123",name:"วัชรา (คนขับ)",role:"driver",branch:"กรุงเทพ",active:true,
+   perms:{...DEFAULT_PERMS.driver},reportPerms:{...REPORT_PERMS_DEFAULT},systems:["transport"],avatar:"A"},
+  {id:"u6",username:"driver2",password:"pass123",name:"บุญมี (คนขับ)",role:"driver",branch:"กรุงเทพ",active:true,
+   perms:{...DEFAULT_PERMS.driver},reportPerms:{...REPORT_PERMS_DEFAULT},systems:["transport"],avatar:"B"},
+  {id:"u7",username:"customer1",password:"pass123",name:"บริษัท เอ จำกัด",role:"customer",branch:"—",active:true,
+   perms:{...DEFAULT_PERMS.customer},reportPerms:{...REPORT_PERMS_DEFAULT},systems:["billing"],avatar:"C"},
+];
+loadSavedUsers(); // Load persisted users
+
+
+var REPORT_ITEMS=[
+  {key:"rep_daily",label:"รายงานยอดขายรายวัน"},
+  {key:"rep_branch",label:"รายงานแยกสาขา"},
+  {key:"rep_staff",label:"รายงานแยกเสมียน"},
+  {key:"rep_zone",label:"รายงานแยก Zone"},
+  {key:"rep_weekly",label:"รายงานรายสัปดาห์"},
+  {key:"rep_quarter",label:"รายงานราย 3 เดือน"},
+  {key:"rep_biz",label:"รายงานประเภทธุรกิจ"},
+  {key:"rep_province",label:"Top จังหวัด"},
+];
+
+var MENU_ITEMS=[
+  {key:"dashboard",label:"หน้าแรก",ico:"🏠",roles:["admin","branch","clerk","driver","customer"],systems:["billing","transport","finance","admin"]},
+  {key:"billing",label:"ออกบิล",ico:"📄",perm:"billing",roles:["admin","branch","clerk"],systems:["billing","admin"]},
+  {key:"transport",label:"จัดการงานขนส่ง",ico:"🚛",perm:"transport",roles:["admin","branch","clerk","driver"],systems:["transport","admin"]},
+  {key:"tracking",label:"ติดตามสินค้า",ico:"📍",roles:["admin","branch","clerk","driver","customer"],systems:["billing","transport","admin"]},
+  {key:"finance",label:"การเงิน",ico:"💰",perm:"finance",roles:["admin","branch","clerk"],systems:["finance","admin"]},
+  {key:"reports",label:"รายงาน",ico:"📊",perm:"reports",roles:["admin","branch","clerk"],systems:["billing","finance","admin"]},
+  {key:"customers",label:"ลูกค้า",ico:"👥",perm:"customers",roles:["admin","branch","clerk"],systems:["billing","admin"]},
+  {key:"drivers",label:"คนขับ",ico:"🚗",perm:"drivers",roles:["admin","branch"],systems:["transport","admin"]},
+  {key:"users",label:"จัดการผู้ใช้",ico:"⚙️",perm:"users",roles:["admin"],systems:["admin"]},
+  {key:"profile",label:"โปรไฟล์ของฉัน",ico:"👤",roles:["admin","branch","clerk","driver","customer"],systems:["billing","transport","finance","admin"]},
+];
+
+// ===== STATE =====
+var CU=null;
+var CS=null;
+var currentSection="dashboard";
+var selectedSys="billing";
+
+// ===== LOGIN =====
+function selSys(sys,el){
+  selectedSys=sys;
+  document.querySelectorAll(".sys-btn").forEach(function(b){b.classList.remove("active");});
+  el.classList.add("active");
+}
+function doLogin(){
+  var user=document.getElementById("inp-user").value.trim();
+  var pass=document.getElementById("inp-pass").value;
+  var err=document.getElementById("login-err");
+  var found=null;
+  for(var i=0;i<USERS.length;i++){
+    if(USERS[i].username===user&&USERS[i].password===pass&&USERS[i].active){found=USERS[i];break;}
+  }
+  if(!found){err.textContent="Username หรือ Password ไม่ถูกต้องครับ";err.classList.remove("hidden");return;}
+  if(!found.systems.includes(selectedSys)&&found.role!=="admin"){
+    err.textContent="ไม่มีสิทธิ์เข้าระบบนี้ครับ กรุณาเลือกระบบที่ถูกต้อง";err.classList.remove("hidden");return;
+  }
+  err.classList.add("hidden");
+  CU=found;
+  CS=selectedSys;
+  startApp();
+}
+function doLogout(){
+  CU=null;CS=null;currentSection="dashboard";
+  document.getElementById("login-page").style.display="flex";
+  document.getElementById("main-app").style.display="none";
+  document.getElementById("inp-user").value="";
+  document.getElementById("inp-pass").value="";
+}
+function startApp(){
+  document.getElementById("login-page").style.display="none";
+  document.getElementById("main-app").style.display="flex";
+  var avColor=SYS_COLOR[CS]||"#1D9E75";
+  document.getElementById("user-av").textContent=CU.avatar;
+  document.getElementById("user-av").style.background=avColor;
+  document.getElementById("user-nm").textContent=CU.name.split(" ")[0];
+  document.getElementById("user-rl").textContent=ROLES[CU.role]?.label||"";
+  document.getElementById("topbar-sys").textContent=SYSTEMS[CS]||"";
+  buildSidebar();
+  showSection("dashboard");
+}
+
+// ===== SIDEBAR =====
+function buildSidebar(){
+  var html="";
+  var sections={main:["dashboard","billing","transport","tracking"],data:["finance","reports","customers","drivers"],system:["users","profile"]};
+  var sectionLabels={main:"เมนูหลัก",data:"ข้อมูล",system:"ระบบ"};
+  Object.keys(sections).forEach(function(sec){
+    html+='<div class="sb-section">'+sectionLabels[sec]+"</div>";
+    sections[sec].forEach(function(key){
+      var item=MENU_ITEMS.find(function(m){return m.key===key;});
+      if(!item)return;
+      var canSee=canAccess(key);
+      // Driver and customer: hide inaccessible items completely. Others: show lock icon.
+      var hideCompletely=(CU.role==="driver"||CU.role==="customer");
+      if(!canSee&&hideCompletely)return;
+      html+='<div class="sb-item'+(currentSection===key?" active":"")+(canSee?"":" locked")+'" onclick="'+(canSee?"showSection('"+key+"')":"showDenied('"+key+"')")+'">';
+      html+='<span class="ico">'+item.ico+"</span>"+item.label;
+      if(!canSee)html+='<span class="lock-ico">🔒</span>';
+      html+="</div>";
+    });
+  });
+  document.getElementById("sidebar").innerHTML=html;
+}
+function canAccess(key){
+  var item=MENU_ITEMS.find(function(m){return m.key===key;});
+  if(!item)return false;
+  if(!item.roles.includes(CU.role))return false;
+  if(item.perm&&!CU.perms[item.perm])return false;
+  return true;
+}
+
+// ===== SECTIONS =====
+function showSection(key){
+  if(!canAccess(key)){showDenied(key);return;}
+  currentSection=key;
+  buildSidebar();
+  var sections={
+    dashboard:renderDashboard,
+    billing:renderBilling,
+    transport:renderTransport,
+    tracking:renderTracking,
+    finance:renderFinance,
+    reports:renderReports,
+    customers:renderCustomers,
+    drivers:renderDrivers,
+    users:renderUsers,
+    profile:renderProfile,
+  };
+  if(sections[key])sections[key]();
+}
+function showDenied(key){
+  var item=MENU_ITEMS.find(function(m){return m.key===key;})||{label:key};
+  document.getElementById("content").innerHTML='<div class="denied"><div class="ico">🔒</div><h2>ไม่มีสิทธิ์เข้าถึง</h2><p style="font-size:13px;margin-top:4px">คุณไม่มีสิทธิ์เข้าถึง <b>'+item.label+'</b><br>กรุณาติดต่อ Admin เพื่อขอสิทธิ์</p></div>';
+}
+
+// ===== RENDER SECTIONS =====
+function fmt(n){return Math.round(parseFloat(n)||0).toLocaleString("th-TH");}
+function rolePill(role){var r=ROLES[role]||{label:role,bg:"#eee",color:"#555"};return'<span class="pill" style="background:'+r.bg+';color:'+r.color+'">'+r.label+"</span>";}
+
+function renderDashboard(){
+  // Admin gets full system launcher
+  if(CU.role==="admin"||CU.role==="branch"){
+    var systems=[
+      {name:"ออกบิล",ic:"📄",url:"ThermalBill.html",color:"#1D9E75",desc:"ออกบิล Thermal 80mm"},
+      {name:"จัดการขนส่ง",ic:"🚛",url:"TripManager.html",color:"#378ADD",desc:"จ่ายงาน ค่าเที่ยว เคลียร์"},
+      {name:"ติดตามสินค้า",ic:"📍",url:"TrackingSystem.html",color:"#EF9F27",desc:"ค้นหา อัปสถานะ ลายเซ็น"},
+      {name:"การเงิน",ic:"💰",url:"FinanceSystem.html",color:"#7C3AED",desc:"รายรับ-รายจ่าย BeM BBL"},
+      {name:"ลูกค้า",ic:"👥",url:"CustomerSystem.html",color:"#085041",desc:"ประวัติ เครดิต ABC"},
+      {name:"รายงาน",ic:"📊",url:"MonthlyReport.html",color:"#E24B4A",desc:"ยอดขาย สาขา จังหวัด"},
+    ];
+    var h='<div style="margin-bottom:14px"><div style="font-size:11px;color:#888;margin-bottom:10px">เปิดระบบ</div>';
+    h+='<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(160px,1fr));gap:10px">';
+    systems.forEach(function(s){
+      if(!canAccess_sys(s.url))return;
+      h+='<a href="'+s.url+'" style="display:block;padding:14px 12px;border-radius:11px;text-decoration:none;border:1px solid '+s.color+'22;background:'+s.color+'0A;transition:all .15s" onmouseover="this.style.background=''+s.color+'18'" onmouseout="this.style.background=''+s.color+'0A'">';
+      h+='<div style="font-size:26px;margin-bottom:7px">'+s.ic+'</div>';
+      h+='<div style="font-size:13px;font-weight:600;color:'+s.color+';margin-bottom:3px">'+s.name+'</div>';
+      h+='<div style="font-size:10px;color:#888">'+s.desc+'</div></a>';
+    });
+    h+='</div></div>';
+    // Stats
+    h+='<div class="g4" style="margin-bottom:10px">';
+    var total=USERS.length;
+    var active=USERS.filter(function(u){return u.active;}).length;
+    h+='<div class="stat sg"><div class="sl">ผู้ใช้งาน</div><div class="sv">'+active+'</div><div class="ss">จาก '+total+' ราย</div></div>';
+    h+='<div class="stat sb2"><div class="sl">เสมียน</div><div class="sv">'+USERS.filter(function(u){return u.role==="clerk"&&u.active;}).length+'</div><div class="ss">คน</div></div>';
+    h+='<div class="stat sa"><div class="sl">คนขับ</div><div class="sv">'+USERS.filter(function(u){return u.role==="driver"&&u.active;}).length+'</div><div class="ss">คน</div></div>';
+    h+='<div class="stat sx"><div class="sl">ระบบทั้งหมด</div><div class="sv">7</div><div class="ss">โมดูล</div></div>';
+    h+='</div>';
+    document.getElementById("content").innerHTML=h;
+    return;
+  }
+  // Non-admin dashboard (fallthrough)
+  var u=CU;
+  var h='<div class="card"><div style="display:flex;align-items:center;gap:14px;margin-bottom:16px">';
+  h+='<div style="width:52px;height:52px;border-radius:50%;background:'+( SYS_COLOR[CS]||"#1D9E75")+';display:flex;align-items:center;justify-content:center;font-size:22px;font-weight:700;color:#fff">'+u.avatar+"</div>";
+  h+='<div><div style="font-size:16px;font-weight:700;color:#222">'+u.name+"</div>";
+  h+='<div style="display:flex;gap:6px;align-items:center;margin-top:4px">'+rolePill(u.role);
+  if(u.branch!=="all")h+='<span style="font-size:11px;color:#888">สาขา: '+u.branch+"</span>";
+  h+='<span style="font-size:11px;color:#aaa">'+SYSTEMS[CS]+"</span></div></div></div>";
+  // Quick stats
+  h+='<div class="g4">';
+  var accessible=MENU_ITEMS.filter(function(m){return canAccess(m.key)&&m.key!=="dashboard"&&m.key!=="profile";});
+  h+='<div class="stat sg"><div class="sl">เมนูที่เข้าถึงได้</div><div class="sv">'+accessible.length+'</div><div class="ss">รายการ</div></div>';
+  h+='<div class="stat sb2"><div class="sl">ระบบที่ใช้</div><div class="sv">'+SYSTEMS[CS]+'</div><div class="ss">ล็อกอินอยู่</div></div>';
+  h+='<div class="stat sa"><div class="sl">บทบาท</div><div class="sv">'+(ROLES[u.role]?.label||u.role)+'</div><div class="ss">'+u.branch+"</div></div>";
+  var locked=MENU_ITEMS.filter(function(m){return m.roles.includes(u.role)&&m.perm&&!u.perms[m.perm];}).length;
+  h+='<div class="stat sx"><div class="sl">รายการถูกล็อก</div><div class="sv">'+locked+'</div><div class="ss">ติดต่อ Admin</div></div>';
+  h+="</div></div>";
+  h+='<div class="card"><div class="ct">เมนูที่เข้าถึงได้</div><div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(140px,1fr));gap:10px">';
+  MENU_ITEMS.forEach(function(item){
+    if(!item.roles.includes(u.role))return;
+    var ok=canAccess(item.key);
+    h+='<div onclick="'+(ok?"showSection('"+item.key+"')":"showDenied('"+item.key+"')")+'" style="padding:14px 10px;border-radius:10px;text-align:center;cursor:pointer;border:1px solid '+(ok?"#E1F5EE":"#f0f0f0")+';background:'+(ok?"#F7FBF9":"#fafafa")+'">';
+    h+='<div style="font-size:24px;margin-bottom:6px">'+item.ico+"</div>";
+    h+='<div style="font-size:12px;font-weight:'+(ok?600:400)+';color:'+(ok?"#0F6E56":"#ccc")+'">'+item.label+"</div>";
+    if(!ok)h+='<div style="font-size:10px;color:#ccc;margin-top:2px">🔒 ไม่มีสิทธิ์</div>';
+    h+="</div>";
+  });
+  h+="</div></div>";
+  document.getElementById("content").innerHTML=h;
+}
+
+function renderBilling(){
+  document.getElementById("content").innerHTML='<div class="card"><div class="ct">ระบบออกบิล</div><div style="text-align:center;padding:40px;color:#888"><div style="font-size:48px;margin-bottom:14px">📄</div><div style="font-size:15px;font-weight:600;color:#333;margin-bottom:8px">ระบบออกบิล Thermal 80mm</div><div style="font-size:12px;color:#aaa;margin-bottom:20px">คลิกปุ่มด้านล่างเพื่อเปิดระบบออกบิล</div><a href="ThermalBill.html" style="display:inline-block;padding:11px 28px;background:#1D9E75;color:#fff;border-radius:9px;text-decoration:none;font-size:14px;font-weight:600">เปิดระบบออกบิล →</a></div></div>';
+}
+function renderTransport(){
+  document.getElementById("content").innerHTML='<div class="card"><div class="ct">ระบบจัดการขนส่ง</div><div style="text-align:center;padding:40px;color:#888"><div style="font-size:48px;margin-bottom:14px">🚛</div><div style="font-size:15px;font-weight:600;color:#333;margin-bottom:8px">ระบบจัดการงานขนส่ง</div><div style="font-size:12px;color:#aaa;margin-bottom:20px">จ่ายงาน ค่าเที่ยว ไมล์รถ เคลียร์เงิน</div><a href="TripManager.html" style="display:inline-block;padding:11px 28px;background:#378ADD;color:#fff;border-radius:9px;text-decoration:none;font-size:14px;font-weight:600">เปิดระบบขนส่ง →</a></div></div>';
+}
+function renderTracking(){
+  document.getElementById("content").innerHTML='<div class="card"><div class="ct">ติดตามสินค้า</div><div style="text-align:center;padding:40px;color:#888"><div style="font-size:48px;margin-bottom:14px">📍</div><div style="font-size:15px;font-weight:600;color:#333;margin-bottom:8px">ระบบติดตามสินค้า</div><div style="font-size:12px;color:#aaa;margin-bottom:20px">ค้นหาด้วยเลขบิล อัปสถานะ ถ่ายรูป ลายเซ็น</div><a href="TrackingSystem.html" style="display:inline-block;padding:11px 28px;background:#EF9F27;color:#fff;border-radius:9px;text-decoration:none;font-size:14px;font-weight:600">เปิดระบบติดตาม →</a></div></div>';
+}
+function renderFinance(){
+  var u=CU;
+  // Extra guard: finance perm must be explicitly granted
+  if(!u.perms.finance){
+    document.getElementById("content").innerHTML='<div class="denied"><div class="ico">🔒</div><h2>ไม่มีสิทธิ์เข้าถึงการเงิน</h2><p style="font-size:13px;margin-top:4px">ต้องได้รับสิทธิ์จาก Admin ก่อนครับ</p></div>';
+    return;
+  }
+  document.getElementById("content").innerHTML='<div class="card"><div class="ct">ระบบการเงิน</div><div style="text-align:center;padding:40px;color:#888"><div style="font-size:48px;margin-bottom:14px">💰</div><div style="font-size:15px;font-weight:600;color:#333;margin-bottom:8px">ระบบการเงิน</div><div style="font-size:12px;color:#aaa;margin-bottom:20px">รายรับ-รายจ่าย สลิปโอน BeM กระทบยอด BBL</div><a href="FinanceSystem.html" style="display:inline-block;padding:11px 28px;background:#7C3AED;color:#fff;border-radius:9px;text-decoration:none;font-size:14px;font-weight:600">เปิดระบบการเงิน →</a></div></div>';
+}
+function renderReports(){
+  var u=CU;
+  var allowed=REPORT_ITEMS.filter(function(r){return u.reportPerms[r.key]||u.role==="admin";});
+  var denied=REPORT_ITEMS.filter(function(r){return !u.reportPerms[r.key]&&u.role!=="admin";});
+  var h='<div class="card"><div class="ct">รายงานที่เข้าถึงได้</div>';
+  if(allowed.length){
+    h+='<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(180px,1fr));gap:8px;margin-bottom:12px">';
+    allowed.forEach(function(r){
+      h+='<div style="padding:12px;border-radius:9px;border:1px solid #E1F5EE;background:#F7FBF9;cursor:pointer"><div style="font-size:13px;font-weight:600;color:#0F6E56">📊 '+r.label+"</div></div>";
+    });
+    h+="</div>";
+  }
+  if(denied.length){
+    h+='<div style="font-size:12px;font-weight:500;color:#888;margin-bottom:8px">รายงานที่ถูกล็อก (ติดต่อ Admin เพื่อขอสิทธิ์)</div>';
+    h+='<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(180px,1fr));gap:8px">';
+    denied.forEach(function(r){
+      h+='<div style="padding:12px;border-radius:9px;border:1px solid #f0f0f0;background:#fafafa"><div style="font-size:13px;color:#ccc">🔒 '+r.label+"</div></div>";
+    });
+    h+="</div>";
+  }
+  if(!allowed.length&&u.role!=="admin")h+='<div class="denied" style="padding:24px"><div class="ico">🔒</div><p>Admin ยังไม่ได้เปิดสิทธิ์รายงานให้คุณ</p></div>';
+  h+="</div>";
+  document.getElementById("content").innerHTML=h;
+}
+function renderCustomers(){
+  document.getElementById("content").innerHTML='<div class="card"><div class="ct">ระบบลูกค้า</div><div style="text-align:center;padding:40px;color:#888"><div style="font-size:48px;margin-bottom:14px">👥</div><div style="font-size:15px;font-weight:600;color:#333;margin-bottom:8px">ระบบลูกค้า</div><div style="font-size:12px;color:#aaa;margin-bottom:20px">ประวัติ เครดิต จัดกลุ่ม ABC VIP รายใหญ่</div><a href="CustomerSystem.html" style="display:inline-block;padding:11px 28px;background:#1D9E75;color:#fff;border-radius:9px;text-decoration:none;font-size:14px;font-weight:600">เปิดระบบลูกค้า →</a></div></div>';
+}
+function renderDrivers(){
+  var drivers=USERS.filter(function(u){return u.role==="driver";});
+  var h='<div class="card"><div class="ct">คนขับทั้งหมด</div>';
+  h+='<table><thead><tr><th>ชื่อ</th><th>Username</th><th>สาขา</th><th>บทบาท</th><th>สถานะ</th></tr></thead><tbody>';
+  drivers.forEach(function(d){
+    h+="<tr><td style='font-weight:600'>"+d.name+"</td><td style='color:#888'>"+d.username+"</td><td>"+d.branch+"</td><td>"+rolePill(d.role)+"</td>";
+    h+='<td><span class="pill" style="background:'+(d.active?"#E1F5EE":"#f0f0f0")+';color:'+(d.active?"#085041":"#888")+'">'+(d.active?"ใช้งาน":"ปิดใช้")+"</span></td></tr>";
+  });
+  h+="</tbody></table></div>";
+  document.getElementById("content").innerHTML=h;
+}
+function renderProfile(){
+  var u=CU;
+  var h='<div class="card"><div class="ct">โปรไฟล์ของฉัน</div>';
+  h+='<div class="g2" style="gap:12px;margin-bottom:12px">';
+  h+='<div style="background:#f9f9f7;border-radius:10px;padding:14px">';
+  h+='<div class="lbl">ชื่อ</div><div style="font-size:14px;font-weight:600;margin-bottom:8px">'+u.name+"</div>";
+  h+='<div class="lbl">Username</div><div style="font-size:13px;margin-bottom:8px;color:#555">'+u.username+"</div>";
+  h+='<div class="lbl">บทบาท</div><div style="margin-bottom:8px">'+rolePill(u.role)+"</div>";
+  h+='<div class="lbl">สาขา</div><div style="font-size:13px;color:#555">'+u.branch+"</div></div>";
+  h+='<div style="background:#f9f9f7;border-radius:10px;padding:14px">';
+  h+='<div class="lbl" style="margin-bottom:8px">สิทธิ์ที่มี</div>';
+  var permLabels={billing:"ออกบิล",transport:"ขนส่ง",finance:"การเงิน",reports:"รายงาน",customers:"ลูกค้า",drivers:"คนขับ",users:"จัดการ User",settings:"ตั้งค่า"};
+  Object.keys(u.perms).forEach(function(k){
+    var ok=u.perms[k];
+    h+='<div style="display:flex;align-items:center;gap:6px;margin-bottom:5px"><span style="color:'+(ok?"#1D9E75":"#ddd")+'">'+(ok?"✓":"✗")+'</span><span style="font-size:12px;color:'+(ok?"#333":"#aaa")+'">'+(permLabels[k]||k)+"</span></div>";
+  });
+  h+="</div></div>";
+  // Change password
+  h+='<div style="margin-top:4px"><div class="lbl">เปลี่ยนรหัสผ่าน</div>';
+  h+='<div class="g2" style="gap:8px;margin-top:4px">';
+  h+='<div><label class="lbl">รหัสผ่านใหม่</label><input type="password" id="new-pass" placeholder="รหัสผ่านใหม่"/></div>';
+  h+='<div><label class="lbl">ยืนยันรหัสผ่าน</label><input type="password" id="confirm-pass" placeholder="ยืนยันอีกครั้ง"/></div>';
+  h+="</div><button class='btn btg' style='margin-top:8px' onclick='changePass()'>เปลี่ยนรหัสผ่าน</button>";
+  h+='<div id="pass-msg"></div></div></div>';
+  document.getElementById("content").innerHTML=h;
+}
+function changePass(){
+  var np=document.getElementById("new-pass").value;
+  var cp=document.getElementById("confirm-pass").value;
+  var msg=document.getElementById("pass-msg");
+  if(!np){msg.innerHTML='<div class="alert-r" style="margin-top:8px">กรุณากรอกรหัสผ่านใหม่ครับ</div>';return;}
+  if(np!==cp){msg.innerHTML='<div class="alert-r" style="margin-top:8px">รหัสผ่านไม่ตรงกันครับ</div>';return;}
+  if(np.length<6){msg.innerHTML='<div class="alert-r" style="margin-top:8px">รหัสผ่านต้องมีอย่างน้อย 6 ตัวอักษรครับ</div>';return;}
+  CU.password=np;
+  msg.innerHTML='<div class="alert-g" style="margin-top:8px">✓ เปลี่ยนรหัสผ่านเรียบร้อยแล้วครับ</div>';
+}
+
+// ===== USER MANAGEMENT (ADMIN ONLY) =====
+function renderUsers(){
+  var h='<div class="frow">';
+  h+='<button class="btn btg" onclick="openAddUser()">+ เพิ่มผู้ใช้</button>';
+  h+='<button class="btn bto" style="margin-left:4px" onclick="exportUsers()">📥 Export</button>';
+  h+='<button class="btn bto" style="margin-left:4px" onclick="importUsers()">📤 Import</button>';
+  h+='<span style="font-size:11px;color:#888;margin-left:8px">💡 Export ก่อนอัปเดตไฟล์ใหม่ทุกครั้ง</span>';
+  h+="</div>";
+  h+='<div class="card" style="padding:0;overflow:hidden">';
+  h+='<table><thead><tr><th>ชื่อ</th><th>Username</th><th>บทบาท</th><th>สาขา</th><th>ระบบที่เข้าได้</th><th>สถานะ</th><th></th></tr></thead><tbody id="user-tbody"></tbody></table>';
+  h+="</div>";
+  document.getElementById("content").innerHTML=h;
+  renderUserTable();
+}
+function renderUserTable(){
+  var rows="";
+  USERS.forEach(function(u){
+    rows+="<tr><td style='font-weight:600'>"+u.name+"</td><td style='color:#888'>"+u.username+"</td><td>"+rolePill(u.role)+"</td><td>"+u.branch+"</td>";
+    rows+="<td><div style='display:flex;gap:4px;flex-wrap:wrap'>";
+    u.systems.forEach(function(s){rows+='<span class="pill px">'+SYSTEMS[s]+"</span>";});
+    rows+="</div></td>";
+    rows+='<td><span class="pill" style="background:'+(u.active?"#E1F5EE":"#f0f0f0")+';color:'+(u.active?"#085041":"#888")+'">'+(u.active?"ใช้งาน":"ปิดใช้")+"</span></td>";
+    rows+='<td style="white-space:nowrap"><button class="bts" onclick="openEditUser(\''+u.id+'\')">แก้ไข</button> ';
+    rows+='<button class="bts" onclick="openPermUser(\''+u.id+'\')">สิทธิ์</button> ';
+    rows+='<button class="bts" style="color:'+(u.active?"#E24B4A":"#1D9E75")+'" onclick="toggleUser(\''+u.id+'\')">'+(u.active?"ปิดใช้":"เปิดใช้")+"</button></td></tr>";
+  });
+  var el=document.getElementById("user-tbody");
+  if(el)el.innerHTML=rows;
+}
+function toggleUser(id){
+  var u=USERS.find(function(x){return x.id===id;});
+  if(!u)return;
+  if(u.id===CU.id){alert("ไม่สามารถปิดใช้งานตัวเองได้ครับ");return;}
+  u.active=!u.active;
+  saveUsers();
+  renderUserTable();
+}
+function openAddUser(){
+  var h='<div class="modal-title">+ เพิ่มผู้ใช้ <span onclick="closeModal()" style="cursor:pointer;font-size:20px;color:#aaa">✕</span></div>';
+  h+='<div style="display:flex;flex-direction:column;gap:10px">';
+  h+='<div><label class="lbl">ชื่อ-นามสกุล *</label><input id="au-name" placeholder="ชื่อเต็ม"/></div>';
+  h+='<div class="g2" style="gap:8px"><div><label class="lbl">Username *</label><input id="au-user" placeholder="username"/></div>';
+  h+='<div><label class="lbl">Password *</label><input type="password" id="au-pass" placeholder="รหัสผ่าน"/></div></div>';
+  h+='<div class="g2" style="gap:8px"><div><label class="lbl">บทบาท</label><select id="au-role">';
+  Object.keys(ROLES).forEach(function(k){h+='<option value="'+k+'">'+ROLES[k].label+"</option>";});
+  h+='</select></div><div><label class="lbl">สาขา</label><select id="au-branch"><option value="กรุงเทพ">กรุงเทพ</option><option value="นครราชสีมา">นครราชสีมา</option><option value="ศรีสะเกษ">ศรีสะเกษ</option><option value="all">ทุกสาขา</option></select></div></div>';
+  h+='<div><label class="lbl">ระบบที่เข้าได้</label><div style="display:flex;gap:8px;flex-wrap:wrap">';
+  Object.keys(SYSTEMS).forEach(function(k){h+='<label style="display:flex;align-items:center;gap:4px;font-size:12px"><input type="checkbox" id="au-sys-'+k+'" value="'+k+'"/> '+SYSTEMS[k]+"</label>";});
+  h+="</div></div>";
+  h+='<div id="au-err"></div>';
+  h+='<button class="btn btg" onclick="saveAddUser()">+ เพิ่มผู้ใช้</button></div>';
+  document.getElementById("modal-content").innerHTML=h;
+  openModal();
+}
+function saveAddUser(){
+  var name=document.getElementById("au-name").value.trim();
+  var uname=document.getElementById("au-user").value.trim();
+  var pass=document.getElementById("au-pass").value;
+  var role=document.getElementById("au-role").value;
+  var branch=document.getElementById("au-branch").value;
+  var err=document.getElementById("au-err");
+  if(!name||!uname||!pass){err.innerHTML='<div class="alert-r">กรุณากรอกข้อมูลให้ครบครับ</div>';return;}
+  if(USERS.find(function(u){return u.username===uname;})){err.innerHTML='<div class="alert-r">Username นี้มีแล้วครับ</div>';return;}
+  var systems=[];
+  Object.keys(SYSTEMS).forEach(function(k){if(document.getElementById("au-sys-"+k)?.checked)systems.push(k);});
+  if(!systems.length)systems=["billing"];
+  USERS.push({id:"u"+Date.now(),username:uname,password:pass,name:name,role:role,branch:branch,active:true,
+    perms:{...DEFAULT_PERMS[role]||DEFAULT_PERMS.clerk},reportPerms:{...REPORT_PERMS_DEFAULT},systems:systems,avatar:name.charAt(0)});
+  saveUsers();
+  closeModal();renderUserTable();
+}
+function openEditUser(id){
+  var u=null;
+  for(var i=0;i<USERS.length;i++){if(USERS[i].id===id){u=USERS[i];break;}}
+  if(!u)return;
+  var mc=document.getElementById("modal-content");
+  mc.innerHTML="";
+
+  var wrap=document.createElement("div");
+
+  var title=document.createElement("div");
+  title.className="modal-title";
+  title.innerHTML='แก้ไขผู้ใช้ <span onclick="closeModal()" style="cursor:pointer;font-size:18px;color:#aaa">✕</span>';
+  wrap.appendChild(title);
+
+  // Name
+  var r1=document.createElement("div");r1.style.marginBottom="10px";
+  r1.innerHTML='<label class="lbl">ชื่อ-นามสกุล *</label><input class="inp" id="eu-name" value="'+u.name.replace(/"/g,"&quot;")+'"/>';
+  wrap.appendChild(r1);
+
+  // Username + Password row
+  var r2=document.createElement("div");r2.className="g2";r2.style.gap="8px";r2.style.marginBottom="10px";
+  r2.innerHTML='<div><label class="lbl">Username *</label><input class="inp" id="eu-username" value="'+u.username+'"/></div>'
+    +'<div><label class="lbl">รหัสผ่านใหม่ (เว้นว่างถ้าไม่เปลี่ยน)</label><input type="password" class="inp" id="eu-pass" placeholder="อย่างน้อย 6 ตัว"/></div>';
+  wrap.appendChild(r2);
+
+  // Role + Branch row
+  var r3=document.createElement("div");r3.className="g2";r3.style.gap="8px";r3.style.marginBottom="10px";
+  var roleOpts=Object.keys(ROLES).map(function(k){return '<option value="'+k+'"'+(u.role===k?" selected":"")+'>'+ROLES[k].label+"</option>";}).join("");
+  var branchOpts=["กรุงเทพ","ปทุมธานี","นครราชสีมา","ศรีสะเกษ","all"].map(function(b){return '<option value="'+b+'"'+(u.branch===b?" selected":"")+'>'+( b==="all"?"ทุกสาขา":b)+"</option>";}).join("");
+  r3.innerHTML='<div><label class="lbl">บทบาท</label><select class="inp" id="eu-role">'+roleOpts+"</select></div>"
+    +'<div><label class="lbl">สาขา</label><select class="inp" id="eu-branch">'+branchOpts+"</select></div>";
+  wrap.appendChild(r3);
+
+  // Systems
+  var r4=document.createElement("div");r4.style.marginBottom="10px";
+  var sysHtml='<label class="lbl">ระบบที่เข้าได้</label><div style="display:flex;gap:12px;flex-wrap:wrap;margin-top:4px">';
+  Object.keys(SYSTEMS).forEach(function(k){
+    var chk=(u.systems&&u.systems.indexOf(k)>=0)?" checked":"";
+    sysHtml+='<label style="display:flex;align-items:center;gap:5px;font-size:12px;cursor:pointer"><input type="checkbox" class="eu-sys" value="'+k+'"'+chk+'/> '+SYSTEMS[k]+"</label>";
+  });
+  sysHtml+="</div>";
+  r4.innerHTML=sysHtml;
+  wrap.appendChild(r4);
+
+  // Error div
+  var errDiv=document.createElement("div");errDiv.id="eu-err";errDiv.style.marginBottom="6px";
+  wrap.appendChild(errDiv);
+
+  // Save button -- store id in data attribute to avoid closure issues
+  var btn=document.createElement("button");
+  btn.className="btn btg";
+  btn.textContent="💾 บันทึกการแก้ไข";
+  btn.setAttribute("data-uid",id);
+  btn.onclick=function(){saveEditUser(this.getAttribute("data-uid"));};
+  wrap.appendChild(btn);
+
+  mc.appendChild(wrap);
+  openModal();
+}
+function saveEditUser(id){
+  var u=null;
+  for(var i=0;i<USERS.length;i++){if(USERS[i].id===id){u=USERS[i];break;}}
+  if(!u)return;
+
+  var nameEl=document.getElementById("eu-name");
+  var unEl=document.getElementById("eu-username");
+  var passEl=document.getElementById("eu-pass");
+  var roleEl=document.getElementById("eu-role");
+  var branchEl=document.getElementById("eu-branch");
+  var errEl=document.getElementById("eu-err");
+
+  var newName=(nameEl?nameEl.value.trim():"");
+  var newUN=(unEl?unEl.value.trim():"");
+  var newPass=(passEl?passEl.value:"");
+
+  if(!newName){if(errEl)errEl.innerHTML='<div style="color:#E24B4A;font-size:12px">กรุณากรอกชื่อครับ</div>';return;}
+  if(!newUN){if(errEl)errEl.innerHTML='<div style="color:#E24B4A;font-size:12px">กรุณากรอก Username ครับ</div>';return;}
+
+  // Check duplicate username
+  var dup=false;
+  for(var i=0;i<USERS.length;i++){if(USERS[i].username===newUN&&USERS[i].id!==id){dup=true;break;}}
+  if(dup){if(errEl)errEl.innerHTML='<div style="color:#E24B4A;font-size:12px">Username "'+newUN+'" มีอยู่แล้วครับ</div>';return;}
+
+  // Check password length if provided
+  if(newPass&&newPass.length<6){if(errEl)errEl.innerHTML='<div style="color:#E24B4A;font-size:12px">รหัสผ่านต้องอย่างน้อย 6 ตัวครับ</div>';return;}
+
+  // Apply changes
+  u.name=newName;
+  u.username=newUN;
+  u.avatar=newName.charAt(0);
+  if(newPass)u.password=newPass;
+  if(roleEl)u.role=roleEl.value;
+  if(branchEl)u.branch=branchEl.value;
+
+  // Systems
+  var sysCbs=document.querySelectorAll(".eu-sys:checked");
+  if(sysCbs.length>0){
+    var sys=[];
+    for(var i=0;i<sysCbs.length;i++)sys.push(sysCbs[i].value);
+    u.systems=sys;
+  }
+
+  // Update perms to match new role (keep existing overrides)
+  var dp=DPERMS[u.role]||DPERMS.clerk;
+  var merged={};
+  Object.keys(dp).forEach(function(k){merged[k]=dp[k];});
+  Object.keys(u.perms||{}).forEach(function(k){if(merged[k]!==undefined)merged[k]=u.perms[k];});
+  u.perms=merged;
+
+  saveUsers();
+  closeModal();
+  renderUserTable();
+
+  showToast('✓ บันทึก '+newName+' เรียบร้อยแล้วครับ');
+}
+
+function openPermUser(id){
+  var u=USERS.find(function(x){return x.id===id;});if(!u)return;
+  var permLabels={billing:"ออกบิล",transport:"ขนส่ง",finance:"การเงิน",reports:"รายงาน",customers:"ลูกค้า",drivers:"คนขับ",users:"จัดการ User",settings:"ตั้งค่า"};
+  var permDesc={billing:"ออกบิล Thermal",transport:"จ่ายงาน/เคลียร์",finance:"ระบบการเงิน (ต้อง Admin กำหนด)",reports:"ดูรายงานทุกประเภท",customers:"ข้อมูลลูกค้า",drivers:"ข้อมูลคนขับ",users:"จัดการ User/สิทธิ์",settings:"ตั้งค่าระบบ"};
+  var h='<div class="modal-title">กำหนดสิทธิ์: '+u.name+' '+rolePill(u.role)+' <span onclick="closeModal()" style="cursor:pointer;font-size:20px;color:#aaa">✕</span></div>';
+  h+='<div style="font-size:12px;font-weight:600;color:#555;margin-bottom:8px">สิทธิ์เมนูหลัก</div>';
+  h+='<div class="perm-grid" id="perm-grid">';
+  Object.keys(permLabels).forEach(function(k){
+    h+='<div class="perm-row"><div class="perm-name">'+permLabels[k]+'<div class="perm-desc">'+permDesc[k]+"</div></div>";
+    h+='<label class="toggle"><input type="checkbox" id="pm-'+k+'"'+(u.perms[k]?" checked":"")+'><span class="slider"></span></label></div>';
+  });
+  h+="</div>";
+  // Report perms (only if reports perm)
+  h+='<div style="font-size:12px;font-weight:600;color:#555;margin:14px 0 8px">สิทธิ์รายงาน (กำหนดรายละเอียดได้)</div>';
+  h+='<div class="perm-grid">';
+  REPORT_ITEMS.forEach(function(r){
+    h+='<div class="perm-row"><div class="perm-name">'+r.label+"</div>";
+    h+='<label class="toggle"><input type="checkbox" id="rp-'+r.key+'"'+(u.reportPerms[r.key]?" checked":"")+'><span class="slider"></span></label></div>';
+  });
+  h+="</div>";
+  h+='<div style="display:flex;gap:8px;margin-top:14px"><button class="btn btg" onclick="savePerms(\''+id+'\')">บันทึกสิทธิ์</button><button class="btn bto" onclick="closeModal()">ยกเลิก</button></div>';
+  document.getElementById("modal-content").innerHTML=h;
+  openModal();
+}
+function savePerms(id){
+  var u=USERS.find(function(x){return x.id===id;});if(!u)return;
+  var permKeys=["billing","transport","finance","reports","customers","drivers","users","settings"];
+  permKeys.forEach(function(k){u.perms[k]=document.getElementById("pm-"+k)?.checked||false;});
+  REPORT_ITEMS.forEach(function(r){u.reportPerms[r.key]=document.getElementById("rp-"+r.key)?.checked||false;});
+  closeModal();renderUserTable();
+  alert("บันทึกสิทธิ์ของ "+u.name+" เรียบร้อยแล้วครับ");
+}
+
+
+// ===== EXPORT / IMPORT =====
+function exportUsers(){
+  var data={version:"golod_v1",exportedAt:new Date().toLocaleString("th-TH"),exportedBy:CU.name,users:USERS};
+  var blob=new Blob([JSON.stringify(data,null,2)],{type:"application/json"});
+  var url=URL.createObjectURL(blob);
+  var a=document.createElement("a");
+  a.href=url;a.download="golod-users-"+new Date().toISOString().slice(0,10)+".json";
+  document.body.appendChild(a);a.click();document.body.removeChild(a);URL.revokeObjectURL(url);
+  showToast("📥 Export "+USERS.length+" คน เรียบร้อยแล้วครับ");
+}
+function importUsers(){
+  var inp=document.createElement("input");inp.type="file";inp.accept=".json";
+  inp.onchange=function(e){
+    var file=e.target.files[0];if(!file)return;
+    var reader=new FileReader();
+    reader.onload=function(ev){
+      try{
+        var data=JSON.parse(ev.target.result);
+        var imported=data.users||data;
+        if(!Array.isArray(imported)||!imported.length){alert("ไฟล์ไม่ถูกต้องครับ");return;}
+        if(!confirm("นำเข้า "+imported.length+" คน จาก "+(data.exportedAt||"ไม่ระบุ")+" ยืนยันไหมครับ?"))return;
+        USERS=imported;
+        saveUsers();renderUserTable();
+        showToast("📤 Import "+USERS.length+" คน เรียบร้อยแล้วครับ");
+      }catch(ex){alert("อ่านไฟล์ไม่ได้ครับ: "+ex.message);}
+    };
+    reader.readAsText(file,"utf-8");
+  };
+  document.body.appendChild(inp);inp.click();document.body.removeChild(inp);
+}
+function showToast(msg){
+  var t=document.createElement("div");
+  t.style.cssText="position:fixed;top:60px;right:16px;background:#1D9E75;color:#fff;padding:10px 18px;border-radius:9px;font-size:13px;font-weight:600;z-index:9999;box-shadow:0 4px 16px rgba(0,0,0,.2);max-width:320px";
+  t.textContent=msg;document.body.appendChild(t);
+  setTimeout(function(){if(t.parentNode)t.parentNode.removeChild(t);},3000);
+}
+
+// ===== MODAL =====
+function closeModal(){
+  var m=document.getElementById("modal-bg");
+  m.classList.remove("open");
+  m.style.display="none";
+  m.style.pointerEvents="none";
+  // clear content so no stale event handlers remain
+  setTimeout(function(){
+    if(!m.classList.contains("open")){
+      document.getElementById("modal-content").innerHTML="";
+    }
+  },300);
+}
+function openModal(){
+  var m=document.getElementById("modal-bg");
+  m.style.display="flex";
+  m.style.pointerEvents="all";
+  m.classList.add("open");
+}
+document.getElementById("modal-bg").addEventListener("click",function(e){if(e.target===this)closeModal();});
+</script>
+</body>
+</html>
