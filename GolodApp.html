@@ -898,7 +898,16 @@ function saveAddU(){
   var rp={};REPORT_KEYS.forEach(function(k){rp[k]=false;});
   var cc=(document.getElementById("au-cc").value||"").trim().toUpperCase();
   if((role==="clerk"||role==="branch")&&!cc){err.innerHTML='<div class="alr">กรุณากรอกรหัสเสมียน (clerkCode) ครับ</div>';return;}
-  USERS.push({id:"u"+Date.now(),username:u,password:p,name:n,role:role,branch:document.getElementById("au-b").value,active:true,avatar:n.charAt(0),clerkCode:cc,systems:sys,perms:Object.assign({},DPERMS[role]||DPERMS.clerk),reportPerms:rp});
+  var newUser={id:"u"+Date.now(),username:u,password:p,name:n,role:role,branch:document.getElementById("au-b").value,active:true,avatar:n.charAt(0),clerkCode:cc,systems:sys,perms:Object.assign({},DPERMS[role]||DPERMS.clerk),reportPerms:rp};
+  USERS.push(newUser);
+  // sync to localStorage
+  try{localStorage.setItem("golod_users_v1",JSON.stringify(USERS));}catch(e){}
+  // sync to Firestore
+  if(typeof GolodDB!=="undefined"){
+    GolodDB.saveUser(newUser).then(function(){
+      console.log("[GolodApp] New user saved to Firestore:",newUser.username);
+    }).catch(function(e){console.warn("saveUser error:",e);});
+  }
   closeMod();renderUT();
 }
 function openEditU(id){
@@ -1023,6 +1032,13 @@ function saveEditU(id){
 
   // บันทึก localStorage
   try{localStorage.setItem("golod_users_v1",JSON.stringify(USERS));}catch(e){}
+
+  // sync to Firestore
+  if(typeof GolodDB!=="undefined"){
+    GolodDB.saveUser(u).then(function(){
+      console.log("[GolodApp] User saved to Firestore:",u.username);
+    }).catch(function(e){console.warn("saveUser error:",e);});
+  }
 
   closeMod();
   renderUT();
