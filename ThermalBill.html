@@ -2803,15 +2803,20 @@ function ThermalBillingApp() {
           senderPhone: b.senderPhone || "",
           senderProv: b.senderProv || "",
           senderAmphoe: b.senderAmphoe || "",
+          senderTambon: b.senderTambon || "",
+          senderZip: b.senderZip || "",
           senderAddr: b.senderAddr || "",
           receiverName: b.receiverName || "",
           receiverPhone: b.receiverPhone || "",
           receiverAmphoe: b.destAmphoe || "",
+          receiverTambon: b.receiverTambon || "",
+          receiverZip: b.receiverZip || "",
           receiverAddr: b.receiverAddr || "",
           destProv: b.destProv || "",
           freightPay: b.freightPay || "origin",
           discount: b.discount || "",
           note: b.note || "",
+          hidePrice: b.hidePrice || false,
           slipUploaded: false,
           slipName: "",
           _editBillNo: b.billNo,
@@ -2862,7 +2867,12 @@ function ThermalBillingApp() {
   useEffect(() => {
     var code = staffCode;
     setF("staff", code);
-    billNo.current = genBillNo(code);
+    // ถ้า edit mode ให้ใช้ billNo เดิม ไม่สร้างใหม่
+    if (window._editBillData && window._editBillData.billNo) {
+      billNo.current = window._editBillData.billNo;
+    } else {
+      billNo.current = genBillNo(code);
+    }
   }, []);
   const startScan = target => {
     setView("form");
@@ -3219,6 +3229,7 @@ function ThermalBillingApp() {
       receiverTambon: form.receiverTambon || "",
       receiverZip: form.receiverZip || "",
       receiverAddr: form.receiverAddr || "",
+      hidePrice: form.hidePrice || false,
       branch: form.branch || "bkk",
       clerkCode: form.staff || staffCode,
       freightPay: form.freightPay || "origin",
