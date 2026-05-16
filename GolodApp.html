@@ -472,14 +472,6 @@ function rolePill(r){var x=ROLES[r]||{label:r,bg:"#eee",color:"#555"};return'<sp
 
 // ===== DASHBOARD =====
 function pgDashboard(){
-  // sync Firestore ใน background
-  if(typeof GolodDB!=="undefined"&&CU){
-    var _isAdm=CU.role==="admin"||CU.role==="branch";
-    var _code=CU.clerkCode||"";
-    GolodDB.getBills(_code,_isAdm).then(function(fb){
-      if(fb&&fb.length>0){BILLS=fb;if(SEC==="dashboard")pgDashboard();}
-    }).catch(function(){});
-  }
   // filter bills ตาม clerk
   var _dMap={admin:"AD",branch1:"BA",clerk1:"BB",clerk2:"KA",driver1:"BA",driver2:"BB",driver3:"BC",driver4:"KA",driver5:"BD"};
   var _mc=CU.clerkCode||"";
@@ -579,13 +571,7 @@ function pgBilling(){
 // ===== BILLS LIST =====
 function pgBills(){
   try{BILLS=loadRealBills();}catch(e){BILLS=[];}
-  if(typeof GolodDB!=="undefined"){
-    var _isAdm2=CU.role==="admin"||CU.role==="branch";
-    var _code2=CU.clerkCode||"";
-    GolodDB.getBills(_code2,_isAdm2).then(function(fb){
-      if(fb&&fb.length>0){BILLS=fb;if(SEC==="bills")pgBills();}
-    }).catch(function(){});
-  }
+
   var data=BILLS;
   // clerk/driver เห็นเฉพาะบิลตัวเอง
   if(CU.role==="clerk"||CU.role==="driver"){
