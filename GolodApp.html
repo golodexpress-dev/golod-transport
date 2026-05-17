@@ -489,10 +489,24 @@ function pgDashboard(){
     :BILLS;
   var total=dBills.reduce(function(s,b){return s+b.freightNet;},0);
   var delivered=dBills.filter(function(b){return b.status==="delivered";}).length;
-  var EAST_PROVS=["ชลบุรี","ระยอง","จันทบุรี","ตราด","ฉะเชิงเทรา","สระแก้ว","ปราจีนบุรี","นครนายก"];
-  var ISAN_PROVS=["ขอนแก่น","อุดรธานี","นครราชสีมา","บุรีรัมย์","สุรินทร์","ศรีสะเกษ","อุบลราชธานี","ยโสธร","อำนาจเจริญ","มุกดาหาร","นครพนม","สกลนคร","กาฬสินธุ์","ร้อยเอ็ด","มหาสารคาม","หนองคาย","หนองบัวลำภู","เลย","ชัยภูมิ","บึงกาฬ"];
-  var east=dBills.filter(function(b){return b.region==="ตะวันออก"||EAST_PROVS.indexOf(b.destProv)>=0;});
-  var isan=dBills.filter(function(b){return b.region==="อีสาน"||ISAN_PROVS.indexOf(b.destProv)>=0;});
+  var PROV_REGION={
+    "กรุงเทพมหานคร":"กรุงเทพฯ","สมุทรปราการ":"กรุงเทพฯ","นนทบุรี":"กรุงเทพฯ","ปทุมธานี":"กรุงเทพฯ","สมุทรสาคร":"กรุงเทพฯ","นครปฐม":"กรุงเทพฯ",
+    "อยุธยา":"กลาง","อ่างทอง":"กลาง","สิงห์บุรี":"กลาง","ชัยนาท":"กลาง","ลพบุรี":"กลาง","สระบุรี":"กลาง","นครสวรรค์":"กลาง","อุทัยธานี":"กลาง","พระนครศรีอยุธยา":"กลาง",
+    "ราชบุรี":"ตะวันตก","กาญจนบุรี":"ตะวันตก","สุพรรณบุรี":"ตะวันตก","เพชรบุรี":"ตะวันตก","ประจวบคีรีขันธ์":"ใต้","ชุมพร":"ใต้","ระนอง":"ใต้","สุราษฎร์ธานี":"ใต้","นครศรีธรรมราช":"ใต้","กระบี่":"ใต้","พังงา":"ใต้","ภูเก็ต":"ใต้","ตรัง":"ใต้","พัทลุง":"ใต้","สตูล":"ใต้","สงขลา":"ใต้","ปัตตานี":"ใต้","ยะลา":"ใต้","นราธิวาส":"ใต้",
+    "ชลบุรี":"ตะวันออก","ระยอง":"ตะวันออก","จันทบุรี":"ตะวันออก","ตราด":"ตะวันออก","ฉะเชิงเทรา":"ตะวันออก","สระแก้ว":"ตะวันออก","ปราจีนบุรี":"ตะวันออก","นครนายก":"ตะวันออก",
+    "เชียงใหม่":"เหนือ","เชียงราย":"เหนือ","แม่ฮ่องสอน":"เหนือ","ลำปาง":"เหนือ","ลำพูน":"เหนือ","พะเยา":"เหนือ","แพร่":"เหนือ","น่าน":"เหนือ","พิษณุโลก":"เหนือ","สุโขทัย":"เหนือ","กำแพงเพชร":"เหนือ","พิจิตร":"เหนือ","เพชรบูรณ์":"เหนือ","ตาก":"เหนือ","อุตรดิตถ์":"เหนือ",
+    "นครราชสีมา":"อีสาน","บุรีรัมย์":"อีสาน","สุรินทร์":"อีสาน","ศรีสะเกษ":"อีสาน","อุบลราชธานี":"อีสาน","ยโสธร":"อีสาน","อำนาจเจริญ":"อีสาน","มุกดาหาร":"อีสาน","นครพนม":"อีสาน","สกลนคร":"อีสาน","กาฬสินธุ์":"อีสาน","ร้อยเอ็ด":"อีสาน","มหาสารคาม":"อีสาน","ขอนแก่น":"อีสาน","อุดรธานี":"อีสาน","หนองคาย":"อีสาน","หนองบัวลำภู":"อีสาน","เลย":"อีสาน","ชัยภูมิ":"อีสาน","บึงกาฬ":"อีสาน"
+  };
+  function getRegion(b){return b.region||PROV_REGION[b.destProv]||"อื่นๆ";}
+  var REGION_LIST=[
+    {key:"กรุงเทพฯ",label:"กรุงเทพฯ และปริมณฑล",color:"#E74C3C"},
+    {key:"กลาง",label:"ภาคกลาง",color:"#8E44AD"},
+    {key:"เหนือ",label:"ภาคเหนือ",color:"#2980B9"},
+    {key:"ตะวันออก",label:"ภาคตะวันออก",color:"#1D9E75"},
+    {key:"ตะวันตก",label:"ภาคตะวันตก",color:"#D35400"},
+    {key:"ใต้",label:"ภาคใต้",color:"#27AE60"},
+    {key:"อีสาน",label:"ภาคอีสาน",color:"#378ADD"}
+  ];
   var h='<div class="g4" style="margin-bottom:10px">';
   h+='<div class="stat sg"><div class="sl">บิลทั้งหมด</div><div class="sv">'+dBills.length+'</div><div class="ss">ใบ</div></div>';
   h+='<div class="stat sb2"><div class="sl">ยอดรวม</div><div class="sv">'+fmt(total)+'</div><div class="ss">฿</div></div>';
@@ -500,12 +514,15 @@ function pgDashboard(){
   h+='<div class="stat sx"><div class="sl">ผู้ใช้งาน</div><div class="sv">'+(ROLES[CU.role]?.label||CU.role)+'</div><div class="ss">'+CU.branch+'</div></div>';
   h+="</div>";
   h+='<div class="g2"><div class="card"><div class="ct">บิลแยกภาค</div>';
-  [[east,"ตะวันออก","#1D9E75"],[isan,"อีสาน","#378ADD"]].forEach(function(x){
-    var rev=x[0].reduce(function(s,b){return s+b.freightNet;},0);
+  REGION_LIST.forEach(function(rg){
+    var grp=dBills.filter(function(b){return getRegion(b)===rg.key;});
+    if(grp.length===0)return;
+    var rev=grp.reduce(function(s,b){return s+(b.freightNet||0);},0);
+    var pct=dBills.length?Math.round(grp.length/dBills.length*100):0;
     h+='<div style="display:flex;align-items:center;gap:10px;margin-bottom:10px">';
-    h+='<div style="width:10px;height:10px;border-radius:50%;background:'+x[2]+';flex-shrink:0"></div>';
-    h+='<div style="flex:1"><div style="font-size:12px;font-weight:500">ภาค'+x[1]+' ('+x[0].length+' บิล)</div>';
-    h+='<div class="pbar"><div class="pfill" style="background:'+x[2]+';width:'+Math.round(x[0].length/dBills.length*100)+'%"></div></div></div>';
+    h+='<div style="width:10px;height:10px;border-radius:50%;background:'+rg.color+';flex-shrink:0"></div>';
+    h+='<div style="flex:1"><div style="font-size:12px;font-weight:500">'+rg.label+' ('+grp.length+' บิล)</div>';
+    h+='<div class="pbar"><div class="pfill" style="background:'+rg.color+';width:'+pct+'%"></div></div></div>';
     h+='<div style="font-size:12px;font-weight:600;color:#085041">'+fmt(rev)+' ฿</div></div>';
   });
   h+="</div>";
