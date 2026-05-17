@@ -489,8 +489,10 @@ function pgDashboard(){
     :BILLS;
   var total=dBills.reduce(function(s,b){return s+b.freightNet;},0);
   var delivered=dBills.filter(function(b){return b.status==="delivered";}).length;
-  var east=dBills.filter(function(b){return b.region==="ตะวันออก";});
-  var isan=dBills.filter(function(b){return b.region==="อีสาน";});
+  var EAST_PROVS=["ชลบุรี","ระยอง","จันทบุรี","ตราด","ฉะเชิงเทรา","สระแก้ว","ปราจีนบุรี","นครนายก"];
+  var ISAN_PROVS=["ขอนแก่น","อุดรธานี","นครราชสีมา","บุรีรัมย์","สุรินทร์","ศรีสะเกษ","อุบลราชธานี","ยโสธร","อำนาจเจริญ","มุกดาหาร","นครพนม","สกลนคร","กาฬสินธุ์","ร้อยเอ็ด","มหาสารคาม","หนองคาย","หนองบัวลำภู","เลย","ชัยภูมิ","บึงกาฬ"];
+  var east=dBills.filter(function(b){return b.region==="ตะวันออก"||EAST_PROVS.indexOf(b.destProv)>=0;});
+  var isan=dBills.filter(function(b){return b.region==="อีสาน"||ISAN_PROVS.indexOf(b.destProv)>=0;});
   var h='<div class="g4" style="margin-bottom:10px">';
   h+='<div class="stat sg"><div class="sl">บิลทั้งหมด</div><div class="sv">'+dBills.length+'</div><div class="ss">ใบ</div></div>';
   h+='<div class="stat sb2"><div class="sl">ยอดรวม</div><div class="sv">'+fmt(total)+'</div><div class="ss">฿</div></div>';
