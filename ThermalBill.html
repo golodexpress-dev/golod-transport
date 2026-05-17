@@ -3417,7 +3417,7 @@ function ThermalBillingApp() {
       display: "flex",
       gap: 5
     }
-  }, (sessionUser === null || sessionUser === void 0 ? void 0 : sessionUser.role) === "admin" && view === "list" && /*#__PURE__*/React.createElement(ExportPanel, null), [["list", `รายการ (${bills.length})`], ["form", "+ บิลใหม่"]].map(([v, l]) => /*#__PURE__*/React.createElement("button", {
+  }, (sessionUser === null || sessionUser === void 0 ? void 0 : sessionUser.role) === "admin" && view === "list" && /*#__PURE__*/React.createElement(ExportPanel, null), [["list", `รายการ (${bills.length})`], ["form", "+ บิลใหม่"], ["receipt", "🧾 ใบเสร็จ"]].map(([v, l]) => /*#__PURE__*/React.createElement("button", {
     key: v,
     onClick: () => v === "form" ? resetForm() : setView(v),
     style: {
