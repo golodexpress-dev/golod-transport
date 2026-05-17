@@ -861,6 +861,18 @@ function pgUsers(){
   renderUT();
 }
 function renderUT(){
+  // sync จาก localStorage ก่อนเสมอ
+  try{
+    var lsU=JSON.parse(localStorage.getItem("golod_users_v1")||"[]");
+    if(lsU.length>0){
+      // merge: เพิ่ม user ที่ไม่มีใน USERS
+      var existIds=USERS.map(function(u){return u.username;});
+      lsU.forEach(function(u){
+        if(existIds.indexOf(u.username)<0){USERS.push(u);}
+        else{var idx=USERS.findIndex(function(x){return x.username===u.username;});if(idx>=0)USERS[idx]=u;}
+      });
+    }
+  }catch(e){}
   var el=document.getElementById("utbody");if(!el)return;
   var rows="";
   USERS.forEach(function(u){
