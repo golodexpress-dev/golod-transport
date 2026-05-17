@@ -2393,6 +2393,19 @@ function canEditBill(bill, sessionUser) {
     }
   } catch (e) {}
 
+  // ตรวจเจ้าของบิล — clerk แก้ได้แค่บิลตัวเอง
+  const userCode = (() => {
+    try {
+      const lu = JSON.parse(localStorage.getItem("golod_users_v1")||"[]").find(u=>u.username===sessionUser.username);
+      if (lu&&lu.clerkCode) return lu.clerkCode;
+    } catch(e){}
+    return sessionUser.clerkCode || null;
+  })();
+  if (userCode && bill.clerkCode && bill.clerkCode !== userCode &&
+      !(bill.billNo && bill.billNo.startsWith(userCode))) {
+    return { allowed: false, reason: "บิลนี้ออกโดย " + (bill.clerkCode||"ผู้อื่น") + " — แก้ไขได้เฉพาะเจ้าของบิล" };
+  }
+
   // ตรวจเวลาปกติ 3 ชม.
   if (!bill.createdAt) return {
     allowed: true,
@@ -2757,12 +2770,20 @@ function ThermalBillingApp() {
     if (sessionUser.clerkCode) return sessionUser.clerkCode;
     var role = sessionUser.role || "";
     var username = sessionUser.username || "";
-    // map username → clerkCode (ตาม GolodApp USERS)
+    // อ่าน clerkCode จาก localStorage ก่อนเสมอ (ข้อมูลจาก Firestore)
+    try {
+      var lsUsers = JSON.parse(localStorage.getItem("golod_users_v1") || "[]");
+      var lsUser = lsUsers.find(u => u.username === username);
+      if (lsUser && lsUser.clerkCode) return lsUser.clerkCode;
+    } catch(e) {}
+    // fallback USER_CODE_MAP
     const USER_CODE_MAP = {
       admin: "AD",
       branch1: "BA",
       clerk1: "BB",
       clerk2: "KA",
+      clerk3: "BN",
+      pae: "BP",
       driver1: "BA",
       driver2: "BB",
       driver3: "BC",
@@ -2818,7 +2839,11 @@ function ThermalBillingApp() {
   };
   // admin เห็นทุกบิล, เสมียนเห็นเฉพาะของตัวเอง
   const isAdminRole = (sessionUser === null || sessionUser === void 0 ? void 0 : sessionUser.role) === "admin" || (sessionUser === null || sessionUser === void 0 ? void 0 : sessionUser.role) === "branch";
-  const bills = isAdminRole ? allBills : allBills.filter(b => !b.clerkCode || b.clerkCode === staffCode);
+  // clerk เห็นแค่บิลตัวเอง, admin/branch เห็นทั้งหมด
+  // บิลไม่มี clerkCode = บิลเก่า → แสดงให้ admin/branch เท่านั้น
+  const bills = isAdminRole
+    ? allBills
+    : allBills.filter(b => b.clerkCode === staffCode || (b.billNo && b.billNo.startsWith(staffCode)));
   const [viewBill, setViewBill] = useState(null);
   const [form, setForm] = useState(() => {
     // ถ้ามีบิลที่ต้องการแก้ไข
