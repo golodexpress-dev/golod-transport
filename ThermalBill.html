@@ -384,8 +384,11 @@ function SearchSelect({
 }) {
   const [q, setQ] = useState("");
   const [open, setOpen] = useState(false);
+  const [cursor, setCursor] = useState(-1);
   const ref = React.useRef(null);
+  const listRef = React.useRef(null);
   const filtered = options.filter(o => !q || o.toLowerCase().includes(q.toLowerCase())).slice(0, 30);
+
   React.useEffect(() => {
     function onClickOut(e) {
       if (ref.current && !ref.current.contains(e.target)) setOpen(false);
@@ -393,86 +396,70 @@ function SearchSelect({
     document.addEventListener("mousedown", onClickOut);
     return () => document.removeEventListener("mousedown", onClickOut);
   }, []);
+
+  React.useEffect(() => {
+    if (cursor >= 0 && listRef.current) {
+      const el = listRef.current.children[cursor];
+      if (el) el.scrollIntoView({ block: "nearest" });
+    }
+  }, [cursor]);
+
+  const handleKey = (e) => {
+    if (!open) {
+      if (e.key === "ArrowDown" || e.key === "ArrowUp") {
+        setOpen(true); setCursor(0); e.preventDefault();
+      }
+      return;
+    }
+    if (e.key === "ArrowDown") { setCursor(c => Math.min(c + 1, filtered.length - 1)); e.preventDefault(); }
+    else if (e.key === "ArrowUp") { setCursor(c => Math.max(c - 1, 0)); e.preventDefault(); }
+    else if (e.key === "Enter" || e.key === "Tab") {
+      if (cursor >= 0 && filtered[cursor]) {
+        onChange(filtered[cursor]); setQ(""); setOpen(false); setCursor(-1); e.preventDefault();
+      }
+    }
+    else if (e.key === "Escape") { setOpen(false); setCursor(-1); }
+  };
+
   const display = value || "";
   return /*#__PURE__*/React.createElement("div", {
     ref: ref,
-    style: {
-      position: "relative"
-    }
+    style: { position: "relative" }
   }, /*#__PURE__*/React.createElement("div", {
-    style: {
-      display: "flex",
-      gap: 0
-    }
+    style: { display: "flex", gap: 0 }
   }, /*#__PURE__*/React.createElement("input", {
     value: open ? q : display,
-    onChange: e => {
-      setQ(e.target.value);
-      setOpen(true);
-      setCursor(-1);
-    },
-    onFocus: () => {
-      setQ("");
-      setOpen(true);
-      setCursor(-1);
-    },
+    onChange: e => { setQ(e.target.value); setOpen(true); setCursor(-1); },
+    onFocus: () => { setQ(""); setOpen(true); setCursor(-1); },
     onKeyDown: handleKey,
     placeholder: disabled ? "—" : placeholder || "พิมพ์เพื่อค้นหา...",
     disabled: disabled,
-    style: {
-      ...INP,
-      borderRadius: "7px 0 0 7px",
-      flex: 1
-    }
+    style: { ...INP, borderRadius: "7px 0 0 7px", flex: 1 }
   }), /*#__PURE__*/React.createElement("button", {
     type: "button",
     onClick: () => setOpen(o => !o),
     style: {
-      padding: "0 8px",
-      border: "0.5px solid #ccc",
-      borderLeft: "none",
-      borderRadius: "0 7px 7px 0",
-      background: "#f5f5f2",
-      cursor: "pointer",
-      fontSize: 11
+      padding: "0 8px", border: "0.5px solid #ccc", borderLeft: "none",
+      borderRadius: "0 7px 7px 0", background: "#f5f5f2", cursor: "pointer", fontSize: 11
     }
-  }, "\u25BE")), open && !disabled && /*#__PURE__*/React.createElement("div", {
+  }, "▾")), open && !disabled && /*#__PURE__*/React.createElement("div", {
+    ref: listRef,
     style: {
-      position: "absolute",
-      top: "100%",
-      left: 0,
-      right: 0,
-      zIndex: 500,
-      background: "#fff",
-      border: "0.5px solid #1D9E75",
-      borderRadius: 8,
-      boxShadow: "0 4px 16px rgba(0,0,0,.15)",
-      maxHeight: 200,
-      overflowY: "auto"
-    },
-    ref: listRef
+      position: "absolute", top: "100%", left: 0, right: 0, zIndex: 500,
+      background: "#fff", border: "0.5px solid #1D9E75", borderRadius: 8,
+      boxShadow: "0 4px 16px rgba(0,0,0,.15)", maxHeight: 200, overflowY: "auto"
+    }
   }, filtered.length === 0 && /*#__PURE__*/React.createElement("div", {
-    style: {
-      padding: "8px 12px",
-      color: "#aaa",
-      fontSize: 12
-    }
-  }, "\u0E44\u0E21\u0E48\u0E1E\u0E1A"), filtered.map(o => /*#__PURE__*/React.createElement("div", {
+    style: { padding: "8px 12px", color: "#aaa", fontSize: 12 }
+  }, "ไม่พบ"), filtered.map((o, oi) => /*#__PURE__*/React.createElement("div", {
     key: o,
-    onMouseDown: () => {
-      onChange(o);
-      setQ("");
-      setOpen(false);
-    },
+    onMouseDown: () => { onChange(o); setQ(""); setOpen(false); setCursor(-1); },
+    onMouseEnter: () => setCursor(oi),
     style: {
-      padding: "7px 12px",
-      fontSize: 12,
-      cursor: "pointer",
-      background: filtered.indexOf(o)===cursor ? "#BEE9D8" : o === value ? "#E1F5EE" : "#fff",
+      padding: "7px 12px", fontSize: 12, cursor: "pointer",
+      background: oi === cursor ? "#BEE9D8" : o === value ? "#E1F5EE" : "#fff",
       fontWeight: o === value ? 600 : 400
-    },
-    onMouseEnter: e => e.target.style.background = "#F0FBF7",
-    onMouseLeave: e => e.target.style.background = o === value ? "#E1F5EE" : "#fff"
+    }
   }, o))));
 }
 
