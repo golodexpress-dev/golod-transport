@@ -4374,18 +4374,17 @@ function ReceiptForm({ bills, staffCode, staffName }) {
   // เลือกบิลอ้างอิง → auto-fill
   const pickBill = (b) => {
     setSelBill(b);
-    // สร้างที่อยู่ผู้ส่งจากข้อมูลบิล
-    const f = b.form || {};
-    const addrParts = [f.senderAddr, f.senderTambon, f.senderAmphoe, f.senderProv, f.senderZip].filter(Boolean);
+    // ข้อมูลผู้ส่งอยู่ที่ root level ของ bill
+    const addrParts = [b.senderAddr, b.senderTambon, b.senderAmphoe, b.senderProv, b.senderZip].filter(Boolean);
     const payerAddr = addrParts.join(" ");
     setForm(prev=>({
       ...prev,
       refBillNo: b.billNo,
-      payerName: f.senderName||"",
-      payerPhone: f.senderPhone||"",
-      payerAddr: payerAddr,
+      payerName: b.senderName || (b.form&&b.form.senderName) || "",
+      payerPhone: b.senderPhone || (b.form&&b.form.senderPhone) || "",
+      payerAddr: payerAddr || ((b.form&&b.form.senderAddr)||""),
       payerTax: "",
-      items: [{desc:"ค่าขนส่ง บิล "+b.billNo, amount: b.summary&&b.summary.freightNet||0}]
+      items: [{desc:"ค่าขนส่ง บิล "+b.billNo, amount: b.freightNet||b.summary&&b.summary.freightNet||0}]
     }));
   };
 
