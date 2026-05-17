@@ -4420,7 +4420,7 @@ function ReceiptForm({ bills, staffCode, staffName }) {
     setTimeout(()=>w.print(),600);
   };
 
-  const // เฉพาะบิลที่จ่ายต้นทาง (origin) หรือโอน (transfer/dest_transfer)
+  // เฉพาะบิลที่จ่ายต้นทาง (origin) หรือโอน (transfer/dest_transfer)
   const eligibleBills = bills.filter(b => {
     const p = b.freightPay || b.form&&b.form.freightPay || "";
     return p==="origin" || p==="transfer" || p==="dest_transfer";
