@@ -323,11 +323,10 @@ try{BILLS=loadRealBills();}catch(e){BILLS=[];console.error("loadRealBills error:
 // ===== SESSION =====
 var CU=null,CS=null,SEC="dashboard";
 
-// init Firebase และ sync users
+// init Firebase และ sync users ทันทีตอนโหลดหน้า
 (function initFirebase(){
   try{
     GolodDB.init();
-    // sync users จาก Firestore ไป localStorage
     GolodDB.getUsers().then(function(users){
       if(users&&users.length>0){
         localStorage.setItem("golod_users_v1",JSON.stringify(users));
@@ -362,21 +361,6 @@ function doLogin(){
   try{var raw=localStorage.getItem("golod_users_v1");if(raw)lsUsers=JSON.parse(raw);}catch(e){}
   // ถ้า localStorage ว่าง หรือ user ไม่เจอ → ลอง sync จาก Firestore ก่อน
   var usernamesInLS=lsUsers.map(function(x){return x.username;});
-  var foundInLS=lsUsers.find(function(x){return x.username===u&&x.password===p&&x.active;});
-  if(!foundInLS&&typeof GolodDB!=="undefined"){
-    // sync Firestore แล้ว login ใหม่
-    GolodDB.init();
-    GolodDB.getUsers().then(function(fsUsers){
-      if(fsUsers&&fsUsers.length>0){
-        localStorage.setItem("golod_users_v1",JSON.stringify(fsUsers));
-      }
-      doLogin(); // เรียกใหม่หลัง sync
-    }).catch(function(){});
-    if(err)err.textContent="กำลังตรวจสอบ...";
-    if(err)err.classList.remove("hidden");
-    return;
-  }
-  // merge: localStorage override hardcode
   var merged=lsUsers.concat(USERS.filter(function(x){return usernamesInLS.indexOf(x.username)<0;}));
   for(var i=0;i<merged.length;i++){
     var usr=merged[i];
