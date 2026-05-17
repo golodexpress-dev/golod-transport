@@ -2766,16 +2766,16 @@ function ThermalBillingApp() {
   // หา staff code จาก session — ใช้ clerkCode จาก USERS ก่อน
   const getStaffCode = () => {
     if (!sessionUser) return "BA";
-    // ใช้ clerkCode ที่ตั้งไว้ใน user profile
-    if (sessionUser.clerkCode) return sessionUser.clerkCode;
     var role = sessionUser.role || "";
     var username = sessionUser.username || "";
-    // อ่าน clerkCode จาก localStorage ก่อนเสมอ (ข้อมูลจาก Firestore)
+    // อ่าน clerkCode จาก localStorage (Firestore) ก่อนเสมอ
     try {
       var lsUsers = JSON.parse(localStorage.getItem("golod_users_v1") || "[]");
       var lsUser = lsUsers.find(u => u.username === username);
       if (lsUser && lsUser.clerkCode) return lsUser.clerkCode;
     } catch(e) {}
+    // ถ้าไม่มีใน localStorage ใช้ sessionUser.clerkCode
+    if (sessionUser.clerkCode) return sessionUser.clerkCode;
     // fallback USER_CODE_MAP
     const USER_CODE_MAP = {
       admin: "AD",
