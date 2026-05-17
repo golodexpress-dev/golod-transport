@@ -3373,7 +3373,10 @@ function ThermalBillingApp() {
     const mv = printMarginV,
       ml = printMarginL;
     const w = window.open("", "_blank", "width=440,height=800");
-    w.document.write(`<html><head><meta charset="UTF-8"><title>บิล ${(viewBill === null || viewBill === void 0 ? void 0 : viewBill.billNo) || ""}</title>
+    w.document.write(`<html><head><meta charset="UTF-8">
+  <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+  <meta http-equiv="Pragma" content="no-cache">
+  <meta http-equiv="Expires" content="0"><title>บิล ${(viewBill === null || viewBill === void 0 ? void 0 : viewBill.billNo) || ""}</title>
     <style>
       *{box-sizing:border-box;margin:0;padding:0}
       @page{size:80mm auto;margin:${mv}mm 3mm ${mv}mm ${ml}mm}
@@ -4287,14 +4290,49 @@ function genReceiptNo(staffCode) {
   return staffCode + mm + String(seq).padStart(4,"0");
 }
 
+
+function bahtText(n) {
+  const digits = ["","หนึ่ง","สอง","สาม","สี่","ห้า","หก","เจ็ด","แปด","เก้า"];
+  const positions = ["","สิบ","ร้อย","พัน","หมื่น","แสน","ล้าน"];
+  if (!n || n===0) return "ศูนย์บาทถ้วน";
+  let num = Math.round(n*100);
+  const satang = num % 100;
+  num = Math.floor(num/100);
+  function readGroup(n) {
+    if (n===0) return "";
+    let s="", d=String(n).split("").reverse();
+    d.forEach((c,i)=>{
+      if(c==="0") return;
+      if(i===1&&c==="2") s="ยี่สิบ"+s;
+      else if(i===1&&c==="1") s="สิบ"+s;
+      else s=digits[parseInt(c)]+positions[i]+s;
+    });
+    return s;
+  }
+  let result="";
+  const millions=Math.floor(num/1000000);
+  if(millions>0){result+=readGroup(millions)+"ล้าน"; num%=1000000;}
+  result+=readGroup(num);
+  result+="บาท";
+  if(satang===0) result+="ถ้วน";
+  else {
+    const s1=Math.floor(satang/10), s2=satang%10;
+    if(s1>0) result+=(s1===2?"ยี่สิบ":s1===1?"สิบ":digits[s1]+(s1>1?"สิบ":""));
+    if(s2>0) result+=digits[s2];
+    result+="สตางค์";
+  }
+  return result;
+}
+
 function ReceiptPrint({ receipt }) {
   const W = 298;
   const fmt = n => (n||0).toLocaleString("th-TH");
   return React.createElement("div", {
-    style:{ width:W, fontFamily:"'Sarabun',sans-serif", fontSize:11, background:"#fff", padding:"8px 10px", boxSizing:"border-box" }
+    style:{ width:W, fontFamily:"'Sarabun',sans-serif", fontSize:11, background:"#fff", padding:"8px 10px", boxSizing:"border-box", lineHeight:1.7 }
   },
     // Header
     React.createElement("div",{style:{textAlign:"center",marginBottom:6}},
+      React.createElement("div",{style:{fontSize:11,fontWeight:700,color:"#0a3d2e"}},"บริษัท โกโลด ทรานสปอร์ต จำกัด"),
       React.createElement("div",{style:{fontSize:14,fontWeight:900,letterSpacing:1.5,color:"#0a3d2e"}},"GOLOD TRANSPORT Co.,Ltd."),
       React.createElement("div",{style:{fontSize:9,color:"#555"}},"527 ถ.ลัดนิ่มไสว แขวงทวีวัฒนา เขตทวีวัฒนา กรุงเทพฯ 10170"),
       React.createElement("div",{style:{fontSize:9,color:"#555"}},"เลขภาษี: 0105556152968 | โทร: 099-1015858, 098-4518141"),
@@ -4330,8 +4368,8 @@ function ReceiptPrint({ receipt }) {
       React.createElement("tbody",null,
         (receipt.items||[]).map((it,i)=>
           React.createElement("tr",{key:i},
-            React.createElement("td",{style:{padding:"2px 3px"}},it.desc),
-            React.createElement("td",{style:{textAlign:"right",padding:"2px 3px"}},fmt(it.amount)," ฿")
+            React.createElement("td",{style:{padding:"4px 3px",lineHeight:1.7}},it.desc),
+            React.createElement("td",{style:{textAlign:"right",padding:"4px 3px",lineHeight:1.7}},fmt(it.amount)," ฿")
           )
         )
       )
@@ -4341,11 +4379,25 @@ function ReceiptPrint({ receipt }) {
       React.createElement("div",null,"รวมทั้งสิ้น"),
       React.createElement("div",null,fmt(receipt.total)," ฿")
     ),
+    React.createElement("div",{style:{fontSize:10,textAlign:"center",color:"#444",marginTop:2,marginBottom:2,fontStyle:"italic"}},
+      "(",bahtText(receipt.total),")"
+    ),
+    React.createElement("hr",{style:{border:"none",borderTop:"0.5px dashed #999",margin:"4px 0"}}),
+    React.createElement("div",{style:{fontSize:10,marginBottom:4}},
+      "ชำระโดย: ",
+      React.createElement("strong",null, receipt.paymentType==="transfer"?"โอนเงิน":"เงินสด"),
+      receipt.paymentType==="transfer" && receipt.transferTime && React.createElement("span",{style:{color:"#555",marginLeft:6}},
+        "เวลา: ",new Date(receipt.transferTime).toLocaleString("th-TH",{dateStyle:"short",timeStyle:"short"})
+      ),
+      receipt.paymentType==="transfer" && receipt.transferRef && React.createElement("span",{style:{color:"#555",marginLeft:6}},
+        "| อ้างอิง: ",receipt.transferRef
+      )
+    ),
     React.createElement("hr",{style:{border:"none",borderTop:"0.5px dashed #999",margin:"4px 0"}}),
     React.createElement("div",{style:{fontSize:9,textAlign:"center",marginTop:4}},
       "ลงชื่อผู้รับเงิน ................................",
       React.createElement("br",null),
-      receipt.clerkName||"", " (", receipt.receiptNo&&receipt.receiptNo.slice(0,2), ")"
+      (receipt.clerkName||"").replace(/\s*\(.*?\)\s*/g,"").trim(), " (", receipt.receiptNo&&receipt.receiptNo.slice(0,2), ")"
     )
   );
 }
@@ -4361,7 +4413,8 @@ function ReceiptForm({ bills, staffCode, staffName }) {
   const [search, setSearch] = React.useState("");
   const today = (()=>{ const d=new Date(); return String(d.getDate()).padStart(2,"0")+"/"+String(d.getMonth()+1).padStart(2,"0")+"/"+(d.getFullYear()+543); })();
   const emptyForm = ()=>({
-    payerName:"", payerAddr:"", payerTax:"",
+    payerName:"", payerPhone:"", payerAddr:"", payerTax:"",
+    paymentType:"cash", transferTime:"", transferRef:"",
     refBillNo:"", desc:"ค่าขนส่ง", amount:0,
     items:[{desc:"ค่าขนส่ง",amount:0}]
   });
@@ -4400,6 +4453,9 @@ function ReceiptForm({ bills, staffCode, staffName }) {
       payerPhone: form.payerPhone||"",
       payerAddr: form.payerAddr||"",
       payerTax: form.payerTax||"",
+      paymentType: form.paymentType||"cash",
+      transferTime: form.transferTime||"",
+      transferRef: form.transferRef||"",
       items: form.items,
       total
     };
@@ -4479,6 +4535,42 @@ function ReceiptForm({ bills, staffCode, staffName }) {
           React.createElement("div",{style:{fontSize:11,color:"#666",marginBottom:2}},lb),
           React.createElement("input",{
             value:form[k]||"", onChange:e=>setF(k,e.target.value),
+            style:{border:"0.5px solid #ccc",borderRadius:7,padding:"5px 9px",fontSize:12,width:"100%",boxSizing:"border-box"}
+          })
+        )
+      )
+    ),
+    // ประเภทการชำระเงิน
+    React.createElement("div",{style:{background:"#fff",border:"0.5px solid #ddd",borderRadius:8,padding:"10px 12px",marginBottom:10}},
+      React.createElement("div",{style:{fontWeight:600,fontSize:12,marginBottom:8}},"ประเภทการชำระเงิน"),
+      React.createElement("div",{style:{display:"flex",gap:12,marginBottom:8}},
+        ["cash","transfer"].map(t=>
+          React.createElement("label",{key:t,style:{display:"flex",alignItems:"center",gap:4,cursor:"pointer",fontSize:12}},
+            React.createElement("input",{
+              type:"radio", name:"paymentType", value:t,
+              checked:form.paymentType===t,
+              onChange:()=>setF("paymentType",t)
+            }),
+            t==="cash"?"💵 เงินสด":"📲 โอนเงิน"
+          )
+        )
+      ),
+      form.paymentType==="transfer" && React.createElement("div",{style:{display:"flex",gap:8,flexWrap:"wrap"}},
+        React.createElement("div",{style:{flex:1,minWidth:120}},
+          React.createElement("div",{style:{fontSize:11,color:"#666",marginBottom:2}},"เวลาโอน"),
+          React.createElement("input",{
+            type:"datetime-local",
+            value:form.transferTime||"",
+            onChange:e=>setF("transferTime",e.target.value),
+            style:{border:"0.5px solid #ccc",borderRadius:7,padding:"5px 9px",fontSize:12,width:"100%",boxSizing:"border-box"}
+          })
+        ),
+        React.createElement("div",{style:{flex:1,minWidth:120}},
+          React.createElement("div",{style:{fontSize:11,color:"#666",marginBottom:2}},"เลขอ้างอิง/สลิป"),
+          React.createElement("input",{
+            value:form.transferRef||"",
+            onChange:e=>setF("transferRef",e.target.value),
+            placeholder:"เช่น 202505171045",
             style:{border:"0.5px solid #ccc",borderRadius:7,padding:"5px 9px",fontSize:12,width:"100%",boxSizing:"border-box"}
           })
         )
