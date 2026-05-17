@@ -372,8 +372,8 @@ overrideHookState:null,overrideHookStateDeletePath:null,overrideHookStateRenameP
 }a=Vf(b);a=null===a?null:a.stateNode;return a};M.flushSync=function(a,b){var c=n;if(0!==(c&48))return a(b);n|=1;try{if(a)return Za(99,a.bind(null,b))}finally{n=c,ja()}};M.hydrate=function(a,b,c){if(!wc(b))throw Error(m(200));return zd(null,a,b,!0,c)};M.render=function(a,b,c){if(!wc(b))throw Error(m(200));return zd(null,a,b,!1,c)};M.unmountComponentAtNode=function(a){if(!wc(a))throw Error(m(40));return a._reactRootContainer?(bi(function(){zd(null,null,a,!1,function(){a._reactRootContainer=null;a[rb]=
 null})}),!0):!1};M.unstable_batchedUpdates=ai;M.unstable_createPortal=function(a,b){return hi(a,b,2<arguments.length&&void 0!==arguments[2]?arguments[2]:null)};M.unstable_renderSubtreeIntoContainer=function(a,b,c,d){if(!wc(c))throw Error(m(200));if(null==a||void 0===a._reactInternals)throw Error(m(38));return zd(a,b,c,!1,d)};M.version="17.0.2"});
 })();
-</script><script>var useState=React.useState,useRef=React.useRef,useEffect=React.useEffect,useCallback=React.useCallback,useMemo=React.useMemo,useContext=React.useContext,useReducer=React.useReducer;</script>
-<script>// ===== SearchSelect — พิมพ์ค้นหาในช่องเลือกจังหวัด/อำเภอ =====
+</script><script>var useState=React.useState,useRef=React.useRef,useEffect=React.useEffect,useCallback=React.useCallback,useMemo=React.useMemo,useContext=React.useContext,useReducer=React.useReducer;
+// ===== SearchSelect — พิมพ์ค้นหาในช่องเลือกจังหวัด/อำเภอ =====
 
 function SearchSelect({
   value,
@@ -4295,7 +4295,7 @@ function ReceiptPrint({ receipt }) {
   },
     // Header
     React.createElement("div",{style:{textAlign:"center",marginBottom:6}},
-      React.createElement("div",{style:{fontSize:14,fontWeight:900,letterSpacing:1.5,color:"#0a3d2e"}},"GOLOD TRANSPORT"),
+      React.createElement("div",{style:{fontSize:14,fontWeight:900,letterSpacing:1.5,color:"#0a3d2e"}},"GOLOD TRANSPORT Co.,Ltd."),
       React.createElement("div",{style:{fontSize:9,color:"#555"}},"527 ถ.ลัดนิ่มไสว แขวงทวีวัฒนา เขตทวีวัฒนา กรุงเทพฯ 10170"),
       React.createElement("div",{style:{fontSize:9,color:"#555"}},"เลขภาษี: 0105556152968 | โทร: 099-1015858, 098-4518141"),
       React.createElement("div",{style:{fontSize:13,fontWeight:800,marginTop:4,borderTop:"1px solid #000",borderBottom:"1px solid #000",padding:"3px 0"}},"ใบเสร็จรับเงิน / RECEIPT")
@@ -4314,7 +4314,8 @@ function ReceiptPrint({ receipt }) {
     React.createElement("div",{style:{marginBottom:4}},
       React.createElement("div",{style:{fontWeight:700,fontSize:10,marginBottom:2}},"ผู้จ่ายเงิน (Payer):"),
       React.createElement("div",{style:{fontSize:10}},receipt.payerName||"—"),
-      receipt.payerAddr && React.createElement("div",{style:{fontSize:9,color:"#666"}},receipt.payerAddr),
+      receipt.payerPhone && React.createElement("div",{style:{fontSize:9,color:"#555"}},"โทร: ",receipt.payerPhone),
+    receipt.payerAddr && React.createElement("div",{style:{fontSize:9,color:"#666"}},receipt.payerAddr),
       receipt.payerTax && React.createElement("div",{style:{fontSize:9}},"เลขภาษี: ",receipt.payerTax)
     ),
     React.createElement("hr",{style:{border:"none",borderTop:"0.5px dashed #999",margin:"4px 0"}}),
@@ -4373,10 +4374,17 @@ function ReceiptForm({ bills, staffCode, staffName }) {
   // เลือกบิลอ้างอิง → auto-fill
   const pickBill = (b) => {
     setSelBill(b);
-    setForm(f=>({
-      ...f,
+    // สร้างที่อยู่ผู้ส่งจากข้อมูลบิล
+    const f = b.form || {};
+    const addrParts = [f.senderAddr, f.senderTambon, f.senderAmphoe, f.senderProv, f.senderZip].filter(Boolean);
+    const payerAddr = addrParts.join(" ");
+    setForm(prev=>({
+      ...prev,
       refBillNo: b.billNo,
-      payerName: b.form&&b.form.senderName||"",
+      payerName: f.senderName||"",
+      payerPhone: f.senderPhone||"",
+      payerAddr: payerAddr,
+      payerTax: "",
       items: [{desc:"ค่าขนส่ง บิล "+b.billNo, amount: b.summary&&b.summary.freightNet||0}]
     }));
   };
@@ -4390,6 +4398,7 @@ function ReceiptForm({ bills, staffCode, staffName }) {
       clerkName: staffName,
       refBillNo: form.refBillNo||"",
       payerName: form.payerName||"",
+      payerPhone: form.payerPhone||"",
       payerAddr: form.payerAddr||"",
       payerTax: form.payerTax||"",
       items: form.items,
@@ -4412,7 +4421,12 @@ function ReceiptForm({ bills, staffCode, staffName }) {
     setTimeout(()=>w.print(),600);
   };
 
-  const filteredBills = bills.filter(b=>
+  const // เฉพาะบิลที่จ่ายต้นทาง (origin) หรือโอน (transfer/dest_transfer)
+  const eligibleBills = bills.filter(b => {
+    const p = b.freightPay || b.form&&b.form.freightPay || "";
+    return p==="origin" || p==="transfer" || p==="dest_transfer";
+  });
+  filteredBills = eligibleBills.filter(b=>
     !search || (b.billNo&&b.billNo.toLowerCase().includes(search.toLowerCase())) ||
     (b.form&&b.form.senderName&&b.form.senderName.includes(search))
   );
@@ -4461,7 +4475,7 @@ function ReceiptForm({ bills, staffCode, staffName }) {
     // ข้อมูลผู้จ่าย
     React.createElement("div",{style:{background:"#fff",border:"0.5px solid #ddd",borderRadius:8,padding:"10px 12px",marginBottom:10}},
       React.createElement("div",{style:{fontWeight:600,fontSize:12,marginBottom:8}},"ข้อมูลผู้จ่ายเงิน"),
-      [["payerName","ชื่อ / บริษัทผู้จ่าย"],["payerAddr","ที่อยู่"],["payerTax","เลขประจำตัวผู้เสียภาษี"]].map(([k,lb])=>
+      [["payerName","ชื่อ / บริษัทผู้จ่าย"],["payerPhone","เบอร์โทร"],["payerAddr","ที่อยู่"],["payerTax","เลขประจำตัวผู้เสียภาษี"]].map(([k,lb])=>
         React.createElement("div",{key:k,style:{marginBottom:6}},
           React.createElement("div",{style:{fontSize:11,color:"#666",marginBottom:2}},lb),
           React.createElement("input",{
