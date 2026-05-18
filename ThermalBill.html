@@ -1015,6 +1015,9 @@ function ThermalBill({
   billNo,
   printDate
 }) {
+  // คำนวณ minFreight ภายใน
+  const _minFr = form.isSpecialArea ? (parseInt(form.minFreight)||0) : 0;
+  const _isMinApplied = _minFr > 0 && summary.freightNet >= _minFr && (summary.freightTotal||summary.freightNet) < _minFr;
   var _FREIGHT_PAY$find, _BRANCHES$find;
   const W = 298;
   const zone = getZone(form.branch, form.destProv, form.receiverAmphoe);
@@ -1385,12 +1388,14 @@ function ThermalBill({
       fontSize: 11,
       fontWeight: 700
     }
-  }, "\u0E23\u0E27\u0E21\u0E04\u0E48\u0E32\u0E02\u0E19\u0E2A\u0E48\u0E07"), /*#__PURE__*/React.createElement("span", {
-    style: {
-      fontSize: 16,
-      fontWeight: 700
-    }
-  }, summary.freightNet.toLocaleString("th-TH"), " \u0E3F")), !form.hidePrice && summary.codTotal > 0 && /*#__PURE__*/React.createElement("div", {
+  }, "\u0E23\u0E27\u0E21\u0E04\u0E48\u0E32\u0E02\u0E19\u0E2A\u0E48\u0E07"), /*#__PURE__*/React.createElement("div", {style:{textAlign:"right"}},
+    /*#__PURE__*/React.createElement("span", {
+      style: { fontSize: 16, fontWeight: 700 }
+    }, summary.freightNet.toLocaleString("th-TH"), " \u0E3F"),
+    _isMinApplied && /*#__PURE__*/React.createElement("div", {
+      style: { fontSize: 9, color: "#E67E22", fontWeight: 700, marginTop: 1 }
+    }, "(ยอดขั้นต่ำพื้นที่พิเศษ)")
+  )), !form.hidePrice && summary.codTotal > 0 && /*#__PURE__*/React.createElement("div", {
     style: {
       display: "flex",
       justifyContent: "space-between",
@@ -3343,6 +3348,8 @@ function ThermalBillingApp() {
       freightPay: form.freightPay || "origin",
       freightNet: summary.freightNet || 0,
       codTotal: summary.codTotal || 0,
+      isSpecialArea: form.isSpecialArea || false,
+      minFreight: form.minFreight || 0,
       status: "issued",
       // wrapped fields สำหรับ ThermalBill (ใช้แสดงรายการบิล)
       form: {
