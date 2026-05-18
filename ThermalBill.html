@@ -2862,52 +2862,29 @@ function ThermalBillingApp() {
       if (typeof GolodDB === "undefined") return;
       var s = {};
       try { s = JSON.parse(localStorage.getItem("golod_session") || "{}"); } catch(e) {}
-      // ใช้ getAllBills เพื่อดึงทุกบิล รวมบิลที่ import จาก Sheets
-      var fetchFn = (typeof GolodDB.getAllBills === "function")
-        ? GolodDB.getAllBills(3000)
-        : GolodDB.getBills(s.clerkCode || "", true);
-      fetchFn.then(function(bills) {
-        try {
-          if (bills && bills.length > 0) {
-            var local = [];
-            try { local = JSON.parse(localStorage.getItem("golod_bills")||"[]"); } catch(e) {}
-            var map = {};
-            local.forEach(function(b){ if(b.billNo) map[b.billNo]=b; });
-            bills.forEach(function(b){ if(b.billNo) map[b.billNo]=b; });
-            var merged = Object.values(map);
-            try { localStorage.setItem("golod_bills", JSON.stringify(merged)); } catch(e) {}
-            function billDateObj(b){
-              var v = b.createdAt || b.created_at || b.date || b.createdDate || "";
-              if (!v) return null;
-              if (v && typeof v.toDate === "function") return v.toDate();
-              if (typeof v === "string") {
-                var d1 = new Date(v);
-                if (!isNaN(d1.getTime())) return d1;
-                var p = v.split("/");
-                if (p.length >= 3) {
-                  var y = parseInt(p[2], 10);
-                  if (y > 2400) y -= 543;
-                  return new Date(y, parseInt(p[1],10)-1, parseInt(p[0],10));
-                }
-              }
-              return null;
+      var isAdminRole = s.role === "admin" || s.role === "branch";
+
+      if (isAdminRole) {
+        // admin/branch: ดึงบิลใหม่จาก Firestore (มี clerkCode)
+        GolodDB.getBillsNew && GolodDB.getBillsNew(500).then(function(bills) {
+          try {
+            if (bills && bills.length > 0) {
+              var local = [];
+              try { local = JSON.parse(localStorage.getItem("golod_bills")||"[]"); } catch(e) {}
+              var map = {};
+              local.forEach(function(b){ if(b.billNo && b.clerkCode) map[b.billNo]=b; });
+              bills.forEach(function(b){ if(b.billNo && b.clerkCode) map[b.billNo]=b; });
+              var merged = Object.values(map);
+              setAllBills(merged);
+              try { localStorage.setItem("golod_bills", JSON.stringify(merged)); } catch(e) {}
+              console.log("[ThermalBill] admin synced "+merged.length+" new bills");
             }
-            var _now = new Date();
-            var _cut = new Date(_now.getFullYear(), _now.getMonth(), _now.getDate() - 2);
-            var _recent = merged.filter(function(b){
-              var d = billDateObj(b);
-              return d && d >= _cut;
-            });
-            _recent.sort(function(a,b){
-              return (billDateObj(b)||0) - (billDateObj(a)||0);
-            });
-            setAllBills(_recent);
-            console.log("[ThermalBill] synced total="+merged.length+" recent="+_recent.length);
-          }
-        } catch(e) { console.warn("sync error:", e.message); }
-      }).catch(function(e) { console.warn("fetch error:", e&&e.message); });
+          } catch(e) { console.warn("admin sync error:", e.message); }
+        }).catch(function(){});
+      }
+      // clerk: ใช้แค่ localStorage ของเครื่องตัวเอง (บิลที่ออกจากเครื่องนี้)
     } catch(e) { console.warn("useEffect error:", e.message); }
-  }, []);
+  }, []);;
   // setBills: อัปเดต state และ save localStorage
   const setBills = updater => {
     setAllBills(prev => {

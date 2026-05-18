@@ -236,5 +236,28 @@ var GolodDB = (function() {
     });
   }
 
-  return { init, saveBill, getBills, updateBill, saveContact, getContacts, saveUser, getUsers, saveEditLog, getEditLogs, listenBills, getAllBills, ready };
+  
+  // ดึงเฉพาะบิลใหม่ที่มี clerkCode (ไม่ใช่บิลเก่า format เดิม)
+  function getBillsNew(limitN) {
+    return new Promise(function(resolve, reject) {
+      ready(function() {
+        db.collection("bills")
+          .where("clerkCode", ">=", "A")
+          .limit(limitN||500).get()
+          .then(function(snap) {
+            var bills=[];
+            snap.forEach(function(doc){ 
+              var d=doc.data();
+              if(d.clerkCode) bills.push(d);
+            });
+            bills.sort(function(a,b){
+              return (b.createdAt||b.date||"") > (a.createdAt||a.date||"") ? 1 : -1;
+            });
+            resolve(bills);
+          }).catch(reject);
+      });
+    });
+  }
+
+  return { init, saveBill, getBills, updateBill, saveContact, getContacts, saveUser, getUsers, saveEditLog, getEditLogs, listenBills, getAllBills, getBillsNew, ready };
 })();
