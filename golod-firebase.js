@@ -219,10 +219,17 @@ var GolodDB = (function() {
   function getAllBills(limitN) {
     return new Promise(function(resolve, reject) {
       ready(function() {
-        db.collection("bills").orderBy("createdAt","desc").limit(limitN||5000).get()
+        // ไม่ใช้ orderBy เพื่อให้ดึงได้ทุกบิล รวมบิลที่ไม่มี createdAt
+        db.collection("bills").limit(limitN||5000).get()
           .then(function(snap) {
             var bills=[];
             snap.forEach(function(doc){ bills.push(doc.data()); });
+            // เรียงตาม date+billNo แทน
+            bills.sort(function(a,b){
+              var da=a.date||""; var db2=b.date||"";
+              if(da!==db2) return da>db2?-1:1;
+              return (a.billNo||"")>(b.billNo||"")?-1:1;
+            });
             resolve(bills);
           }).catch(reject);
       });
