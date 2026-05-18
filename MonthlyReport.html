@@ -303,22 +303,78 @@ function genMonth(month){
 }
 
 function genBranch(month){
-  var splits=[[0.55,0.28,0.17],[0.52,0.30,0.18],[0.57,0.26,0.17],[0.54,0.29,0.17]];
-  var sp=splits[(month-2)%4];
-  var daily=genMonth(month);
-  var total=daily.reduce(function(s,d){return s+d.total;},0);
-  var bills=daily.reduce(function(s,d){return s+d.bills;},0);
-  var items=daily.reduce(function(s,d){return s+d.items;},0);
-  return BRANCHES.map(function(b,i){
-    var r=sp[i];
-    var prevR=splits[(month-3+4)%4][i];
-    return{name:b,bills:Math.round(bills*r),items:Math.round(items*r),
-      origin:Math.round(total*r*0.30),dest:Math.round(total*r*0.25),
-      transfer:Math.round(total*r*0.35),credit:Math.round(total*r*0.10),
-      total:Math.round(total*r),pct:Math.round(r*100),
-      prev:Math.round(genMonth(month-1).reduce(function(s,d){return s+d.total;},0)*prevR)};
+  // ดึงจาก localStorage จริง
+  var allBills=[];
+  try{ allBills=JSON.parse(localStorage.getItem("golod_bills")||"[]"); }catch(e){}
+  var ySel=document.getElementById("sel-year");
+  var year=ySel?parseInt(ySel.value)||new Date().getFullYear()+543:new Date().getFullYear()+543;
+
+  var monthBills=allBills.filter(function(b){
+    if(!b.date) return false;
+    var parts=b.date.split("/");
+    if(parts.length<3) return false;
+    return parseInt(parts[1])===month && parseInt(parts[2])===year;
   });
+
+  var BRANCH_DEF=[
+    {key:"bkk", name:"กรุงเทพ"},
+    {key:"ptm", name:"ปทุมธานี"},
+    {key:"krt", name:"นครราชสีมา"},
+    {key:"ssk", name:"ศรีสะเกษ"}
+  ];
+
+  var getBranch=function(b){
+    if(b.branch && b.branch!=="") return b.branch;
+    var cc=(b.clerkCode||"").toUpperCase();
+    if(cc==="KA"||cc==="KRT") return "krt";
+    if(cc==="SA"||cc==="SSK") return "ssk";
+    if(cc==="PH") return "ptm";
+    return "bkk";
+  };
+
+  // คำนวณเดือนก่อน
+  var prevMonth=month===1?12:month-1;
+  var prevYear=month===1?year-1:year;
+  var prevBills=allBills.filter(function(b){
+    if(!b.date) return false;
+    var parts=b.date.split("/");
+    if(parts.length<3) return false;
+    return parseInt(parts[1])===prevMonth && parseInt(parts[2])===prevYear;
+  });
+
+  return BRANCH_DEF.map(function(br){
+    var grp=monthBills.filter(function(b){return getBranch(b)===br.key;});
+    var prevGrp=prevBills.filter(function(b){return getBranch(b)===br.key;});
+    var origin=0,dest=0,transfer=0,credit=0,items=0;
+    grp.forEach(function(b){
+      var net=parseFloat(b.freightNet)||0;
+      var pay=b.freightPay||"origin";
+      if(pay==="origin") origin+=net;
+      else if(pay==="dest"||pay==="dest_cash") dest+=net;
+      else if(pay==="transfer"||pay==="dest_transfer") transfer+=net;
+      else if(pay==="credit") credit+=net;
+      else origin+=net;
+      if(b.items&&b.items.length) b.items.forEach(function(it){items+=parseInt(it.qty)||1;});
+      else items+=1;
+    });
+    var total=origin+dest+transfer+credit;
+    var prevTotal=prevGrp.reduce(function(s,b){return s+(parseFloat(b.freightNet)||0);},0);
+    var grandTotal=monthBills.reduce(function(s,b){return s+(parseFloat(b.freightNet)||0);},0);
+    return{
+      name:br.name,
+      bills:grp.length,
+      items:Math.round(items),
+      origin:Math.round(origin),
+      dest:Math.round(dest),
+      transfer:Math.round(transfer),
+      credit:Math.round(credit),
+      total:Math.round(total),
+      pct:grandTotal>0?Math.round(total/grandTotal*100):0,
+      prev:Math.round(prevTotal)
+    };
+  }).filter(function(br){return br.bills>0;});
 }
+
 
 function genStaff(month){
   var daily=genMonth(month);
