@@ -2848,27 +2848,30 @@ function ThermalBillingApp() {
   });
   // โหลดบิลจาก Firestore เมื่อ component mount
   useEffect(() => {
-    if (typeof GolodDB === "undefined") return;
-    const s = JSON.parse(localStorage.getItem("golod_session") || "{}");
-    const isAdmin = s.role === "admin" || s.role === "branch";
-    // ใช้ getAllBills เพื่อดึงทุกบิล รวมบิลที่ import จาก Sheets
-    var fetchFn = (typeof GolodDB.getAllBills === "function")
-      ? GolodDB.getAllBills(3000)
-      : GolodDB.getBills(s.clerkCode || "", isAdmin);
-    fetchFn.then(function(bills) {
-      if (bills && bills.length > 0) {
-        // merge กับ localStorage
-        var local = [];
-        try { local = JSON.parse(localStorage.getItem("golod_bills")||"[]"); } catch(e) {}
-        var map = {};
-        local.forEach(function(b){ if(b.billNo) map[b.billNo]=b; });
-        bills.forEach(function(b){ if(b.billNo) map[b.billNo]=b; });
-        var merged = Object.values(map);
-        setAllBills(merged);
-        try { localStorage.setItem("golod_bills", JSON.stringify(merged)); } catch(e) {}
-        console.log("[ThermalBill] useEffect synced", merged.length, "bills");
-      }
-    }).catch(function() {});
+    try {
+      if (typeof GolodDB === "undefined") return;
+      var s = {};
+      try { s = JSON.parse(localStorage.getItem("golod_session") || "{}"); } catch(e) {}
+      // ใช้ getAllBills เพื่อดึงทุกบิล รวมบิลที่ import จาก Sheets
+      var fetchFn = (typeof GolodDB.getAllBills === "function")
+        ? GolodDB.getAllBills(3000)
+        : GolodDB.getBills(s.clerkCode || "", true);
+      fetchFn.then(function(bills) {
+        try {
+          if (bills && bills.length > 0) {
+            var local = [];
+            try { local = JSON.parse(localStorage.getItem("golod_bills")||"[]"); } catch(e) {}
+            var map = {};
+            local.forEach(function(b){ if(b.billNo) map[b.billNo]=b; });
+            bills.forEach(function(b){ if(b.billNo) map[b.billNo]=b; });
+            var merged = Object.values(map);
+            setAllBills(merged);
+            try { localStorage.setItem("golod_bills", JSON.stringify(merged)); } catch(e) {}
+            console.log("[ThermalBill] synced", merged.length, "bills");
+          }
+        } catch(e) { console.warn("sync error:", e.message); }
+      }).catch(function(e) { console.warn("fetch error:", e&&e.message); });
+    } catch(e) { console.warn("useEffect error:", e.message); }
   }, []);
   // setBills: อัปเดต state และ save localStorage
   const setBills = updater => {
