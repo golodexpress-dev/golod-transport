@@ -2851,15 +2851,24 @@ function ThermalBillingApp() {
     if (typeof GolodDB === "undefined") return;
     const s = JSON.parse(localStorage.getItem("golod_session") || "{}");
     const isAdmin = s.role === "admin" || s.role === "branch";
-    GolodDB.getBills(s.clerkCode || "", isAdmin).then(function (bills) {
+    // ใช้ getAllBills เพื่อดึงทุกบิล รวมบิลที่ import จาก Sheets
+    var fetchFn = (typeof GolodDB.getAllBills === "function")
+      ? GolodDB.getAllBills(3000)
+      : GolodDB.getBills(s.clerkCode || "", isAdmin);
+    fetchFn.then(function(bills) {
       if (bills && bills.length > 0) {
-        setAllBills(bills);
-        // sync ลง localStorage เพื่อให้ genBillNo อ่านถูก
-        try {
-          localStorage.setItem("golod_bills", JSON.stringify(bills));
-        } catch (e) {}
+        // merge กับ localStorage
+        var local = [];
+        try { local = JSON.parse(localStorage.getItem("golod_bills")||"[]"); } catch(e) {}
+        var map = {};
+        local.forEach(function(b){ if(b.billNo) map[b.billNo]=b; });
+        bills.forEach(function(b){ if(b.billNo) map[b.billNo]=b; });
+        var merged = Object.values(map);
+        setAllBills(merged);
+        try { localStorage.setItem("golod_bills", JSON.stringify(merged)); } catch(e) {}
+        console.log("[ThermalBill] useEffect synced", merged.length, "bills");
       }
-    }).catch(function () {});
+    }).catch(function() {});
   }, []);
   // setBills: อัปเดต state และ save localStorage
   const setBills = updater => {
