@@ -789,17 +789,24 @@ function genBillNo(staff) {
   const KEY = `golod_seq_${staff}_${today}`;
   let seq = 1;
   try {
-    const bills = JSON.parse(localStorage.getItem("golod_bills") || "[]");
-    const prefix = `${staff}${today}-`;
-    // หาเลขสูงสุดจาก bills จริง
-    const maxFromBills = bills.filter(b => (b.billNo || "").startsWith(prefix)).map(b => parseInt((b.billNo || "").slice(prefix.length)) || 0).reduce((m, n) => Math.max(m, n), 0);
-    // หาจาก counter ที่บันทึกไว้
     const savedSeq = parseInt(localStorage.getItem(KEY) || "0");
-    seq = Math.max(maxFromBills, savedSeq) + 1;
+    if (savedSeq > 0) {
+      // มี counter แล้ว — ใช้ต่อทันที ไม่นับจาก bills
+      seq = savedSeq + 1;
+    } else {
+      // ครั้งแรกของวัน — นับเฉพาะบิลที่ออกโดย staff นี้จริงๆ
+      const bills = JSON.parse(localStorage.getItem("golod_bills") || "[]");
+      const prefix = staff + today + "-";
+      const maxFromBills = bills
+        .filter(b => (b.billNo||"").startsWith(prefix) && b.clerkCode === staff)
+        .map(b => parseInt((b.billNo||"").slice(prefix.length))||0)
+        .reduce((m,n) => Math.max(m,n), 0);
+      seq = maxFromBills + 1;
+    }
     localStorage.setItem(KEY, String(seq));
     // ล้าง key เก่า (วันอื่น)
-    Object.keys(localStorage).filter(k => k.startsWith("golod_seq_" + staff + "_") && k !== KEY).forEach(k => localStorage.removeItem(k));
-  } catch (e) {}
+    Object.keys(localStorage).filter(k => k.startsWith("golod_seq_"+staff+"_") && k !== KEY).forEach(k => localStorage.removeItem(k));
+  } catch(e) {}
   return `${staff}${today}-${String(seq).padStart(2, "0")}`;
 }
 function todayStr() {
@@ -1265,47 +1272,22 @@ function ThermalBill({
       borderBottom: "0.5px solid #333"
     }
   }, /*#__PURE__*/React.createElement("th", {
-    style: {
-      textAlign: "left",
-      padding: "1px 2px",
-      fontWeight: 700
-    }
-  }, "\u0E23\u0E32\u0E22\u0E01\u0E32\u0E23\u0E02\u0E2D\u0E07"), /*#__PURE__*/React.createElement("th", {
-    style: {
-      textAlign: "center",
-      padding: "1px 2px",
-      fontWeight: 700
-    }
-  }, "\u0E02\u0E19\u0E32\u0E14"), /*#__PURE__*/React.createElement("th", {
-    style: {
-      textAlign: "center",
-      padding: "1px 2px",
-      fontWeight: 700
-    }
-  }, "\u0E19\u0E19./\u0E0A\u0E34\u0E49\u0E19"), /*#__PURE__*/React.createElement("th", {
-    style: {
-      textAlign: "center",
-      padding: "1px 2px",
-      fontWeight: 700
-    }
-  }, "\u0E01+\u0E22+\u0E2A"), !form.hidePrice && /*#__PURE__*/React.createElement("th", {
-    style: {
-      textAlign: "right",
-      padding: "1px 2px",
-      fontWeight: 700
-    }
-  }, "P"), /*#__PURE__*/React.createElement("th", {
-    style: {
-      textAlign: "center",
-      padding: "1px 2px",
-      fontWeight: 700
-    }
-  }, "Q"), !form.hidePrice && /*#__PURE__*/React.createElement("th", {
-    style: {
-      textAlign: "right",
-      padding: "1px 2px",
-      fontWeight: 700
-    }
+    style: { textAlign: "left", padding: "1px 2px", fontWeight: 700, maxWidth: 90 }
+  }, "\u0E23\u0E32\u0E22\u0E01\u0E32\u0E23\u0E02\u0E2D\u0E07"),
+  /*#__PURE__*/React.createElement("th", {
+    style: { textAlign: "center", padding: "1px 2px", fontWeight: 700 }
+  }, "\u0E19\u0E19./\u0E0A\u0E34\u0E49\u0E19"),
+  /*#__PURE__*/React.createElement("th", {
+    style: { textAlign: "center", padding: "1px 2px", fontWeight: 700 }
+  }, "\u0E01+\u0E22+\u0E2A"),
+  !form.hidePrice && /*#__PURE__*/React.createElement("th", {
+    style: { textAlign: "right", padding: "1px 8px 1px 2px", fontWeight: 700 }
+  }, "P"),
+  /*#__PURE__*/React.createElement("th", {
+    style: { textAlign: "center", padding: "1px 2px 1px 8px", fontWeight: 700 }
+  }, "Q"),
+  !form.hidePrice && /*#__PURE__*/React.createElement("th", {
+    style: { textAlign: "right", padding: "1px 2px", fontWeight: 700 }
   }, "\u0E04\u0E48\u0E32\u0E2A\u0E48\u0E07"))), /*#__PURE__*/React.createElement("tbody", null, items.map((item, i) => {
     const sumCm = parseFloat(item.sumCm) || 0;
     const sz = calcSize(item.kg, sumCm);
@@ -1322,9 +1304,12 @@ function ThermalBill({
       style: {
         padding: "2px 2px",
         fontSize: 9,
-        fontWeight: 600
+        fontWeight: 600,
+        maxWidth: 90,
+        wordBreak: "break-word",
+        whiteSpace: "normal"
       }
-    }, i + 1, ". ", item.desc || "(ไม่ระบุ)", item.goodsType && item.goodsType !== "ทั่วไป" ? ` (${item.goodsType})` : ""), /*#__PURE__*/React.createElement("td", {
+    }, i + 1, ". ", item.desc || "(ไม่ระบุ)"), /*#__PURE__*/React.createElement("td", {
       style: {
         textAlign: "center",
         padding: "2px 2px",
