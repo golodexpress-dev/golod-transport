@@ -982,7 +982,30 @@ function DailyReport() {
       color: "#888",
       marginTop: 4
     }
-  }, "\u0E23\u0E32\u0E22\u0E23\u0E31\u0E1A ", fmtN0(totalIncome), " - \u0E23\u0E32\u0E22\u0E08\u0E48\u0E32\u0E22 ", fmtN0(totalExpense))), /*#__PURE__*/React.createElement("div", {
+  }, "เงินสดต้นทาง ", fmtN0(cashOrigin), " - ค่าใช้จ่าย ", fmtN0(totalExpense))), /*#__PURE__*/React.createElement("div", {
+    style: { marginTop:8, fontSize:11, color:"#666", borderTop:"0.5px solid #ccc", paddingTop:6 }
+  },
+    React.createElement("div",{style:{display:"flex",justifyContent:"space-between"}},
+      React.createElement("span",null,"รายรับทั้งหมด (ทุกประเภท)"),
+      React.createElement("span",{style:{fontWeight:600}},fmtN0(totalIncome)," ฿")
+    ),
+    React.createElement("div",{style:{display:"flex",justifyContent:"space-between",color:"#1D9E75"}},
+      React.createElement("span",null,"  เก็บต้นทาง (เสมียนถือ)"),
+      React.createElement("span",null,fmtN0(cashOrigin)," ฿")
+    ),
+    cashDest>0&&React.createElement("div",{style:{display:"flex",justifyContent:"space-between"}},
+      React.createElement("span",null,"  ปลายทางสด (คนขับรับ)"),
+      React.createElement("span",null,fmtN0(cashDest)," ฿")
+    ),
+    destTransfer>0&&React.createElement("div",{style:{display:"flex",justifyContent:"space-between"}},
+      React.createElement("span",null,"  โอนปลายทาง"),
+      React.createElement("span",null,fmtN0(destTransfer)," ฿")
+    ),
+    creditIncome>0&&React.createElement("div",{style:{display:"flex",justifyContent:"space-between"}},
+      React.createElement("span",null,"  เครดิต"),
+      React.createElement("span",null,fmtN0(creditIncome)," ฿")
+    )
+  ), /*#__PURE__*/React.createElement("div", {
     style: {
       display: "grid",
       gridTemplateColumns: "1fr 1fr",

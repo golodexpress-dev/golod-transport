@@ -77,6 +77,7 @@ input:focus,select:focus{border-color:#1D9E75}
 var _S = GolodSession.require("billing","reports");
 if(!_S) throw new Error("no session");
 </script>
+<script src="golod-firebase.js"></script>
 </head>
 <body>
 <div id="golod-session-bar" style="background:#0F6E56;padding:0 14px;display:flex;align-items:center;gap:10px;height:44px;position:sticky;top:0;z-index:999">
@@ -90,12 +91,8 @@ if(!_S) throw new Error("no session");
 <div class="hdr no-print">
   <div><h1>โกโลด ทรานสปอร์ต</h1><p>รายงานยอดขาย</p></div>
   <div class="hdr-btns">
-    <select id="sel-month" onchange="rerender()">
-      <option value="5">พฤษภาคม 2568</option>
-      <option value="4">เมษายน 2568</option>
-      <option value="3">มีนาคม 2568</option>
-      <option value="2">กุมภาพันธ์ 2568</option>
-    </select>
+    <select id="sel-year" onchange="rerender()" style="margin-right:4px"></select>
+    <select id="sel-month" onchange="rerender()"></select>
     <button class="btn btg" onclick="window.print()">🖨 พิมพ์ A4</button>
   </div>
 </div>
@@ -248,26 +245,57 @@ var PROV_ZONE={
 
 // Generate daily data for a month
 function genMonth(month){
-  var seed=month*1000;
-  function rnd(min,max,s){s=s||0;return Math.floor(min+(max-min)*((Math.sin(seed+s)*0.5+0.5)));};
-  var days=month===2?28:month<=7&&month%2===0||month>7&&month%2===1?30:31;
+  // โหลดจาก localStorage จริง
+  var allBills=[];
+  try{ allBills=JSON.parse(localStorage.getItem("golod_bills")||"[]"); }catch(e){}
+  
+  // filter เดือนที่เลือก (date format: D/M/YYYY พ.ศ.)
+  var year=parseInt(document.getElementById("sel-year")&&document.getElementById("sel-year").value)||new Date().getFullYear()+543;
+  
+  var monthBills=allBills.filter(function(b){
+    if(!b.date) return false;
+    var parts=b.date.split("/");
+    if(parts.length<3) return false;
+    return parseInt(parts[1])===month && parseInt(parts[2])===year;
+  });
+  
+  // จำนวนวันในเดือน
+  var thYear=year-543;
+  var days=new Date(thYear,month,0).getDate();
   var data=[];
+  
   for(var d=1;d<=days;d++){
-    var isWeekend=(new Date(2025,month-1,d).getDay()%6===0);
-    var factor=isWeekend?0.6:1;
-    var bills=Math.round((80+rnd(0,60,d))*factor);
-    var items=bills*Math.round(1.5+rnd(0,3,d+10)/10);
-    var origin=Math.round(bills*0.3*(3000+rnd(0,1000,d+1)));
-    var dest=Math.round(bills*0.25*(3000+rnd(0,1000,d+2)));
-    var transfer=Math.round(bills*0.35*(3000+rnd(0,1000,d+3)));
-    var credit=Math.round(bills*0.1*(3000+rnd(0,1000,d+4)));
-    seed+=37;
-    data.push({day:d,bills:bills,items:items,origin:origin,dest:dest,transfer:transfer,credit:credit,total:origin+dest+transfer+credit});
+    var dayBills=monthBills.filter(function(b){
+      return parseInt(b.date.split("/")[0])===d;
+    });
+    var origin=0,dest=0,transfer=0,credit=0,items=0;
+    dayBills.forEach(function(b){
+      var net=parseFloat(b.freightNet)||0;
+      var pay=b.freightPay||"origin";
+      if(pay==="origin") origin+=net;
+      else if(pay==="dest"||pay==="dest_cash") dest+=net;
+      else if(pay==="transfer"||pay==="dest_transfer") transfer+=net;
+      else if(pay==="credit") credit+=net;
+      else origin+=net;
+      // นับชิ้น
+      if(b.items&&b.items.length){
+        b.items.forEach(function(it){ items+=parseInt(it.qty)||1; });
+      } else items+=1;
+    });
+    data.push({
+      d:d,
+      bills:dayBills.length,
+      items:items,
+      origin:Math.round(origin),
+      dest:Math.round(dest),
+      transfer:Math.round(transfer),
+      credit:Math.round(credit),
+      total:Math.round(origin+dest+transfer+credit)
+    });
   }
   return data;
 }
 
-// Branch data
 function genBranch(month){
   var splits=[[0.55,0.28,0.17],[0.52,0.30,0.18],[0.57,0.26,0.17],[0.54,0.29,0.17]];
   var sp=splits[(month-2)%4];
@@ -668,10 +696,58 @@ function showTab(id){
   currentTab=id;
   if(RENDERS[id]) RENDERS[id]();
 }
+function buildSelectors(){
+  var now=new Date();
+  var curYear=now.getFullYear()+543;
+  var curMonth=now.getMonth()+1;
+  var MONTH_NAMES=["","มกราคม","กุมภาพันธ์","มีนาคม","เมษายน","พฤษภาคม","มิถุนายน","กรกฎาคม","สิงหาคม","กันยายน","ตุลาคม","พฤศจิกายน","ธันวาคม"];
+  // ปี: ย้อนหลัง 2 ปี
+  var ySel=document.getElementById("sel-year");
+  if(ySel){
+    ySel.innerHTML="";
+    for(var y=curYear;y>=curYear-2;y--){
+      var opt=document.createElement("option");
+      opt.value=y; opt.text=y+"";
+      if(y===curYear) opt.selected=true;
+      ySel.appendChild(opt);
+    }
+  }
+  // เดือน
+  var mSel=document.getElementById("sel-month");
+  if(mSel){
+    mSel.innerHTML="";
+    for(var m=12;m>=1;m--){
+      var opt2=document.createElement("option");
+      opt2.value=m; opt2.text=MONTH_NAMES[m];
+      if(m===curMonth) opt2.selected=true;
+      mSel.appendChild(opt2);
+    }
+  }
+}
 function rerender(){if(RENDERS[currentTab])RENDERS[currentTab]();}
 
 // INIT
-renderOverview();
+buildSelectors();
+// sync Firestore ถ้าเชื่อมต่อได้ แล้วค่อย render
+(function(){
+  try {
+    if(typeof GolodDB!=="undefined" && typeof GolodDB.getAllBills==="function") {
+      GolodDB.getAllBills().then(function(bills){
+        if(bills&&bills.length>0){
+          var local=[];
+          try{local=JSON.parse(localStorage.getItem("golod_bills")||"[]");}catch(e){}
+          var map={};
+          local.forEach(function(b){if(b.billNo)map[b.billNo]=b;});
+          bills.forEach(function(b){if(b.billNo)map[b.billNo]=b;});
+          localStorage.setItem("golod_bills",JSON.stringify(Object.values(map)));
+        }
+        renderOverview();
+      }).catch(function(){ renderOverview(); });
+    } else {
+      renderOverview();
+    }
+  } catch(e){ renderOverview(); }
+})();
 </script>
 </body>
 </html>

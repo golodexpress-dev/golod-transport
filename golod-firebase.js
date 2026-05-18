@@ -215,5 +215,19 @@ var GolodDB = (function() {
     });
   }
 
-  return { init, saveBill, getBills, updateBill, saveContact, getContacts, saveUser, getUsers, saveEditLog, getEditLogs, listenBills, ready };
+  
+  function getAllBills(limitN) {
+    return new Promise(function(resolve, reject) {
+      ready(function() {
+        db.collection("bills").orderBy("createdAt","desc").limit(limitN||5000).get()
+          .then(function(snap) {
+            var bills=[];
+            snap.forEach(function(doc){ bills.push(doc.data()); });
+            resolve(bills);
+          }).catch(reject);
+      });
+    });
+  }
+
+  return { init, saveBill, getBills, updateBill, saveContact, getContacts, saveUser, getUsers, saveEditLog, getEditLogs, listenBills, getAllBills, ready };
 })();

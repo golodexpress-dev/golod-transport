@@ -423,6 +423,7 @@ var MENU=[
   {k:"drivers",lb:"คนขับ",ic:"🚗",perm:"drivers",roles:["admin","branch"]},
   {k:"users",lb:"จัดการผู้ใช้",ic:"⚙️",perm:"users",roles:["admin"]},
   {k:"editlogs",lb:"ประวัติแก้ไข",ic:"📝",perm:"users",roles:["admin"]},
+  {k:"slipreqs",lb:"อนุมัติสลิป",ic:"📎",perm:"users",roles:["admin","branch"]},
   {k:"profile",lb:"โปรไฟล์",ic:"👤",roles:["admin","branch","clerk","driver","customer"]},
 ];
 function canAccess(k){
@@ -468,8 +469,45 @@ function goSection(k){
     return;
   }
   SEC=k;buildSidebar();
-  var fns={dashboard:pgDashboard,billing:pgBilling,bills:pgBills,transport:pgTransport,tracking:pgTracking,finance:pgFinance,reports:pgReports,customers:pgCustomers,drivers:pgDrivers,users:pgUsers,profile:pgProfile,editlogs:pgEditLogs};
+  var fns={dashboard:pgDashboard,billing:pgBilling,bills:pgBills,transport:pgTransport,tracking:pgTracking,finance:pgFinance,reports:pgReports,customers:pgCustomers,drivers:pgDrivers,users:pgUsers,profile:pgProfile,editlogs:pgEditLogs,slipreqs:pgSlipRequests};
   if(fns[k])fns[k](); else document.getElementById("content").innerHTML="<div class='card'>"+k+"</div>";
+}
+function pgSlipRequests(){
+  var reqs=[];
+  try{ reqs=JSON.parse(localStorage.getItem("golod_slip_requests")||"[]"); }catch(e){}
+  var cont=document.getElementById("content");
+  var h='<div class="card"><div class="ct">📎 คำขออนุมัติแนบสลิป</div>';
+  if(reqs.length===0){h+='<div style="color:#aaa;text-align:center;padding:20px">ไม่มีคำขอ</div>';}
+  else{
+    h+='<table style="width:100%;border-collapse:collapse;font-size:13px"><thead><tr style="background:#f0faf5"><th style="padding:8px">เลขบิล</th><th>เสมียน</th><th>เวลาขอ</th><th>สถานะ</th><th>อนุมัติ</th></tr></thead><tbody>';
+    reqs.forEach(function(r,i){
+      var t=r.requestedAt?new Date(r.requestedAt).toLocaleString("th-TH"):"";
+      var approved=r.status==="approved";
+      h+='<tr style="border-bottom:0.5px solid #eee"><td style="padding:8px;font-weight:600">'+r.billNo+'</td><td>'+r.clerkCode+'</td><td style="font-size:11px;color:#666">'+t+'</td>';
+      h+='<td>'+(approved?'<span style="color:#1D9E75;font-weight:600">✅ อนุมัติแล้ว</span>':'<span style="color:#E67E22">รอ</span>')+'</td>';
+      h+='<td>'+(approved?'':'<button onclick="approveSlip('+i+')" style="padding:4px 12px;background:#1D9E75;color:#fff;border:none;border-radius:6px;cursor:pointer;font-size:12px">อนุมัติ 1 ชม.</button>')+'</td></tr>';
+    });
+    h+='</tbody></table>';
+  }
+  h+='</div>';
+  cont.innerHTML=h;
+}
+function approveSlip(i){
+  try{
+    var reqs=JSON.parse(localStorage.getItem("golod_slip_requests")||"[]");
+    if(!reqs[i]) return;
+    reqs[i].status="approved";
+    reqs[i].approvedAt=new Date().toISOString();
+    localStorage.setItem("golod_slip_requests",JSON.stringify(reqs));
+    // เก็บ window 1 ชม. สำหรับ slip upload
+    var wins=JSON.parse(localStorage.getItem("golod_slip_windows")||"{}");
+    wins[reqs[i].billNo]=Date.now()+(60*60*1000);
+    localStorage.setItem("golod_slip_windows",JSON.stringify(wins));
+    // update Firestore
+    if(typeof GolodDB!=="undefined") GolodDB.updateBill(reqs[i].billNo,{slipRequest:"approved",slipApprovedAt:new Date().toISOString()}).catch(function(){});
+    alert("✅ อนุมัติ "+reqs[i].billNo+" แล้ว เสมียนมีเวลา 1 ชั่วโมง");
+    pgSlipRequests();
+  }catch(e){alert("เกิดข้อผิดพลาด");}
 }
 function showDenied(k){
   var m=MENU.find(function(x){return x.k===k;})||{lb:k};

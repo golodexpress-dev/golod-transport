@@ -3,6 +3,7 @@
 <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no"/>
 <title>โกโลด — หน้าคนขับ</title>
 <style>*{box-sizing:border-box;margin:0;padding:0}body{font-family:Arial,sans-serif;background:#f0f4f0;min-height:100vh;-webkit-tap-highlight-color:transparent}button,input,select{font-family:Arial,sans-serif}</style>
+  <script src="golod-storage.js"></script>
 </head><body>
 <div id="root"></div>
 <script>/** @license React v17.0.2
@@ -616,7 +617,24 @@ function BillActions({
   };
   const handleSlip = async e => {
     const f = e.target.files[0];
-    if (f) setSlip(await readFile(f));
+    if (!f) return;
+    // preview ก่อน
+    const dataUrl = await readFile(f);
+    setSlip(dataUrl);
+    // upload ไป Firebase Storage ทันที (driver ทำได้ภายใน 24 ชม.)
+    if (typeof GolodStorage !== "undefined") {
+      GolodStorage.uploadAndSave(billNo, f, "slip1")
+        .then(function(url) {
+          // อัป Sheet col W ด้วย
+          try {
+            if (typeof WEBAPP !== "undefined") {
+              fetch(WEBAPP + "?action=updateCol&billNo=" + encodeURIComponent(billNo) + "&col=W&value=" + encodeURIComponent(url), {method:"GET",mode:"no-cors"}).catch(()=>{});
+            }
+          } catch(e) {}
+          alert("✅ อัปโหลดสลิปสำเร็จ!");
+        })
+        .catch(function(e) { console.warn("slip upload failed:", e.message); });
+    }
   };
   const confirmDelivered = () => {
     onUpdate(billNo, "delivered", {
