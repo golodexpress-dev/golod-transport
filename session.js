@@ -14,7 +14,7 @@ var GolodSession = {
       perms: user.perms,
       reportPerms: user.reportPerms,
       loginAt: new Date().toISOString(),
-      expireAt: new Date(Date.now() + 8*60*60*1000).toISOString()
+      expireAt: new Date(Date.now() + 30*24*60*60*1000).toISOString() // 30 วัน
     };
     localStorage.setItem("golod_session", JSON.stringify(data));
   },
