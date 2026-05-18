@@ -1850,9 +1850,21 @@ function BillList({
   onView
 }) {
   const [q, setQ] = useState("");
-  const fil = bills.filter(b => {
+  // กรองเฉพาะ 3 วันล่าสุด ถ้าไม่ได้ค้นหา
+  const today = new Date();
+  const cutoff = new Date(today.getFullYear(), today.getMonth(), today.getDate() - 1); // วันนี้ + เมื่อวาน
+  const recentBills = q ? bills : bills.filter(b => {
+    if (!b.date) return false;
+    var parts = b.date.split("/");
+    if (parts.length < 3) return false;
+    var thYear = parseInt(parts[2]) - 543;
+    var d = new Date(thYear, parseInt(parts[1])-1, parseInt(parts[0]));
+    return d >= cutoff;
+  });
+  const fil = recentBills.filter(b => {
     var _b$form$senderName, _b$form$receiverName, _b$form$destProv;
-    return !q || b.billNo.includes(q) || ((_b$form$senderName = b.form.senderName) === null || _b$form$senderName === void 0 ? void 0 : _b$form$senderName.includes(q)) || ((_b$form$receiverName = b.form.receiverName) === null || _b$form$receiverName === void 0 ? void 0 : _b$form$receiverName.includes(q)) || ((_b$form$destProv = b.form.destProv) === null || _b$form$destProv === void 0 ? void 0 : _b$form$destProv.includes(q));
+    if (!b.form) b.form = {};
+    return !q || (b.billNo||"").includes(q) || (b.senderName||"").includes(q) || (b.receiverName||"").includes(q) || (b.destProv||"").includes(q) || ((_b$form$senderName = b.form.senderName) === null || _b$form$senderName === void 0 ? void 0 : _b$form$senderName.includes(q)) || ((_b$form$receiverName = b.form.receiverName) === null || _b$form$receiverName === void 0 ? void 0 : _b$form$receiverName.includes(q)) || ((_b$form$destProv = b.form.destProv) === null || _b$form$destProv === void 0 ? void 0 : _b$form$destProv.includes(q));
   });
   return /*#__PURE__*/React.createElement("div", null, /*#__PURE__*/React.createElement("div", {
     style: {
@@ -1993,10 +2005,6 @@ function BillList({
       }
     }, "\uD83D\uDDA8 \u0E1E\u0E34\u0E21\u0E1E\u0E4C"), /*#__PURE__*/React.createElement(EditBillBtn, {
       bill: b
-    }), /*#__PURE__*/React.createElement(SlipUploadBtn, {
-      bill: b,
-      isDriver: false,
-      onUploaded: function(url) {}
     })));
   }))), fil.length > 0 && /*#__PURE__*/React.createElement("div", {
     style: {
