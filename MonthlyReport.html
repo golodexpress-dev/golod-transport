@@ -250,7 +250,8 @@ function genMonth(month){
   try{ allBills=JSON.parse(localStorage.getItem("golod_bills")||"[]"); }catch(e){}
   
   // filter เดือนที่เลือก (date format: D/M/YYYY พ.ศ.)
-  var year=parseInt(document.getElementById("sel-year")&&document.getElementById("sel-year").value)||new Date().getFullYear()+543;
+  var ySel=document.getElementById("sel-year");
+  var year=ySel?parseInt(ySel.value)||new Date().getFullYear()+543:new Date().getFullYear()+543;
   
   var monthBills=allBills.filter(function(b){
     if(!b.date) return false;
@@ -282,8 +283,13 @@ function genMonth(month){
         b.items.forEach(function(it){ items+=parseInt(it.qty)||1; });
       } else items+=1;
     });
+    var thY=year-543;
+    var dateObj=new Date(thY,month-1,d);
+    var DAY_NAMES=["อา","จ","อ","พ","พฤ","ศ","ส"];
     data.push({
       d:d,
+      day:d,  // ใช้ตัวเลขวันที่แทนชื่อวัน
+      week: DAY_NAMES[dateObj.getDay()],
       bills:dayBills.length,
       items:items,
       origin:Math.round(origin),
