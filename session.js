@@ -24,7 +24,11 @@ var GolodSession = {
       var raw = localStorage.getItem("golod_session");
       if (!raw) return null;
       var data = JSON.parse(raw);
-      if (new Date(data.expireAt) < new Date()) { this.clear(); return null; }
+      if (new Date(data.expireAt) < new Date()) {
+        // ต่ออายุ session อีก 30 วัน แทนที่จะ clear
+        data.expireAt = new Date(Date.now() + 30*24*60*60*1000).toISOString();
+        localStorage.setItem("golod_session", JSON.stringify(data));
+      }
       return data;
     } catch(e) { return null; }
   },
