@@ -4,6 +4,8 @@
 <meta charset="UTF-8"/>
 <meta name="viewport" content="width=device-width,initial-scale=1"/>
 <title>โกโลด — รายงานยอดขาย</title>
+<meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+<meta http-equiv="Pragma" content="no-cache">
 <style>
 *{box-sizing:border-box;margin:0;padding:0}
 body{font-family:Arial,sans-serif;background:#f5f5f2;min-height:100vh}
@@ -377,18 +379,50 @@ function genBranch(month){
 
 
 function genStaff(month){
-  var daily=genMonth(month);
-  var total=daily.reduce(function(s,d){return s+d.total;},0);
-  var bills=daily.reduce(function(s,d){return s+d.bills;},0);
-  var items=daily.reduce(function(s,d){return s+d.items;},0);
-  var splits=[0.28,0.22,0.20,0.18,0.12];
-  return STAFF.map(function(s,i){
-    var r=splits[i];
-    var myBills=Math.round(bills*r);
-    var myTotal=Math.round(total*r);
-    return{code:s.code,name:s.name,branch:s.branch,bills:myBills,items:Math.round(items*r),total:myTotal,avg:myBills>0?Math.round(myTotal/myBills):0,pct:Math.round(r*100)};
+  var allBills=[];
+  try{ allBills=JSON.parse(localStorage.getItem("golod_bills")||"[]"); }catch(e){}
+  var ySel=document.getElementById("sel-year");
+  var year=ySel?parseInt(ySel.value)||new Date().getFullYear()+543:new Date().getFullYear()+543;
+
+  var monthBills=allBills.filter(function(b){
+    if(!b.date) return false;
+    var parts=b.date.split("/");
+    return parseInt(parts[1])===month && parseInt(parts[2])===year;
+  });
+
+  // group by clerkCode + clerkName
+  var staffMap={};
+  monthBills.forEach(function(b){
+    var code=b.clerkCode||"?";
+    var name=(b.clerkName||code).replace(/\s*\(.*?\)\s*/g,"").trim();
+    var branch=b.branch||"bkk";
+    var key=code;
+    if(!staffMap[key]) staffMap[key]={code:code,name:name,branch:branch,bills:0,items:0,total:0};
+    staffMap[key].bills+=1;
+    var itms=0;
+    if(b.items&&b.items.length) b.items.forEach(function(it){itms+=parseInt(it.qty)||1;});
+    else itms=1;
+    staffMap[key].items+=itms;
+    staffMap[key].total+=parseFloat(b.freightNet)||0;
+  });
+
+  var grandTotal=monthBills.reduce(function(s,b){return s+(parseFloat(b.freightNet)||0);},0);
+  var BRANCH_LABEL={bkk:"กรุงเทพ",ptm:"ปทุมธานี",krt:"นครราชสีมา",ssk:"ศรีสะเกษ"};
+
+  return Object.values(staffMap).sort(function(a,b){return b.total-a.total;}).map(function(s){
+    return{
+      name:s.name+" ("+s.code+")",
+      code:s.code,
+      bills:s.bills,
+      items:s.items,
+      total:Math.round(s.total),
+      avg:s.bills>0?Math.round(s.total/s.bills):0,
+      pct:grandTotal>0?Math.round(s.total/grandTotal*100):0,
+      branch:BRANCH_LABEL[s.branch]||s.branch
+    };
   });
 }
+
 
 function genZone(month){
   var daily=genMonth(month);
@@ -591,15 +625,28 @@ function renderStaff(){
   weeks.forEach(function(w){hd+="<th>"+w+"</th>";});
   hd+="<th>รวม</th></tr>";
   document.getElementById("st-daily-head").innerHTML=hd;
+  // คำนวณยอดรายสัปดาห์จากข้อมูลจริง
+  var allBills2=[];
+  try{ allBills2=JSON.parse(localStorage.getItem("golod_bills")||"[]"); }catch(e){}
+  var ySel2=document.getElementById("sel-year");
+  var year2=ySel2?parseInt(ySel2.value)||new Date().getFullYear()+543:new Date().getFullYear()+543;
+  var m2=getMonth();
+  var mBills2=allBills2.filter(function(b){
+    if(!b.date) return false;
+    var p=b.date.split("/");
+    return parseInt(p[1])===m2 && parseInt(p[2])===year2;
+  });
+
   var bd="";
   data.forEach(function(d){
     bd+="<tr><td style='font-weight:600'>"+d.name+"</td>";
-    var wSum=0;
-    weeks.forEach(function(_,i){
-      var wv=Math.round(d.total*[0.23,0.26,0.27,0.24][i]);
-      wSum+=wv;
-      bd+="<td>"+fmt(wv)+" ฿</td>";
+    var wTotals=[0,0,0,0];
+    mBills2.filter(function(b){return (b.clerkCode||"?")===(d.code||"?");}).forEach(function(b){
+      var day=parseInt(b.date.split("/")[0])||1;
+      var wIdx=Math.min(Math.floor((day-1)/7),3);
+      wTotals[wIdx]+=(parseFloat(b.freightNet)||0);
     });
+    wTotals.forEach(function(wv){ bd+="<td>"+fmt(Math.round(wv))+" ฿</td>"; });
     bd+='<td style="font-weight:600;color:#085041">'+fmt(d.total)+" ฿</td></tr>";
   });
   document.getElementById("st-daily-body").innerHTML=bd;
