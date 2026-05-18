@@ -516,7 +516,7 @@ function showDenied(k){
 function rolePill(r){var x=ROLES[r]||{label:r,bg:"#eee",color:"#555"};return'<span class="pill" style="background:'+x.bg+';color:'+x.color+'">'+x.label+"</span>";}
 
 // ===== DASHBOARD =====
-function pgDashboard(){
+function pgDashboard(showAll){
   // filter bills ตาม clerk
   var _dMap={admin:"AD",branch1:"BA",clerk1:"BB",clerk2:"KA",driver1:"BA",driver2:"BB",driver3:"BC",driver4:"KA",driver5:"BD"};
   var _mc=CU.clerkCode||"";
@@ -527,11 +527,12 @@ function pgDashboard(){
     :BILLS;
   // กรองเฉพาะวันนี้
   var _today=new Date();
-  var _dd=_today.getDate().toString().padStart(2,"0");
-  var _mm=(_today.getMonth()+1).toString().padStart(2,"0");
+  var _dd=_today.getDate();
+  var _mm=_today.getMonth()+1;
   var _yy=_today.getFullYear()+543;
   var _todayStr=_dd+"/"+_mm+"/"+_yy;
-  var dBills=allBills.filter(function(b){return b.date===_todayStr;});
+  var _todayStr2=String(_dd).padStart(2,"0")+"/"+String(_mm).padStart(2,"0")+"/"+_yy;
+  var dBills=showAll?allBills:allBills.filter(function(b){return b.date===_todayStr||b.date===_todayStr2;});
   var total=dBills.reduce(function(s,b){return s+b.freightNet;},0);
   var delivered=dBills.filter(function(b){return b.status==="delivered";}).length;
   var PROV_REGION={
@@ -566,8 +567,12 @@ function pgDashboard(){
     {key:"อีสาน",label:"ภาคอีสาน",color:"#1A5276"},
     {key:"เหนือ",label:"ภาคเหนือ",color:"#117A65"}
   ];
-  var h='<div class="g4" style="margin-bottom:10px">';
-  h+='<div class="stat sg"><div class="sl">บิลทั้งหมด</div><div class="sv">'+dBills.length+'</div><div class="ss">ใบ</div></div>';
+  var h='<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">'
+    +'<div style="font-weight:700;font-size:13px;color:#085041">📅 บิลวันที่ '+_todayStr+'</div>'
+    +'<button onclick="pgDashboard(true)" style="font-size:11px;padding:3px 10px;border:0.5px solid #ccc;border-radius:6px;background:#fff;cursor:pointer">ดูทั้งหมด</button>'
+    +'</div>';
+  h+='<div class="g4" style="margin-bottom:10px">';
+  h+='<div class="stat sg"><div class="sl">บิลวันนี้</div><div class="sv">'+dBills.length+'</div><div class="ss">ใบ</div></div>';
   h+='<div class="stat sb2"><div class="sl">ยอดรวม</div><div class="sv">'+fmt(total)+'</div><div class="ss">฿</div></div>';
   h+='<div class="stat sa"><div class="sl">ส่งสำเร็จ</div><div class="sv">'+delivered+'</div><div class="ss">'+Math.round(delivered/dBills.length*100)+'%</div></div>';
   h+='<div class="stat sx"><div class="sl">ผู้ใช้งาน</div><div class="sv">'+(ROLES[CU.role]?.label||CU.role)+'</div><div class="ss">'+CU.branch+'</div></div>';
