@@ -4636,6 +4636,88 @@ function ManualBillForm({ staffCode, staffName, onSave }) {
 }
 
 
+// ===== SLIP UPLOADER =====
+var SLIP_WINDOW_MS = 12 * 60 * 60 * 1000;
+
+function SlipUploadBtn({ bill, onUploaded, isDriver }) {
+  const [loading, setLoading] = React.useState(false);
+  const [url, setUrl] = React.useState(bill.slip1 || "");
+  const [err, setErr] = React.useState("");
+  const ref = React.useRef(null);
+
+  const elapsed = bill.createdAt ? Date.now() - new Date(bill.createdAt).getTime() : 0;
+  const canSelfUpload = elapsed < SLIP_WINDOW_MS || isDriver;
+
+  const slipWindows = (() => {
+    try { return JSON.parse(localStorage.getItem("golod_slip_windows")||"{}"); } catch(e){ return {}; }
+  })();
+  const adminApproved = slipWindows[bill.billNo] && Date.now() < slipWindows[bill.billNo];
+  const canUpload = canSelfUpload || adminApproved;
+
+  const handleFile = (e) => {
+    const f = e.target.files[0];
+    if (!f) return;
+    setLoading(true); setErr("");
+    if (typeof GolodStorage === "undefined") {
+      setErr("Storage ไม่พร้อม"); setLoading(false); return;
+    }
+    GolodStorage.uploadAndSave(bill.billNo, f, "slip1")
+      .then(function(downloadUrl) {
+        setUrl(downloadUrl);
+        setLoading(false);
+        try {
+          const bills = JSON.parse(localStorage.getItem("golod_bills")||"[]");
+          const updated = bills.map(b => b.billNo===bill.billNo ? {...b, slip1:downloadUrl} : b);
+          localStorage.setItem("golod_bills", JSON.stringify(updated));
+        } catch(e){}
+        if (onUploaded) onUploaded(downloadUrl);
+        alert("✅ อัปโหลดสลิปสำเร็จ!");
+      })
+      .catch(function(e) {
+        setErr("อัปโหลดไม่สำเร็จ: "+e.message);
+        setLoading(false);
+      });
+  };
+
+  const requestSlipAdmin = () => {
+    try {
+      const reqs = JSON.parse(localStorage.getItem("golod_slip_requests")||"[]");
+      const exists = reqs.find(r=>r.billNo===bill.billNo);
+      if (!exists) {
+        reqs.push({ billNo:bill.billNo, clerkCode:bill.clerkCode, requestedAt:new Date().toISOString(), status:"pending" });
+        localStorage.setItem("golod_slip_requests", JSON.stringify(reqs));
+        if (typeof GolodDB!=="undefined") GolodDB.updateBill(bill.billNo, {slipRequest:"pending"}).catch(()=>{});
+      }
+      alert("📨 ส่งคำขออนุมัติให้ admin แล้ว");
+    } catch(e) { alert("เกิดข้อผิดพลาด"); }
+  };
+
+  if (url) return React.createElement("div", {style:{display:"flex",alignItems:"center",gap:6}},
+    React.createElement("a", {href:url, target:"_blank", style:{fontSize:11,color:"#0F6E56",fontWeight:600}}, "✅ ดูสลิป"),
+    canUpload && React.createElement("button", {
+      onClick:()=>ref.current&&ref.current.click(),
+      style:{fontSize:10,padding:"2px 7px",border:"0.5px solid #ccc",borderRadius:5,cursor:"pointer",background:"#f5f5f5"}
+    }, "เปลี่ยน"),
+    React.createElement("input",{ref,type:"file",accept:"image/*",onChange:handleFile,style:{display:"none"}})
+  );
+
+  if (!canUpload) return React.createElement("button", {
+    onClick: requestSlipAdmin,
+    style:{fontSize:11,padding:"4px 10px",border:"0.5px solid #E67E22",borderRadius:6,background:"#FFF3E0",color:"#E67E22",cursor:"pointer",fontWeight:600}
+  }, "📨 ขออนุมัติสลิป");
+
+  return React.createElement("div", {style:{display:"flex",alignItems:"center",gap:6}},
+    React.createElement("button", {
+      onClick:()=>ref.current&&ref.current.click(),
+      disabled:loading,
+      style:{fontSize:11,padding:"4px 10px",border:"0.5px solid #1D9E75",borderRadius:6,background:"#E1F5EE",color:"#0F6E56",cursor:"pointer",fontWeight:600}
+    }, loading?"⏳ กำลังอัปโหลด...":"📎 แนบสลิป"),
+    err && React.createElement("span",{style:{fontSize:10,color:"red"}},err),
+    React.createElement("input",{ref,type:"file",accept:"image/*",onChange:handleFile,style:{display:"none"}})
+  );
+}
+
+
 function ReceiptForm({ bills, staffCode, staffName }) {
   const fmt = n => (n||0).toLocaleString("th-TH");
   const printRef = React.useRef(null);
