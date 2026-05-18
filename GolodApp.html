@@ -577,16 +577,38 @@ function pgDashboard(showAll){
   h+='<div class="stat sa"><div class="sl">ส่งสำเร็จ</div><div class="sv">'+delivered+'</div><div class="ss">'+Math.round(delivered/dBills.length*100)+'%</div></div>';
   h+='<div class="stat sx"><div class="sl">ผู้ใช้งาน</div><div class="sv">'+(ROLES[CU.role]?.label||CU.role)+'</div><div class="ss">'+CU.branch+'</div></div>';
   h+="</div>";
-  h+='<div class="g2"><div class="card"><div class="ct">บิลแยกภาค</div>';
-  REGION_LIST.forEach(function(rg){
-    var grp=dBills.filter(function(b){return getRegion(b)===rg.key;});
+  h+='<div class="g2"><div class="card"><div class="ct">ยอดขายแยกสาขา</div>';
+  // แยกตาม branch ที่ออกบิล (ไม่ใช่ปลายทาง)
+  var BRANCH_LIST=[
+    {key:"bkk",  label:"สาขากรุงเทพฯ",     color:"#C0392B"},
+    {key:"ptm",  label:"สาขาปทุมธานี",      color:"#E67E22"},
+    {key:"krt",  label:"สาขานครราชสีมา",    color:"#7F8C8D"},
+    {key:"ssk",  label:"สาขาศรีสะเกษ",      color:"#2471A3"},
+    {key:"other",label:"อื่นๆ",             color:"#aaa"}
+  ];
+  var getBranch=function(b){
+    if(b.branch) return b.branch;
+    // fallback: ดูจาก clerkCode prefix
+    var cc=b.clerkCode||"";
+    if(cc==="KA"||cc==="KRT") return "krt";
+    if(cc==="SA"||cc==="SSK") return "ssk";
+    if(cc==="PH") return "ptm";
+    return "bkk";
+  };
+  BRANCH_LIST.forEach(function(br){
+    var grp=dBills.filter(function(b){
+      var bBranch=getBranch(b);
+      return br.key==="other"
+        ? !["bkk","ptm","krt","ssk"].includes(bBranch)
+        : bBranch===br.key;
+    });
     if(grp.length===0)return;
     var rev=grp.reduce(function(s,b){return s+(b.freightNet||0);},0);
     var pct=dBills.length?Math.round(grp.length/dBills.length*100):0;
     h+='<div style="display:flex;align-items:center;gap:10px;margin-bottom:10px">';
-    h+='<div style="width:10px;height:10px;border-radius:50%;background:'+rg.color+';flex-shrink:0"></div>';
-    h+='<div style="flex:1"><div style="font-size:12px;font-weight:500">'+rg.label+' ('+grp.length+' บิล)</div>';
-    h+='<div class="pbar"><div class="pfill" style="background:'+rg.color+';width:'+pct+'%"></div></div></div>';
+    h+='<div style="width:10px;height:10px;border-radius:50%;background:'+br.color+';flex-shrink:0"></div>';
+    h+='<div style="flex:1"><div style="font-size:12px;font-weight:500">'+br.label+' ('+grp.length+' บิล)</div>';
+    h+='<div class="pbar"><div class="pfill" style="background:'+br.color+';width:'+pct+'%"></div></div></div>';
     h+='<div style="font-size:12px;font-weight:600;color:#085041">'+fmt(rev)+' ฿</div></div>';
   });
   h+="</div>";
