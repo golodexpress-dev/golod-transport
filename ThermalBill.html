@@ -2875,14 +2875,31 @@ function ThermalBillingApp() {
             local.forEach(function(b){ if(b.billNo) map[b.billNo]=b; });
             bills.forEach(function(b){ if(b.billNo) map[b.billNo]=b; });
             var merged = Object.values(map);
-            // เก็บทั้งหมดใน localStorage แต่ set state เฉพาะ 2 วันล่าสุด
             try { localStorage.setItem("golod_bills", JSON.stringify(merged)); } catch(e) {}
-            var _now=new Date(), _cut=new Date(_now.getFullYear(),_now.getMonth(),_now.getDate()-1);
-            var _recent=merged.filter(function(b){
-              if(!b.date) return false;
-              var _p=b.date.split("/"); if(_p.length<3) return false;
-              var _d=new Date(parseInt(_p[2])-543,parseInt(_p[1])-1,parseInt(_p[0]));
-              return _d>=_cut;
+            function billDateObj(b){
+              var v = b.createdAt || b.created_at || b.date || b.createdDate || "";
+              if (!v) return null;
+              if (v && typeof v.toDate === "function") return v.toDate();
+              if (typeof v === "string") {
+                var d1 = new Date(v);
+                if (!isNaN(d1.getTime())) return d1;
+                var p = v.split("/");
+                if (p.length >= 3) {
+                  var y = parseInt(p[2], 10);
+                  if (y > 2400) y -= 543;
+                  return new Date(y, parseInt(p[1],10)-1, parseInt(p[0],10));
+                }
+              }
+              return null;
+            }
+            var _now = new Date();
+            var _cut = new Date(_now.getFullYear(), _now.getMonth(), _now.getDate() - 2);
+            var _recent = merged.filter(function(b){
+              var d = billDateObj(b);
+              return d && d >= _cut;
+            });
+            _recent.sort(function(a,b){
+              return (billDateObj(b)||0) - (billDateObj(a)||0);
             });
             setAllBills(_recent);
             console.log("[ThermalBill] synced total="+merged.length+" recent="+_recent.length);
