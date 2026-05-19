@@ -212,21 +212,14 @@ function renderApp(){
   var isBranchClerk = CU.role==="clerk" || (CU.role==="branch" && ub!=="all");
 
   var actionBar = '';
-  if(currentTab==="pending"){
+  if(currentTab !== "done"){
     actionBar = '<div class="action-bar">'
       +'<button class="btn btn-gray" onclick="toggleSelectAll()">☑ เลือกทั้งหมด</button>'
-      +(isAdmin?'<button class="btn btn-orange" onclick="openDispatch(\'branch\')">📦 จ่ายให้สาขา</button>':'')
-      +'<button class="btn btn-blue" onclick="openDispatch(\'driver\')">🚛 จ่ายให้คนรถ</button>'
-      +'<span style="font-size:11px;color:#666">เลือก <span id="sel-count">0</span> บิล</span>'
-      +'</div>';
-  } else if(currentTab==="branch"){
-    actionBar = '<div class="action-bar">'
-      +'<button class="btn btn-gray" onclick="toggleSelectAll()">☑ เลือกทั้งหมด</button>'
-      +'<button class="btn btn-blue" onclick="openDispatch(\'driver\')">🚛 จ่ายให้คนรถ</button>'
+      +'<button class="btn btn-orange" onclick="openDispatch('branch')">📦 จ่ายให้สาขา</button>'
+      +'<button class="btn btn-blue" onclick="openDispatch('driver')">🚛 จ่ายให้คนรถ</button>'
       +'<span style="font-size:11px;color:#666">เลือก <span id="sel-count">0</span> บิล</span>'
       +'</div>';
   }
-
   var rows = filtered.map(function(b){
     var checked = selectedBills[b.billNo]?"checked":"";
     var stCls = stClass(b.status);
