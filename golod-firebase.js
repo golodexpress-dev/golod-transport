@@ -241,13 +241,15 @@ var GolodDB = (function() {
   function getBillsNew(limitN) {
     return new Promise(function(resolve, reject) {
       ready(function() {
-        // ดึงทั้งหมดแล้ว filter ใน JS เพราะ Firestore index อาจไม่พร้อม
-        db.collection("bills").limit(limitN||2000).get()
+        // ดึงเฉพาะบิลที่ document ID มีตัวอักษร (ไม่ใช่ตัวเลขล้วน)
+        // ใช้ where billNo >= "A" เพื่อกรองบิลเก่า
+        db.collection("bills")
+          .where("date", ">=", "1/5/2569")
+          .limit(limitN||2000).get()
           .then(function(snap) {
             var bills=[];
             snap.forEach(function(doc){ 
               var d=doc.data();
-              // รับทุกบิลที่มี billNo (ไม่ filter clerkCode)
               if(d.billNo) bills.push(d);
             });
             bills.sort(function(a,b){
@@ -256,7 +258,22 @@ var GolodDB = (function() {
               return da>db2?-1:1;
             });
             resolve(bills);
-          }).catch(reject);
+          }).catch(function(e){
+            // ถ้า index ไม่พร้อม ให้ดึงทั้งหมดแล้ว filter ใน JS
+            db.collection("bills").limit(limitN||2000).get()
+              .then(function(snap2) {
+                var bills2=[];
+                snap2.forEach(function(doc){
+                  var d=doc.data();
+                  // กรองเฉพาะบิลที่มี date (บิลใหม่)
+                  if(d.billNo && d.date && d.date.includes("/")) bills2.push(d);
+                });
+                bills2.sort(function(a,b){
+                  return (a.date||"")>(b.date||"")?-1:1;
+                });
+                resolve(bills2);
+              }).catch(reject);
+          });
       });
     });
   }
