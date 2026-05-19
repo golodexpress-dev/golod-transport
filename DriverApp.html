@@ -603,11 +603,51 @@ function BillActions({
   const [failReason, setFailReason] = useState("");
   const [photo, setPhoto] = useState(null);
   const [slip, setSlip] = useState(null);
+  const [showSig, setShowSig] = useState(false);
+  const [sigData, setSigData] = useState(null);
   const photoRef = useRef();
   const slipRef = useRef();
+  const canvasRef = useRef();
+  const sigDrawing = useRef(false);
+  const sigLastPos = useRef({x:0,y:0});
+
+  // Canvas signature handlers
+  const sigStart = (e) => {
+    sigDrawing.current = true;
+    const canvas = canvasRef.current; if(!canvas) return;
+    const rect = canvas.getBoundingClientRect();
+    const touch = e.touches ? e.touches[0] : e;
+    sigLastPos.current = {x: touch.clientX-rect.left, y: touch.clientY-rect.top};
+  };
+  const sigMove = (e) => {
+    if(!sigDrawing.current) return;
+    e.preventDefault();
+    const canvas = canvasRef.current; if(!canvas) return;
+    const ctx = canvas.getContext("2d");
+    const rect = canvas.getBoundingClientRect();
+    const touch = e.touches ? e.touches[0] : e;
+    const x = touch.clientX-rect.left, y = touch.clientY-rect.top;
+    ctx.beginPath();
+    ctx.moveTo(sigLastPos.current.x, sigLastPos.current.y);
+    ctx.lineTo(x, y);
+    ctx.strokeStyle="#000"; ctx.lineWidth=2; ctx.lineCap="round";
+    ctx.stroke();
+    sigLastPos.current = {x, y};
+  };
+  const sigEnd = () => { sigDrawing.current = false; };
+  const sigClear = () => {
+    const canvas = canvasRef.current; if(!canvas) return;
+    canvas.getContext("2d").clearRect(0,0,canvas.width,canvas.height);
+    setSigData(null);
+  };
+  const sigConfirm = () => {
+    const canvas = canvasRef.current; if(!canvas) return;
+    setSigData(canvas.toDataURL());
+    setShowSig(false);
+  };
   const isDone = status === "delivered";
   const isEnd = ["delivered", "failed", "returned"].includes(status);
-  const needSlip = freightPay === "dest_transfer" || freightPay === "dest_driver";
+  const needSlip = true; // แสดงปุ่มสลิปเสมอ
   const needCash = freightPay === "dest_cash" || freightPay === "dest_driver";
   const needCOD = codTotal > 0;
   const readFile = f => new Promise(res => {
@@ -641,20 +681,27 @@ function BillActions({
     }
   };
   const confirmDelivered = () => {
-    onUpdate(billNo, "delivered", {
+    onUpdate(billNo, "ส่งสำเร็จ", {
       photo,
       slip,
+      signature: sigData||null,
+      status: "ส่งสำเร็จ",
       deliveredAt: new Date().toISOString()
     });
   };
+  const confirmFail2 = () => {
+    if (!failReason) { alert("กรุณาระบุสาเหตุ"); return; }
+    onUpdate(billNo, "ส่งไม่สำเร็จ", {
+      failReason, photo,
+      status: "ส่งไม่สำเร็จ",
+      failedAt: new Date().toISOString()
+    });
+  };
   const confirmFail = () => {
-    if (!failReason) {
-      alert("กรุณาระบุสาเหตุ");
-      return;
-    }
-    onUpdate(billNo, "failed", {
-      failReason,
-      photo,
+    if (!failReason) { alert("กรุณาระบุสาเหตุ"); return; }
+    onUpdate(billNo, "ส่งไม่สำเร็จ", {
+      failReason, photo,
+      status: "ส่งไม่สำเร็จ",
       failedAt: new Date().toISOString()
     });
   };
@@ -827,7 +874,37 @@ function BillActions({
       fontSize: 11,
       cursor: "pointer"
     }
-  }, "\xD7"))), !showFail ? /*#__PURE__*/React.createElement("div", {
+  }, "\xD7"))), showSig && /*#__PURE__*/React.createElement("div", {
+    style:{position:"fixed",inset:0,background:"rgba(0,0,0,.7)",zIndex:200,display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",padding:16}
+  },
+    /*#__PURE__*/React.createElement("div", {style:{background:"#fff",borderRadius:12,padding:16,width:"100%",maxWidth:400}},
+      /*#__PURE__*/React.createElement("div", {style:{fontWeight:700,marginBottom:8,fontSize:13}}, "✍️ ลายเซ็นลูกค้า"),
+      /*#__PURE__*/React.createElement("canvas", {
+        ref:canvasRef, width:340, height:160,
+        style:{border:"1px solid #ccc",borderRadius:8,touchAction:"none",width:"100%",background:"#f9f9f9"},
+        onMouseDown:sigStart, onMouseMove:sigMove, onMouseUp:sigEnd,
+        onTouchStart:sigStart, onTouchMove:sigMove, onTouchEnd:sigEnd
+      }),
+      /*#__PURE__*/React.createElement("div", {style:{display:"flex",gap:8,marginTop:10}},
+        /*#__PURE__*/React.createElement("button", {onClick:sigClear, style:{flex:1,padding:"8px",border:"1px solid #ccc",borderRadius:7,cursor:"pointer",background:"#fff"}}, "🗑 ล้าง"),
+        /*#__PURE__*/React.createElement("button", {onClick:()=>setShowSig(false), style:{flex:1,padding:"8px",border:"1px solid #ccc",borderRadius:7,cursor:"pointer",background:"#fff"}}, "ยกเลิก"),
+        /*#__PURE__*/React.createElement("button", {onClick:sigConfirm, style:{flex:2,padding:"8px",background:"#0F6E56",color:"#fff",border:"none",borderRadius:7,cursor:"pointer",fontWeight:700}}, "✅ ยืนยัน")
+      )
+    )
+  ),
+  /*#__PURE__*/React.createElement("div", {style:{marginBottom:8}},
+    sigData
+      ? /*#__PURE__*/React.createElement("div", {style:{display:"flex",alignItems:"center",gap:8}},
+          /*#__PURE__*/React.createElement("img", {src:sigData, style:{height:40,border:"1px solid #ccc",borderRadius:6,background:"#fff"}}),
+          /*#__PURE__*/React.createElement("span", {style:{fontSize:11,color:"#0F6E56",fontWeight:600}}, "✅ มีลายเซ็นแล้ว"),
+          /*#__PURE__*/React.createElement("button", {onClick:()=>setShowSig(true), style:{fontSize:11,padding:"3px 8px",border:"1px solid #ccc",borderRadius:5,cursor:"pointer"}}, "แก้ไข")
+        )
+      : /*#__PURE__*/React.createElement("button", {
+          onClick:()=>setShowSig(true),
+          style:{padding:"8px 14px",background:"#F3E5F5",color:"#6A1B9A",border:"1px solid #CE93D8",borderRadius:8,cursor:"pointer",fontWeight:600,fontSize:12}
+        }, "✍️ เซ็นรับของ")
+  ),
+  !showFail ? /*#__PURE__*/React.createElement("div", {
     style: {
       display: "flex",
       gap: 8
