@@ -241,17 +241,19 @@ var GolodDB = (function() {
   function getBillsNew(limitN) {
     return new Promise(function(resolve, reject) {
       ready(function() {
-        db.collection("bills")
-          .where("clerkCode", ">=", "A")
-          .limit(limitN||500).get()
+        // ดึงทั้งหมดแล้ว filter ใน JS เพราะ Firestore index อาจไม่พร้อม
+        db.collection("bills").limit(limitN||2000).get()
           .then(function(snap) {
             var bills=[];
             snap.forEach(function(doc){ 
               var d=doc.data();
-              if(d.clerkCode) bills.push(d);
+              // รับทุกบิลที่มี billNo (ไม่ filter clerkCode)
+              if(d.billNo) bills.push(d);
             });
             bills.sort(function(a,b){
-              return (b.createdAt||b.date||"") > (a.createdAt||a.date||"") ? 1 : -1;
+              var da=a.createdAt||a.date||"";
+              var db2=b.createdAt||b.date||"";
+              return da>db2?-1:1;
             });
             resolve(bills);
           }).catch(reject);
