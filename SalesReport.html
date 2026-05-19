@@ -9,6 +9,7 @@
 <script src="firebase-app-compat.js"></script>
 <script src="firebase-firestore-compat.js"></script>
 <script src="golod-firebase.js"></script>
+<script>try{GolodDB.init();}catch(e){}</script>
 <style>
 *{box-sizing:border-box;margin:0;padding:0}
 body{font-family:'Sarabun',Arial,sans-serif;background:#f5f5f2;font-size:13px}
@@ -351,16 +352,22 @@ function loadData(){
 // INIT
 buildUI();
 document.addEventListener("DOMContentLoaded",function(){});
-// รอให้ Firebase โหลดเสร็จก่อน
+// เรียก init ทันที แล้วรอ ready
 function waitAndLoad(){
   if(typeof GolodDB!=="undefined"){
-    GolodDB.init();
-    loadData();
+    try{ GolodDB.init(); }catch(e){}
+    if(typeof GolodDB.ready==="function"){
+      GolodDB.ready(function(){ loadData(); });
+    } else {
+      setTimeout(loadData, 1000);
+    }
   } else {
-    setTimeout(waitAndLoad, 500);
+    setTimeout(waitAndLoad, 300);
   }
 }
-setTimeout(waitAndLoad, 800);
+// เรียกทันที ไม่ต้องรอ
+try{ if(typeof GolodDB!=="undefined") GolodDB.init(); }catch(e){}
+waitAndLoad();
 </script>
 </body>
 </html>
