@@ -4,6 +4,10 @@
 <title>โกโลด — หน้าคนขับ</title>
 <style>*{box-sizing:border-box;margin:0;padding:0}body{font-family:Arial,sans-serif;background:#f0f4f0;min-height:100vh;-webkit-tap-highlight-color:transparent}button,input,select{font-family:Arial,sans-serif}</style>
   <script src="golod-storage.js"></script>
+  <script src="firebase-app-compat.js"></script>
+  <script src="firebase-firestore-compat.js"></script>
+  <script src="golod-firebase.js"></script>
+  <script>try{GolodDB.init();}catch(e){}</script>
 </head><body>
 <div id="root"></div>
 <script>/** @license React v17.0.2
@@ -958,13 +962,48 @@ function DriverApp() {
   const [expandBill, setExpandBill] = useState(null);
 
   // sync ทุก 3 วิ
+  // sync จาก Firestore เมื่อ login
   useEffect(() => {
+    if(!session) return;
+    function fetchFromFirestore(){
+      try {
+        if(typeof GolodDB==="undefined") return;
+        GolodDB.ready(function(){
+          // ดึงบิลที่ assign ให้คนรถนี้
+          var username = session.username || session.name || "";
+          firebase.firestore().collection("bills")
+            .where("driver","==",username)
+            .limit(200).get()
+            .then(function(snap){
+              var firestoreBills=[];
+              snap.forEach(function(doc){ firestoreBills.push(doc.data()); });
+              if(firestoreBills.length>0){
+                setBills(function(prev){
+                  var map={};
+                  prev.forEach(function(b){if(b.billNo)map[b.billNo]=b;});
+                  firestoreBills.forEach(function(b){
+                    if(b.billNo){
+                      if(b.form&&typeof b.form==="string"){try{b.form=JSON.parse(b.form);}catch(e){b.form={};}}
+                      if(!b.form) b.form={};
+                      map[b.billNo]=b;
+                    }
+                  });
+                  return Object.values(map);
+                });
+              }
+            }).catch(function(){});
+        });
+      } catch(e){}
+    }
+    fetchFromFirestore();
+    // sync ทุก 30 วิ
+    var t2=setInterval(fetchFromFirestore, 30000);
+    // sync localStorage ทุก 3 วิ
     const t = setInterval(() => {
       setTrips(loadLS("golod_trips", []));
-      setBills(loadLS("golod_bills", []));
     }, 3000);
-    return () => clearInterval(t);
-  }, []);
+    return () => { clearInterval(t); clearInterval(t2); };
+  }, [session]);
   if (!session) return /*#__PURE__*/React.createElement(LoginScreen, {
     onLogin: s => {
       setSession(s);
@@ -985,7 +1024,13 @@ function DriverApp() {
   const activeDriverCode = isAdmin ? viewDriver : driverCode;
   const activeTrips = trips.filter(t => t.driverId === activeDriverCode && t.status !== "cleared");
   const myBillNos = activeTrips.flatMap(t => t.billNos || []);
-  const myBills = bills.filter(b => myBillNos.includes(b.billNo));
+  // รวมบิลจาก trips เดิม + บิลที่ assign จาก DispatchApp (driver field)
+  const myBills = bills.filter(b => {
+    var isInTrip = myBillNos.includes(b.billNo);
+    var isAssigned = b.driver === (session.username||session.name||"") || 
+                     b.driverName === session.name;
+    return isInTrip || isAssigned;
+  });
   const totalBills = myBills.length;
   const doneBills = myBills.filter(b => b.status === "delivered").length;
   const pendingBills = myBills.filter(b => b.status !== "delivered" && b.status !== "failed").length;
