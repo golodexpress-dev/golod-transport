@@ -1,0 +1,439 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta http-equiv="Cache-Control" content="no-cache,no-store,must-revalidate">
+<title>โกโลด — จัดการขนส่ง</title>
+<script src="session.js"></script>
+<script src="firebase-app-compat.js"></script>
+<script src="firebase-firestore-compat.js"></script>
+<script src="golod-firebase.js"></script>
+<script>try{GolodDB.init();}catch(e){}</script>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:'Sarabun',Arial,sans-serif;background:#f5f5f2;font-size:13px}
+.topbar{background:#0F6E56;color:#fff;padding:10px 16px;display:flex;align-items:center;gap:10px}
+.topbar .title{font-weight:700;font-size:15px;flex:1}
+.topbar a{color:#fff;text-decoration:none;font-size:12px;opacity:.8}
+.container{max-width:1200px;margin:0 auto;padding:12px}
+.card{background:#fff;border-radius:10px;padding:14px 16px;margin-bottom:12px;box-shadow:0 1px 4px rgba(0,0,0,.06)}
+.card-title{font-size:13px;font-weight:700;color:#0F6E56;margin-bottom:10px}
+.filters{display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-bottom:10px}
+.filters select,.filters input{padding:6px 10px;border:1px solid #ddd;border-radius:7px;font-size:12px;font-family:inherit}
+.filters button{padding:6px 14px;background:#0F6E56;color:#fff;border:none;border-radius:7px;cursor:pointer;font-size:12px;font-weight:600}
+.filters button.sec{background:#fff;color:#0F6E56;border:1px solid #0F6E56}
+table{width:100%;border-collapse:collapse;font-size:12px}
+th{background:#f0faf5;padding:7px 8px;text-align:left;font-weight:700;color:#0F6E56;border-bottom:2px solid #d0ede5;white-space:nowrap;position:sticky;top:0}
+td{padding:7px 8px;border-bottom:1px solid #f0f0f0;vertical-align:middle}
+tr:hover td{background:#f8fffe}
+.badge{display:inline-block;padding:2px 8px;border-radius:10px;font-size:10px;font-weight:600;white-space:nowrap}
+.st-issued{background:#e8f5f0;color:#0F6E56}
+.st-branch{background:#fff3e0;color:#E67E22}
+.st-driving{background:#e3f2fd;color:#1976D2}
+.st-done{background:#e8f5e9;color:#2E7D32}
+.st-fail{background:#fde8e8;color:#C62828}
+.st-return{background:#f3e5f5;color:#6A1B9A}
+.st-new{background:#fff8e1;color:#F57F17}
+.btn{padding:4px 10px;border:none;border-radius:6px;cursor:pointer;font-size:11px;font-weight:600}
+.btn-green{background:#0F6E56;color:#fff}
+.btn-orange{background:#E67E22;color:#fff}
+.btn-blue{background:#2471A3;color:#fff}
+.btn-red{background:#C0392B;color:#fff}
+.btn-gray{background:#eee;color:#555}
+.chk{width:15px;height:15px;cursor:pointer;accent-color:#0F6E56}
+.modal-bg{display:none;position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:100;justify-content:center;align-items:center}
+.modal-bg.show{display:flex}
+.modal{background:#fff;border-radius:12px;padding:20px;min-width:320px;max-width:480px;width:90%}
+.modal h3{font-size:14px;font-weight:700;color:#0F6E56;margin-bottom:12px}
+.modal select,.modal textarea{width:100%;padding:8px 10px;border:1px solid #ddd;border-radius:7px;font-size:13px;font-family:inherit;margin-bottom:10px}
+.modal .btn-row{display:flex;gap:8px;justify-content:flex-end}
+.count-badge{background:#0F6E56;color:#fff;border-radius:10px;padding:1px 7px;font-size:11px;margin-left:4px}
+.tab-bar{display:flex;gap:4px;margin-bottom:12px;flex-wrap:wrap}
+.tab{padding:7px 14px;border-radius:7px;cursor:pointer;font-size:12px;font-weight:600;background:#e8f5f0;color:#0F6E56;border:1px solid #d0ede5}
+.tab.active{background:#0F6E56;color:#fff;border-color:#0F6E56}
+.loading{text-align:center;padding:30px;color:#999}
+.action-bar{display:flex;gap:6px;align-items:center;flex-wrap:wrap;padding:8px;background:#f8fffe;border-radius:8px;margin-bottom:8px}
+</style>
+</head>
+<body>
+<div class="topbar">
+  <span class="title">🚛 จัดการขนส่ง</span>
+  <span id="session-info" style="font-size:11px;opacity:.8"></span>
+  <a href="GolodApp.html">← หน้าหลัก</a>
+</div>
+<div class="container">
+  <div id="app"><div class="loading">⏳ กำลังโหลด...</div></div>
+</div>
+
+<!-- Modal จ่ายงาน -->
+<div class="modal-bg" id="modal-dispatch">
+  <div class="modal">
+    <h3 id="modal-title">จ่ายงาน</h3>
+    <div id="modal-bill-count" style="font-size:12px;color:#666;margin-bottom:10px"></div>
+    <select id="modal-target"></select>
+    <div id="modal-note-wrap" style="display:none">
+      <textarea id="modal-note" placeholder="หมายเหตุ (ถ้ามี)" rows="2"></textarea>
+    </div>
+    <div class="btn-row">
+      <button class="btn btn-gray" onclick="closeModal()">ยกเลิก</button>
+      <button class="btn btn-green" id="modal-confirm-btn" onclick="confirmDispatch()">ยืนยัน</button>
+    </div>
+  </div>
+</div>
+
+<!-- Modal อัปเดตสถานะ -->
+<div class="modal-bg" id="modal-status">
+  <div class="modal">
+    <h3>อัปเดตสถานะ</h3>
+    <div id="modal-status-bill" style="font-size:12px;color:#666;margin-bottom:10px"></div>
+    <select id="modal-status-sel"></select>
+    <div id="modal-fail-wrap" style="display:none;margin-bottom:10px">
+      <div style="font-size:11px;color:#666;margin-bottom:4px">สาเหตุที่ส่งไม่สำเร็จ:</div>
+      <select id="modal-fail-reason">
+        <option value="ติดต่อไม่ได้">ติดต่อไม่ได้</option>
+        <option value="ลูกค้าหยุด">ลูกค้าหยุด</option>
+        <option value="ลูกค้าไม่รับของ">ลูกค้าไม่รับของ</option>
+        <option value="ของชำรุด">ของชำรุด</option>
+      </select>
+    </div>
+    <textarea id="modal-status-note" placeholder="หมายเหตุ" rows="2" style="width:100%;padding:8px;border:1px solid #ddd;border-radius:7px;font-family:inherit;font-size:13px;margin-bottom:10px"></textarea>
+    <div class="btn-row">
+      <button class="btn btn-gray" onclick="closeStatusModal()">ยกเลิก</button>
+      <button class="btn btn-green" onclick="confirmStatus()">บันทึก</button>
+    </div>
+  </div>
+</div>
+
+<script>
+// ===== SESSION =====
+var CU = null;
+(function(){
+  var s = typeof GolodSession!=="undefined" ? GolodSession.get() : null;
+  if(!s){ window.location.href="GolodApp.html"; return; }
+  if(!["admin","branch","clerk"].includes(s.role)){ window.location.href="GolodApp.html"; return; }
+  CU = s;
+  document.getElementById("session-info").textContent = s.name + " · " + (s.branch==="all"?"ทุกสาขา":s.branch);
+})();
+
+// ===== DATA =====
+var BILLS = [];
+var DRIVERS = [];
+var BRANCHES = [
+  {id:"bkk", label:"สาขากรุงเทพ"},
+  {id:"ptm", label:"สาขาปทุมธานี"},
+  {id:"krt", label:"สาขานครราชสีมา"},
+  {id:"ssk", label:"สาขาศรีสะเกษ"}
+];
+var BRANCH_LABEL = {bkk:"กรุงเทพ",ptm:"ปทุมธานี",krt:"นครราชสีมา",ssk:"ศรีสะเกษ"};
+
+var STATUS_LIST = [
+  {v:"ออกบิลรับของ", l:"ออกบิลรับของ", cls:"st-issued"},
+  {v:"ระหว่างนำส่งสาขา", l:"ระหว่างนำส่งสาขา", cls:"st-branch"},
+  {v:"กำลังวิ่งส่งลูกค้า", l:"กำลังวิ่งส่งลูกค้า", cls:"st-driving"},
+  {v:"ส่งสำเร็จ", l:"ส่งสำเร็จ", cls:"st-done"},
+  {v:"ส่งไม่สำเร็จ", l:"ส่งไม่สำเร็จ", cls:"st-fail"},
+  {v:"นำกลับสาขา", l:"นำกลับสาขา", cls:"st-return"},
+  {v:"ลูกค้ารับกลับ", l:"ลูกค้ารับกลับ", cls:"st-new"},
+  {v:"นำส่งใหม่", l:"นำส่งใหม่", cls:"st-new"}
+];
+
+function stClass(v){
+  var f=STATUS_LIST.find(function(s){return s.v===v;});
+  return f?f.cls:"st-issued";
+}
+
+var selectedBills = {};
+var currentTab = "pending";
+var dispatchMode = ""; // "branch" or "driver"
+var statusTargetBill = null;
+
+// ===== GET BRANCH OF USER =====
+function getUserBranch(){
+  if(!CU) return "bkk";
+  if(CU.branch==="all") return "all";
+  var m={กรุงเทพ:"bkk",ปทุมธานี:"ptm",นครราชสีมา:"krt",ศรีสะเกษ:"ssk"};
+  return m[CU.branch]||CU.branch;
+}
+
+// ===== LOAD DATA =====
+function loadData(){
+  document.getElementById("app").innerHTML='<div class="loading">⏳ กำลังดึงข้อมูล...</div>';
+  GolodDB.ready(function(){
+    // โหลด bills และ users พร้อมกัน
+    Promise.all([
+      GolodDB.getBillsNew(1000),
+      GolodDB.getUsers()
+    ]).then(function(results){
+      var bills = results[0]||[];
+      var users = results[1]||[];
+      // normalize form
+      BILLS = bills.map(function(b){
+        if(b.form && typeof b.form==="string"){ try{b.form=JSON.parse(b.form);}catch(e){b.form={};} }
+        if(!b.form) b.form={};
+        if(!b.status) b.status="ออกบิลรับของ";
+        return b;
+      });
+      // filter by branch
+      var ub = getUserBranch();
+      if(ub!=="all"){
+        BILLS = BILLS.filter(function(b){
+          var bb=b.branch||"bkk";
+          return bb===ub;
+        });
+      }
+      DRIVERS = users.filter(function(u){ return u.role==="driver"; });
+      renderApp();
+    }).catch(function(e){
+      document.getElementById("app").innerHTML='<div class="loading">❌ โหลดไม่สำเร็จ: '+e.message+'</div>';
+    });
+  });
+}
+
+// ===== RENDER =====
+function renderApp(){
+  var tabs = [
+    {k:"pending", l:"รอจ่ายงาน"},
+    {k:"branch", l:"ระหว่างส่งสาขา"},
+    {k:"driving", l:"กำลังส่ง"},
+    {k:"done", l:"สำเร็จ/ไม่สำเร็จ"},
+    {k:"all", l:"ทั้งหมด"}
+  ];
+
+  var tabHTML = tabs.map(function(t){
+    var cnt = filterBills(t.k).length;
+    return '<div class="tab'+(currentTab===t.k?" active":"")+'" onclick="switchTab(\''+t.k+'\')">'
+      +t.l+'<span class="count-badge">'+cnt+'</span></div>';
+  }).join("");
+
+  var filtered = filterBills(currentTab);
+  var ub = getUserBranch();
+  var isAdmin = CU.role==="admin" || (CU.role==="branch" && ub==="all");
+  var isBranchClerk = CU.role==="clerk" || (CU.role==="branch" && ub!=="all");
+
+  var actionBar = '';
+  if(currentTab==="pending"){
+    actionBar = '<div class="action-bar">'
+      +'<button class="btn btn-gray" onclick="toggleSelectAll()">☑ เลือกทั้งหมด</button>'
+      +(isAdmin?'<button class="btn btn-orange" onclick="openDispatch(\'branch\')">📦 จ่ายให้สาขา</button>':'')
+      +'<button class="btn btn-blue" onclick="openDispatch(\'driver\')">🚛 จ่ายให้คนรถ</button>'
+      +'<span style="font-size:11px;color:#666">เลือก <span id="sel-count">0</span> บิล</span>'
+      +'</div>';
+  } else if(currentTab==="branch"){
+    actionBar = '<div class="action-bar">'
+      +'<button class="btn btn-gray" onclick="toggleSelectAll()">☑ เลือกทั้งหมด</button>'
+      +'<button class="btn btn-blue" onclick="openDispatch(\'driver\')">🚛 จ่ายให้คนรถ</button>'
+      +'<span style="font-size:11px;color:#666">เลือก <span id="sel-count">0</span> บิล</span>'
+      +'</div>';
+  }
+
+  var rows = filtered.map(function(b){
+    var checked = selectedBills[b.billNo]?"checked":"";
+    var stCls = stClass(b.status);
+    var dest = (b.destAmphoe||b.form.destAmphoe||"")+"·"+(b.destProv||b.form.destProv||"");
+    var sender = b.senderName||b.form.senderName||"";
+    var receiver = b.receiverName||b.form.receiverName||"";
+    var freight = parseFloat(b.freightNet||0);
+    var driver = b.driverName||b.driver||"—";
+    var branch = BRANCH_LABEL[b.branch||"bkk"]||"กทม.";
+    return '<tr>'
+      +'<td><input type="checkbox" class="chk" '+(checked?"checked":"")
+      +' onchange="toggleBill(\''+b.billNo+'\')" data-id="'+b.billNo+'"></td>'
+      +'<td style="font-weight:600;white-space:nowrap">'+b.billNo+'</td>'
+      +'<td>'+sender+'</td>'
+      +'<td>'+receiver+'</td>'
+      +'<td style="white-space:nowrap">'+dest+'</td>'
+      +'<td style="text-align:right;font-weight:600">'+freight.toLocaleString("th-TH")+'</td>'
+      +'<td><span class="badge '+stCls+'">'+b.status+'</span></td>'
+      +'<td>'+branch+'</td>'
+      +'<td style="color:#666">'+driver+'</td>'
+      +'<td>'
+      +'<button class="btn btn-gray" onclick="openStatusModal(\''+b.billNo+'\')">อัปเดต</button>'
+      +'</td>'
+      +'</tr>';
+  }).join("");
+
+  var html = '<div class="card">'
+    +'<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px">'
+    +'<div class="card-title" style="margin:0">🚛 จัดการขนส่ง</div>'
+    +'<button class="btn btn-gray" onclick="loadData()">🔄 รีเฟรช</button>'
+    +'</div>'
+    +'<div class="tab-bar">'+tabHTML+'</div>'
+    +'<div class="filters">'
+    +'<input type="text" id="q-inp" placeholder="ค้นหาเลขบิล / ชื่อ / จังหวัด" style="width:240px" oninput="filterTable()">'
+    +'</div>'
+    +actionBar
+    +'<div style="overflow-x:auto"><table>'
+    +'<tr><th></th><th>เลขบิล</th><th>ผู้ส่ง</th><th>ผู้รับ</th><th>ปลายทาง</th><th>ค่าส่ง</th><th>สถานะ</th><th>สาขา</th><th>คนรถ</th><th>จัดการ</th></tr>'
+    +rows
+    +'</table></div>'
+    +'<div style="font-size:11px;color:#888;margin-top:8px">แสดง '+filtered.length+' บิล</div>'
+    +'</div>';
+
+  document.getElementById("app").innerHTML = html;
+  selectedBills = {};
+  updateSelCount();
+}
+
+function filterBills(tab){
+  return BILLS.filter(function(b){
+    if(tab==="pending") return b.status==="ออกบิลรับของ";
+    if(tab==="branch") return b.status==="ระหว่างนำส่งสาขา";
+    if(tab==="driving") return b.status==="กำลังวิ่งส่งลูกค้า"||b.status==="นำส่งใหม่";
+    if(tab==="done") return ["ส่งสำเร็จ","ส่งไม่สำเร็จ","นำกลับสาขา","ลูกค้ารับกลับ"].includes(b.status);
+    return true;
+  });
+}
+
+function switchTab(t){ currentTab=t; selectedBills={}; renderApp(); }
+
+function filterTable(){
+  var q=(document.getElementById("q-inp")||{}).value||"";
+  q=q.toLowerCase();
+  var rows=document.querySelectorAll("table tr");
+  rows.forEach(function(r,i){
+    if(i===0){r.style.display="";return;}
+    var txt=r.textContent.toLowerCase();
+    r.style.display=(!q||txt.includes(q))?"":"none";
+  });
+}
+
+function toggleBill(id){
+  if(selectedBills[id]) delete selectedBills[id];
+  else selectedBills[id]=true;
+  updateSelCount();
+}
+
+function toggleSelectAll(){
+  var rows=document.querySelectorAll("input[data-id]");
+  var allChecked=Object.keys(selectedBills).length===rows.length;
+  selectedBills={};
+  rows.forEach(function(r){
+    if(!allChecked){ selectedBills[r.getAttribute("data-id")]=true; r.checked=true; }
+    else r.checked=false;
+  });
+  updateSelCount();
+}
+
+function updateSelCount(){
+  var el=document.getElementById("sel-count");
+  if(el) el.textContent=Object.keys(selectedBills).length;
+}
+
+// ===== DISPATCH MODAL =====
+function openDispatch(mode){
+  var ids=Object.keys(selectedBills);
+  if(ids.length===0){ alert("กรุณาเลือกบิลก่อน"); return; }
+  dispatchMode=mode;
+  document.getElementById("modal-title").textContent = mode==="branch"?"📦 จ่ายให้สาขา":"🚛 จ่ายให้คนรถ";
+  document.getElementById("modal-bill-count").textContent="เลือก "+ids.length+" บิล";
+  var sel=document.getElementById("modal-target");
+  sel.innerHTML="";
+  if(mode==="branch"){
+    BRANCHES.forEach(function(b){
+      var opt=document.createElement("option");
+      opt.value=b.id; opt.text=b.label;
+      sel.appendChild(opt);
+    });
+  } else {
+    var ub=getUserBranch();
+    var drivers=DRIVERS.filter(function(d){
+      if(ub==="all") return true;
+      var m={bkk:"กรุงเทพ",ptm:"ปทุมธานี",krt:"นครราชสีมา",ssk:"ศรีสะเกษ"};
+      return d.branch===m[ub];
+    });
+    if(drivers.length===0){ alert("ไม่พบคนรถในสาขานี้"); return; }
+    drivers.forEach(function(d){
+      var opt=document.createElement("option");
+      opt.value=d.username; opt.text=d.name+" ("+d.branch+")";
+      sel.appendChild(opt);
+    });
+  }
+  document.getElementById("modal-dispatch").classList.add("show");
+}
+
+function closeModal(){ document.getElementById("modal-dispatch").classList.remove("show"); }
+
+function confirmDispatch(){
+  var ids=Object.keys(selectedBills);
+  var target=document.getElementById("modal-target").value;
+  var targetText=document.getElementById("modal-target").options[document.getElementById("modal-target").selectedIndex].text;
+  var newStatus = dispatchMode==="branch"?"ระหว่างนำส่งสาขา":"กำลังวิ่งส่งลูกค้า";
+
+  var btn=document.getElementById("modal-confirm-btn");
+  btn.disabled=true; btn.textContent="กำลังบันทึก...";
+
+  var promises=ids.map(function(id){
+    var upd={status:newStatus, updatedAt:new Date().toISOString()};
+    if(dispatchMode==="branch"){ upd.targetBranch=target; upd.targetBranchLabel=targetText; }
+    else { upd.driver=target; upd.driverName=targetText; }
+    return GolodDB.updateBill(id,upd);
+  });
+
+  Promise.all(promises).then(function(){
+    // อัปเดต local state
+    ids.forEach(function(id){
+      var b=BILLS.find(function(x){return x.billNo===id;});
+      if(b){
+        b.status=newStatus;
+        if(dispatchMode==="branch"){b.targetBranch=target;b.targetBranchLabel=targetText;}
+        else{b.driver=target;b.driverName=targetText;}
+      }
+    });
+    closeModal();
+    btn.disabled=false; btn.textContent="ยืนยัน";
+    alert("✅ จ่ายงาน "+ids.length+" บิล สำเร็จ!");
+    selectedBills={};
+    renderApp();
+  }).catch(function(e){
+    btn.disabled=false; btn.textContent="ยืนยัน";
+    alert("❌ เกิดข้อผิดพลาด: "+e.message);
+  });
+}
+
+// ===== STATUS MODAL =====
+function openStatusModal(billNo){
+  statusTargetBill=billNo;
+  var b=BILLS.find(function(x){return x.billNo===billNo;});
+  document.getElementById("modal-status-bill").textContent="บิล "+billNo+(b?" — "+(b.destProv||""):"");
+  var sel=document.getElementById("modal-status-sel");
+  sel.innerHTML="";
+  STATUS_LIST.forEach(function(s){
+    var opt=document.createElement("option");
+    opt.value=s.v; opt.text=s.l;
+    if(b&&b.status===s.v) opt.selected=true;
+    sel.appendChild(opt);
+  });
+  sel.onchange=function(){
+    document.getElementById("modal-fail-wrap").style.display=sel.value==="ส่งไม่สำเร็จ"?"block":"none";
+  };
+  document.getElementById("modal-fail-wrap").style.display="none";
+  document.getElementById("modal-status-note").value="";
+  document.getElementById("modal-status").classList.add("show");
+}
+
+function closeStatusModal(){ document.getElementById("modal-status").classList.remove("show"); }
+
+function confirmStatus(){
+  var newStatus=document.getElementById("modal-status-sel").value;
+  var note=document.getElementById("modal-status-note").value;
+  var upd={status:newStatus, updatedAt:new Date().toISOString()};
+  if(newStatus==="ส่งไม่สำเร็จ"){
+    upd.failReason=document.getElementById("modal-fail-reason").value;
+  }
+  if(note) upd.note=note;
+
+  GolodDB.updateBill(statusTargetBill,upd).then(function(){
+    var b=BILLS.find(function(x){return x.billNo===statusTargetBill;});
+    if(b){ b.status=newStatus; if(upd.failReason) b.failReason=upd.failReason; }
+    closeStatusModal();
+    alert("✅ อัปเดตสถานะแล้ว");
+    renderApp();
+  }).catch(function(e){ alert("❌ "+e.message); });
+}
+
+// ===== INIT =====
+GolodDB.ready(loadData);
+</script>
+</body>
+</html>
