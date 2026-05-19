@@ -241,20 +241,24 @@ var GolodDB = (function() {
   function getBillsNew(limitN) {
     return new Promise(function(resolve, reject) {
       ready(function() {
-        db.collection("bills").limit(5000).get()
+        // บิลใหม่มี document ID ขึ้นต้นด้วยตัวอักษร เช่น BB1905-01
+        // ใช้ orderBy(__name__) และ startAt ตัวอักษรแรก
+        db.collection("bills")
+          .orderBy(firebase.firestore.FieldPath.documentId())
+          .startAt("A")
+          .limit(limitN||2000).get()
           .then(function(snap) {
             var bills=[];
             snap.forEach(function(doc){ 
               var d=doc.data();
-              // กรองเฉพาะบิลใหม่ที่มี senderName (บิลจาก ThermalBill/Import)
-              if(d.billNo && d.senderName && d.senderName.trim()!=="") bills.push(d);
+              if(d.billNo) bills.push(d);
             });
             bills.sort(function(a,b){
-              var da=a.createdAt||a.date||"";
-              var db2=b.createdAt||b.date||"";
+              var da=a.date||a.createdAt||"";
+              var db2=b.date||b.createdAt||"";
               return da>db2?-1:1;
             });
-            resolve(bills.slice(0, limitN||2000));
+            resolve(bills);
           }).catch(reject);
       });
     });
