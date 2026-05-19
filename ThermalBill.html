@@ -1850,10 +1850,18 @@ function BillList({
   onView
 }) {
   const [q, setQ] = useState("");
-  // กรองเฉพาะ 3 วันล่าสุด ถ้าไม่ได้ค้นหา
+  // normalize form field — ถ้าเป็น string ให้ parse เป็น object
+  const normalizedBills = bills.map(function(b) {
+    if (b.form && typeof b.form === "string") {
+      try { return Object.assign({}, b, {form: JSON.parse(b.form)}); } catch(e) {}
+    }
+    if (!b.form) return Object.assign({}, b, {form: {}});
+    return b;
+  });
+  // กรองเฉพาะ 2 วันล่าสุด ถ้าไม่ได้ค้นหา
   const today = new Date();
-  const cutoff = new Date(today.getFullYear(), today.getMonth(), today.getDate() - 1); // วันนี้ + เมื่อวาน
-  const recentBills = q ? bills : bills.filter(b => {
+  const cutoff = new Date(today.getFullYear(), today.getMonth(), today.getDate() - 1);
+  const recentBills = q ? normalizedBills : normalizedBills.filter(b => {
     if (!b.date) return false;
     var parts = b.date.split("/");
     if (parts.length < 3) return false;
