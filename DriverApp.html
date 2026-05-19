@@ -762,8 +762,8 @@ function BillActions({
   }, "\uD83D\uDCF8 \u0E23\u0E39\u0E1B\u0E16\u0E48\u0E32\u0E22 (\u0E2A\u0E16\u0E32\u0E19\u0E17\u0E35\u0E48\u0E2A\u0E48\u0E07/\u0E25\u0E39\u0E01\u0E04\u0E49\u0E32\u0E40\u0E0B\u0E47\u0E19)"), /*#__PURE__*/React.createElement("input", {
     ref: photoRef,
     type: "file",
-    accept: "image/*",
-    capture: "environment",
+    accept: "image/*;capture=camera",
+    capture: "camera",
     onChange: handlePhoto,
     style: {
       display: "none"
@@ -826,8 +826,8 @@ function BillActions({
   }, "\uD83C\uDFE6 \u0E2A\u0E25\u0E34\u0E1B\u0E42\u0E2D\u0E19", needCOD ? " (COD)" : ""), /*#__PURE__*/React.createElement("input", {
     ref: slipRef,
     type: "file",
-    accept: "image/*",
-    capture: "environment",
+    accept: "image/*;capture=camera",
+    capture: "camera",
     onChange: handleSlip,
     style: {
       display: "none"
