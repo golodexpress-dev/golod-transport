@@ -214,12 +214,13 @@ function renderApp(){
 
   var actionBar = '';
   if(currentTab !== "done"){
-    actionBar = '<div class="action-bar">'
-      +'<button class="btn btn-gray" onclick="toggleSelectAll()">☑ เลือกทั้งหมด</button>'
-      +'<button class="btn btn-orange" onclick="openDispatch(\'branch\')">📦 จ่ายให้สาขา</button>'
-      +'<button class="btn btn-blue" onclick="openDispatch(\'driver\')">🚛 จ่ายให้คนรถ</button>'
-      +'<span style="font-size:11px;color:#666">เลือก <span id="sel-count">0</span> บิล</span>'
-      +'</div>';
+    var ab='<div class="action-bar">';
+    ab+='<button class="btn btn-gray" onclick="toggleSelectAll()">☑ เลือกทั้งหมด</button>';
+    ab+='<button class="btn btn-orange" onclick="openDispatch(&quot;branch&quot;)">📦 จ่ายให้สาขา</button>';
+    ab+='<button class="btn btn-blue" onclick="openDispatch(&quot;driver&quot;)">🚛 จ่ายให้คนรถ</button>';
+    ab+='<span style="font-size:11px;color:#666">เลือก <span id="sel-count">0</span> บิล</span>';
+    ab+='</div>';
+    actionBar=ab;
   }
   var rows = filtered.map(function(b){
     var checked = selectedBills[b.billNo]?"checked":"";
