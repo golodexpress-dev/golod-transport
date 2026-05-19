@@ -3,10 +3,11 @@
 <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no"/>
 <title>โกโลด — หน้าคนขับ</title>
 <style>*{box-sizing:border-box;margin:0;padding:0}body{font-family:Arial,sans-serif;background:#f0f4f0;min-height:100vh;-webkit-tap-highlight-color:transparent}button,input,select{font-family:Arial,sans-serif}</style>
-  <script src="golod-storage.js"></script>
   <script src="firebase-app-compat.js"></script>
   <script src="firebase-firestore-compat.js"></script>
   <script src="golod-firebase.js"></script>
+  <script>try{GolodDB.init();}catch(e){}</script>
+  <script src="golod-storage.js"></script>
   <script>try{GolodDB.init();}catch(e){}</script>
 </head><body>
 <div id="root"></div>
@@ -657,7 +658,15 @@ function BillActions({
   });
   const handlePhoto = async e => {
     const f = e.target.files[0];
-    if (f) setPhoto(await readFile(f));
+    if (!f) return;
+    const dataUrl = await readFile(f);
+    setPhoto(dataUrl);
+    // อัปโหลดไป Firebase Storage
+    if (typeof GolodStorage !== "undefined") {
+      GolodStorage.uploadAndSave(billNo, f, "photoUrl")
+        .then(function(url) { console.log("photo uploaded:", url); })
+        .catch(function(e) { console.warn("photo upload failed:", e.message); });
+    }
   };
   const handleSlip = async e => {
     const f = e.target.files[0];
@@ -762,8 +771,7 @@ function BillActions({
   }, "\uD83D\uDCF8 \u0E23\u0E39\u0E1B\u0E16\u0E48\u0E32\u0E22 (\u0E2A\u0E16\u0E32\u0E19\u0E17\u0E35\u0E48\u0E2A\u0E48\u0E07/\u0E25\u0E39\u0E01\u0E04\u0E49\u0E32\u0E40\u0E0B\u0E47\u0E19)"), /*#__PURE__*/React.createElement("input", {
     ref: photoRef,
     type: "file",
-    accept: "image/*;capture=camera",
-    capture: "camera",
+    accept: "image/*",
     onChange: handlePhoto,
     style: {
       display: "none"
@@ -826,8 +834,7 @@ function BillActions({
   }, "\uD83C\uDFE6 \u0E2A\u0E25\u0E34\u0E1B\u0E42\u0E2D\u0E19", needCOD ? " (COD)" : ""), /*#__PURE__*/React.createElement("input", {
     ref: slipRef,
     type: "file",
-    accept: "image/*;capture=camera",
-    capture: "camera",
+    accept: "image/*",
     onChange: handleSlip,
     style: {
       display: "none"
