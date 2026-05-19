@@ -208,7 +208,7 @@ function renderApp(){
 
   var filtered = filterBills(currentTab);
   var ub = getUserBranch();
-  var isAdmin = CU.role==="admin" || (CU.role==="branch" && ub==="all");
+  var isAdmin = true; // ทุก role จ่ายสาขาได้
   var isBranchClerk = CU.role==="clerk" || (CU.role==="branch" && ub!=="all");
 
   var actionBar = '';
