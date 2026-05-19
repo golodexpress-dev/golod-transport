@@ -169,11 +169,33 @@ function loadData(){
       var bills = results[0]||[];
       var users = results[1]||[];
       // normalize form
-      BILLS = bills.map(function(b){
+      // normalize form
+      var normalized = bills.map(function(b){
         if(b.form && typeof b.form==="string"){ try{b.form=JSON.parse(b.form);}catch(e){b.form={};} }
         if(!b.form) b.form={};
         if(!b.status) b.status="ออกบิลรับของ";
         return b;
+      });
+
+      // filter เฉพาะบิลที่ยังไม่ส่งสำเร็จ หรือออกไม่เกิน 7 วัน
+      var cutoff7 = new Date();
+      cutoff7.setDate(cutoff7.getDate()-7);
+      var DONE_STATUS=["ส่งสำเร็จ","delivered","success"];
+      BILLS = normalized.filter(function(b){
+        // ถ้ายังไม่ส่ง ให้แสดงเสมอ
+        if(!DONE_STATUS.includes(b.status)) {
+          // ตรวจวันที่ — ถ้าเกิน 7 วันและ status เป็น issued/ออกบิลรับของ ให้กรองออก
+          if(b.date){
+            var p=b.date.split("/");
+            if(p.length>=3){
+              var y=parseInt(p[2]); if(y>2500) y-=543;
+              var d=new Date(y,parseInt(p[1])-1,parseInt(p[0]));
+              return d>=cutoff7;
+            }
+          }
+          return true;
+        }
+        return false; // ส่งสำเร็จแล้วไม่แสดง
       });
       // filter by branch
       var ub = getUserBranch();
