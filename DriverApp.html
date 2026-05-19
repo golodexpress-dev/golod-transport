@@ -691,7 +691,7 @@ function BillActions({
     }
   };
   const confirmDelivered = () => {
-    onUpdate(billNo, "ส่งสำเร็จ", {
+    onUpdate(billNo, {
       photo,
       slip,
       signature: sigData||null,
@@ -709,7 +709,7 @@ function BillActions({
   };
   const confirmFail = () => {
     if (!failReason) { alert("กรุณาระบุสาเหตุ"); return; }
-    onUpdate(billNo, "ส่งไม่สำเร็จ", {
+    onUpdate(billNo, {
       failReason, photo,
       status: "ส่งไม่สำเร็จ",
       failedAt: new Date().toISOString()
