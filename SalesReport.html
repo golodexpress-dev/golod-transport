@@ -326,27 +326,41 @@ function toggleMode(){
 
 function loadData(){
   document.getElementById("report-wrap").innerHTML='<div class="loading">⏳ กำลังดึงข้อมูลจาก Firestore...</div>';
-  if(typeof GolodDB==="undefined"){ 
-    document.getElementById("report-wrap").innerHTML='<div class="loading">❌ Firestore ไม่พร้อม</div>'; 
-    return; 
+  function doLoad(){
+    GolodDB.getBillsNew(3000).then(function(bills){
+      allBills=bills;
+      var el=document.getElementById("bill-count");
+      if(el) el.textContent="โหลดแล้ว "+bills.length+" บิล";
+      render();
+    }).catch(function(e){
+      document.getElementById("report-wrap").innerHTML='<div class="loading">❌ โหลดไม่สำเร็จ: '+e.message+'</div>';
+    });
   }
-  GolodDB.getBillsNew(3000).then(function(bills){
-    allBills=bills;
-    var el=document.getElementById("bill-count");
-    if(el) el.textContent="โหลดแล้ว "+bills.length+" บิล";
-    render();
-  }).catch(function(e){
-    document.getElementById("report-wrap").innerHTML='<div class="loading">❌ โหลดไม่สำเร็จ: '+e.message+'</div>';
-  });
+  if(typeof GolodDB==="undefined"){
+    document.getElementById("report-wrap").innerHTML='<div class="loading">❌ Firestore ไม่พร้อม</div>';
+    return;
+  }
+  // รอให้ Firestore ready ก่อน
+  if(typeof GolodDB.ready==="function"){
+    GolodDB.ready(doLoad);
+  } else {
+    setTimeout(doLoad, 1500);
+  }
 }
 
 // INIT
 buildUI();
 document.addEventListener("DOMContentLoaded",function(){});
-setTimeout(function(){
-  if(typeof GolodDB!=="undefined") loadData();
-  else setTimeout(loadData,2000);
-},500);
+// รอให้ Firebase โหลดเสร็จก่อน
+function waitAndLoad(){
+  if(typeof GolodDB!=="undefined"){
+    GolodDB.init();
+    loadData();
+  } else {
+    setTimeout(waitAndLoad, 500);
+  }
+}
+setTimeout(waitAndLoad, 800);
 </script>
 </body>
 </html>
