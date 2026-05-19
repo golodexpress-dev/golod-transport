@@ -177,25 +177,10 @@ function loadData(){
         return b;
       });
 
-      // filter เฉพาะบิลที่ยังไม่ส่งสำเร็จ หรือออกไม่เกิน 7 วัน
-      var cutoff7 = new Date();
-      cutoff7.setDate(cutoff7.getDate()-7);
+      // แสดงเฉพาะบิลที่ยังไม่ส่งสำเร็จ
       var DONE_STATUS=["ส่งสำเร็จ","delivered","success"];
       BILLS = normalized.filter(function(b){
-        // ถ้ายังไม่ส่ง ให้แสดงเสมอ
-        if(!DONE_STATUS.includes(b.status)) {
-          // ตรวจวันที่ — ถ้าเกิน 7 วันและ status เป็น issued/ออกบิลรับของ ให้กรองออก
-          if(b.date){
-            var p=b.date.split("/");
-            if(p.length>=3){
-              var y=parseInt(p[2]); if(y>2500) y-=543;
-              var d=new Date(y,parseInt(p[1])-1,parseInt(p[0]));
-              return d>=cutoff7;
-            }
-          }
-          return true;
-        }
-        return false; // ส่งสำเร็จแล้วไม่แสดง
+        return !DONE_STATUS.includes(b.status);
       });
       // filter by branch
       var ub = getUserBranch();
