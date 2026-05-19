@@ -128,6 +128,7 @@ var BRANCHES = [
 var BRANCH_LABEL = {bkk:"กรุงเทพ",ptm:"ปทุมธานี",krt:"นครราชสีมา",ssk:"ศรีสะเกษ"};
 
 var STATUS_LIST = [
+  {v:"issued", l:"ออกบิลรับของ", cls:"st-issued"},
   {v:"ออกบิลรับของ", l:"ออกบิลรับของ", cls:"st-issued"},
   {v:"ระหว่างนำส่งสาขา", l:"ระหว่างนำส่งสาขา", cls:"st-branch"},
   {v:"กำลังวิ่งส่งลูกค้า", l:"กำลังวิ่งส่งลูกค้า", cls:"st-driving"},
@@ -270,7 +271,7 @@ function renderApp(){
 
 function filterBills(tab){
   return BILLS.filter(function(b){
-    if(tab==="pending") return b.status==="ออกบิลรับของ";
+    if(tab==="pending") return b.status==="ออกบิลรับของ" || b.status==="issued" || !b.status;
     if(tab==="branch") return b.status==="ระหว่างนำส่งสาขา";
     if(tab==="driving") return b.status==="กำลังวิ่งส่งลูกค้า"||b.status==="นำส่งใหม่";
     if(tab==="done") return ["ส่งสำเร็จ","ส่งไม่สำเร็จ","นำกลับสาขา","ลูกค้ารับกลับ"].includes(b.status);
