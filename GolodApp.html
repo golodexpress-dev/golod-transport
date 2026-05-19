@@ -436,7 +436,7 @@ function canAccess(k){
 function buildSidebar(){
   var isDriver=CU.role==="driver"||CU.role==="customer";
   var h="";
-  var secs=[{lb:"เมนูหลัก",ks:["dashboard","billing","bills","transport","tracking"]},{lb:"ข้อมูล",ks:["finance","reports","customers","drivers"]},{lb:"ระบบ",ks:["users","profile"]}];
+  var secs=[{lb:"เมนูหลัก",ks:["dashboard","billing","bills","transport","tracking"]},{lb:"ข้อมูล",ks:["finance","reports","salesreport","customers","drivers"]},{lb:"ระบบ",ks:["users","profile"]}];
   secs.forEach(function(s){
     var visItems=MENU.filter(function(m){return s.ks.includes(m.k)&&m.roles.includes(CU.role);});
     if(!visItems.length)return;
