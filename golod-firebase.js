@@ -241,25 +241,28 @@ var GolodDB = (function() {
   function getBillsNew(limitN) {
     return new Promise(function(resolve, reject) {
       ready(function() {
-        // บิลใหม่มี document ID ขึ้นต้นด้วยตัวอักษร เช่น BB1905-01
-        // ใช้ orderBy(__name__) และ startAt ตัวอักษรแรก
-        db.collection("bills")
-          .orderBy(firebase.firestore.FieldPath.documentId())
-          .startAt("A")
-          .limit(limitN||2000).get()
-          .then(function(snap) {
-            var bills=[];
-            snap.forEach(function(doc){ 
-              var d=doc.data();
-              if(d.billNo) bills.push(d);
+        var docId = firebase.firestore.FieldPath.documentId();
+        var limit2 = Math.ceil((limitN||2000) / 2);
+        // ดึง 2 range: A-N และ O-Z เพื่อครอบคลุม BB, BG, BN, BP, AD ฯลฯ
+        Promise.all([
+          db.collection("bills").orderBy(docId).startAt("A").endBefore("N").limit(limit2).get(),
+          db.collection("bills").orderBy(docId).startAt("N").endBefore("{").limit(limit2).get()
+        ]).then(function(snaps) {
+          var map = {};
+          snaps.forEach(function(snap){
+            snap.forEach(function(doc){
+              var d = doc.data();
+              if(d.billNo && !map[d.billNo]) map[d.billNo] = d;
             });
-            bills.sort(function(a,b){
-              var da=a.date||a.createdAt||"";
-              var db2=b.date||b.createdAt||"";
-              return da>db2?-1:1;
-            });
-            resolve(bills);
-          }).catch(reject);
+          });
+          var bills = Object.values(map);
+          bills.sort(function(a,b){
+            var da=a.date||a.createdAt||"";
+            var db2=b.date||b.createdAt||"";
+            return da>db2?-1:1;
+          });
+          resolve(bills);
+        }).catch(reject);
       });
     });
   }
