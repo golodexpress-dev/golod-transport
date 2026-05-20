@@ -993,26 +993,58 @@ function SecTitle({
 
 // QR Code component สำหรับ thermal print
 function QRCodeBox({ data, size }) {
-  const ref = React.useRef(null);
+  const wrapRef = React.useRef(null);
+  const [imgSrc, setImgSrc] = React.useState(null);
+
   React.useEffect(() => {
-    if (!ref.current || !data) return;
-    var el = ref.current;
-    setTimeout(function() {
-      if (!el) return;
-      el.innerHTML = "";
-      try {
-        new QRCode(el, {
-          text: data,
-          width: size || 64,
-          height: size || 64,
-          colorDark: "#000",
-          colorLight: "#fff",
-          correctLevel: QRCode.CorrectLevel.M
-        });
-      } catch(e) {}
-    }, 50);
+    if (!data) return;
+    // สร้าง QR ใน div ชั่วคราว แล้วดึง canvas → dataURL
+    const tmp = document.createElement("div");
+    tmp.style.position = "absolute";
+    tmp.style.left = "-9999px";
+    document.body.appendChild(tmp);
+    try {
+      var qr = new QRCode(tmp, {
+        text: data,
+        width: size || 64,
+        height: size || 64,
+        colorDark: "#000",
+        colorLight: "#fff",
+        correctLevel: QRCode.CorrectLevel.M
+      });
+      // รอ canvas สร้างเสร็จ
+      setTimeout(function() {
+        var canvas = tmp.querySelector("canvas");
+        if (canvas) {
+          setImgSrc(canvas.toDataURL("image/png"));
+        }
+        document.body.removeChild(tmp);
+      }, 80);
+    } catch(e) {
+      try { document.body.removeChild(tmp); } catch(_) {}
+    }
   }, [data, size]);
-  return React.createElement("div", { ref, style:{ lineHeight:0 } });
+
+  var sz = size || 64;
+  return React.createElement("div", {
+    ref: wrapRef,
+    style: { lineHeight: 0, display: "inline-block" }
+  }, imgSrc
+    ? React.createElement("img", {
+        src: imgSrc,
+        width: sz,
+        height: sz,
+        style: { display: "block", imageRendering: "pixelated" }
+      })
+    : React.createElement("div", {
+        style: {
+          width: sz, height: sz,
+          background: "#f5f5f5",
+          display: "flex", alignItems: "center", justifyContent: "center",
+          fontSize: 8, color: "#aaa"
+        }
+      }, "QR...")
+  );
 }
 
 function ThermalBill({
@@ -1308,7 +1340,10 @@ function ThermalBill({
     const sumCm = parseFloat(item.sumCm) || 0;
     const sz = calcSize(item.kg, sumCm);
     const z = getZone(form.branch, form.destProv, form.receiverAmphoe);
-    const up = getSizePrice(sz, z, item.cpN, item.cpF);
+    const autoUp = getSizePrice(sz, z, item.cpN, item.cpF);
+    const up = (item.customPrice !== undefined && item.customPrice !== "")
+      ? (parseFloat(item.customPrice) || 0)
+      : autoUp;
     const lt = up * (parseInt(item.qty) || 1);
     return /*#__PURE__*/React.createElement(React.Fragment, {
       key: item.id
@@ -3450,7 +3485,7 @@ function ThermalBillingApp() {
     w.document.write("</body></html>");
     w.document.close();
     w.focus();
-    setTimeout(() => w.print(), 500);
+    setTimeout(() => w.print(), 900);
   };
   return /*#__PURE__*/React.createElement("div", {
     style: {
