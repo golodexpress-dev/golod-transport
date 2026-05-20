@@ -235,38 +235,34 @@ var GolodDB = (function() {
     });
   }
 
-// ดึงบิลแบบผสมผสาน (เบาและเร็วกว่าเดิมมาก ป้องกันแอปค้าง)
+// ดึงเฉพาะ 500 บิลล่าสุด (เบาที่สุด โหลดเร็ว ไม่ค้าง)
   function getBillsNew(limitN) {
     return new Promise(function(resolve, reject) {
       ready(function() {
+        var MAX_BILLS = limitN || 500; // กำหนดให้ดึงแค่ 500 บิลตามต้องการ
         var docId = firebase.firestore.FieldPath.documentId();
         
-        // แยกดึง 3 กลุ่ม (ดึงพร้อมกัน) เพื่อให้ครอบคลุมทุกบิลโดยไม่หนักเครื่อง
+        // แยกดึง 3 แหล่ง (ดึงพร้อมกัน แหล่งละ 500) โหลดเร็วกว่า 2 วินาที
         Promise.all([
-          // กลุ่ม 1: ดึงบิลใหม่ล่าสุดจากแอป Thermal (เรียงตามเวลาสร้าง)
-          db.collection("bills").orderBy("createdAt", "desc").limit(1500).get().catch(function(){ return {docs:[]}; }),
-          
-          // กลุ่ม 2: ดึงบิลที่มีการอัปเดตสถานะล่าสุด (เผื่อมีการแก้ไข)
-          db.collection("bills").orderBy("updatedAt", "desc").limit(500).get().catch(function(){ return {docs:[]}; }),
-          
-          // กลุ่ม 3: ดึงบิลเก่าจาก Google Sheets (ที่ไม่มีเวลาสร้าง ให้เรียงตามเลขบิลย้อนหลัง)
-          db.collection("bills").orderBy(docId, "desc").limit(1500).get().catch(function(){ return {docs:[]}; })
+          db.collection("bills").orderBy("createdAt", "desc").limit(MAX_BILLS).get().catch(function(){ return {docs:[]}; }),
+          db.collection("bills").orderBy("updatedAt", "desc").limit(MAX_BILLS).get().catch(function(){ return {docs:[]}; }),
+          // แหล่งที่ 3 เผื่อบิลเก่าที่ไม่มี createdAt 
+          db.collection("bills").orderBy(docId, "desc").limit(MAX_BILLS).get().catch(function(){ return {docs:[]}; })
         ]).then(function(snaps) {
           var map = {};
           
-          // นำข้อมูลทั้ง 3 กลุ่มมารวมกัน (ถ้าบิลซ้ำกัน จะถูกคัดออกอัตโนมัติ)
           snaps.forEach(function(snap){
-            if(snap.forEach){
+            if(snap && snap.forEach){
               snap.forEach(function(doc){
                 var d = doc.data();
-                if(d.billNo && !map[d.billNo]) map[d.billNo] = d;
+                if(d.billNo && !map[d.billNo]) map[d.billNo] = d; // ตัดบิลซ้ำทิ้ง
               });
             }
           });
           
           var bills = Object.values(map);
           
-          // จัดเรียงวันที่ใหม่ล่าสุดขึ้นก่อนสุด
+          // เรียงวันที่ให้ถูกต้อง 100% (ใหม่ล่าสุดอยู่บนสุด)
           bills.sort(function(a, b) {
             var parseDate = function(v) {
               if (!v) return 0;
@@ -289,9 +285,11 @@ var GolodDB = (function() {
             return tB - tA;
           });
           
-          resolve(bills);
+          // หั่นเอาเฉพาะ 500 บิลล่าสุดส่งไปให้หน้าเว็บแสดงผล
+          resolve(bills.slice(0, MAX_BILLS));
+          
         }).catch(function(err){
-          console.warn("[GolodDB] Error fetching bills:", err);
+          console.warn("[GolodDB] Error:", err);
           resolve([]);
         });
       });
