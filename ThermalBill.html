@@ -996,17 +996,21 @@ function QRCodeBox({ data, size }) {
   const ref = React.useRef(null);
   React.useEffect(() => {
     if (!ref.current || !data) return;
-    ref.current.innerHTML = "";
-    try {
-      new QRCode(ref.current, {
-        text: data,
-        width: size || 64,
-        height: size || 64,
-        colorDark: "#000",
-        colorLight: "#fff",
-        correctLevel: QRCode.CorrectLevel.M
-      });
-    } catch(e) {}
+    var el = ref.current;
+    setTimeout(function() {
+      if (!el) return;
+      el.innerHTML = "";
+      try {
+        new QRCode(el, {
+          text: data,
+          width: size || 64,
+          height: size || 64,
+          colorDark: "#000",
+          colorLight: "#fff",
+          correctLevel: QRCode.CorrectLevel.M
+        });
+      } catch(e) {}
+    }, 50);
   }, [data, size]);
   return React.createElement("div", { ref, style:{ lineHeight:0 } });
 }
