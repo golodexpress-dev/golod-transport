@@ -1377,7 +1377,7 @@ function ThermalBill({
     }
   }, /*#__PURE__*/React.createElement(Row, {
     l: "\u0E04\u0E48\u0E32\u0E02\u0E19\u0E2A\u0E48\u0E07\u0E23\u0E27\u0E21",
-    r: `${(summary&&summary.freightTotal||0).toLocaleString("th-TH")} ฿`
+    r: `${(summary&&(summary.freightTotal||summary.freightNet)||0).toLocaleString("th-TH")} ฿`
   }), (summary&&summary.discount) > 0 && /*#__PURE__*/React.createElement(Row, {
     l: `ส่วนลด`,
     r: `-${(summary&&summary.discount||0).toLocaleString("th-TH")} ฿`
@@ -1607,19 +1607,17 @@ function ItemRow({
       color: "#085041",
       marginLeft: "auto"
     }
-  }, isSpecialArea
-      ? /*#__PURE__*/React.createElement("span", {style:{display:"flex",alignItems:"center",gap:4}},
+  }, /*#__PURE__*/React.createElement("span", {style:{display:"flex",alignItems:"center",gap:4}},
           /*#__PURE__*/React.createElement("input", {
             type: "number",
             value: item.customPrice !== undefined ? item.customPrice : "",
             onChange: e => u("customPrice", e.target.value),
             placeholder: String(autoUp||0),
-            style: {width:60,padding:"2px 5px",border:"1px solid #F0A500",borderRadius:5,fontSize:12,textAlign:"right",background:"#FFF8E0"}
+            style: {width:60,padding:"2px 5px",border:"1px solid #ccc",borderRadius:5,fontSize:12,textAlign:"right",background:"#f8f8f8"}
           }),
           " ฿/ชิ้น → ",
           /*#__PURE__*/React.createElement("strong",null, lt.toLocaleString("th-TH"), " ฿")
         )
-      : (lt.toLocaleString("th-TH") + " ฿")
     ), canRemove && /*#__PURE__*/React.createElement("button", {
     onClick: () => onRemove(idx),
     style: {
@@ -4314,7 +4312,13 @@ function ThermalBillingApp() {
     items: viewBill.items,
     summary: viewBill.summary,
     billNo: viewBill.billNo,
-    printDate: viewBill.date
+    printDate: (function(d){
+    if(!d) return "";
+    // แปลง 20/05/2569 → 20/5/2569 (ลบ 0 นำหน้า)
+    var p=d.split("/");
+    if(p.length===3) return parseInt(p[0])+"/"+parseInt(p[1])+"/"+p[2];
+    return d;
+  })(viewBill.date)
   })), /*#__PURE__*/React.createElement("div", {
     style: {
       flex: 1,
