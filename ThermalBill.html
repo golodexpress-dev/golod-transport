@@ -1169,7 +1169,18 @@ function ThermalBill({
       letterSpacing: 3,
       marginTop: 2
     }
-  }, billNo), /*#__PURE__*/React.createElement(QRCodeBox, {
+  }, billNo), /*#__PURE__*/React.createElement("div", {
+    style: {
+      fontSize: 10,
+      fontWeight: 700,
+      marginTop: 1
+    }
+  }, printDate, " ", nowStr(), " \u0E19. | ", branchLabel), /*#__PURE__*/React.createElement("div", {
+    style: {
+      fontSize: 10,
+      fontWeight: 700
+    }
+  }, "\u0E1E\u0E19\u0E31\u0E01\u0E07\u0E32\u0E19: ", form.staff), /*#__PURE__*/React.createElement(QRCodeBox, {
     data: [
       billNo,
       (form&&form.receiverAmphoe?form.receiverAmphoe:"")+"/"+(form&&form.destProv?form.destProv:""),
@@ -1177,17 +1188,7 @@ function ThermalBill({
       (items&&items.length?items.reduce((s,it)=>s+(parseInt(it.qty)||1),0):1)+"ชิ้น"
     ].join("\n"),
     size: 60
-  }), /*#__PURE__*/React.createElement("div", {
-    style: {
-      fontSize: 10,
-      fontWeight: 700
-    }
-  }, printDate, " ", nowStr(), " \u0E19. | ", branchLabel), /*#__PURE__*/React.createElement("div", {
-    style: {
-      fontSize: 10,
-      fontWeight: 700
-    }
-  }, "\u0E1E\u0E19\u0E31\u0E01\u0E07\u0E32\u0E19: ", form.staff)), /*#__PURE__*/React.createElement(Div, {
+  })), /*#__PURE__*/React.createElement(Div, {
     dashed: true
   }), /*#__PURE__*/React.createElement("div", {
     style: {
