@@ -237,7 +237,18 @@ function thDate2(s){
 }
 function loadRealBills(){
   try{
+    // ลอง localStorage ก่อน
     var raw=localStorage.getItem("golod_bills");
+    // ถ้าว่าง ให้ดึงจาก Firestore
+    if((!raw||JSON.parse(raw).length===0) && typeof GolodDB!=="undefined"){
+      GolodDB.getBillsNew(500).then(function(bills){
+        if(bills&&bills.length>0){
+          try{localStorage.setItem("golod_bills",JSON.stringify(bills));}catch(e){}
+          window._billsData=bills;
+          filterBillsPage();
+        }
+      }).catch(function(){});
+    }
     if(!raw) return [];
     var arr=JSON.parse(raw);
     // map freightPay เก่า → ใหม่

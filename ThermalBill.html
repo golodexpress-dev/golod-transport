@@ -1241,7 +1241,7 @@ function ThermalBill({
     }
   }, "[ \u0E1C\u0E39\u0E49\u0E23\u0E31\u0E1A ]"), /*#__PURE__*/React.createElement("div", {
     style: {
-      fontSize: 13,
+      fontSize: 16,
       fontWeight: 800
     }
   }, form.receiverName || "—"), /*#__PURE__*/React.createElement("div", {
@@ -1314,8 +1314,8 @@ function ThermalBill({
     }, /*#__PURE__*/React.createElement("td", {
       style: {
         padding: "2px 2px",
-        fontSize: 9,
-        fontWeight: 600,
+        fontSize: 16,
+        fontWeight: 700,
         maxWidth: 90,
         wordBreak: "break-word",
         whiteSpace: "normal"
@@ -1558,7 +1558,7 @@ function ItemRow({
   const zone = getZone(branch, destProv);
   const autoUp = getSizePrice(size, zone, item.cpN, item.cpF);
   // พื้นที่พิเศษ: ใช้ราคากรอกเอง ถ้ามี
-  const up = isSpecialArea && item.customPrice !== undefined && item.customPrice !== ""
+  const up = item.customPrice !== undefined && item.customPrice !== ""
     ? (parseFloat(item.customPrice) || 0)
     : autoUp;
   const lt = up * (parseInt(item.qty) || 1);
@@ -3236,8 +3236,8 @@ function ThermalBillingApp() {
     const sc = parseFloat(item.sumCm) || (parseFloat(item.w) || 0) + (parseFloat(item.l) || 0) + (parseFloat(item.h) || 0);
     const sz = calcSize(item.kg, sc);
     const autoP = getSizePrice(sz, zone, item.cpN, item.cpF);
-    // พื้นที่พิเศษ: ใช้ customPrice ถ้ากรอก
-    const unitP = form.isSpecialArea && item.customPrice !== undefined && item.customPrice !== ""
+    // ใช้ customPrice ถ้ากรอกเอง (ทุกพื้นที่)
+    const unitP = item.customPrice !== undefined && item.customPrice !== ""
       ? (parseFloat(item.customPrice) || 0)
       : autoP;
     return s + unitP * (parseInt(item.qty) || 1);
