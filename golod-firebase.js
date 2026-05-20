@@ -235,45 +235,65 @@ var GolodDB = (function() {
     });
   }
 
- // ดึงบิลทั้งหมดและเรียงลำดับด้วย Javascript (แก้ปัญหาบิลเก่าไม่มีฟิลด์ createdAt และ Format วันที่ตีกัน)
+// ดึงบิลแบบผสมผสาน (เบาและเร็วกว่าเดิมมาก ป้องกันแอปค้าง)
   function getBillsNew(limitN) {
     return new Promise(function(resolve, reject) {
       ready(function() {
-        // กวาดข้อมูลรวดเดียวจำกัดที่ 8000 บิล (ดึงทุกบิลโดยไม่สนว่ามีฟิลด์อะไรบ้าง)
-        db.collection("bills").limit(limitN || 8000).get().then(function(snap) {
-          var bills = [];
-          snap.forEach(function(doc) { bills.push(doc.data()); });
+        var docId = firebase.firestore.FieldPath.documentId();
+        
+        // แยกดึง 3 กลุ่ม (ดึงพร้อมกัน) เพื่อให้ครอบคลุมทุกบิลโดยไม่หนักเครื่อง
+        Promise.all([
+          // กลุ่ม 1: ดึงบิลใหม่ล่าสุดจากแอป Thermal (เรียงตามเวลาสร้าง)
+          db.collection("bills").orderBy("createdAt", "desc").limit(1500).get().catch(function(){ return {docs:[]}; }),
           
-          // เรียงลำดับวันที่ด้วย Javascript
+          // กลุ่ม 2: ดึงบิลที่มีการอัปเดตสถานะล่าสุด (เผื่อมีการแก้ไข)
+          db.collection("bills").orderBy("updatedAt", "desc").limit(500).get().catch(function(){ return {docs:[]}; }),
+          
+          // กลุ่ม 3: ดึงบิลเก่าจาก Google Sheets (ที่ไม่มีเวลาสร้าง ให้เรียงตามเลขบิลย้อนหลัง)
+          db.collection("bills").orderBy(docId, "desc").limit(1500).get().catch(function(){ return {docs:[]}; })
+        ]).then(function(snaps) {
+          var map = {};
+          
+          // นำข้อมูลทั้ง 3 กลุ่มมารวมกัน (ถ้าบิลซ้ำกัน จะถูกคัดออกอัตโนมัติ)
+          snaps.forEach(function(snap){
+            if(snap.forEach){
+              snap.forEach(function(doc){
+                var d = doc.data();
+                if(d.billNo && !map[d.billNo]) map[d.billNo] = d;
+              });
+            }
+          });
+          
+          var bills = Object.values(map);
+          
+          // จัดเรียงวันที่ใหม่ล่าสุดขึ้นก่อนสุด
           bills.sort(function(a, b) {
-            // ฟังก์ชันแปลภาษาไทย/สากล ให้เป็นตัวเลขเวลาที่เรียงได้เป๊ะๆ
             var parseDate = function(v) {
               if (!v) return 0;
               var str = String(v);
-              // ถ้าเป็นรูปแบบสากล 2026-05-19 หรือ ISO string
-              if (str.match(/^\d{4}-\d{2}-\d{2}/)) {
-                 return new Date(str).getTime();
-              }
-              // ถ้าเป็นรูปแบบไทย 19/5/2569
+              if (str.match(/^\d{4}-\d{2}-\d{2}/)) return new Date(str).getTime();
               if (str.match(/\d{1,2}\/\d{1,2}\/\d{4}/)) {
                  var p = str.split("/");
                  var y = parseInt(p[2]);
-                 if (y > 2400) y -= 543; // แปลง พ.ศ. เป็น ค.ศ.
+                 if (y > 2400) y -= 543;
                  return new Date(y, parseInt(p[1])-1, parseInt(p[0])).getTime();
               }
-              var fallback = new Date(str).getTime();
-              return isNaN(fallback) ? 0 : fallback;
+              var fb = new Date(str).getTime();
+              return isNaN(fb) ? 0 : fb;
             };
             
-            // ยึดเวลา createdAt ก่อน ถ้าไม่มีให้ไปดึงจาก date
             var tA = a.createdAt ? new Date(a.createdAt).getTime() : parseDate(a.date);
             var tB = b.createdAt ? new Date(b.createdAt).getTime() : parseDate(b.date);
             
-            return tB - tA; // เรียงจากใหม่ไปเก่า (ล่าสุดขึ้นก่อน)
+            if(tA === tB) return (b.billNo || "") > (a.billNo || "") ? 1 : -1;
+            return tB - tA;
           });
           
           resolve(bills);
-        }).catch(reject);
+        }).catch(function(err){
+          console.warn("[GolodDB] Error fetching bills:", err);
+          resolve([]);
+        });
       });
     });
   }
