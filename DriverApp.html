@@ -1117,8 +1117,8 @@ function DriverApp() {
     return isInTrip || isAssigned;
   });
   const totalBills = myBills.length;
-  const doneBills = myBills.filter(b => b.status === "delivered").length;
-  const pendingBills = myBills.filter(b => b.status !== "delivered" && b.status !== "failed").length;
+  const doneBills = myBills.filter(b => b.status === "delivered" || b.status === "ส่งสำเร็จ").length;
+  const pendingBills = myBills.filter(b => b.status !== "delivered" && b.status !== "failed" && b.status !== "ส่งสำเร็จ" && b.status !== "ส่งไม่สำเร็จ").length;
   const cashCollect = myBills.filter(b => b.status !== "delivered" && (b.freightPay === "dest_cash" || b.freightPay === "dest_driver")).reduce((s, b) => s + (b.freightNet || 0), 0);
   const codCollect = myBills.filter(b => b.status !== "delivered" && b.codTotal > 0).reduce((s, b) => s + (b.codTotal || 0), 0);
   const updateBillStatus = (billNo, status, extra = {}) => {
@@ -1391,7 +1391,7 @@ function DriverApp() {
       myBills.filter(b => !activeTrips.some(t => (t.billNos||[]).includes(b.billNo))).length,
       " บิล)"
     ),
-    myBills.filter(b => !activeTrips.some(t => (t.billNos||[]).includes(b.billNo))).map(function(b){
+    myBills.filter(b => !activeTrips.some(t => (t.billNos||[]).includes(b.billNo)) && b.status !== "ส่งสำเร็จ" && b.status !== "delivered").map(function(b){
       return /*#__PURE__*/React.createElement("div", {key:b.billNo, style:{border:"1px solid #e0e0e0",borderTop:"none",padding:"12px 14px",background:"#fff",borderRadius:b===myBills[myBills.length-1]?"0 0 9px 9px":"0"}},
         /*#__PURE__*/React.createElement("div", {style:{display:"flex",justifyContent:"space-between",marginBottom:6}},
           /*#__PURE__*/React.createElement("div", null,
