@@ -235,47 +235,45 @@ var GolodDB = (function() {
     });
   }
 
-  // ดึงเฉพาะบิลใหม่ (แก้ไขให้ดึงตามเวลาล่าสุด พร้อมมีระบบป้องกัน Error)
+ // ดึงบิลทั้งหมดและเรียงลำดับด้วย Javascript (แก้ปัญหาบิลเก่าไม่มีฟิลด์ createdAt และ Format วันที่ตีกัน)
   function getBillsNew(limitN) {
     return new Promise(function(resolve, reject) {
       ready(function() {
-        var limit2 = Math.ceil((limitN || 3000) / 2);
-        
-        Promise.all([
-          db.collection("bills").orderBy("createdAt", "desc").limit(limit2).get(),
-          db.collection("bills").orderBy("updatedAt", "desc").limit(limit2).get()
-        ]).then(function(snaps) {
-          var map = {};
-          snaps.forEach(function(snap){
-            snap.forEach(function(doc){
-              var d = doc.data();
-              if(d.billNo && !map[d.billNo]) map[d.billNo] = d;
-            });
+        // กวาดข้อมูลรวดเดียวจำกัดที่ 8000 บิล (ดึงทุกบิลโดยไม่สนว่ามีฟิลด์อะไรบ้าง)
+        db.collection("bills").limit(limitN || 8000).get().then(function(snap) {
+          var bills = [];
+          snap.forEach(function(doc) { bills.push(doc.data()); });
+          
+          // เรียงลำดับวันที่ด้วย Javascript
+          bills.sort(function(a, b) {
+            // ฟังก์ชันแปลภาษาไทย/สากล ให้เป็นตัวเลขเวลาที่เรียงได้เป๊ะๆ
+            var parseDate = function(v) {
+              if (!v) return 0;
+              var str = String(v);
+              // ถ้าเป็นรูปแบบสากล 2026-05-19 หรือ ISO string
+              if (str.match(/^\d{4}-\d{2}-\d{2}/)) {
+                 return new Date(str).getTime();
+              }
+              // ถ้าเป็นรูปแบบไทย 19/5/2569
+              if (str.match(/\d{1,2}\/\d{1,2}\/\d{4}/)) {
+                 var p = str.split("/");
+                 var y = parseInt(p[2]);
+                 if (y > 2400) y -= 543; // แปลง พ.ศ. เป็น ค.ศ.
+                 return new Date(y, parseInt(p[1])-1, parseInt(p[0])).getTime();
+              }
+              var fallback = new Date(str).getTime();
+              return isNaN(fallback) ? 0 : fallback;
+            };
+            
+            // ยึดเวลา createdAt ก่อน ถ้าไม่มีให้ไปดึงจาก date
+            var tA = a.createdAt ? new Date(a.createdAt).getTime() : parseDate(a.date);
+            var tB = b.createdAt ? new Date(b.createdAt).getTime() : parseDate(b.date);
+            
+            return tB - tA; // เรียงจากใหม่ไปเก่า (ล่าสุดขึ้นก่อน)
           });
-          var bills = Object.values(map);
-          bills.sort(function(a,b){
-            var da = a.createdAt || a.updatedAt || a.date || "";
-            var db2 = b.createdAt || b.updatedAt || b.date || "";
-            return da > db2 ? -1 : 1;
-          });
+          
           resolve(bills);
-        }).catch(function(e) {
-          console.warn("[GolodDB] ใช้แผนสำรองเนื่องจากติด Index:", e);
-          // แผนสำรอง: ดึงแบบไม่สน Index
-          db.collection("bills").limit(limitN || 3000).get().then(function(snap) {
-            var fallbackBills = [];
-            snap.forEach(function(doc){ fallbackBills.push(doc.data()); });
-            fallbackBills.sort(function(a,b){
-              var da = a.createdAt || a.updatedAt || a.date || "";
-              var db2 = b.createdAt || b.updatedAt || b.date || "";
-              return da > db2 ? -1 : 1;
-            });
-            resolve(fallbackBills);
-          }).catch(reject);
-        });
+        }).catch(reject);
       });
     });
   }
-
-  return { init, saveBill, getBills, updateBill, saveContact, getContacts, saveUser, getUsers, saveEditLog, getEditLogs, listenBills, getAllBills, getBillsNew, ready };
-})();
