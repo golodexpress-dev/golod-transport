@@ -1983,7 +1983,7 @@ function BillList({
       style: {
         padding: "7px 9px",
         color: "#854F0B",
-        fontWeight: b.summary.codTotal > 0 ? 600 : 400,
+        fontWeight: b.summary.codTotal > 0 ? 800 : 400,
         whiteSpace: "nowrap"
       }
     }, b.summary.codTotal > 0 ? ((b.summary&&b.summary.codTotal)||b.codTotal||0).toLocaleString("th-TH") + " ฿" : "—"), /*#__PURE__*/React.createElement("td", {
@@ -4119,7 +4119,8 @@ function ThermalBillingApp() {
   }, "\u0E2A\u0E23\u0E38\u0E1B \u2014 ", billNo.current), /*#__PURE__*/React.createElement("div", null, "\u0E04\u0E48\u0E32\u0E02\u0E19\u0E2A\u0E48\u0E07\u0E23\u0E27\u0E21: ", freightTotal.toLocaleString("th-TH"), " \u0E3F"), discountAmt > 0 && /*#__PURE__*/React.createElement("div", null, "\u0E2A\u0E48\u0E27\u0E19\u0E25\u0E14: \u2212", discountAmt.toLocaleString("th-TH"), " \u0E3F"), codTotal > 0 && /*#__PURE__*/React.createElement("div", {
     style: {
       color: "#854F0B",
-      fontWeight: 600
+      fontWeight: 800,
+      fontSize: 15
     }
   }, "COD: ", codTotal.toLocaleString("th-TH"), " \u0E3F")), /*#__PURE__*/React.createElement("div", {
     style: {
