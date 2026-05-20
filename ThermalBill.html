@@ -939,7 +939,8 @@ const blankItem = () => ({
   cpF: "",
   hasCOD: false,
   codAmount: "",
-  declaredValue: ""
+  declaredValue: "",
+  customPrice: ""
 });
 
 // =================== SHARED UI ===================
@@ -1069,8 +1070,10 @@ function ThermalBill({
   printDate
 }) {
   // คำนวณ minFreight ภายใน
-  const _minFr = form.isSpecialArea ? (parseInt(form.minFreight)||0) : 0;
-  const _isMinApplied = _minFr > 0 && summary.freightNet >= _minFr && (summary.freightTotal||summary.freightNet) < _minFr;
+  // ถ้า items ทุกตัวกรอก customPrice มาแล้ว ให้ใช้ summary.freightNet ตรงๆ ไม่ต้อง apply minFreight
+  const _allHaveCustom = items && items.length > 0 && items.every(it => it.customPrice !== undefined && String(it.customPrice) !== "");
+  const _minFr = 0; // ไม่ apply minFreight ใน preview — ราคารวมใน summary ถูกต้องแล้ว
+  const _isMinApplied = false;
   var _FREIGHT_PAY$find, _BRANCHES$find;
   const W = 298;
   const zone = getZone(form.branch, form.destProv, form.receiverAmphoe);
@@ -1356,9 +1359,10 @@ function ThermalBill({
     const z = getZone(form.branch, form.destProv, form.receiverAmphoe);
     const autoUp = getSizePrice(sz, z, item.cpN, item.cpF);
     const hasCustom = item.customPrice !== undefined && item.customPrice !== "";
-    // customPrice = ค่าส่งรวมของ item นี้ทั้งหมด (ไม่คูณ qty)
-    const lt = hasCustom ? (parseFloat(item.customPrice) || 0) : autoUp * (parseInt(item.qty) || 1);
-    const up = hasCustom ? Math.round(lt / (parseInt(item.qty) || 1)) : autoUp;
+    // customPrice = ราคา/ชิ้น → lt = customPrice × qty
+    const upCustom = hasCustom ? (parseFloat(item.customPrice) || 0) : autoUp;
+    const lt = upCustom * (parseInt(item.qty) || 1);
+    const upDisplay = upCustom; // แสดงราคา/ชิ้นตรงๆ
     return /*#__PURE__*/React.createElement(React.Fragment, {
       key: item.id
     }, /*#__PURE__*/React.createElement("tr", {
@@ -1392,7 +1396,7 @@ function ThermalBill({
         padding: "2px 2px",
         fontSize: 9
       }
-    }, up > 0 ? up.toLocaleString("th-TH") : "-"), /*#__PURE__*/React.createElement("td", {
+    }, upDisplay > 0 ? upDisplay.toLocaleString("th-TH") : "-"), /*#__PURE__*/React.createElement("td", {
       style: {
         textAlign: "center",
         padding: "2px 2px",
@@ -1612,10 +1616,9 @@ function ItemRow({
   const zone = getZone(branch, destProv);
   const autoUp = getSizePrice(size, zone, item.cpN, item.cpF);
   const autoLt = autoUp * (parseInt(item.qty) || 1);
-  // customPrice = ค่าส่งรวมทั้งหมดของ item นี้ (ไม่ต้องคูณ qty)
-  const lt = item.customPrice !== undefined && item.customPrice !== ""
-    ? (parseFloat(item.customPrice) || 0)
-    : autoLt;
+  // customPrice = ราคา/ชิ้น (เหมือนที่กรอกในฟอร์ม) → lt = customPrice × qty
+  const upCustom = (item.customPrice !== undefined && item.customPrice !== "") ? (parseFloat(item.customPrice) || 0) : null;
+  const lt = upCustom !== null ? upCustom * (parseInt(item.qty) || 1) : autoLt;
   const u = (k, v) => onUpdate(idx, k, v);
   return /*#__PURE__*/React.createElement("div", {
     style: {
@@ -1657,15 +1660,17 @@ function ItemRow({
       marginLeft: "auto"
     }
   }, /*#__PURE__*/React.createElement("span", {style:{display:"flex",alignItems:"center",gap:4}},
-          "\u0E04\u0E48\u0E32\u0E2A\u0E48\u0E07\u0E23\u0E27\u0E21: ",
+          "\u0E04\u0E48\u0E32\u0E2A\u0E48\u0E07/\u0E0A\u0E34\u0E49\u0E19: ",
           /*#__PURE__*/React.createElement("input", {
             type: "number",
             value: item.customPrice !== undefined ? item.customPrice : "",
             onChange: e => u("customPrice", e.target.value),
-            placeholder: String(autoLt||0),
+            placeholder: String(autoUp||0),
             style: {width:70,padding:"2px 5px",border:"1px solid #ccc",borderRadius:5,fontSize:12,textAlign:"right",background:"#f8f8f8"}
           }),
-          " \u0E3F"
+          " \u0E3F \u00D7",
+          /*#__PURE__*/React.createElement("span",{style:{fontSize:11,color:"#666"}}, (parseInt(item.qty)||1), " = "),
+          /*#__PURE__*/React.createElement("strong",{style:{color:"#0F6E56"}}, lt.toLocaleString("th-TH"), " \u0E3F")
         )
     ), canRemove && /*#__PURE__*/React.createElement("button", {
     onClick: () => onRemove(idx),
@@ -3023,7 +3028,8 @@ function ThermalBillingApp() {
         cpF: it.cpF || "",
         hasCOD: it.hasCOD || false,
         codAmount: it.codAmount || "",
-        declaredValue: it.declaredValue || ""
+        declaredValue: it.declaredValue || "",
+        customPrice: it.customPrice !== undefined && it.customPrice !== "" ? String(it.customPrice) : ""
       }));
     }
     return [blankItem()];
@@ -3290,9 +3296,9 @@ function ThermalBillingApp() {
     const sc = parseFloat(item.sumCm) || (parseFloat(item.w) || 0) + (parseFloat(item.l) || 0) + (parseFloat(item.h) || 0);
     const sz = calcSize(item.kg, sc);
     const autoP = getSizePrice(sz, zone, item.cpN, item.cpF);
-    // customPrice = ค่าส่งรวมทั้งหมดของ item นี้ (ไม่คูณ qty)
+    // customPrice = ราคา/ชิ้น → คูณ qty
     if (item.customPrice !== undefined && item.customPrice !== "") {
-      return s + (parseFloat(item.customPrice) || 0);
+      return s + (parseFloat(item.customPrice) || 0) * (parseInt(item.qty) || 1);
     }
     return s + autoP * (parseInt(item.qty) || 1);
   }, 0);
@@ -3302,9 +3308,11 @@ function ThermalBillingApp() {
     return s + (v > 0 ? Math.round(v * 0.005) : 0);
   }, 0);
   const freightNetRaw = Math.max(0, freightTotal - discountAmt + insuranceTotal);
-  const minFr = form.isSpecialArea ? (parseInt(form.minFreight) || 0) : 0;
+  // ถ้าทุก item กรอก customPrice → ค่าส่งรวมถูกต้องแล้ว ไม่ apply minFreight
+  const allHaveCustom = items.length > 0 && items.every(it => it.customPrice !== undefined && String(it.customPrice) !== "");
+  const minFr = (!allHaveCustom && form.isSpecialArea) ? (parseInt(form.minFreight) || 0) : 0;
   const freightNet = Math.max(freightNetRaw, minFr);
-  const isMinApplied = minFr > 0 && freightNetRaw < minFr;
+  const isMinApplied = !allHaveCustom && minFr > 0 && freightNetRaw < minFr;
   const codTotal = items.reduce((s, item) => s + (item.hasCOD ? parseFloat(item.codAmount) || 0 : 0), 0);
   const summary = {
     freightTotal,
