@@ -188,7 +188,9 @@ function loadData(){
       if(ub!=="all"){
         BILLS = BILLS.filter(function(b){
           var bb=b.branch||"bkk";
-          return bb===ub;
+          var tb=b.targetBranch||"";
+          // เห็นบิลของสาขาตัวเอง หรือบิลที่ถูกส่งมาให้สาขาตัวเอง
+          return bb===ub || tb===ub;
         });
       }
       DRIVERS = users.filter(function(u){ return u.role==="driver"; });
