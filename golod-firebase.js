@@ -237,16 +237,16 @@ var GolodDB = (function() {
   }
 
   
-  // ดึงเฉพาะบิลใหม่ที่มี clerkCode (ไม่ใช่บิลเก่า format เดิม)
+  // ดึงเฉพาะบิลใหม่ (แก้ไขให้ดึงตามเวลาล่าสุด แทนการเรียงตามตัวอักษร A-Z)
   function getBillsNew(limitN) {
     return new Promise(function(resolve, reject) {
       ready(function() {
-        var docId = firebase.firestore.FieldPath.documentId();
-        var limit2 = Math.ceil((limitN||2000) / 2);
-        // ดึง 2 range: A-N และ O-Z เพื่อครอบคลุม BB, BG, BN, BP, AD ฯลฯ
+        var limit2 = Math.ceil((limitN || 3000) / 2);
+        
+        // ดึง 2 กลุ่ม เพื่อให้ครอบคลุมทั้งบิลที่เพิ่งออก (Thermal) และบิลที่เพิ่งอัปเดตสถานะ (จัดการขนส่ง)
         Promise.all([
-          db.collection("bills").orderBy(docId).startAt("A").endBefore("N").limit(limit2).get(),
-          db.collection("bills").orderBy(docId).startAt("N").endBefore("{").limit(limit2).get()
+          db.collection("bills").orderBy("createdAt", "desc").limit(limit2).get(),
+          db.collection("bills").orderBy("updatedAt", "desc").limit(limit2).get()
         ]).then(function(snaps) {
           var map = {};
           snaps.forEach(function(snap){
@@ -256,16 +256,24 @@ var GolodDB = (function() {
             });
           });
           var bills = Object.values(map);
+          
+          // เรียงให้บิลล่าสุดขึ้นก่อนสุด
           bills.sort(function(a,b){
-            var da=a.date||a.createdAt||"";
-            var db2=b.date||b.createdAt||"";
-            return da>db2?-1:1;
+            var da = a.createdAt || a.updatedAt || a.date || "";
+            var db2 = b.createdAt || b.updatedAt || b.date || "";
+            return da > db2 ? -1 : 1;
           });
+          
           resolve(bills);
-        }).catch(reject);
+        }).catch(function(e) {
+          console.warn("[GolodDB] Index อาจจะยังไม่พร้อม ใช้แผนสำรองดึงแบบปกติ", e);
+          // แผนสำรองเผื่อ query บนไม่ทำงาน
+          db.collection("bills").limit(limitN || 3000).get().then(function(snap) {
+            var fallbackBills = [];
+            snap.forEach(function(doc){ fallbackBills.push(doc.data()); });
+            resolve(fallbackBills);
+          });
+        });
       });
     });
   }
-
-  return { init, saveBill, getBills, updateBill, saveContact, getContacts, saveUser, getUsers, saveEditLog, getEditLogs, listenBills, getAllBills, getBillsNew, ready };
-})();
