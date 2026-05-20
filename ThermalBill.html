@@ -997,19 +997,21 @@ function SecTitle({
 
 // QR Code component สำหรับ thermal print
 function QRCodeBox({ data, size }) {
-  var sz = size || 72;
+  var sz = size || 80;
   const [imgSrc, setImgSrc] = React.useState(null);
   React.useEffect(() => {
     if (!data) return;
+    // วาด QR บน canvas โดยตรง ไม่ต้องพึ่ง DOM hidden div
     var tmp = document.createElement("div");
-    tmp.style.cssText = "position:absolute;left:-9999px;top:-9999px;visibility:hidden";
+    // opacity:0 แทน visibility:hidden — browser จะ render canvas จริง
+    tmp.style.cssText = "position:fixed;left:-9999px;top:0;opacity:0;pointer-events:none;z-index:-1";
     document.body.appendChild(tmp);
     var done = false;
     try {
       new QRCode(tmp, {
         text: data,
-        width: sz,
-        height: sz,
+        width: sz * 2,   // render 2x แล้ว scale down → คมขึ้น
+        height: sz * 2,
         colorDark: "#000000",
         colorLight: "#ffffff",
         correctLevel: QRCode.CorrectLevel.M
@@ -1018,14 +1020,13 @@ function QRCodeBox({ data, size }) {
       try { document.body.removeChild(tmp); } catch(_){}
       return;
     }
-    // ลอง canvas ก่อน ถ้าไม่มีใช้ img tag
     function tryGet(attempt) {
       var canvas = tmp.querySelector("canvas");
       var img = tmp.querySelector("img");
       if (canvas && canvas.width > 0) {
         try {
           var url = canvas.toDataURL("image/png");
-          if (url && url.length > 100) {
+          if (url && url.length > 200) {
             setImgSrc(url);
             done = true;
             try { document.body.removeChild(tmp); } catch(_){}
@@ -1033,26 +1034,26 @@ function QRCodeBox({ data, size }) {
           }
         } catch(e2) {}
       }
-      if (img && img.src && img.src.startsWith("data:")) {
+      if (img && img.src && img.src.length > 200) {
         setImgSrc(img.src);
         done = true;
         try { document.body.removeChild(tmp); } catch(_){}
         return;
       }
-      if (!done && attempt < 10) {
-        setTimeout(function(){ tryGet(attempt+1); }, 60);
+      if (!done && attempt < 15) {
+        setTimeout(function(){ tryGet(attempt+1); }, 80);
       } else if (!done) {
         try { document.body.removeChild(tmp); } catch(_){}
       }
     }
-    setTimeout(function(){ tryGet(0); }, 50);
-  }, [data, sz]);
+    setTimeout(function(){ tryGet(0); }, 100);
+  }, [data]);
 
   if (imgSrc) {
     return React.createElement("img", {
       src: imgSrc,
       width: sz, height: sz,
-      style: { display:"block", imageRendering:"pixelated", margin:"0 auto" }
+      style: { display:"block", imageRendering:"auto", margin:"0 auto" }
     });
   }
   return React.createElement("div", {
@@ -4234,7 +4235,17 @@ function ThermalBillingApp() {
   }), view === "manualbill" && /*#__PURE__*/React.createElement(ManualBillForm, {
     staffCode: staffCode,
     staffName: staffName,
-    onSave: (nb) => { setBills(p=>[nb,...p]); try{ const all=JSON.parse(localStorage.getItem("golod_bills")||"[]"); localStorage.setItem("golod_bills",JSON.stringify([nb,...all])); if(typeof GolodDB!=="undefined") GolodDB.saveBill(nb).catch(()=>{}); if(typeof SHEETS_SYNC!=="undefined") SHEETS_SYNC.appendToSheet(nb).catch(()=>{}); }catch(e){} alert("บันทึกบิลมือ "+nb.billNo+" แล้ว"); }
+    onSave: (nb) => {
+      setBills(p=>[nb,...p]);
+      try {
+        const all=JSON.parse(localStorage.getItem("golod_bills")||"[]");
+        localStorage.setItem("golod_bills",JSON.stringify([nb,...all]));
+        if(typeof GolodDB!=="undefined") GolodDB.saveBill(nb).catch(()=>{});
+        if(typeof SHEETS_SYNC!=="undefined") SHEETS_SYNC.appendToSheet(nb).catch(()=>{});
+      } catch(e) {}
+      setViewBill(nb);
+      setView("preview");
+    }
   }), view === "preview" && viewBill && /*#__PURE__*/React.createElement("div", null, /*#__PURE__*/React.createElement("div", {
     style: {
       background: "#F7FBF9",
