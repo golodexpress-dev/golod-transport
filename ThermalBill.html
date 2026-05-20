@@ -1378,10 +1378,10 @@ function ThermalBill({
   }, /*#__PURE__*/React.createElement(Row, {
     l: "\u0E04\u0E48\u0E32\u0E02\u0E19\u0E2A\u0E48\u0E07\u0E23\u0E27\u0E21",
     r: `${(summary&&summary.freightTotal||0).toLocaleString("th-TH")} ฿`
-  }), summary.discount > 0 && /*#__PURE__*/React.createElement(Row, {
+  }), (summary&&summary.discount||0) > 0 && /*#__PURE__*/React.createElement(Row, {
     l: `ส่วนลด`,
     r: `-${(summary&&summary.discount||0).toLocaleString("th-TH")} ฿`
-  }), summary.insurance > 0 && /*#__PURE__*/React.createElement(Row, {
+  }), (summary&&summary.insurance||0) > 0 && /*#__PURE__*/React.createElement(Row, {
     l: "\u0E1B\u0E23\u0E30\u0E01\u0E31\u0E19\u0E2A\u0E34\u0E19\u0E04\u0E49\u0E32",
     r: `+${(summary&&summary.insurance||0).toLocaleString("th-TH")} ฿`
   })), /*#__PURE__*/React.createElement(Div, null), !form.hidePrice && /*#__PURE__*/React.createElement("div", {
@@ -1403,7 +1403,7 @@ function ThermalBill({
     _isMinApplied && /*#__PURE__*/React.createElement("div", {
       style: { fontSize: 9, color: "#E67E22", fontWeight: 700, marginTop: 1 }
     }, "(ยอดขั้นต่ำพื้นที่พิเศษ)")
-  )), !form.hidePrice && summary.codTotal > 0 && /*#__PURE__*/React.createElement("div", {
+  )), !form.hidePrice && (summary&&summary.codTotal||0) > 0 && /*#__PURE__*/React.createElement("div", {
     style: {
       display: "flex",
       justifyContent: "space-between",
@@ -1988,10 +1988,10 @@ function BillList({
       style: {
         padding: "7px 9px",
         color: "#854F0B",
-        fontWeight: b.summary.codTotal > 0 ? 800 : 400,
+        fontWeight: b.(summary&&summary.codTotal||0) > 0 ? 800 : 400,
         whiteSpace: "nowrap"
       }
-    }, b.summary.codTotal > 0 ? ((b.summary&&b.summary.codTotal)||b.codTotal||0).toLocaleString("th-TH") + " ฿" : "—"), /*#__PURE__*/React.createElement("td", {
+    }, b.(summary&&summary.codTotal||0) > 0 ? ((b.summary&&b.summary.codTotal)||b.codTotal||0).toLocaleString("th-TH") + " ฿" : "—"), /*#__PURE__*/React.createElement("td", {
       style: {
         padding: "7px 9px"
       }
@@ -4349,7 +4349,7 @@ function ThermalBillingApp() {
     style: {
       color: "#0F6E56"
     }
-  }, viewBill.(summary&&summary.freightNet||0).toLocaleString("th-TH"), " \u0E3F")), viewBill.summary.codTotal > 0 && /*#__PURE__*/React.createElement("div", null, "COD: ", /*#__PURE__*/React.createElement("strong", {
+  }, viewBill.(summary&&summary.freightNet||0).toLocaleString("th-TH"), " \u0E3F")), viewBill.(summary&&summary.codTotal||0) > 0 && /*#__PURE__*/React.createElement("div", null, "COD: ", /*#__PURE__*/React.createElement("strong", {
     style: {
       color: "#854F0B"
     }
