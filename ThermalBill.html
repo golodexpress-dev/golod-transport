@@ -1863,7 +1863,9 @@ function EditBillBtn({
     }, /*#__PURE__*/React.createElement("button", {
       onClick: () => {
         localStorage.setItem("golod_edit_bill", JSON.stringify(bill));
-        window.location.href = window.location.href.split("?")[0] + "?edit=" + Date.now();
+        var base = window.location.href.split("?")[0];
+        var suffix = bill.isManual ? "?edit=" + Date.now() + "&manual=1" : "?edit=" + Date.now();
+        window.location.href = base + suffix;
       },
       style: {
         padding: "4px 10px",
@@ -2855,7 +2857,7 @@ function OcrConfirm({
 function ThermalBillingApp() {
   var _BRANCHES$find2, _FREIGHT_PAY$find3;
   // ===== STATE ทั้งหมด (hook order ต้องคงที่) =====
-  const [view, setView] = useState("form");
+  const [view, setView] = useState(() => { try { return new URLSearchParams(window.location.search).get("manual") === "1" ? "manualbill" : "form"; } catch(e) { return "form"; } });
   // ดึง session มาใช้แทน staff dropdown
   const [sessionUser] = useState(() => {
     try {
@@ -4556,18 +4558,66 @@ function ReceiptPrint({ receipt }) {
 
 // ========== MANUAL BILL (บิลมือ) ==========
 function ManualBillForm({ staffCode, staffName, onSave }) {
-  const [manualNo, setManualNo] = React.useState("");
-  const [items, setItems] = React.useState([{desc:"",qty:1,w:"",size:"",price:0}]);
-  const blankItem = ()=>({desc:"",qty:1,w:"",size:"",price:0});
+  const blankItem = ()=>({desc:"",qty:1,kg:"",size:"",customPrice:""});
   const today = (()=>{ const d=new Date(); return String(d.getDate()).padStart(2,"0")+"/"+String(d.getMonth()+1).padStart(2,"0")+"/"+(d.getFullYear()+543); })();
-  const [form, setForm] = React.useState({
-    date:today,
-    senderName:"",senderPhone:"",senderProv:"",senderAmphoe:"",senderTambon:"",senderZip:"",senderAddr:"",
-    receiverName:"",receiverPhone:"",destProv:"",receiverAmphoe:"",receiverTambon:"",receiverZip:"",receiverAddr:"",
-    freightNet:0,freightPay:"origin",codTotal:0,note:""
+
+  // โหลดบิลมือที่ต้องการแก้ไข (ถ้ามี)
+  const _editData = React.useMemo(()=>{
+    try {
+      if (new URLSearchParams(window.location.search).get("manual") === "1") {
+        const raw = localStorage.getItem("golod_edit_bill");
+        if (raw) { localStorage.removeItem("golod_edit_bill"); return JSON.parse(raw); }
+      }
+    } catch(e) {}
+    return null;
+  }, []);
+
+  const [_editBillNo] = React.useState(_editData ? _editData.billNo : null);
+  const [manualNo, setManualNo] = React.useState(()=>{
+    if (_editData) {
+      // ดึงส่วนหลัง staffCode- ออกมา
+      const bn = _editData.billNo || "";
+      const prefix = staffCode + "-";
+      return bn.startsWith(prefix) ? bn.slice(prefix.length) : bn;
+    }
+    return "";
+  });
+  const [items, setItems] = React.useState(()=>{
+    if (_editData && Array.isArray(_editData.items) && _editData.items.length > 0) {
+      return _editData.items.map(it=>({
+        desc: it.desc || "",
+        qty: it.qty || 1,
+        kg: it.kg || it.w || "",
+        size: it.size || "",
+        customPrice: it.customPrice !== undefined && it.customPrice !== "" ? it.customPrice : (it.price || "")
+      }));
+    }
+    return [{desc:"",qty:1,kg:"",size:"",customPrice:""}];
+  });
+  const [form, setForm] = React.useState(()=>{
+    if (_editData) {
+      const b = _editData;
+      const bf = b.form || {};
+      return {
+        date: b.date || today,
+        senderName: b.senderName || "", senderPhone: b.senderPhone || "",
+        senderProv: b.senderProv || "", senderAmphoe: b.senderAmphoe || b.destAmphoe || "",
+        senderTambon: b.senderTambon || "", senderZip: b.senderZip || "", senderAddr: b.senderAddr || "",
+        receiverName: b.receiverName || "", receiverPhone: b.receiverPhone || "",
+        destProv: b.destProv || "", receiverAmphoe: b.destAmphoe || b.receiverAmphoe || "",
+        receiverTambon: b.receiverTambon || "", receiverZip: b.receiverZip || "", receiverAddr: b.receiverAddr || "",
+        freightNet: b.freightNet || 0, freightPay: b.freightPay || "origin",
+        codTotal: b.codTotal || 0, note: b.note || ""
+      };
+    }
+    return { date:today,
+      senderName:"",senderPhone:"",senderProv:"",senderAmphoe:"",senderTambon:"",senderZip:"",senderAddr:"",
+      receiverName:"",receiverPhone:"",destProv:"",receiverAmphoe:"",receiverTambon:"",receiverZip:"",receiverAddr:"",
+      freightNet:0,freightPay:"origin",codTotal:0,note:""
+    };
   });
   const setF=(k,v)=>setForm(f=>({...f,[k]:v}));
-  const billNo = staffCode+(manualNo?"-"+manualNo:"");
+  const billNo = _editBillNo || (staffCode+(manualNo?"-"+manualNo:""));
 
   // dropdown helpers
   const sAmphs = form.senderProv && THAILAND_TAMBON[form.senderProv] ? Object.keys(THAILAND_TAMBON[form.senderProv]).sort() : [];
@@ -4584,14 +4634,22 @@ function ManualBillForm({ staffCode, staffName, onSave }) {
   const LBL={fontSize:11,color:"#666",marginBottom:2};
   const CARD={background:"#fff",border:"0.5px solid #ddd",borderRadius:8,padding:"10px 12px",marginBottom:10};
 
-  const totalFreight = items.reduce((s,it)=>s+(parseFloat(it.price)||0)*(parseInt(it.qty)||1),0);
+  const totalFreight = items.reduce((s,it)=>s+(parseFloat(it.customPrice)||0),0);
 
   const handleSave=()=>{
-    if(!manualNo){alert("กรุณาระบุเลขที่บิลมือ");return;}
+    if(!_editBillNo && !manualNo){alert("กรุณาระบุเลขที่บิลมือ");return;}
     if(!form.senderName){alert("กรุณาระบุชื่อผู้ส่ง");return;}
     if(!form.destProv){alert("กรุณาระบุจังหวัดปลายทาง");return;}
+    const mappedItems = items.map(it=>({
+      id: it.id || Date.now()+Math.random(),
+      desc: it.desc || "", goodsType: "ทั่วไป",
+      qty: it.qty || 1, kg: it.kg || "", size: it.size || "",
+      customPrice: it.customPrice !== undefined && it.customPrice !== "" ? it.customPrice : "",
+      hasCOD: false, codAmount: "", declaredValue: ""
+    }));
+    const finalFreight = parseFloat(form.freightNet) || totalFreight;
     const nb={
-      billNo, date:form.date, createdAt:new Date().toISOString(),
+      billNo, date:form.date, createdAt: _editData ? (_editData.createdAt || new Date().toISOString()) : new Date().toISOString(),
       clerkCode:staffCode, clerkName:staffName,
       senderName:form.senderName, senderPhone:form.senderPhone,
       senderProv:form.senderProv, senderAmphoe:form.senderAmphoe,
@@ -4599,12 +4657,26 @@ function ManualBillForm({ staffCode, staffName, onSave }) {
       receiverName:form.receiverName, receiverPhone:form.receiverPhone,
       destProv:form.destProv, destAmphoe:form.receiverAmphoe,
       receiverTambon:form.receiverTambon, receiverZip:form.receiverZip, receiverAddr:form.receiverAddr,
-      freightNet:form.freightNet||totalFreight, freightPay:form.freightPay,
+      freightNet:finalFreight, freightPay:form.freightPay,
       codTotal:parseFloat(form.codTotal)||0,
-      status:"issued", isManual:true, note:form.note, branch:"bkk",
-      items, summary:{freightNet:form.freightNet||totalFreight,codTotal:parseFloat(form.codTotal)||0},
-      form:{...form,staff:staffCode,branch:"bkk"}
+      status:"issued", isManual:true, note:form.note, branch:(_editData&&_editData.branch)||"bkk",
+      items: mappedItems,
+      summary:{freightNet:finalFreight, freightTotal:totalFreight, codTotal:parseFloat(form.codTotal)||0},
+      form:{...form,staff:staffCode,branch:(_editData&&_editData.branch)||"bkk",isManual:true}
     };
+    // ถ้าเป็นการแก้ไข ให้ update บิลเดิมใน localStorage
+    if (_editBillNo) {
+      try {
+        const all = JSON.parse(localStorage.getItem("golod_bills")||"[]");
+        const updated = all.map(b => b.billNo === _editBillNo ? nb : b);
+        localStorage.setItem("golod_bills", JSON.stringify(updated));
+        if(typeof GolodDB !== "undefined") GolodDB.saveBill(nb).catch(()=>{});
+        if(typeof SHEETS_SYNC !== "undefined") SHEETS_SYNC.appendToSheet(nb).catch(()=>{});
+        alert("แก้ไขบิลมือ " + billNo + " แล้ว");
+        window.location.href = window.location.href.split("?")[0];
+        return;
+      } catch(e) { alert("เกิดข้อผิดพลาด: "+e.message); return; }
+    }
     onSave(nb);
     setManualNo(""); setItems([blankItem()]);
     setForm(f=>({...f,senderName:"",senderPhone:"",receiverName:"",receiverPhone:"",freightNet:0,note:"",codTotal:0}));
@@ -4670,7 +4742,7 @@ function ManualBillForm({ staffCode, staffName, onSave }) {
       React.createElement("table",{style:{width:"100%",borderCollapse:"collapse",fontSize:12}},
         React.createElement("thead",null,
           React.createElement("tr",{style:{background:"#f0faf5"}},
-            ["รายการ","จำนวน","น้ำหนักรวม(กก.)","ขนาด","ค่าส่ง/ชิ้น",""].map(h=>
+            ["รายการ","จำนวน","น้ำหนักรวม(กก.)","ขนาด","ค่าส่งรวม(฿)",""].map(h=>
               React.createElement("th",{key:h,style:{padding:"4px 6px",textAlign:"left",fontSize:11,fontWeight:600}},h)
             )
           )
@@ -4679,9 +4751,9 @@ function ManualBillForm({ staffCode, staffName, onSave }) {
           items.map((it,i)=>React.createElement("tr",{key:i},
             React.createElement("td",{style:{padding:"3px 4px"}},React.createElement("input",{value:it.desc,onChange:e=>{const ni=[...items];ni[i]={...ni[i],desc:e.target.value};setItems(ni);},style:{...INP2,minWidth:100}})),
             React.createElement("td",{style:{padding:"3px 4px"}},React.createElement("input",{type:"number",value:it.qty,onChange:e=>{const ni=[...items];ni[i]={...ni[i],qty:e.target.value};setItems(ni);},style:{...INP2,width:50,textAlign:"center"}})),
-            React.createElement("td",{style:{padding:"3px 4px"}},React.createElement("input",{value:it.w,onChange:e=>{const ni=[...items];ni[i]={...ni[i],w:e.target.value};setItems(ni);},style:{...INP2,width:70}})),
+            React.createElement("td",{style:{padding:"3px 4px"}},React.createElement("input",{type:"number",value:it.kg||"",onChange:e=>{const ni=[...items];ni[i]={...ni[i],kg:e.target.value};setItems(ni);},placeholder:"0",style:{...INP2,width:70,textAlign:"right"}})),
             React.createElement("td",{style:{padding:"3px 4px"}},React.createElement("input",{value:it.size,onChange:e=>{const ni=[...items];ni[i]={...ni[i],size:e.target.value};setItems(ni);},style:{...INP2,width:80},placeholder:"กxยxส"})),
-            React.createElement("td",{style:{padding:"3px 4px"}},React.createElement("input",{type:"number",value:it.price||"",onChange:e=>{const ni=[...items];ni[i]={...ni[i],price:parseFloat(e.target.value)||0};setItems(ni);},style:{...INP2,width:80,textAlign:"right"}})),
+            React.createElement("td",{style:{padding:"3px 4px"}},React.createElement("input",{type:"number",value:it.customPrice||"",onChange:e=>{const ni=[...items];ni[i]={...ni[i],customPrice:e.target.value};setItems(ni);},placeholder:"0",style:{...INP2,width:80,textAlign:"right"}})),
             React.createElement("td",{style:{padding:"3px 4px"}},
               i>0&&React.createElement("button",{onClick:()=>setItems(items.filter((_,j)=>j!==i)),style:{border:"none",background:"#fee",borderRadius:5,padding:"3px 7px",cursor:"pointer",color:"#c00"}},"✕")
             )
@@ -4720,10 +4792,11 @@ function ManualBillForm({ staffCode, staffName, onSave }) {
 
     Field("หมายเหตุ","note",{placeholder:"หมายเหตุเพิ่มเติม"}),
 
+    _editBillNo && React.createElement("div",{style:{background:"#FFF8E7",border:"1.5px solid #F0C060",borderRadius:9,padding:"10px 14px",marginBottom:12,fontSize:13,fontWeight:700,color:"#854F0B"}}, "✏️ กำลังแก้ไขบิลมือ: ", _editBillNo),
     React.createElement("button",{
       onClick:handleSave,
-      style:{width:"100%",padding:"11px",background:"#1D9E75",color:"#fff",border:"none",borderRadius:9,fontWeight:700,fontSize:14,cursor:"pointer",marginTop:8}
-    },"💾 บันทึกบิลมือเข้าระบบ")
+      style:{width:"100%",padding:"11px",background:_editBillNo?"#E67E22":"#1D9E75",color:"#fff",border:"none",borderRadius:9,fontWeight:700,fontSize:14,cursor:"pointer",marginTop:8}
+    }, _editBillNo ? "💾 บันทึกการแก้ไขบิลมือ" : "💾 บันทึกบิลมือเข้าระบบ")
   );
 }
 
