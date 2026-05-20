@@ -169,13 +169,14 @@ function loadData(){
       var bills = results[0]||[];
       var users = results[1]||[];
       // normalize form
-      // normalize form
+      // normalize form และ billNo
       var normalized = bills.map(function(b){
         if(b.form && typeof b.form==="string"){ try{b.form=JSON.parse(b.form);}catch(e){b.form={};} }
         if(!b.form) b.form={};
         if(!b.status) b.status="ออกบิลรับของ";
+        // ถ้าไม่มี billNo ให้ข้าม
         return b;
-      });
+      }).filter(function(b){ return b.billNo; });
 
       // แสดงเฉพาะบิลที่ยังไม่ส่งสำเร็จ
       var DONE_STATUS=["ส่งสำเร็จ","delivered","success"];
