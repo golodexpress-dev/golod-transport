@@ -10,7 +10,10 @@
 <script src="golod-sheets-sync.js"></script>
 <script>try{GolodDB.init();}catch(e){}</script>
 <script src="thailand-data.js"></script>
-<style>*{box-sizing:border-box;margin:0;padding:0}body{font-family:Arial,sans-serif;background:#f5f5f2;min-height:100vh;padding:16px;font-size:15px}@media print{.no-print{display:none!important}body{background:#fff;padding:0}}.golod-bar{background:#0F6E56;padding:0 14px;display:flex;align-items:center;gap:10px;height:44px;position:sticky;top:0;z-index:200;margin:-16px -16px 16px}.golod-bar h1{color:#fff;font-size:14px;font-weight:700;flex:1}</style>
+<style>*{box-sizing:border-box;margin:0;padding:0}body{font-family:Arial,sans-serif;background:#f5f5f2;min-height:100vh;padding:16px;font-size:15px}@media print{.no-print{display:none!important}body{background:#fff;padding:0}}.golod-bar{background:#0F6E56;padding:0 14px;display:flex;align-items:center;gap:10px;height:44px;position:sticky;top:0;z-index:200;margin:-16px -16px 16px}.golod-bar h1{color:#fff;font-size:14px;font-weight:700;flex:1}
+input[type=number]{-moz-appearance:textfield;appearance:textfield;}
+input[type=number]::-webkit-outer-spin-button,input[type=number]::-webkit-inner-spin-button{-webkit-appearance:none;margin:0;}
+</style>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
 </head><body>
 <div class="golod-bar no-print">
@@ -993,58 +996,69 @@ function SecTitle({
 
 // QR Code component สำหรับ thermal print
 function QRCodeBox({ data, size }) {
-  const wrapRef = React.useRef(null);
+  var sz = size || 72;
   const [imgSrc, setImgSrc] = React.useState(null);
-
   React.useEffect(() => {
     if (!data) return;
-    // สร้าง QR ใน div ชั่วคราว แล้วดึง canvas → dataURL
-    const tmp = document.createElement("div");
-    tmp.style.position = "absolute";
-    tmp.style.left = "-9999px";
+    var tmp = document.createElement("div");
+    tmp.style.cssText = "position:absolute;left:-9999px;top:-9999px;visibility:hidden";
     document.body.appendChild(tmp);
+    var done = false;
     try {
-      var qr = new QRCode(tmp, {
+      new QRCode(tmp, {
         text: data,
-        width: size || 64,
-        height: size || 64,
-        colorDark: "#000",
-        colorLight: "#fff",
-        correctLevel: QRCode.CorrectLevel.M
-      });
-      // รอ canvas สร้างเสร็จ
-      setTimeout(function() {
-        var canvas = tmp.querySelector("canvas");
-        if (canvas) {
-          setImgSrc(canvas.toDataURL("image/png"));
-        }
-        document.body.removeChild(tmp);
-      }, 80);
-    } catch(e) {
-      try { document.body.removeChild(tmp); } catch(_) {}
-    }
-  }, [data, size]);
-
-  var sz = size || 64;
-  return React.createElement("div", {
-    ref: wrapRef,
-    style: { lineHeight: 0, display: "inline-block" }
-  }, imgSrc
-    ? React.createElement("img", {
-        src: imgSrc,
         width: sz,
         height: sz,
-        style: { display: "block", imageRendering: "pixelated" }
-      })
-    : React.createElement("div", {
-        style: {
-          width: sz, height: sz,
-          background: "#f5f5f5",
-          display: "flex", alignItems: "center", justifyContent: "center",
-          fontSize: 8, color: "#aaa"
-        }
-      }, "QR...")
-  );
+        colorDark: "#000000",
+        colorLight: "#ffffff",
+        correctLevel: QRCode.CorrectLevel.M
+      });
+    } catch(e) {
+      try { document.body.removeChild(tmp); } catch(_){}
+      return;
+    }
+    // ลอง canvas ก่อน ถ้าไม่มีใช้ img tag
+    function tryGet(attempt) {
+      var canvas = tmp.querySelector("canvas");
+      var img = tmp.querySelector("img");
+      if (canvas && canvas.width > 0) {
+        try {
+          var url = canvas.toDataURL("image/png");
+          if (url && url.length > 100) {
+            setImgSrc(url);
+            done = true;
+            try { document.body.removeChild(tmp); } catch(_){}
+            return;
+          }
+        } catch(e2) {}
+      }
+      if (img && img.src && img.src.startsWith("data:")) {
+        setImgSrc(img.src);
+        done = true;
+        try { document.body.removeChild(tmp); } catch(_){}
+        return;
+      }
+      if (!done && attempt < 10) {
+        setTimeout(function(){ tryGet(attempt+1); }, 60);
+      } else if (!done) {
+        try { document.body.removeChild(tmp); } catch(_){}
+      }
+    }
+    setTimeout(function(){ tryGet(0); }, 50);
+  }, [data, sz]);
+
+  if (imgSrc) {
+    return React.createElement("img", {
+      src: imgSrc,
+      width: sz, height: sz,
+      style: { display:"block", imageRendering:"pixelated", margin:"0 auto" }
+    });
+  }
+  return React.createElement("div", {
+    style: { width:sz, height:sz, background:"#f5f5f5", margin:"0 auto",
+             display:"flex", alignItems:"center", justifyContent:"center",
+             fontSize:9, color:"#aaa" }
+  }, "QR...");
 }
 
 function ThermalBill({
@@ -1341,10 +1355,10 @@ function ThermalBill({
     const sz = calcSize(item.kg, sumCm);
     const z = getZone(form.branch, form.destProv, form.receiverAmphoe);
     const autoUp = getSizePrice(sz, z, item.cpN, item.cpF);
-    const up = (item.customPrice !== undefined && item.customPrice !== "")
-      ? (parseFloat(item.customPrice) || 0)
-      : autoUp;
-    const lt = up * (parseInt(item.qty) || 1);
+    const hasCustom = item.customPrice !== undefined && item.customPrice !== "";
+    // customPrice = ค่าส่งรวมของ item นี้ทั้งหมด (ไม่คูณ qty)
+    const lt = hasCustom ? (parseFloat(item.customPrice) || 0) : autoUp * (parseInt(item.qty) || 1);
+    const up = hasCustom ? Math.round(lt / (parseInt(item.qty) || 1)) : autoUp;
     return /*#__PURE__*/React.createElement(React.Fragment, {
       key: item.id
     }, /*#__PURE__*/React.createElement("tr", {
@@ -1597,11 +1611,11 @@ function ItemRow({
   const size = calcSize(item.kg, sumCm);
   const zone = getZone(branch, destProv);
   const autoUp = getSizePrice(size, zone, item.cpN, item.cpF);
-  // พื้นที่พิเศษ: ใช้ราคากรอกเอง ถ้ามี
-  const up = item.customPrice !== undefined && item.customPrice !== ""
+  const autoLt = autoUp * (parseInt(item.qty) || 1);
+  // customPrice = ค่าส่งรวมทั้งหมดของ item นี้ (ไม่ต้องคูณ qty)
+  const lt = item.customPrice !== undefined && item.customPrice !== ""
     ? (parseFloat(item.customPrice) || 0)
-    : autoUp;
-  const lt = up * (parseInt(item.qty) || 1);
+    : autoLt;
   const u = (k, v) => onUpdate(idx, k, v);
   return /*#__PURE__*/React.createElement("div", {
     style: {
@@ -1635,7 +1649,7 @@ function ItemRow({
       borderRadius: 20,
       color: "#555"
     }
-  }, size.label, " = ", /*#__PURE__*/React.createElement("strong", null, up, "\u0E3F/\u0E0A\u0E34\u0E49\u0E19")), /*#__PURE__*/React.createElement("span", {
+  }, size.label, " = ", /*#__PURE__*/React.createElement("strong", null, autoLt, "\u0E3F")), /*#__PURE__*/React.createElement("span", {
     style: {
       fontSize: 12,
       fontWeight: 700,
@@ -1643,15 +1657,15 @@ function ItemRow({
       marginLeft: "auto"
     }
   }, /*#__PURE__*/React.createElement("span", {style:{display:"flex",alignItems:"center",gap:4}},
+          "\u0E04\u0E48\u0E32\u0E2A\u0E48\u0E07\u0E23\u0E27\u0E21: ",
           /*#__PURE__*/React.createElement("input", {
             type: "number",
             value: item.customPrice !== undefined ? item.customPrice : "",
             onChange: e => u("customPrice", e.target.value),
-            placeholder: String(autoUp||0),
-            style: {width:60,padding:"2px 5px",border:"1px solid #ccc",borderRadius:5,fontSize:12,textAlign:"right",background:"#f8f8f8"}
+            placeholder: String(autoLt||0),
+            style: {width:70,padding:"2px 5px",border:"1px solid #ccc",borderRadius:5,fontSize:12,textAlign:"right",background:"#f8f8f8"}
           }),
-          " ฿/ชิ้น → ",
-          /*#__PURE__*/React.createElement("strong",null, lt.toLocaleString("th-TH"), " ฿")
+          " \u0E3F"
         )
     ), canRemove && /*#__PURE__*/React.createElement("button", {
     onClick: () => onRemove(idx),
@@ -1701,7 +1715,7 @@ function ItemRow({
       marginBottom: 7
     }
   }, /*#__PURE__*/React.createElement("div", null, /*#__PURE__*/React.createElement(Lbl, {
-    c: "\u0E19\u0E49\u0E33\u0E2B\u0E19\u0E31\u0E01(\u0E01\u0E01.)"
+    c: "\u0E19\u0E49\u0E33\u0E2B\u0E19\u0E31\u0E01\u0E23\u0E27\u0E21(\u0E01\u0E01.)"
   }), /*#__PURE__*/React.createElement("input", {
     type: "number",
     value: item.kg,
@@ -3274,11 +3288,11 @@ function ThermalBillingApp() {
     const sc = parseFloat(item.sumCm) || (parseFloat(item.w) || 0) + (parseFloat(item.l) || 0) + (parseFloat(item.h) || 0);
     const sz = calcSize(item.kg, sc);
     const autoP = getSizePrice(sz, zone, item.cpN, item.cpF);
-    // ใช้ customPrice ถ้ากรอกเอง (ทุกพื้นที่)
-    const unitP = item.customPrice !== undefined && item.customPrice !== ""
-      ? (parseFloat(item.customPrice) || 0)
-      : autoP;
-    return s + unitP * (parseInt(item.qty) || 1);
+    // customPrice = ค่าส่งรวมทั้งหมดของ item นี้ (ไม่คูณ qty)
+    if (item.customPrice !== undefined && item.customPrice !== "") {
+      return s + (parseFloat(item.customPrice) || 0);
+    }
+    return s + autoP * (parseInt(item.qty) || 1);
   }, 0);
   const discountAmt = parseFloat(form.discount) || 0;
   const insuranceTotal = items.reduce((s, item) => {
@@ -3485,7 +3499,7 @@ function ThermalBillingApp() {
     w.document.write("</body></html>");
     w.document.close();
     w.focus();
-    setTimeout(() => w.print(), 900);
+    setTimeout(() => w.print(), 1200);
   };
   return /*#__PURE__*/React.createElement("div", {
     style: {
@@ -4656,7 +4670,7 @@ function ManualBillForm({ staffCode, staffName, onSave }) {
       React.createElement("table",{style:{width:"100%",borderCollapse:"collapse",fontSize:12}},
         React.createElement("thead",null,
           React.createElement("tr",{style:{background:"#f0faf5"}},
-            ["รายการ","จำนวน","น้ำหนัก(กก.)","ขนาด","ค่าส่ง/ชิ้น",""].map(h=>
+            ["รายการ","จำนวน","น้ำหนักรวม(กก.)","ขนาด","ค่าส่ง/ชิ้น",""].map(h=>
               React.createElement("th",{key:h,style:{padding:"4px 6px",textAlign:"left",fontSize:11,fontWeight:600}},h)
             )
           )
