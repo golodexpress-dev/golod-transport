@@ -215,7 +215,6 @@ var GolodDB = (function() {
     });
   }
 
-  
   function getAllBills(limitN) {
     return new Promise(function(resolve, reject) {
       ready(function() {
@@ -236,14 +235,12 @@ var GolodDB = (function() {
     });
   }
 
-  
-  // ดึงเฉพาะบิลใหม่ (แก้ไขให้ดึงตามเวลาล่าสุด แทนการเรียงตามตัวอักษร A-Z)
+  // ดึงเฉพาะบิลใหม่ (แก้ไขให้ดึงตามเวลาล่าสุด พร้อมมีระบบป้องกัน Error)
   function getBillsNew(limitN) {
     return new Promise(function(resolve, reject) {
       ready(function() {
         var limit2 = Math.ceil((limitN || 3000) / 2);
         
-        // ดึง 2 กลุ่ม เพื่อให้ครอบคลุมทั้งบิลที่เพิ่งออก (Thermal) และบิลที่เพิ่งอัปเดตสถานะ (จัดการขนส่ง)
         Promise.all([
           db.collection("bills").orderBy("createdAt", "desc").limit(limit2).get(),
           db.collection("bills").orderBy("updatedAt", "desc").limit(limit2).get()
@@ -256,24 +253,29 @@ var GolodDB = (function() {
             });
           });
           var bills = Object.values(map);
-          
-          // เรียงให้บิลล่าสุดขึ้นก่อนสุด
           bills.sort(function(a,b){
             var da = a.createdAt || a.updatedAt || a.date || "";
             var db2 = b.createdAt || b.updatedAt || b.date || "";
             return da > db2 ? -1 : 1;
           });
-          
           resolve(bills);
         }).catch(function(e) {
-          console.warn("[GolodDB] Index อาจจะยังไม่พร้อม ใช้แผนสำรองดึงแบบปกติ", e);
-          // แผนสำรองเผื่อ query บนไม่ทำงาน
+          console.warn("[GolodDB] ใช้แผนสำรองเนื่องจากติด Index:", e);
+          // แผนสำรอง: ดึงแบบไม่สน Index
           db.collection("bills").limit(limitN || 3000).get().then(function(snap) {
             var fallbackBills = [];
             snap.forEach(function(doc){ fallbackBills.push(doc.data()); });
+            fallbackBills.sort(function(a,b){
+              var da = a.createdAt || a.updatedAt || a.date || "";
+              var db2 = b.createdAt || b.updatedAt || b.date || "";
+              return da > db2 ? -1 : 1;
+            });
             resolve(fallbackBills);
-          });
+          }).catch(reject);
         });
       });
     });
   }
+
+  return { init, saveBill, getBills, updateBill, saveContact, getContacts, saveUser, getUsers, saveEditLog, getEditLogs, listenBills, getAllBills, getBillsNew, ready };
+})();
