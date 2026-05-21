@@ -54,6 +54,10 @@ tr:hover td{background:#f8fffe}
 .tab.active{background:#0F6E56;color:#fff;border-color:#0F6E56}
 .loading{text-align:center;padding:30px;color:#999}
 .action-bar{display:flex;gap:6px;align-items:center;flex-wrap:wrap;padding:8px;background:#f8fffe;border-radius:8px;margin-bottom:8px}
+.date-filter-bar{display:flex;gap:8px;align-items:center;padding:8px 0 10px;flex-wrap:wrap;border-bottom:1px solid #f0f0f0;margin-bottom:10px}
+.date-filter-bar label{font-size:12px;color:#555;font-weight:600}
+.date-filter-bar select{padding:5px 8px;border:1px solid #ddd;border-radius:7px;font-size:12px;font-family:inherit}
+.date-filter-bar input[type=date]{padding:5px 8px;border:1px solid #ddd;border-radius:7px;font-size:12px;font-family:inherit}
 </style>
 </head>
 <body>
@@ -128,15 +132,34 @@ var BRANCHES = [
 var BRANCH_LABEL = {bkk:"กรุงเทพ",ptm:"ปทุมธานี",krt:"นครราชสีมา",ssk:"ศรีสะเกษ"};
 
 var STATUS_LIST = [
-  {v:"issued", l:"ออกบิลรับของ", cls:"st-issued"},
-  {v:"ออกบิลรับของ", l:"ออกบิลรับของ", cls:"st-issued"},
-  {v:"ระหว่างนำส่งสาขา", l:"ระหว่างนำส่งสาขา", cls:"st-branch"},
-  {v:"กำลังวิ่งส่งลูกค้า", l:"กำลังวิ่งส่งลูกค้า", cls:"st-driving"},
-  {v:"ส่งสำเร็จ", l:"ส่งสำเร็จ", cls:"st-done"},
-  {v:"ส่งไม่สำเร็จ", l:"ส่งไม่สำเร็จ", cls:"st-fail"},
-  {v:"นำกลับสาขา", l:"นำกลับสาขา", cls:"st-return"},
-  {v:"ลูกค้ารับกลับ", l:"ลูกค้ารับกลับ", cls:"st-new"},
-  {v:"นำส่งใหม่", l:"นำส่งใหม่", cls:"st-new"}
+  {v:"issued",            l:"ออกบิลรับของ",        cls:"st-issued"},
+  {v:"ออกบิลรับของ",      l:"ออกบิลรับของ",        cls:"st-issued"},
+  {v:"ระหว่างนำส่งสาขา",  l:"ระหว่างนำส่งสาขา",    cls:"st-branch"},
+  {v:"กำลังวิ่งส่งลูกค้า",l:"กำลังวิ่งส่งลูกค้า",  cls:"st-driving"},
+  {v:"ส่งสำเร็จ",          l:"ส่งสำเร็จ",           cls:"st-done"},
+  {v:"ส่งไม่สำเร็จ",       l:"ส่งไม่สำเร็จ",        cls:"st-fail"},
+  {v:"นำกลับสาขา",         l:"นำกลับสาขา",          cls:"st-return"},
+  {v:"ลูกค้ารับกลับ",      l:"ลูกค้ารับกลับ",       cls:"st-new"},
+  {v:"นำส่งใหม่",          l:"นำส่งใหม่",           cls:"st-new"}
+];
+
+// ============================================================
+// FIX 1: สถานะที่แสดงในแท็บ "สำเร็จ/ไม่สำเร็จ"
+// เดิม DONE_STATUS ถูกใช้กรองออกตั้งแต่ตอน loadData ทำให้
+// บิลที่ "ส่งไม่สำเร็จ" / "นำกลับสาขา" / "ลูกค้ารับกลับ"
+// ยังปรากฏในแท็บ pending/driving ซ้ำๆ ทุกวัน
+// แก้: เก็บทุกบิลไว้ใน BILLS แล้วให้ filterBills จัดการ
+// ============================================================
+var DONE_TAB_STATUS = [
+  "ส่งสำเร็จ","delivered","success",
+  "ส่งไม่สำเร็จ","นำกลับสาขา","ลูกค้ารับกลับ"
+];
+
+// สถานะที่ถือว่า "ยังค้างอยู่" — ต้องโชว์ข้ามวันได้
+var ACTIVE_STATUS = [
+  "ออกบิลรับของ","issued","",
+  "ระหว่างนำส่งสาขา",
+  "กำลังวิ่งส่งลูกค้า","นำส่งใหม่"
 ];
 
 function stClass(v){
@@ -144,10 +167,54 @@ function stClass(v){
   return f?f.cls:"st-issued";
 }
 
-var selectedBills = {};
-var currentTab = "pending";
-var dispatchMode = ""; // "branch" or "driver"
+var selectedBills  = {};
+var currentTab     = "pending";
+var dispatchMode   = "";
 var statusTargetBill = null;
+
+// ============================================================
+// FIX 2: Date filter — default วันนี้, user เลือกช่วงได้
+// ============================================================
+function todayStr(){
+  var d=new Date();
+  return d.getFullYear()+"-"+String(d.getMonth()+1).padStart(2,"0")+"-"+String(d.getDate()).padStart(2,"0");
+}
+var filterDateMode = "today";
+var filterDateFrom = todayStr();
+var filterDateTo   = todayStr();
+
+function getDateRange(mode){
+  var now=new Date();
+  var pad=function(n){return String(n).padStart(2,"0");};
+  var fmt=function(d){return d.getFullYear()+"-"+pad(d.getMonth()+1)+"-"+pad(d.getDate());};
+  if(mode==="today")     { var s=fmt(now); return {from:s,to:s}; }
+  if(mode==="yesterday") { var y=new Date(now); y.setDate(y.getDate()-1); var s=fmt(y); return {from:s,to:s}; }
+  if(mode==="week")      { var w=new Date(now); w.setDate(w.getDate()-6); return {from:fmt(w),to:fmt(now)}; }
+  if(mode==="all")       { return {from:"",to:""}; }
+  return {from:filterDateFrom, to:filterDateTo}; // range
+}
+
+// แปลง bill date เป็น YYYY-MM-DD (รองรับทั้ง createdAt และ date field)
+function billDateStr(b){
+  if(b.createdAt){
+    try{
+      var d=new Date(b.createdAt);
+      if(!isNaN(d.getTime())){
+        return d.getFullYear()+"-"+String(d.getMonth()+1).padStart(2,"0")+"-"+String(d.getDate()).padStart(2,"0");
+      }
+    }catch(e){}
+  }
+  if(b.date){
+    var s=String(b.date);
+    if(s.match(/^\d{4}-\d{2}-\d{2}/)) return s.slice(0,10);
+    if(s.match(/^\d{1,2}\/\d{1,2}\/\d{4}/)){
+      var p=s.split("/");
+      var y=parseInt(p[2]); if(y>2400) y-=543;
+      return y+"-"+String(p[1]).padStart(2,"0")+"-"+String(p[0]).padStart(2,"0");
+    }
+  }
+  return "";
+}
 
 // ===== GET BRANCH OF USER =====
 function getUserBranch(){
@@ -161,38 +228,36 @@ function getUserBranch(){
 function loadData(){
   document.getElementById("app").innerHTML='<div class="loading">⏳ กำลังดึงข้อมูล...</div>';
   GolodDB.ready(function(){
-    // โหลด bills และ users พร้อมกัน
     Promise.all([
       GolodDB.getBillsNew(1000),
       GolodDB.getUsers()
     ]).then(function(results){
       var bills = results[0]||[];
       var users = results[1]||[];
-      // normalize form
-      // normalize form และ billNo
+
+      // normalize
       var normalized = bills.map(function(b){
         if(b.form && typeof b.form==="string"){ try{b.form=JSON.parse(b.form);}catch(e){b.form={};} }
         if(!b.form) b.form={};
         if(!b.status) b.status="ออกบิลรับของ";
-        // ถ้าไม่มี billNo ให้ข้าม
         return b;
       }).filter(function(b){ return b.billNo; });
 
-      // แสดงเฉพาะบิลที่ยังไม่ส่งสำเร็จ
-      var DONE_STATUS=["ส่งสำเร็จ","delivered","success"];
-      BILLS = normalized.filter(function(b){
-        return !DONE_STATUS.includes(b.status);
-      });
+      // FIX: เก็บ BILLS ทุกใบ ไม่กรอง DONE_STATUS ออกที่นี่
+      // เพราะถ้ากรองออก บิลที่ส่งไม่สำเร็จ/นำกลับ จะหายจากแท็บ done ด้วย
+      // และบิลที่ยังค้างอยู่ก็จะโผล่กลับมาถ้า status ไม่ตรง DONE_STATUS
+      BILLS = normalized;
+
       // filter by branch
       var ub = getUserBranch();
       if(ub!=="all"){
         BILLS = BILLS.filter(function(b){
           var bb=b.branch||"bkk";
           var tb=b.targetBranch||"";
-          // เห็นบิลของสาขาตัวเอง หรือบิลที่ถูกส่งมาให้สาขาตัวเอง
           return bb===ub || tb===ub;
         });
       }
+
       DRIVERS = users.filter(function(u){ return u.role==="driver"; });
       renderApp();
     }).catch(function(e){
@@ -201,14 +266,53 @@ function loadData(){
   });
 }
 
+// ============================================================
+// FIX 3: filterBills — รวม date range + tab + logic ค้างข้ามวัน
+// ============================================================
+function filterBills(tab){
+  var range = getDateRange(filterDateMode);
+
+  return BILLS.filter(function(b){
+    var st = b.status || "";
+    var isActive = ACTIVE_STATUS.indexOf(st) >= 0;
+    var isDone   = DONE_TAB_STATUS.indexOf(st) >= 0;
+
+    // --- กรองวันที่ ---
+    if(range.from || range.to){
+      var ds = billDateStr(b);
+      var inRange = (!range.from || ds >= range.from) && (!range.to || ds <= range.to);
+
+      if(tab === "done"){
+        // แท็บ done: กรองวันที่เสมอ (ต้องการดูเฉพาะวันที่เลือก)
+        if(ds && !inRange) return false;
+      } else if(tab === "all"){
+        // แท็บ all: กรองวันที่เสมอ
+        if(ds && !inRange) return false;
+      } else {
+        // แท็บ active (pending/branch/driving):
+        // ถ้าบิลยัง active อยู่ → โชว์ข้ามวันได้ (ไม่กรองวันที่)
+        // ถ้าบิล done แล้ว → กรองวันที่ตามปกติ
+        if(!isActive && ds && !inRange) return false;
+      }
+    }
+
+    // --- กรองตาม tab ---
+    if(tab==="pending") return st==="ออกบิลรับของ" || st==="issued" || st==="";
+    if(tab==="branch")  return st==="ระหว่างนำส่งสาขา";
+    if(tab==="driving") return st==="กำลังวิ่งส่งลูกค้า" || st==="นำส่งใหม่";
+    if(tab==="done")    return isDone;
+    return true; // all
+  });
+}
+
 // ===== RENDER =====
 function renderApp(){
   var tabs = [
     {k:"pending", l:"รอจ่ายงาน"},
-    {k:"branch", l:"ระหว่างส่งสาขา"},
+    {k:"branch",  l:"ระหว่างส่งสาขา"},
     {k:"driving", l:"กำลังส่ง"},
-    {k:"done", l:"สำเร็จ/ไม่สำเร็จ"},
-    {k:"all", l:"ทั้งหมด"}
+    {k:"done",    l:"สำเร็จ/ไม่สำเร็จ"},
+    {k:"all",     l:"ทั้งหมด"}
   ];
 
   var tabHTML = tabs.map(function(t){
@@ -217,34 +321,54 @@ function renderApp(){
       +t.l+'<span class="count-badge">'+cnt+'</span></div>';
   }).join("");
 
+  // Date filter bar
+  var dateBar = '<div class="date-filter-bar">'
+    +'<label>📅 ช่วงวันที่:</label>'
+    +'<select onchange="onDateModeChange(this.value)">'
+    +[
+      {v:"today",     l:"วันนี้"},
+      {v:"yesterday", l:"เมื่อวาน"},
+      {v:"week",      l:"7 วันย้อนหลัง"},
+      {v:"all",       l:"ทั้งหมด"},
+      {v:"range",     l:"กำหนดเอง"}
+    ].map(function(m){
+      return '<option value="'+m.v+'"'+(filterDateMode===m.v?" selected":"")+'>'+m.l+'</option>';
+    }).join("")
+    +'</select>';
+  if(filterDateMode==="range"){
+    dateBar += '<input type="date" value="'+filterDateFrom+'" onchange="filterDateFrom=this.value;renderApp()">'
+      +'<span style="font-size:11px;color:#888">ถึง</span>'
+      +'<input type="date" value="'+filterDateTo+'" onchange="filterDateTo=this.value;renderApp()">';
+  }
+  dateBar += '</div>';
+
   var filtered = filterBills(currentTab);
-  var ub = getUserBranch();
-  var isAdmin = true; // ทุก role จ่ายสาขาได้
-  var isBranchClerk = CU.role==="clerk" || (CU.role==="branch" && ub!=="all");
 
   var actionBar = '';
   if(currentTab !== "done"){
-    var ab='<div class="action-bar">';
-    ab+='<button class="btn btn-gray" onclick="toggleSelectAll()">☑ เลือกทั้งหมด</button>';
-    ab+='<button class="btn btn-orange" onclick="openDispatch(&quot;branch&quot;)">📦 จ่ายให้สาขา</button>';
-    ab+='<button class="btn btn-blue" onclick="openDispatch(&quot;driver&quot;)">🚛 จ่ายให้คนรถ</button>';
-    ab+='<span style="font-size:11px;color:#666">เลือก <span id="sel-count">0</span> บิล</span>';
-    ab+='</div>';
-    actionBar=ab;
+    actionBar = '<div class="action-bar">'
+      +'<button class="btn btn-gray" onclick="toggleSelectAll()">☑ เลือกทั้งหมด</button>'
+      +'<button class="btn btn-orange" onclick="openDispatch(&quot;branch&quot;)">📦 จ่ายให้สาขา</button>'
+      +'<button class="btn btn-blue" onclick="openDispatch(&quot;driver&quot;)">🚛 จ่ายให้คนรถ</button>'
+      +'<span style="font-size:11px;color:#666">เลือก <span id="sel-count">0</span> บิล</span>'
+      +'</div>';
   }
+
   var rows = filtered.map(function(b){
     var checked = selectedBills[b.billNo]?"checked":"";
-    var stCls = stClass(b.status);
-    var dest = (b.destAmphoe||b.form.destAmphoe||"")+"·"+(b.destProv||b.form.destProv||"");
-    var sender = b.senderName||b.form.senderName||"";
-    var receiver = b.receiverName||b.form.receiverName||"";
+    var stCls   = stClass(b.status);
+    var dest    = (b.destAmphoe||b.form.destAmphoe||"")+"·"+(b.destProv||b.form.destProv||"");
+    var sender  = b.senderName||b.form.senderName||"";
+    var receiver= b.receiverName||b.form.receiverName||"";
     var freight = parseFloat(b.freightNet||0);
-    var driver = b.driverName||b.driver||"—";
-    var branch = BRANCH_LABEL[b.branch||"bkk"]||"กทม.";
+    var driver  = b.driverName||b.driver||"—";
+    var branch  = BRANCH_LABEL[b.branch||"bkk"]||"กทม.";
+    var ds      = billDateStr(b)||"—";
     return '<tr>'
       +'<td><input type="checkbox" class="chk" '+(checked?"checked":"")
       +' onchange="toggleBill(\''+b.billNo+'\')" data-id="'+b.billNo+'"></td>'
       +'<td style="font-weight:600;white-space:nowrap">'+b.billNo+'</td>'
+      +'<td style="white-space:nowrap;color:#888;font-size:11px">'+ds+'</td>'
       +'<td>'+sender+'</td>'
       +'<td>'+receiver+'</td>'
       +'<td style="white-space:nowrap">'+dest+'</td>'
@@ -259,17 +383,19 @@ function renderApp(){
   }).join("");
 
   var html = '<div class="card">'
-    +'<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px">'
+    +'<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px">'
     +'<div class="card-title" style="margin:0">🚛 จัดการขนส่ง</div>'
     +'<button class="btn btn-gray" onclick="loadData()">🔄 รีเฟรช</button>'
     +'</div>'
+    +dateBar
     +'<div class="tab-bar">'+tabHTML+'</div>'
     +'<div class="filters">'
     +'<input type="text" id="q-inp" placeholder="ค้นหาเลขบิล / ชื่อ / จังหวัด" style="width:240px" oninput="filterTable()">'
     +'</div>'
     +actionBar
     +'<div style="overflow-x:auto"><table>'
-    +'<tr><th></th><th>เลขบิล</th><th>ผู้ส่ง</th><th>ผู้รับ</th><th>ปลายทาง</th><th>ค่าส่ง</th><th>สถานะ</th><th>สาขา</th><th>คนรถ</th><th>จัดการ</th></tr>'
+    +'<tr><th></th><th>เลขบิล</th><th>วันที่</th><th>ผู้ส่ง</th><th>ผู้รับ</th><th>ปลายทาง</th>'
+    +'<th>ค่าส่ง</th><th>สถานะ</th><th>สาขา</th><th>คนรถ</th><th>จัดการ</th></tr>'
     +rows
     +'</table></div>'
     +'<div style="font-size:11px;color:#888;margin-top:8px">แสดง '+filtered.length+' บิล</div>'
@@ -280,14 +406,14 @@ function renderApp(){
   updateSelCount();
 }
 
-function filterBills(tab){
-  return BILLS.filter(function(b){
-    if(tab==="pending") return b.status==="ออกบิลรับของ" || b.status==="issued" || !b.status;
-    if(tab==="branch") return b.status==="ระหว่างนำส่งสาขา";
-    if(tab==="driving") return b.status==="กำลังวิ่งส่งลูกค้า"||b.status==="นำส่งใหม่";
-    if(tab==="done") return ["ส่งสำเร็จ","ส่งไม่สำเร็จ","นำกลับสาขา","ลูกค้ารับกลับ"].includes(b.status);
-    return true;
-  });
+function onDateModeChange(mode){
+  filterDateMode = mode;
+  if(mode !== "range"){
+    var r = getDateRange(mode);
+    filterDateFrom = r.from;
+    filterDateTo   = r.to;
+  }
+  renderApp();
 }
 
 function switchTab(t){ currentTab=t; selectedBills={}; renderApp(); }
@@ -376,7 +502,6 @@ function confirmDispatch(){
   });
 
   Promise.all(promises).then(function(){
-    // อัปเดต local state
     ids.forEach(function(id){
       var b=BILLS.find(function(x){return x.billNo===id;});
       if(b){
@@ -430,7 +555,10 @@ function confirmStatus(){
 
   GolodDB.updateBill(statusTargetBill,upd).then(function(){
     var b=BILLS.find(function(x){return x.billNo===statusTargetBill;});
-    if(b){ b.status=newStatus; if(upd.failReason) b.failReason=upd.failReason; }
+    if(b){
+      b.status=newStatus;
+      if(upd.failReason) b.failReason=upd.failReason;
+    }
     closeStatusModal();
     alert("✅ อัปเดตสถานะแล้ว");
     renderApp();
