@@ -1000,52 +1000,67 @@ function QRCodeBox({ data, size }) {
   var sz = size || 80;
   const divRef = React.useRef(null);
   const [dataUrl, setDataUrl] = React.useState(null);
+  const [tried, setTried] = React.useState(false);
 
   React.useEffect(() => {
-    if (!data || !divRef.current) return;
+    if (!data) return;
+    if (dataUrl) return; // already done
+    // สร้าง QR ตรงใน div ref — visible จริงใน DOM
     var el = divRef.current;
+    if (!el) return;
     el.innerHTML = "";
+    var qrObj;
     try {
-      new QRCode(el, {
+      qrObj = new QRCode(el, {
         text: data,
-        width: sz * 2,
-        height: sz * 2,
+        width: sz,
+        height: sz,
         colorDark: "#000000",
         colorLight: "#ffffff",
         correctLevel: QRCode.CorrectLevel.M
       });
-    } catch(e) { return; }
-    // poll หา canvas หรือ img แล้วแปลงเป็น dataUrl เก็บ state
+    } catch(e) { setTried(true); return; }
+
+    // รอ render แล้ว capture เป็น dataUrl
     var n = 0;
     var t = setInterval(function() {
       n++;
       var cv = el.querySelector("canvas");
-      if (cv && cv.width > 0) {
-        try { setDataUrl(cv.toDataURL("image/png")); } catch(e) {}
-        clearInterval(t);
-        return;
+      if (cv && cv.width > 0 && cv.height > 0) {
+        try {
+          var url = cv.toDataURL("image/png");
+          if (url && url.length > 500) {
+            setDataUrl(url);
+            clearInterval(t);
+            return;
+          }
+        } catch(e2) {}
       }
+      // fallback: qrcodejs ใน mobile บางตัวสร้าง img แทน canvas
       var im = el.querySelector("img");
-      if (im && im.complete && im.naturalWidth > 0) {
+      if (im && im.src && im.src.indexOf("data:") === 0 && im.src.length > 500) {
         setDataUrl(im.src);
         clearInterval(t);
         return;
       }
-      if (n > 30) clearInterval(t);
-    }, 60);
-    return () => clearInterval(t);
+      if (n > 40) { setTried(true); clearInterval(t); }
+    }, 50);
+    return function() { clearInterval(t); };
   }, [data, sz]);
 
+  // ถ้าได้ dataUrl แล้ว render เป็น img (ติดไปกับ print ได้)
   if (dataUrl) {
-    return React.createElement("img", {
-      src: dataUrl, width: sz, height: sz,
-      style: { display:"block", margin:"0 auto" }
-    });
+    return React.createElement("div", { style:{ lineHeight:0, margin:"0 auto", width:sz } },
+      React.createElement("img", {
+        src: dataUrl, width: sz, height: sz,
+        style: { display:"block", imageRendering:"pixelated" }
+      })
+    );
   }
-  // div ซ่อนไว้ให้ QRCode render จริง (ไม่ใช้ display:none)
+  // ระหว่างรอ render div จริงๆ ให้ QRCode วาด (ต้องมองเห็น ไม่ hidden)
   return React.createElement("div", { ref: divRef,
-    style: { width: sz, height: sz, overflow:"hidden",
-             position:"relative", margin:"0 auto" }
+    style: { width: sz, height: sz, margin:"0 auto",
+             overflow:"hidden", background:"#fafafa" }
   });
 }
 
@@ -1221,10 +1236,7 @@ function ThermalBill({
       fontWeight: 700
     }
   }, "\u0E1E\u0E19\u0E31\u0E01\u0E07\u0E32\u0E19: ", form.staff), /*#__PURE__*/React.createElement(QRCodeBox, {
-    data: billNo + "\n" +
-      ((form&&form.receiverAmphoe?form.receiverAmphoe:"")+"/"+(form&&form.destProv?form.destProv:"")) + "\n" +
-      ("\u0E3F"+(summary&&summary.freightNet?(summary&&summary.freightNet||0).toLocaleString("th-TH"):"0")) + "\n" +
-      ((items&&items.length?items.reduce((s,it)=>s+(parseInt(it.qty)||1),0):1)+"\u0E0A\u0E34\u0E49\u0E19"),
+    data: String(billNo||"GOLOD"),
     size: 80
   })), /*#__PURE__*/React.createElement(Div, {
     dashed: true
@@ -1245,8 +1257,8 @@ function ThermalBill({
     }
   }, form.senderName || "—"), /*#__PURE__*/React.createElement("div", {
     style: {
-      fontSize: 11,
-      fontWeight: 700
+      fontSize: 13,
+      fontWeight: 900
     }
   }, "\u0E42\u0E17\u0E23: ", form.senderPhone || "—"), form.senderAddr && /*#__PURE__*/React.createElement("div", {
     style: {
@@ -1285,8 +1297,8 @@ function ThermalBill({
     }
   }, form.receiverName || "—"), /*#__PURE__*/React.createElement("div", {
     style: {
-      fontSize: 11,
-      fontWeight: 700
+      fontSize: 13,
+      fontWeight: 900
     }
   }, "\u0E42\u0E17\u0E23: ", form.receiverPhone || "—"), form.receiverAddr && /*#__PURE__*/React.createElement("div", {
     style: {
@@ -1315,29 +1327,31 @@ function ThermalBill({
       width: "100%",
       borderCollapse: "collapse",
       fontSize: 9,
-      marginBottom: 4
+      marginBottom: 4,
+      border: "1px solid #111"
     }
   }, /*#__PURE__*/React.createElement("thead", null, /*#__PURE__*/React.createElement("tr", {
     style: {
-      borderBottom: "0.5px solid #333"
+      borderBottom: "1px solid #111",
+      borderTop: "1px solid #111"
     }
   }, /*#__PURE__*/React.createElement("th", {
-    style: { textAlign: "left", padding: "1px 2px", fontWeight: 700, maxWidth: 90 }
+    style: { textAlign: "left", padding: "2px 3px", fontWeight: 700, maxWidth: 90, borderRight: "0.5px solid #111", background:"#eee" }
   }, "\u0E23\u0E32\u0E22\u0E01\u0E32\u0E23\u0E02\u0E2D\u0E07"),
   /*#__PURE__*/React.createElement("th", {
-    style: { textAlign: "center", padding: "1px 2px", fontWeight: 700 }
+    style: { textAlign: "center", padding: "2px 3px", fontWeight: 700, borderRight: "0.5px solid #111", background:"#eee" }
   }, "\u0E19\u0E19./\u0E0A\u0E34\u0E49\u0E19"),
   /*#__PURE__*/React.createElement("th", {
-    style: { textAlign: "center", padding: "1px 2px", fontWeight: 700 }
+    style: { textAlign: "center", padding: "2px 3px", fontWeight: 700, borderRight: "0.5px solid #111", background:"#eee" }
   }, "\u0E01+\u0E22+\u0E2A"),
   !form.hidePrice && /*#__PURE__*/React.createElement("th", {
-    style: { textAlign: "right", padding: "1px 8px 1px 2px", fontWeight: 700 }
+    style: { textAlign: "right", padding: "2px 3px", fontWeight: 700, borderRight: "0.5px solid #111", background:"#eee" }
   }, "P"),
   /*#__PURE__*/React.createElement("th", {
-    style: { textAlign: "center", padding: "1px 2px 1px 8px", fontWeight: 700 }
+    style: { textAlign: "center", padding: "2px 3px", fontWeight: 700, borderRight: "0.5px solid #111", background:"#eee" }
   }, "Q"),
   !form.hidePrice && /*#__PURE__*/React.createElement("th", {
-    style: { textAlign: "right", padding: "1px 2px", fontWeight: 700 }
+    style: { textAlign: "right", padding: "2px 3px", fontWeight: 700, background:"#eee" }
   }, "\u0E04\u0E48\u0E32\u0E2A\u0E48\u0E07"))), /*#__PURE__*/React.createElement("tbody", null, items.map((item, i) => {
     const sumCm = parseFloat(item.sumCm) || 0;
     const sz = calcSize(item.kg, sumCm);
@@ -1352,67 +1366,65 @@ function ThermalBill({
       key: item.id
     }, /*#__PURE__*/React.createElement("tr", {
       style: {
-        borderBottom: "0.5px dotted #ccc"
+        borderBottom: "0.5px solid #111"
       }
     }, /*#__PURE__*/React.createElement("td", {
       style: {
-        padding: "2px 2px",
-        fontSize: 16,
+        padding: "1px 2px",
+        fontSize: 9,
         fontWeight: 700,
         maxWidth: 90,
         wordBreak: "break-word",
         whiteSpace: "normal"
       }
-    }, i + 1, ". ", item.desc || "(ไม่ระบุ)"), /*#__PURE__*/React.createElement("td", {
+    }, i + 1, ".", item.desc || "(ไม่ระบุ)"), /*#__PURE__*/React.createElement("td", {
       style: {
         textAlign: "center",
-        padding: "2px 2px",
-        fontSize: 9
+        padding: "1px 3px",
+        fontSize: 14,
+        fontWeight: 700,
+        borderRight: "0.5px solid #111"
       }
     }, item.kg || "-"), /*#__PURE__*/React.createElement("td", {
       style: {
         textAlign: "center",
-        padding: "2px 2px",
-        fontSize: 9
+        padding: "1px 3px",
+        fontSize: 14,
+        fontWeight: 700,
+        borderRight: "0.5px solid #111"
       }
     }, sumCm > 0 ? sumCm : "-"), !form.hidePrice && /*#__PURE__*/React.createElement("td", {
       style: {
         textAlign: "right",
-        padding: "2px 2px",
-        fontSize: 9
+        padding: "1px 3px",
+        fontSize: 14,
+        fontWeight: 700,
+        borderRight: "0.5px solid #111"
       }
     }, upDisplay > 0 ? upDisplay.toLocaleString("th-TH") : "-"), /*#__PURE__*/React.createElement("td", {
       style: {
         textAlign: "center",
-        padding: "2px 2px",
-        fontSize: 9
+        padding: "1px 3px",
+        fontSize: 14,
+        fontWeight: 700,
+        borderRight: "0.5px solid #111"
       }
     }, item.qty), !form.hidePrice && /*#__PURE__*/React.createElement("td", {
       style: {
         textAlign: "right",
-        padding: "2px 2px",
-        fontSize: 9,
-        fontWeight: 700
+        padding: "1px 3px",
+        fontSize: 14,
+        fontWeight: 900
       }
-    }, lt > 0 ? lt.toLocaleString("th-TH") : "-")), item.hasCOD && /*#__PURE__*/React.createElement("tr", null, /*#__PURE__*/React.createElement("td", {
-      colSpan: form.hidePrice ? 4 : 6,
-      style: {
-        fontSize: 10,
-        color: "#000",
-        fontWeight: 900,
-        padding: "2px 4px",
-        borderTop: "1px solid #000",
-        borderBottom: "1px solid #000",
-        background: "#fff"
-      }
-    }, "\u25CF COD \u0E40\u0E01\u0E47\u0E1A\u0E04\u0E48\u0E32\u0E2A\u0E34\u0E19\u0E04\u0E49\u0E32: ", (parseFloat(item.codAmount) || 0).toLocaleString("th-TH"), " \u0E3F")), (parseFloat(item.declaredValue) || 0) > 0 && /*#__PURE__*/React.createElement("tr", null, /*#__PURE__*/React.createElement("td", {
+    }, lt > 0 ? lt.toLocaleString("th-TH") : "-"), (parseFloat(item.declaredValue) || 0) > 0 && /*#__PURE__*/React.createElement("tr", null, /*#__PURE__*/React.createElement("td", {
       colSpan: form.hidePrice ? 4 : 6,
       style: {
         fontSize: 9,
         color: "#888",
         padding: "1px 2px"
       }
-    }, "\u0E1B\u0E23\u0E30\u0E01\u0E31\u0E19: ", Math.round((parseFloat(item.declaredValue) || 0) * 0.005).toLocaleString("th-TH"), " \u0E3F")));
+    }, "\u0E1B\u0E23\u0E30\u0E01\u0E31\u0E19: ", Math.round((parseFloat(item.declaredValue) || 0) * 0.005).toLocaleString("th-TH"), " \u0E3F"))));
+  
   })))), /*#__PURE__*/React.createElement(Div, null), !form.hidePrice && /*#__PURE__*/React.createElement("div", {
     style: {
       marginBottom: 4
@@ -1445,11 +1457,11 @@ function ThermalBill({
     _isMinApplied && /*#__PURE__*/React.createElement("div", {
       style: { fontSize: 9, color: "#E67E22", fontWeight: 700, marginTop: 1 }
     }, "(ยอดขั้นต่ำพื้นที่พิเศษ)")
-  )), !form.hidePrice && (summary&&summary.codTotal) > 0 && /*#__PURE__*/React.createElement("div", {
+  )), !form.hidePrice && /*#__PURE__*/React.createElement("div", {
     style: {
       display: "flex",
       justifyContent: "space-between",
-      alignItems: "baseline",
+      alignItems: "center",
       padding: "4px 6px",
       background: "#fff",
       border: "2px solid #000",
@@ -1457,18 +1469,18 @@ function ThermalBill({
       marginBottom: 3
     }
   }, /*#__PURE__*/React.createElement("span", {
+    style: { fontSize: 11, fontWeight: 900, color: "#000" }
+  }, "\u25CF COD \u0E23\u0E27\u0E21 (\u0E3F)"),
+  /*#__PURE__*/React.createElement("input", {
+    type: "number",
+    value: (summary&&summary.codTotal)||"",
+    readOnly: true,
     style: {
-      fontSize: 11,
-      fontWeight: 900,
-      color: "#000"
+      width: 90, textAlign: "right", fontSize: 14, fontWeight: 900,
+      border: "1.5px solid #000", borderRadius: 4, padding: "2px 6px",
+      background: "#fff", color: "#000"
     }
-  }, "\u25CF COD \u0E23\u0E27\u0E21"), /*#__PURE__*/React.createElement("span", {
-    style: {
-      fontSize: 14,
-      fontWeight: 900,
-      color: "#000"
-    }
-  }, (summary&&summary.codTotal||0).toLocaleString("th-TH"), " \u0E3F")), /*#__PURE__*/React.createElement(Div, {
+  })), /*#__PURE__*/React.createElement(Div, {
     dashed: true
   }), /*#__PURE__*/React.createElement("div", {
     style: {
@@ -2262,6 +2274,123 @@ function saveContact(key, data) {
 }
 
 // Export บิลทั้งหมดเป็น CSV
+
+
+function UserManagement({ onClose }) {
+  const [users, setUsers] = React.useState([]);
+  const [form, setForm] = React.useState({ username:"", name:"", password:"", role:"clerk", branch:"bkk", clerkCode:"" });
+  const [msg, setMsg] = React.useState("");
+  const roleLabels = {admin:"แอดมิน", branch:"หัวหน้าสาขา", clerk:"เสมียน", driver:"คนขับ"};
+
+  const load = () => {
+    try { setUsers(JSON.parse(localStorage.getItem("golod_users_v1")||"[]")); } catch(e) {}
+  };
+  React.useEffect(load, []);
+
+  const save = (list) => {
+    localStorage.setItem("golod_users_v1", JSON.stringify(list));
+    setUsers(list);
+  };
+
+  const handleAdd = () => {
+    if (!form.username || !form.name || !form.password) { setMsg("กรุณากรอกข้อมูลให้ครบ"); return; }
+    const existing = users.find(u => u.username === form.username);
+    if (existing) { setMsg("Username นี้มีอยู่แล้ว"); return; }
+    const newUser = { ...form, id: Date.now().toString(), createdAt: new Date().toISOString() };
+    save([...users, newUser]);
+    setForm({ username:"", name:"", password:"", role:"clerk", branch:"bkk", clerkCode:"" });
+    setMsg("เพิ่มผู้ใช้สำเร็จ");
+    setTimeout(() => setMsg(""), 2000);
+  };
+
+  const handleDelete = (username) => {
+    if (!confirm("ลบผู้ใช้ " + username + " ?")) return;
+    save(users.filter(u => u.username !== username));
+    setMsg("ลบแล้ว");
+    setTimeout(() => setMsg(""), 2000);
+  };
+
+  const SF = (k,v) => setForm(f => ({...f, [k]:v}));
+  const INP = { padding:"6px 9px", border:"1px solid #ddd", borderRadius:7, fontSize:12, width:"100%" };
+  const branchOpts = [["bkk","กรุงเทพ"],["nma","นครราชสีมา"],["ssk","ศรีสะเกษ"]];
+
+  return React.createElement("div", { style:{ position:"fixed", inset:0, background:"rgba(0,0,0,0.45)", zIndex:9999, display:"flex", alignItems:"center", justifyContent:"center" }},
+    React.createElement("div", { style:{ background:"#fff", borderRadius:14, padding:24, width:"min(96vw,600px)", maxHeight:"85vh", overflowY:"auto", boxShadow:"0 8px 40px rgba(0,0,0,0.2)" }},
+      React.createElement("div", { style:{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:16 }},
+        React.createElement("h2", { style:{ fontSize:16, fontWeight:700, color:"#0F6E56" }}, "👤 จัดการผู้ใช้"),
+        React.createElement("button", { onClick:onClose, style:{ background:"none", border:"none", fontSize:20, cursor:"pointer", color:"#888" }}, "✕")
+      ),
+
+      // ฟอร์มเพิ่มผู้ใช้
+      React.createElement("div", { style:{ background:"#f8fdf9", border:"1px solid #d0ede5", borderRadius:10, padding:14, marginBottom:16 }},
+        React.createElement("div", { style:{ fontWeight:700, fontSize:13, color:"#0F6E56", marginBottom:10 }}, "+ เพิ่มผู้ใช้ใหม่"),
+        React.createElement("div", { style:{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:8 }},
+          ...[
+            ["username","Username","text"], ["name","ชื่อ-สกุล","text"],
+            ["password","รหัสผ่าน","password"], ["clerkCode","รหัสเสมียน","text"]
+          ].map(([k,lbl,type]) =>
+            React.createElement("div", { key:k },
+              React.createElement("div", { style:{ fontSize:11, color:"#555", marginBottom:3 }}, lbl),
+              React.createElement("input", { type, value:form[k], onChange:e=>SF(k,e.target.value), style:INP, placeholder:lbl })
+            )
+          ),
+          React.createElement("div", null,
+            React.createElement("div", { style:{ fontSize:11, color:"#555", marginBottom:3 }}, "บทบาท"),
+            React.createElement("select", { value:form.role, onChange:e=>SF("role",e.target.value), style:INP },
+              Object.entries(roleLabels).map(([v,l]) => React.createElement("option", { key:v, value:v }, l))
+            )
+          ),
+          React.createElement("div", null,
+            React.createElement("div", { style:{ fontSize:11, color:"#555", marginBottom:3 }}, "สาขา"),
+            React.createElement("select", { value:form.branch, onChange:e=>SF("branch",e.target.value), style:INP },
+              branchOpts.map(([v,l]) => React.createElement("option", { key:v, value:v }, l))
+            )
+          )
+        ),
+        msg && React.createElement("div", { style:{ fontSize:12, color: msg.includes("สำเร็จ")||msg.includes("ลบ") ? "#1D9E75":"#c00", marginTop:8, fontWeight:600 }}, msg),
+        React.createElement("button", {
+          onClick:handleAdd,
+          style:{ marginTop:12, padding:"8px 20px", background:"#1D9E75", color:"#fff", border:"none", borderRadius:8, fontWeight:700, fontSize:13, cursor:"pointer", width:"100%" }
+        }, "💾 เพิ่มผู้ใช้")
+      ),
+
+      // รายการผู้ใช้
+      React.createElement("div", { style:{ fontSize:12, color:"#888", marginBottom:8 }}, "ผู้ใช้ทั้งหมด: ", users.length, " คน"),
+      React.createElement("table", { style:{ width:"100%", borderCollapse:"collapse", fontSize:12 }},
+        React.createElement("thead", null,
+          React.createElement("tr", { style:{ background:"#f0f0f0" }},
+            ["Username","ชื่อ","บทบาท","สาขา","รหัส","ลบ"].map(h =>
+              React.createElement("th", { key:h, style:{ padding:"6px 8px", textAlign:"left", fontWeight:700, fontSize:11, borderBottom:"2px solid #ddd" }}, h)
+            )
+          )
+        ),
+        React.createElement("tbody", null,
+          users.map((u, i) =>
+            React.createElement("tr", { key:u.id||u.username, style:{ background: i%2===0?"#fff":"#f9f9f9" }},
+              React.createElement("td", { style:{ padding:"6px 8px", fontWeight:600 }}, u.username),
+              React.createElement("td", { style:{ padding:"6px 8px" }}, u.name),
+              React.createElement("td", { style:{ padding:"6px 8px" }},
+                React.createElement("span", { style:{ background: u.role==="admin"?"#1D9E75":u.role==="branch"?"#2980b9":"#888", color:"#fff", borderRadius:20, padding:"2px 8px", fontSize:10, fontWeight:700 }},
+                  roleLabels[u.role]||u.role
+                )
+              ),
+              React.createElement("td", { style:{ padding:"6px 8px" }}, u.branch||"-"),
+              React.createElement("td", { style:{ padding:"6px 8px", color:"#0F6E56", fontWeight:700 }}, u.clerkCode||"-"),
+              React.createElement("td", { style:{ padding:"6px 8px" }},
+                u.role !== "admin"
+                  ? React.createElement("button", {
+                      onClick:()=>handleDelete(u.username),
+                      style:{ padding:"3px 10px", background:"#E24B4A", color:"#fff", border:"none", borderRadius:6, fontSize:11, cursor:"pointer", fontWeight:700 }
+                    }, "🗑 ลบ")
+                  : React.createElement("span", { style:{ color:"#ccc", fontSize:11 }}, "—")
+              )
+            )
+          )
+        )
+      )
+    )
+  );
+}
 
 function ExportPanel() {
   const [show, setShow] = useState(false);
@@ -3370,6 +3499,10 @@ function ThermalBillingApp() {
     }
   }, "\u0E22\u0E01\u0E40\u0E25\u0E34\u0E01")) : null;
   const handleSubmit = () => {
+    // validation บังคับ
+    if (!form.destProv) { alert("กรุณาระบุจังหวัดปลายทาง"); return; }
+    if (!form.receiverAmphoe) { alert("กรุณาระบุอำเภอ/เขตปลายทาง"); return; }
+    if (!form.receiverName) { alert("กรุณาระบุชื่อผู้รับ"); return; }
     // บันทึก contacts สำหรับ autocomplete
     saveContact("senders", {
       name: form.senderName,
@@ -3540,7 +3673,7 @@ function ThermalBillingApp() {
       display: "flex",
       gap: 5
     }
-  }, (sessionUser === null || sessionUser === void 0 ? void 0 : sessionUser.role) === "admin" && view === "list" && /*#__PURE__*/React.createElement(ExportPanel, null), [["list", `รายการ (${bills.length})`], ["form", "+ บิลใหม่"], ["receipt", "🧾 ใบเสร็จ"], ["manualbill", "📝 บิลมือ"]].map(([v, l]) => /*#__PURE__*/React.createElement("button", {
+  }, (sessionUser === null || sessionUser === void 0 ? void 0 : sessionUser.role) === "admin" && view === "list" && /*#__PURE__*/React.createElement(ExportPanel, null), (sessionUser === null || sessionUser === void 0 ? void 0 : sessionUser.role) === "admin" && /*#__PURE__*/React.createElement("button", { onClick:()=>window.dispatchEvent(new CustomEvent("golod_open_users")), style:{ padding:"5px 13px", border:"0.5px solid #ccc", borderRadius:8, background:"#fff", color:"#555", fontSize:12, cursor:"pointer" }}, "\uD83D\uDC64 \u0E1C\u0E39\u0E49\u0E43\u0E0A\u0E49"), [["list", `รายการ (${bills.length})`], ["form", "+ บิลใหม่"], ["receipt", "🧾 ใบเสร็จ"], ["manualbill", "📝 บิลมือ"]].map(([v, l]) => /*#__PURE__*/React.createElement("button", {
     key: v,
     onClick: () => v === "form" ? resetForm() : setView(v),
     style: {
@@ -5151,7 +5284,21 @@ function ReceiptForm({ bills, staffCode, staffName }) {
 
 // sync บิลจาก Firestore → localStorage ก่อน render
 (function(){
-  function doRender(){ ReactDOM.render(React.createElement(ThermalBillingApp),document.getElementById('root')); }
+  function doRender(){
+    ReactDOM.render(React.createElement(ThermalBillingApp),document.getElementById('root'));
+    // User Management Modal (standalone)
+    var uDiv = document.createElement('div');
+    uDiv.id = 'golod-user-mgmt-root';
+    document.body.appendChild(uDiv);
+    function renderUserMgmt(show) {
+      ReactDOM.render(
+        show ? React.createElement(UserManagement, { onClose: function(){ renderUserMgmt(false); } }) : React.createElement('span',null),
+        uDiv
+      );
+    }
+    renderUserMgmt(false);
+    window.addEventListener('golod_open_users', function(){ renderUserMgmt(true); });
+  }
   try {
     // render ก่อนทันที ไม่รอ sync
   doRender();
