@@ -3680,7 +3680,7 @@ function ThermalBillingApp() {
       display: "flex",
       gap: 5
     }
-  }, (sessionUser === null || sessionUser === void 0 ? void 0 : sessionUser.role) === "admin" && view === "list" && /*#__PURE__*/React.createElement(ExportPanel, null), (sessionUser === null || sessionUser === void 0 ? void 0 : sessionUser.role) === "admin" && /*#__PURE__*/React.createElement("button", { onClick:()=>{ window._showUserMgmt=true; window._setShowUserMgmt&&window._setShowUserMgmt(true); }, style:{ padding:"5px 13px", border:"0.5px solid #ccc", borderRadius:8, background:"#fff", color:"#555", fontSize:12, cursor:"pointer" }}, "\uD83D\uDC64 \u0E1C\u0E39\u0E49\u0E43\u0E0A\u0E49"), [["list", `รายการ (${bills.length})`], ["form", "+ บิลใหม่"], ["receipt", "🧾 ใบเสร็จ"], ["manualbill", "📝 บิลมือ"]].map(([v, l]) => /*#__PURE__*/React.createElement("button", {
+  }, (sessionUser === null || sessionUser === void 0 ? void 0 : sessionUser.role) === "admin" && view === "list" && /*#__PURE__*/React.createElement(ExportPanel, null), (sessionUser === null || sessionUser === void 0 ? void 0 : sessionUser.role) === "admin" && /*#__PURE__*/React.createElement("button", { onClick:()=>setShowUserMgmt(true), style:{ padding:"5px 13px", border:"0.5px solid #1D9E75", borderRadius:8, background:"#fff", color:"#1D9E75", fontSize:12, cursor:"pointer", fontWeight:600 }}, "\uD83D\uDC64 \u0E1C\u0E39\u0E49\u0E43\u0E0A\u0E49"), [["list", `รายการ (${bills.length})`], ["form", "+ บิลใหม่"], ["receipt", "🧾 ใบเสร็จ"], ["manualbill", "📝 บิลมือ"]].map(([v, l]) => /*#__PURE__*/React.createElement("button", {
     key: v,
     onClick: () => v === "form" ? resetForm() : setView(v),
     style: {
