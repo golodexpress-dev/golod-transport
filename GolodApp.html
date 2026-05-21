@@ -340,8 +340,13 @@ var CU=null,CS=null,SEC="dashboard";
     GolodDB.init();
     GolodDB.getUsers().then(function(users){
       if(users&&users.length>0){
-        localStorage.setItem("golod_users_v1",JSON.stringify(users));
-        console.log("[GolodApp] synced",users.length,"users from Firestore");
+        var _deleted=[];
+        try{_deleted=JSON.parse(localStorage.getItem("golod_deleted_users")||"[]");}catch(e){}
+        var _dIds=_deleted.map(function(d){return d.id;});
+        var _dUNs=_deleted.map(function(d){return d.username;});
+        var _filtered=users.filter(function(u){return _dIds.indexOf(u.id)<0&&_dUNs.indexOf(u.username)<0;});
+        localStorage.setItem("golod_users_v1",JSON.stringify(_filtered));
+        console.log("[GolodApp] synced",_filtered.length,"users from Firestore (excluded",users.length-_filtered.length,"deleted)");
       }
     }).catch(function(){});
   }catch(e){console.warn("Firebase init:",e);}
@@ -993,11 +998,35 @@ function renderUT(){
   USERS.forEach(function(u){
     rows+="<tr><td style='font-weight:600'>"+u.name+"</td><td style='color:#888'>"+u.username+"</td><td>"+rolePill(u.role)+"</td><td>"+u.branch+"</td>";
     rows+='<td><span class="pill '+(u.active?"pg":"px")+'">'+(u.active?"ใช้งาน":"ปิดใช้")+"</span></td>";
-    rows+='<td style="white-space:nowrap"><button class="bts" onclick="openEditU(\''+u.id+'\')">แก้ไข</button> <button class="bts" onclick="openPerm(\''+u.id+'\')">สิทธิ์</button> <button class="bts" style="color:'+(u.active?"#E24B4A":"#1D9E75")+'" onclick="toggleU(\''+u.id+'\')">'+(u.active?"ปิด":"เปิด")+"</button></td></tr>";
+    var isMe=u.id===CU.id;
+    rows+='<td style="white-space:nowrap"><button class="bts" onclick="openEditU(\''+u.id+'\')">แก้ไข</button> <button class="bts" onclick="openPerm(\''+u.id+'\')">สิทธิ์</button> <button class="bts" style="color:'+(u.active?"#E24B4A":"#1D9E75")+'" onclick="toggleU(\''+u.id+'\')">'+(u.active?"ปิด":"เปิด")+"</button> "+(!isMe?'<button class="bts" style="color:#fff;background:#E24B4A;border-color:#E24B4A" onclick="deleteUser(\''+u.id+'\')">🗑 ลบ</button>':'')+"</td></tr>";
   });
   el.innerHTML=rows;
 }
 function toggleU(id){var u=USERS.find(function(x){return x.id===id;});if(!u)return;if(u.id===CU.id){alert("ไม่สามารถปิดใช้งานตัวเองได้ครับ");return;}u.active=!u.active;renderUT();}
+function deleteUser(id){
+  var u=USERS.find(function(x){return x.id===id;});
+  if(!u)return;
+  if(u.id===CU.id){alert("ไม่สามารถลบตัวเองได้ครับ");return;}
+  if(u.role==="admin"&&USERS.filter(function(x){return x.role==="admin"&&x.active;}).length<=1){
+    alert("ต้องมี Admin อย่างน้อย 1 คนครับ");return;
+  }
+  if(!confirm('ลบผู้ใช้ "'+u.name+'" ('+u.username+') ออกจากระบบถาวร?\nการกระทำนี้ไม่สามารถย้อนกลับได้ครับ'))return;
+  USERS=USERS.filter(function(x){return x.id!==id;});
+  try{
+    var deleted=JSON.parse(localStorage.getItem("golod_deleted_users")||"[]");
+    deleted.push({id:id,username:u.username,deletedAt:new Date().toISOString()});
+    localStorage.setItem("golod_deleted_users",JSON.stringify(deleted));
+    localStorage.setItem("golod_users_v1",JSON.stringify(USERS));
+  }catch(e){}
+  if(typeof GolodDB!=="undefined"&&GolodDB.deleteUser){
+    GolodDB.deleteUser(id).then(function(){
+      console.log("[GolodApp] Deleted from Firestore:",u.username);
+    }).catch(function(e){console.warn("deleteUser Firestore error:",e);});
+  }
+  renderUT();
+  showToast("🗑 ลบ "+u.name+" แล้วครับ");
+}
 function openAddUser(){
   var h='<div class="mtitle">+ เพิ่มผู้ใช้ <span onclick="closeMod()" style="cursor:pointer;font-size:18px;color:#aaa">✕</span></div>';
   h+='<div style="display:flex;flex-direction:column;gap:9px">';
