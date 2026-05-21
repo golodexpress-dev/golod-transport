@@ -1050,17 +1050,20 @@ function QRCodeBox({ data, size }) {
 
   // ถ้าได้ dataUrl แล้ว render เป็น img (ติดไปกับ print ได้)
   if (dataUrl) {
-    return React.createElement("div", { style:{ lineHeight:0, margin:"0 auto", width:sz } },
+    return React.createElement("div", {
+      style:{ lineHeight:0, margin:"0 auto", width:sz, height:sz, overflow:"hidden", flexShrink:0 }
+    },
       React.createElement("img", {
-        src: dataUrl, width: sz, height: sz,
-        style: { display:"block", imageRendering:"pixelated" }
+        src: dataUrl,
+        style: { display:"block", width:sz, height:sz, imageRendering:"pixelated" }
       })
     );
   }
   // ระหว่างรอ render div จริงๆ ให้ QRCode วาด (ต้องมองเห็น ไม่ hidden)
   return React.createElement("div", { ref: divRef,
-    style: { width: sz, height: sz, margin:"0 auto",
-             overflow:"hidden", background:"#fafafa" }
+    style: { width: sz, height: sz, minWidth: sz, minHeight: sz,
+             margin:"0 auto", overflow:"hidden", background:"#fafafa",
+             flexShrink: 0 }
   });
 }
 
@@ -2981,6 +2984,8 @@ function ThermalBillingApp() {
   var _BRANCHES$find2, _FREIGHT_PAY$find3;
   // ===== STATE ทั้งหมด (hook order ต้องคงที่) =====
   const [view, setView] = useState(() => { try { return new URLSearchParams(window.location.search).get("manual") === "1" ? "manualbill" : "form"; } catch(e) { return "form"; } });
+  const [showUserMgmt, setShowUserMgmt] = useState(false);
+  React.useEffect(() => { window._setShowUserMgmt = setShowUserMgmt; return () => { delete window._setShowUserMgmt; }; }, []);
   // ดึง session มาใช้แทน staff dropdown
   const [sessionUser] = useState(() => {
     try {
@@ -3642,7 +3647,9 @@ function ThermalBillingApp() {
     w.focus();
     setTimeout(() => w.print(), 500);
   };
-  return /*#__PURE__*/React.createElement("div", {
+  return /*#__PURE__*/React.createElement(React.Fragment, null,
+    showUserMgmt && /*#__PURE__*/React.createElement(UserManagement, { onClose:()=>setShowUserMgmt(false) }),
+    /*#__PURE__*/React.createElement("div", {
     style: {
       fontFamily: "var(--font-sans,Arial,sans-serif)",
       minHeight: 500,
@@ -3673,7 +3680,7 @@ function ThermalBillingApp() {
       display: "flex",
       gap: 5
     }
-  }, (sessionUser === null || sessionUser === void 0 ? void 0 : sessionUser.role) === "admin" && view === "list" && /*#__PURE__*/React.createElement(ExportPanel, null), (sessionUser === null || sessionUser === void 0 ? void 0 : sessionUser.role) === "admin" && /*#__PURE__*/React.createElement("button", { onClick:()=>window.dispatchEvent(new CustomEvent("golod_open_users")), style:{ padding:"5px 13px", border:"0.5px solid #ccc", borderRadius:8, background:"#fff", color:"#555", fontSize:12, cursor:"pointer" }}, "\uD83D\uDC64 \u0E1C\u0E39\u0E49\u0E43\u0E0A\u0E49"), [["list", `รายการ (${bills.length})`], ["form", "+ บิลใหม่"], ["receipt", "🧾 ใบเสร็จ"], ["manualbill", "📝 บิลมือ"]].map(([v, l]) => /*#__PURE__*/React.createElement("button", {
+  }, (sessionUser === null || sessionUser === void 0 ? void 0 : sessionUser.role) === "admin" && view === "list" && /*#__PURE__*/React.createElement(ExportPanel, null), (sessionUser === null || sessionUser === void 0 ? void 0 : sessionUser.role) === "admin" && /*#__PURE__*/React.createElement("button", { onClick:()=>{ window._showUserMgmt=true; window._setShowUserMgmt&&window._setShowUserMgmt(true); }, style:{ padding:"5px 13px", border:"0.5px solid #ccc", borderRadius:8, background:"#fff", color:"#555", fontSize:12, cursor:"pointer" }}, "\uD83D\uDC64 \u0E1C\u0E39\u0E49\u0E43\u0E0A\u0E49"), [["list", `รายการ (${bills.length})`], ["form", "+ บิลใหม่"], ["receipt", "🧾 ใบเสร็จ"], ["manualbill", "📝 บิลมือ"]].map(([v, l]) => /*#__PURE__*/React.createElement("button", {
     key: v,
     onClick: () => v === "form" ? resetForm() : setView(v),
     style: {
@@ -4566,7 +4573,7 @@ function ThermalBillingApp() {
       fontSize: 11,
       color: "#888"
     }
-  }, "\uD83D\uDCA1 \u0E01\u0E14 \"\u0E1E\u0E34\u0E21\u0E1E\u0E4C Thermal\" \u0E08\u0E30\u0E40\u0E1B\u0E34\u0E14\u0E2B\u0E19\u0E49\u0E32\u0E15\u0E48\u0E32\u0E07\u0E43\u0E2B\u0E21\u0E48", /*#__PURE__*/React.createElement("br", null), "\u0E15\u0E31\u0E49\u0E07\u0E04\u0E48\u0E32 printer: \u0E02\u0E19\u0E32\u0E14 80mm \xD7 \u0E22\u0E32\u0E27\u0E2D\u0E31\u0E15\u0E42\u0E19\u0E21\u0E31\u0E15\u0E34", /*#__PURE__*/React.createElement("br", null), "\u0E1B\u0E34\u0E14 margin \u0E43\u0E19 print dialog")))));
+  }, "\uD83D\uDCA1 \u0E01\u0E14 \"\u0E1E\u0E34\u0E21\u0E1E\u0E4C Thermal\" \u0E08\u0E30\u0E40\u0E1B\u0E34\u0E14\u0E2B\u0E19\u0E49\u0E32\u0E15\u0E48\u0E32\u0E07\u0E43\u0E2B\u0E21\u0E48", /*#__PURE__*/React.createElement("br", null), "\u0E15\u0E31\u0E49\u0E07\u0E04\u0E48\u0E32 printer: \u0E02\u0E19\u0E32\u0E14 80mm \xD7 \u0E22\u0E32\u0E27\u0E2D\u0E31\u0E15\u0E42\u0E19\u0E21\u0E31\u0E15\u0E34", /*#__PURE__*/React.createElement("br", null), "\u0E1B\u0E34\u0E14 margin \u0E43\u0E19 print dialog"))))));
 }
 
 // ========== RECEIPT SYSTEM ==========
@@ -5286,18 +5293,7 @@ function ReceiptForm({ bills, staffCode, staffName }) {
 (function(){
   function doRender(){
     ReactDOM.render(React.createElement(ThermalBillingApp),document.getElementById('root'));
-    // User Management Modal (standalone)
-    var uDiv = document.createElement('div');
-    uDiv.id = 'golod-user-mgmt-root';
-    document.body.appendChild(uDiv);
-    function renderUserMgmt(show) {
-      ReactDOM.render(
-        show ? React.createElement(UserManagement, { onClose: function(){ renderUserMgmt(false); } }) : React.createElement('span',null),
-        uDiv
-      );
-    }
-    renderUserMgmt(false);
-    window.addEventListener('golod_open_users', function(){ renderUserMgmt(true); });
+
   }
   try {
     // render ก่อนทันที ไม่รอ sync
