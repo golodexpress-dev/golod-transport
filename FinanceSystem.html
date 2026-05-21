@@ -398,9 +398,18 @@ tr:nth-child(even) td{background:#fafafa}
 // ======= GLOBAL DATA =======
 const fmt=n=>Math.round(parseFloat(n)||0).toLocaleString("th-TH");
 function today(){const d=new Date();return d.getFullYear()+"-"+String(d.getMonth()+1).padStart(2,"0")+"-"+String(d.getDate()).padStart(2,"0");}
-function daysDiff(dt){if(!dt)return 0;const d=new Date(dt.replace(/-/g,"/"));return Math.floor((Date.now()-d)/86400000);}
-function dateAdd(dt,n){const d=new Date(dt.replace(/-/g,"/"));d.setDate(d.getDate()+n);return d.getFullYear()+"-"+String(d.getMonth()+1).padStart(2,"0")+"-"+String(d.getDate()).padStart(2,"0");}
-function thDate(dt){if(!dt)return"—";const[y,m,d]=dt.split("-");return parseInt(d)+"/"+parseInt(m)+"/"+y;}
+// parseDate: รองรับ "2026-05-18" (ISO), "18/5/2569" (วัน/เดือน/พ.ศ.), "18/5/2026"
+function parseDate(dt){
+  if(!dt)return null;
+  const s=String(dt).trim();
+  if(/^\d{4}-\d{2}-\d{2}/.test(s)){const[y,m,d]=s.split("-");return new Date(parseInt(y),parseInt(m)-1,parseInt(d));}
+  if(/\d{1,2}\/\d{1,2}\/\d{2,4}/.test(s)){const p=s.split("/");let y=parseInt(p[2]),m=parseInt(p[1]),d=parseInt(p[0]);if(y>2400)y-=543;return new Date(y,m-1,d);}
+  const fb=new Date(s);return isNaN(fb)?null:fb;
+}
+function toISO(dt){const d=parseDate(dt);if(!d)return"";return d.getFullYear()+"-"+String(d.getMonth()+1).padStart(2,"0")+"-"+String(d.getDate()).padStart(2,"0");}
+function daysDiff(dt){const d=parseDate(dt);if(!d||isNaN(d))return 0;return Math.floor((Date.now()-d.getTime())/86400000);}
+function dateAdd(dt,n){const d=parseDate(dt)||new Date();d.setDate(d.getDate()+n);return d.getFullYear()+"-"+String(d.getMonth()+1).padStart(2,"0")+"-"+String(d.getDate()).padStart(2,"0");}
+function thDate(dt){if(!dt)return"—";const d=parseDate(dt);if(!d||isNaN(d))return String(dt);return d.getDate()+"/"+(d.getMonth()+1)+"/"+(d.getFullYear()+543);}
 
 // slip statuses
 function slipStatus(s){
@@ -446,9 +455,10 @@ function billToIncome(b) {
   const isTransfer  = method === "transfer" || method === "dest_transfer";
   const isCredit    = method === "credit";
   const status = isCredit ? "credit" : (isTransfer && !isDelivered) ? "pending" : "received";
+  const isoDate = toISO(b.date || "");
   return {
     id: "fb_" + b.billNo,
-    date: b.date || "",
+    date: isoDate,
     billNo: b.billNo || "",
     customer: b.senderName || b.receiverName || "",
     branch,
@@ -462,14 +472,17 @@ function billToIncome(b) {
 
 // แปลง bill ที่ยังไม่ได้สลิป → slip entry
 function billToSlip(b) {
-  const branchRaw = b.branch || "กรุงเทพ";
-  const branch = BRANCH_CODE[branchRaw] || "bkk";
+  const clerkInit = (b.clerkCode||"")[0]||"";
+  const CLERK_BRANCH_MAP = {A:"bkk",B:"bkk",N:"bkk",P:"bkk",H:"ssk",S:"ssk",K:"krt",BA:"bkk",BB:"bkk",KA:"krt"};
+  const branchRaw = b.branch || "";
+  const branch = BRANCH_CODE[branchRaw] || CLERK_BRANCH_MAP[b.clerkCode] || CLERK_BRANCH_MAP[clerkInit] || "bkk";
+  const isoDate = toISO(b.date || "");
   return {
     id: "fbs_" + b.billNo,
     billNo: b.billNo || "",
     customer: b.senderName || b.receiverName || "",
     amount: parseFloat(b.freightNet) || 0,
-    deliveredDate: b.date || today(),
+    deliveredDate: isoDate || today(),
     slipConfirmed: b.status === "delivered",
     note: "",
     branch,
@@ -503,10 +516,19 @@ function syncBillsToFinance(bills) {
     if (!b.billNo || !b.freightNet) return;
     const inc = billToIncome(b);
     if (inc.amount > 0) INCOMES.unshift(inc);
-    // สลิปค้าง: เฉพาะ transfer/dest_transfer ที่ยังไม่ delivered
-    if ((inc.method === "transfer" || inc.method === "dest_transfer") && !inc.slipConfirmed) {
+    // สลิปค้าง: transfer (จาก Firebase) ที่ยังไม่ delivered
+    const rawPay = b.freightPay || "";
+    const isTransferBill = rawPay === "transfer" || rawPay === "dest_transfer"
+                        || inc.method === "transfer" || inc.method === "dest_transfer";
+    if (isTransferBill && b.status !== "delivered" && b.status !== "returned") {
       SLIPS.unshift(billToSlip(b));
     }
+  });
+  // เรียง SLIPS ล่าสุดก่อน
+  SLIPS.sort((a,b)=>{
+    const da=parseDate(a.deliveredDate), db=parseDate(b.deliveredDate);
+    if(!da||!db)return 0;
+    return db.getTime()-da.getTime();
   });
 
   setFbStatus("🔄 sync " + bills.length + " บิล ✓", "#9FE1CB");
@@ -676,7 +698,12 @@ function renderDashboard(){
 function renderSlip(){
   const q=(document.getElementById("slip-search")?.value||"").toLowerCase();
   const f=document.getElementById("slip-filter")?.value||"all";
-  let data=SLIPS.filter(s=>{
+  // เรียงล่าสุดก่อนเสมอ
+  const sortedSlips=[...SLIPS].sort((a,b)=>{
+    const da=parseDate(a.deliveredDate),db=parseDate(b.deliveredDate);
+    if(!da||!db)return 0; return db.getTime()-da.getTime();
+  });
+  let data=sortedSlips.filter(s=>{
     if(q&&!s.billNo.toLowerCase().includes(q)&&!s.customer.toLowerCase().includes(q))return false;
     if(f==="pending")return !s.slipConfirmed;
     if(f==="confirmed")return s.slipConfirmed;
@@ -685,7 +712,7 @@ function renderSlip(){
     if(f==="late7")return !s.slipConfirmed&&days>=7;
     return true;
   });
-  const pending=SLIPS.filter(s=>!s.slipConfirmed);
+  const pending=sortedSlips.filter(s=>!s.slipConfirmed);
   const late=pending.filter(s=>daysDiff(s.deliveredDate)>=3);
   const pendingAmt=pending.reduce((s,x)=>s+x.amount,0);
   // alerts
