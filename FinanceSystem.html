@@ -4,6 +4,11 @@
 <meta charset="UTF-8"/>
 <meta name="viewport" content="width=device-width,initial-scale=1"/>
 <title>โกโลด — ระบบการเงิน</title>
+<script src="session.js"></script>
+<script src="firebase-app-compat.js"></script>
+<script src="firebase-firestore-compat.js"></script>
+<script src="golod-firebase.js?v=2"></script>
+<script>try{GolodDB.init();}catch(e){}</script>
 <style>
 *{box-sizing:border-box;margin:0;padding:0}
 body{font-family:Arial,sans-serif;background:#f5f5f2;min-height:100vh}
@@ -91,15 +96,12 @@ tr:nth-child(even) td{background:#fafafa}
 /* responsive */
 @media(max-width:600px){.g3{grid-template-columns:1fr 1fr}.g4{grid-template-columns:1fr 1fr}.hdr-pills{display:none}}
 </style>
-<script src="session.js"></script>
-<script>
-var _S = GolodSession.require("finance","finance");
-if(!_S) throw new Error("no session");
-</script>
 </head>
 <body>
 <div id="golod-session-bar" style="background:#0F6E56;padding:0 14px;display:flex;align-items:center;gap:10px;height:44px;position:sticky;top:0;z-index:999">
   <div style="color:#fff;font-size:13px;font-weight:700;flex:1">โกโลด ทรานสปอร์ต <span style="font-size:10px;color:#9FE1CB;margin-left:6px">ระบบการเงิน</span></div>
+  <span id="fb-sync-status" style="font-size:10px;color:#9FE1CB;background:rgba(255,255,255,.1);padding:3px 9px;border-radius:20px">⏳ กำลังเชื่อม Firebase...</span>
+  <button onclick="loadFirebaseBills()" style="font-size:11px;color:#9FE1CB;background:rgba(255,255,255,.1);border:none;padding:3px 10px;border-radius:20px;cursor:pointer;font-family:Arial,sans-serif">🔄 sync</button>
   <div id="golod-user-chip"></div>
   <a href="AuthSystem.html" style="font-size:11px;color:#9FE1CB;text-decoration:none;background:rgba(255,255,255,.15);padding:3px 10px;border-radius:20px">← เมนูหลัก</a>
   <button onclick="clearAllData()" style="font-size:11px;color:#fff;background:rgba(220,50,50,.5);border:none;padding:3px 10px;border-radius:20px;cursor:pointer;font-family:Arial,sans-serif">🗑 ล้างข้อมูลทั้งหมด</button>
@@ -124,8 +126,11 @@ if(!_S) throw new Error("no session");
   <div class="tab" onclick="showPage('pl')">📈 กำไร-ขาดทุน</div>
 </div>
 
-<!-- ===== DASHBOARD ===== -->
 <div class="page active" id="page-dashboard">
+  <div id="fb-banner" style="background:#E1F5EE;border:0.5px solid #9FE1CB;border-radius:8px;padding:8px 14px;margin-bottom:10px;font-size:12px;color:#085041;display:flex;align-items:center;justify-content:space-between">
+    <span>🔗 เชื่อมต่อ Firebase Firestore — รายรับดึงจากบิลจริงอัตโนมัติ</span>
+    <span id="fb-bill-count" style="font-weight:600"></span>
+  </div>
   <div class="branch-tabs" id="db-branch-tabs">
     <div class="btab active" onclick="setDbBranch('all',this)">ทั้งหมด</div>
     <div class="btab" onclick="setDbBranch('bkk',this)">กรุงเทพ</div>
@@ -416,30 +421,155 @@ function slipRowCls(s){
 // ใช้ window.storage เพื่อเก็บข้อมูลถาวร (ไม่หายเมื่อรีเฟรช)
 const STORE_KEY = "golod_finance_v1";
 
+// freightPay mapping จาก Firebase → label
+const PAY_METHOD_MAP = {
+  origin:   "origin",
+  dest:     "dest_cash",
+  dest_cash:"dest_cash",
+  dest_transfer:"dest_transfer",
+  transfer: "transfer",
+  credit:   "credit",
+  cod:      "dest_cash",
+};
+const BRANCH_CODE = {
+  "กรุงเทพ":"bkk","Bangkok":"bkk","bkk":"bkk",
+  "นครราชสีมา":"krt","Korat":"krt","krt":"krt",
+  "ศรีสะเกษ":"ssk","Sisaket":"ssk","ssk":"ssk",
+};
+
+// แปลง bill จาก Firebase → income entry สำหรับ Finance
+function billToIncome(b) {
+  const branchRaw = b.branch || (b.clerkCode ? ({A:"กรุงเทพ",B:"กรุงเทพ",N:"กรุงเทพ",P:"กรุงเทพ",H:"ศรีสะเกษ",S:"ศรีสะเกษ"}[b.clerkCode[0]] || "กรุงเทพ") : "กรุงเทพ");
+  const branch = BRANCH_CODE[branchRaw] || "bkk";
+  const method = PAY_METHOD_MAP[b.freightPay] || "origin";
+  const isDelivered = b.status === "delivered";
+  const isTransfer  = method === "transfer" || method === "dest_transfer";
+  const isCredit    = method === "credit";
+  const status = isCredit ? "credit" : (isTransfer && !isDelivered) ? "pending" : "received";
+  return {
+    id: "fb_" + b.billNo,
+    date: b.date || "",
+    billNo: b.billNo || "",
+    customer: b.senderName || b.receiverName || "",
+    branch,
+    method,
+    amount: parseFloat(b.freightNet) || 0,
+    slipConfirmed: isDelivered || (!isTransfer && !isCredit),
+    status,
+    _fromFirebase: true,
+  };
+}
+
+// แปลง bill ที่ยังไม่ได้สลิป → slip entry
+function billToSlip(b) {
+  const branchRaw = b.branch || "กรุงเทพ";
+  const branch = BRANCH_CODE[branchRaw] || "bkk";
+  return {
+    id: "fbs_" + b.billNo,
+    billNo: b.billNo || "",
+    customer: b.senderName || b.receiverName || "",
+    amount: parseFloat(b.freightNet) || 0,
+    deliveredDate: b.date || today(),
+    slipConfirmed: b.status === "delivered",
+    note: "",
+    branch,
+    _fromFirebase: true,
+  };
+}
+
+// ======= FIREBASE SYNC =======
+let FB_BILLS = [];   // bills ดิบจาก Firebase
+let fbSyncStatus = "idle"; // idle | loading | ok | error
+
+function setFbStatus(msg, color) {
+  const el = document.getElementById("fb-sync-status");
+  if (el) { el.textContent = msg; el.style.color = color || "#fff"; }
+}
+
+function updateBillCount(n) {
+  const el = document.getElementById("fb-bill-count");
+  if (el) el.textContent = n > 0 ? n + " บิล" : "";
+  const banner = document.getElementById("fb-banner");
+  if (banner) banner.style.background = n > 0 ? "#E1F5EE" : "#FFF8E7";
+}
+
+function syncBillsToFinance(bills) {
+  FB_BILLS = bills;
+  // merge: ลบ entry ที่มาจาก Firebase เก่าออก แล้วใส่ใหม่
+  INCOMES = INCOMES.filter(x => !x._fromFirebase);
+  SLIPS   = SLIPS.filter(x => !x._fromFirebase);
+
+  bills.forEach(b => {
+    if (!b.billNo || !b.freightNet) return;
+    const inc = billToIncome(b);
+    if (inc.amount > 0) INCOMES.unshift(inc);
+    // สลิปค้าง: เฉพาะ transfer/dest_transfer ที่ยังไม่ delivered
+    if ((inc.method === "transfer" || inc.method === "dest_transfer") && !inc.slipConfirmed) {
+      SLIPS.unshift(billToSlip(b));
+    }
+  });
+
+  setFbStatus("🔄 sync " + bills.length + " บิล ✓", "#9FE1CB");
+  updateBillCount(bills.length);
+  fbSyncStatus = "ok";
+  initBemDates();
+  renderDashboard();
+  if (document.getElementById("page-income").classList.contains("active")) renderIncome();
+  if (document.getElementById("page-slip").classList.contains("active")) renderSlip();
+}
+
+function loadFirebaseBills() {
+  if (typeof GolodDB === "undefined") {
+    setFbStatus("⚠ Firestore ไม่พร้อม", "#EF9F27");
+    return;
+  }
+  fbSyncStatus = "loading";
+  setFbStatus("⏳ กำลังโหลดบิล...", "#9FE1CB");
+  function doLoad() {
+    GolodDB.getBillsNew(3000).then(function(bills) {
+      syncBillsToFinance(bills);
+    }).catch(function(e) {
+      setFbStatus("❌ โหลดไม่สำเร็จ", "#E24B4A");
+      fbSyncStatus = "error";
+      console.error("[Finance] Firebase load error:", e);
+    });
+  }
+  if (typeof GolodDB.ready === "function") {
+    GolodDB.ready(doLoad);
+  } else {
+    setTimeout(doLoad, 1500);
+  }
+}
+
 async function loadAllData() {
+  // 1. โหลดข้อมูลที่กรอกเองจาก storage ก่อน (รายจ่าย, BeM, BBL, เครดิต)
   try {
     const result = await window.storage.get(STORE_KEY);
     if (result && result.value) {
       const saved = JSON.parse(result.value);
-      if (saved.SLIPS)    SLIPS        = saved.SLIPS;
-      if (saved.CREDITS)  CREDITS      = saved.CREDITS;
-      if (saved.INCOMES)  INCOMES      = saved.INCOMES;
-      if (saved.EXPENSES) EXPENSES     = saved.EXPENSES;
+      // รายรับ/สลิปจาก Firebase ไม่ต้องโหลดจาก storage (จะ sync ใหม่เสมอ)
+      if (saved.CREDITS)     CREDITS     = saved.CREDITS;
+      if (saved.EXPENSES)    EXPENSES    = saved.EXPENSES;
       if (saved.BBL_ENTRIES) BBL_ENTRIES = saved.BBL_ENTRIES;
       if (saved.BEM_ENTRIES) BEM_ENTRIES = saved.BEM_ENTRIES;
     }
-  } catch(e) {
-    // ยังไม่มีข้อมูลบันทึก — เริ่มด้วย array ว่าง (ปกติ)
-  }
-  // render หลังโหลดเสร็จ
+  } catch(e) {}
+
+  // 2. render ด้วยข้อมูลที่มีก่อน
   initBemDates();
   renderDashboard();
+
+  // 3. sync bills จาก Firebase (async — จะ re-render เมื่อได้ข้อมูล)
+  loadFirebaseBills();
 }
 
 async function saveAllData() {
   try {
+    // บันทึกเฉพาะข้อมูลที่กรอกเอง — INCOMES/SLIPS จาก Firebase ไม่ต้องบันทึก
     await window.storage.set(STORE_KEY, JSON.stringify({
-      SLIPS, CREDITS, INCOMES, EXPENSES, BBL_ENTRIES, BEM_ENTRIES
+      CREDITS, EXPENSES, BBL_ENTRIES, BEM_ENTRIES,
+      // บิลสลิปที่กรอกเองเท่านั้น
+      MANUAL_SLIPS: SLIPS.filter(x => !x._fromFirebase),
     }));
   } catch(e) {
     console.error("บันทึกข้อมูลไม่สำเร็จ:", e);
