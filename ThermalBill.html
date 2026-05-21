@@ -15,7 +15,6 @@ input[type=number]{-moz-appearance:textfield;appearance:textfield;}
 input[type=number]::-webkit-outer-spin-button,input[type=number]::-webkit-inner-spin-button{-webkit-appearance:none;margin:0;}
 </style>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
-  <script src="https://cdn.jsdelivr.net/npm/qrcode/build/qrcode.min.js"></script>
 </head><body>
 <div class="golod-bar no-print">
   <h1>โกโลด ทรานสปอร์ต — ออกบิล Thermal 80mm</h1>
@@ -999,72 +998,54 @@ function SecTitle({
 // QR Code component สำหรับ thermal print
 function QRCodeBox({ data, size }) {
   var sz = size || 80;
-  const canvasRef = React.useRef(null);
-  const [ready, setReady] = React.useState(false);
+  const divRef = React.useRef(null);
+  const [dataUrl, setDataUrl] = React.useState(null);
 
   React.useEffect(() => {
-    if (!data || !canvasRef.current) return;
-    var canvas = canvasRef.current;
-    // วิธีที่ 1: ใช้ QRCode npm (window.QRCode จาก qrcode.min.js)
-    if (window.QRCode && typeof window.QRCode.toCanvas === "function") {
-      window.QRCode.toCanvas(canvas, data, {
-        width: sz,
-        margin: 1,
-        color: { dark: "#000000", light: "#ffffff" }
-      }, function(err) {
-        if (!err) { setReady(true); }
+    if (!data || !divRef.current) return;
+    var el = divRef.current;
+    el.innerHTML = "";
+    try {
+      new QRCode(el, {
+        text: data,
+        width: sz * 2,
+        height: sz * 2,
+        colorDark: "#000000",
+        colorLight: "#ffffff",
+        correctLevel: QRCode.CorrectLevel.M
       });
-      return;
-    }
-    // วิธีที่ 2: ใช้ qrcodejs (QRCode constructor)
-    if (window.QRCode && typeof window.QRCode === "function") {
-      var ctx = canvas.getContext("2d");
-      canvas.width = sz;
-      canvas.height = sz;
-      // สร้าง div ชั่วคราว แต่วางใน document จริงๆ (display:block, ขนาดเล็ก)
-      var wrap = document.createElement("div");
-      wrap.style.cssText = "position:absolute;left:0;top:0;width:" + sz + "px;height:" + sz + "px;overflow:hidden;opacity:0.01;pointer-events:none;";
-      document.body.appendChild(wrap);
-      try {
-        new window.QRCode(wrap, {
-          text: data, width: sz, height: sz,
-          colorDark: "#000000", colorLight: "#ffffff",
-          correctLevel: window.QRCode.CorrectLevel.M
-        });
-      } catch(e) {
-        document.body.removeChild(wrap);
+    } catch(e) { return; }
+    // poll หา canvas หรือ img แล้วแปลงเป็น dataUrl เก็บ state
+    var n = 0;
+    var t = setInterval(function() {
+      n++;
+      var cv = el.querySelector("canvas");
+      if (cv && cv.width > 0) {
+        try { setDataUrl(cv.toDataURL("image/png")); } catch(e) {}
+        clearInterval(t);
         return;
       }
-      var attempts = 0;
-      var poll = setInterval(function() {
-        attempts++;
-        var c2 = wrap.querySelector("canvas");
-        if (c2 && c2.width > 0) {
-          ctx.drawImage(c2, 0, 0, sz, sz);
-          clearInterval(poll);
-          document.body.removeChild(wrap);
-          setReady(true);
-          return;
-        }
-        if (attempts > 20) {
-          clearInterval(poll);
-          document.body.removeChild(wrap);
-        }
-      }, 50);
-      return;
-    }
+      var im = el.querySelector("img");
+      if (im && im.complete && im.naturalWidth > 0) {
+        setDataUrl(im.src);
+        clearInterval(t);
+        return;
+      }
+      if (n > 30) clearInterval(t);
+    }, 60);
+    return () => clearInterval(t);
   }, [data, sz]);
 
-  return React.createElement("canvas", {
-    ref: canvasRef,
-    width: sz,
-    height: sz,
-    style: {
-      display: "block",
-      margin: "0 auto",
-      imageRendering: "pixelated",
-      opacity: ready ? 1 : 0
-    }
+  if (dataUrl) {
+    return React.createElement("img", {
+      src: dataUrl, width: sz, height: sz,
+      style: { display:"block", margin:"0 auto" }
+    });
+  }
+  // div ซ่อนไว้ให้ QRCode render จริง (ไม่ใช้ display:none)
+  return React.createElement("div", { ref: divRef,
+    style: { width: sz, height: sz, overflow:"hidden",
+             position:"relative", margin:"0 auto" }
   });
 }
 
