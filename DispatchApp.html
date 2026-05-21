@@ -131,6 +131,36 @@ var BRANCHES = [
 ];
 var BRANCH_LABEL = {bkk:"กรุงเทพ",ptm:"ปทุมธานี",krt:"นครราชสีมา",ssk:"ศรีสะเกษ"};
 
+// ===== ZONE MAP (เหมือน SalesReport) =====
+var ZONE_MAP = {
+  BKK:    {label:"BKK",    provinces:["กรุงเทพมหานคร","ปทุมธานี","นนทบุรี","สมุทรปราการ","สมุทรสาคร"]},
+  West:   {label:"West",   provinces:["ราชบุรี","นครปฐม","สุพรรณบุรี","กาญจนบุรี"]},
+  South:  {label:"South",  provinces:["สมุทรสงคราม","เพชรบุรี","ประจวบคีรีขันธ์","ชุมพร","ระนอง","สุราษฎร์ธานี","นครศรีธรรมราช","กระบี่","พังงา","ภูเก็ต","ตรัง","พัทลุง","สตูล","สงขลา","ปัตตานี","ยะลา","นราธิวาส"]},
+  North:  {label:"North",  provinces:["นครสวรรค์","กำแพงเพชร","อุทัยธานี","ตาก","พิษณุโลก","พิจิตร","อุตรดิตถ์","สุโขทัย","เพชรบูรณ์","ลำปาง","ลำพูน","เชียงใหม่","แพร่","น่าน","แม่ฮ่องสอน","เชียงราย","พะเยา"]},
+  East:   {label:"East",   provinces:["ชลบุรี","ระยอง","จันทบุรี","ตราด","สระแก้ว","ฉะเชิงเทรา","นครนายก","ปราจีนบุรี"]},
+  Central:{label:"Central",provinces:["ชัยนาท","ลพบุรี","สระบุรี","อ่างทอง","สิงห์บุรี","พระนครศรีอยุธยา"]},
+  Korat:  {label:"Korat",  provinces:["นครราชสีมา"]},
+  LEsan:  {label:"LEsan",  provinces:["สุรินทร์","ศรีสะเกษ","อุบลราชธานี","ยโสธร","อำนาจเจริญ"]},
+  Esan:   {label:"Esan",   provinces:["ชัยภูมิ","หนองบัวลำภู","อุดรธานี","หนองคาย","ขอนแก่น","บึงกาฬ","สกลนคร","มหาสารคาม","ร้อยเอ็ด","กาฬสินธุ์","มุกดาหาร","นครพนม"]}
+};
+
+function getZone(prov, amphoe){
+  prov = prov||""; amphoe = amphoe||"";
+  if(prov==="เลย"){
+    return ["ด่านซ้าย","นาแห้ว","ภูเรือ"].indexOf(amphoe)>=0 ? "North" : "Esan";
+  }
+  if(prov==="บุรีรัมย์"){
+    return ["บ้านใหม่ไชยพจน์","พุทไธสง","นาโพธิ์"].indexOf(amphoe)>=0 ? "Esan" : "LEsan";
+  }
+  if(prov==="เพชรบูรณ์"){
+    return amphoe==="น้ำหนาว" ? "Esan" : "North";
+  }
+  for(var z in ZONE_MAP){
+    if(ZONE_MAP[z].provinces.indexOf(prov)>=0) return z;
+  }
+  return "";
+}
+
 var STATUS_LIST = [
   {v:"issued",            l:"ออกบิลรับของ",        cls:"st-issued"},
   {v:"ออกบิลรับของ",      l:"ออกบิลรับของ",        cls:"st-issued"},
@@ -354,27 +384,32 @@ function renderApp(){
       +'</div>';
   }
 
+  var ZONE_COLOR = {BKK:"#c0392b",West:"#d35400",South:"#27ae60",North:"#2471a3",East:"#8e44ad",Central:"#0f6e56",Korat:"#b7950b",LEsan:"#a93226",Esan:"#1a5276"};
   var rows = filtered.map(function(b){
     var checked = selectedBills[b.billNo]?"checked":"";
     var stCls   = stClass(b.status);
-    var dest    = (b.destAmphoe||b.form.destAmphoe||"")+"·"+(b.destProv||b.form.destProv||"");
+    var destAmphoe = b.destAmphoe||b.form.destAmphoe||"";
+    var destProv   = b.destProv||b.form.destProv||"";
+    var dest    = destAmphoe+"·"+destProv;
     var sender  = b.senderName||b.form.senderName||"";
     var receiver= b.receiverName||b.form.receiverName||"";
     var freight = parseFloat(b.freightNet||0);
     var driver  = b.driverName||b.driver||"—";
-    var branch  = BRANCH_LABEL[b.branch||"bkk"]||"กทม.";
+    var zone    = getZone(destProv, destAmphoe);
+    var zoneClr = ZONE_COLOR[zone]||"#888";
+    var zoneHTML= zone ? '<span style="display:inline-block;padding:2px 7px;border-radius:10px;font-size:10px;font-weight:700;background:'+zoneClr+'22;color:'+zoneClr+'">'+zone+'</span>' : '—';
     var ds      = billDateStr(b)||"—";
     return '<tr>'
       +'<td><input type="checkbox" class="chk" '+(checked?"checked":"")
       +' onchange="toggleBill(\''+b.billNo+'\')" data-id="'+b.billNo+'"></td>'
       +'<td style="font-weight:600;white-space:nowrap">'+b.billNo+'</td>'
       +'<td style="white-space:nowrap;color:#888;font-size:11px">'+ds+'</td>'
-      +'<td>'+sender+'</td>'
       +'<td>'+receiver+'</td>'
       +'<td style="white-space:nowrap">'+dest+'</td>'
       +'<td style="text-align:right;font-weight:600">'+freight.toLocaleString("th-TH")+'</td>'
       +'<td><span class="badge '+stCls+'">'+b.status+'</span></td>'
-      +'<td>'+branch+'</td>'
+      +'<td style="color:#555">'+sender+'</td>'
+      +'<td>'+zoneHTML+'</td>'
       +'<td style="color:#666">'+driver+'</td>'
       +'<td>'
       +'<button class="btn btn-gray" onclick="openStatusModal(\''+b.billNo+'\')">อัปเดต</button>'
@@ -394,8 +429,8 @@ function renderApp(){
     +'</div>'
     +actionBar
     +'<div style="overflow-x:auto"><table>'
-    +'<tr><th></th><th>เลขบิล</th><th>วันที่</th><th>ผู้ส่ง</th><th>ผู้รับ</th><th>ปลายทาง</th>'
-    +'<th>ค่าส่ง</th><th>สถานะ</th><th>สาขา</th><th>คนรถ</th><th>จัดการ</th></tr>'
+    +'<tr><th></th><th>เลขบิล</th><th>วันที่</th><th>ผู้รับ</th><th>ปลายทาง</th>'
+    +'<th>ค่าส่ง</th><th>สถานะ</th><th>ผู้ส่ง</th><th>Zone</th><th>คนรถ</th><th>จัดการ</th></tr>'
     +rows
     +'</table></div>'
     +'<div style="font-size:11px;color:#888;margin-top:8px">แสดง '+filtered.length+' บิล</div>'

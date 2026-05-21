@@ -41,19 +41,26 @@ td:first-child{text-align:left;font-weight:600}
 tr:hover td{background:#f8fffe}
 tr.total-row td{background:#f0faf5;font-weight:700;border-top:2px solid #d0ede5}
 .badge{display:inline-block;padding:2px 7px;border-radius:10px;font-size:10px;font-weight:600}
-.badge.bkk{background:#fde8e8;color:#c0392b}
-.badge.west{background:#fef3e8;color:#d35400}
-.badge.south{background:#e8f8e8;color:#27ae60}
-.badge.north{background:#e8f0fe;color:#2471a3}
-.badge.east{background:#f0e8fe;color:#8e44ad}
-.badge.central{background:#e8fef8;color:#0f6e56}
-.badge.korat{background:#fefee8;color:#b7950b}
-.badge.lesan{background:#fee8f0;color:#c0392b}
-.badge.esan{background:#e8f4fe;color:#1a5276}
-.tabs{display:flex;gap:4px;margin-bottom:12px}
-.tab{padding:7px 16px;border-radius:7px 7px 0 0;cursor:pointer;font-size:12px;font-weight:600;background:#e8f5f0;color:#0F6E56;border:1px solid #d0ede5;border-bottom:none}
-.tab.active{background:#0F6E56;color:#fff}
+.zone-link{cursor:pointer;text-decoration:none;transition:opacity .15s}
+.zone-link:hover{opacity:.75}
+.zone-total-link{cursor:pointer;color:#0F6E56;font-weight:700;text-decoration:underline dotted;white-space:nowrap}
+.zone-total-link:hover{color:#0a4f3e}
 .loading{text-align:center;padding:40px;color:#999}
+
+/* Modal รายการบิลของ Zone */
+.zone-modal-bg{display:none;position:fixed;inset:0;background:rgba(0,0,0,.55);z-index:200;align-items:flex-start;justify-content:center;padding:20px;overflow-y:auto}
+.zone-modal-bg.show{display:flex}
+.zone-modal{background:#fff;border-radius:12px;width:100%;max-width:900px;max-height:90vh;display:flex;flex-direction:column;box-shadow:0 8px 40px rgba(0,0,0,.18)}
+.zone-modal-head{padding:14px 18px;background:#0F6E56;color:#fff;border-radius:12px 12px 0 0;display:flex;align-items:center;gap:10px}
+.zone-modal-head .ztitle{font-size:14px;font-weight:700;flex:1}
+.zone-modal-head button{background:rgba(255,255,255,.2);border:none;color:#fff;padding:4px 10px;border-radius:6px;cursor:pointer;font-size:12px}
+.zone-modal-body{padding:14px 16px;overflow-y:auto;flex:1}
+.zone-modal-body table th{position:sticky;top:0;z-index:1}
+.zone-modal-summary{display:flex;gap:10px;flex-wrap:wrap;margin-bottom:12px;padding-bottom:10px;border-bottom:1px solid #e8f5f0}
+.zs-box{background:#f8fffe;border:1px solid #d0ede5;border-radius:7px;padding:7px 12px;text-align:center;min-width:90px}
+.zs-box .zl{font-size:10px;color:#666}
+.zs-box .zv{font-size:15px;font-weight:800;color:#0F6E56}
+
 @media(max-width:600px){.stat-grid{grid-template-columns:repeat(2,1fr)}}
 </style>
 </head>
@@ -65,6 +72,37 @@ tr.total-row td{background:#f0faf5;font-weight:700;border-top:2px solid #d0ede5}
 </div>
 <div class="container">
   <div id="report-wrap"><div class="loading">⏳ กำลังโหลดข้อมูล...</div></div>
+</div>
+
+<!-- Zone bill modal -->
+<div class="zone-modal-bg" id="zone-modal-bg" onclick="closeZoneModal(event)">
+  <div class="zone-modal" id="zone-modal" onclick="event.stopPropagation()">
+    <div class="zone-modal-head">
+      <span class="ztitle" id="zone-modal-title">รายการบิล</span>
+      <span id="zone-modal-sub" style="font-size:11px;opacity:.8"></span>
+      <button onclick="closeZoneModal()">✕ ปิด</button>
+    </div>
+    <div class="zone-modal-body">
+      <div class="zone-modal-summary" id="zone-modal-summary"></div>
+      <div style="overflow-x:auto">
+        <table id="zone-modal-table">
+          <thead>
+            <tr>
+              <th style="text-align:left">#</th>
+              <th style="text-align:left">เลขบิล</th>
+              <th style="text-align:left">วันที่</th>
+              <th style="text-align:left">ผู้รับ</th>
+              <th style="text-align:left">ปลายทาง</th>
+              <th>วิธีชำระ</th>
+              <th>ค่าส่ง</th>
+            </tr>
+          </thead>
+          <tbody id="zone-modal-rows"></tbody>
+          <tfoot id="zone-modal-foot"></tfoot>
+        </table>
+      </div>
+    </div>
+  </div>
 </div>
 
 <script>
@@ -79,39 +117,34 @@ tr.total-row td{background:#f0faf5;font-weight:700;border-top:2px solid #d0ede5}
 
 // ===== ZONE DEFINITION =====
 var ZONE_MAP = {
-  BKK: {label:"BKK", color:"bkk", provinces:["กรุงเทพมหานคร","ปทุมธานี","นนทบุรี","สมุทรปราการ","สมุทรสาคร"]},
-  West: {label:"West", color:"west", provinces:["ราชบุรี","นครปฐม","สุพรรณบุรี","กาญจนบุรี"]},
-  South: {label:"South", color:"south", provinces:["สมุทรสงคราม","เพชรบุรี","ประจวบคีรีขันธ์","ชุมพร","ระนอง","สุราษฎร์ธานี","นครศรีธรรมราช","กระบี่","พังงา","ภูเก็ต","ตรัง","พัทลุง","สตูล","สงขลา","ปัตตานี","ยะลา","นราธิวาส"]},
-  North: {label:"North", color:"north", provinces:["นครสวรรค์","กำแพงเพชร","อุทัยธานี","ตาก","พิษณุโลก","พิจิตร","อุตรดิตถ์","สุโขทัย","เพชรบูรณ์","ลำปาง","ลำพูน","เชียงใหม่","แพร่","น่าน","แม่ฮ่องสอน","เชียงราย","พะเยา"],
-    special:{เลย:["ด่านซ้าย","นาแห้ว","ภูเรือ"]}},
-  East: {label:"East", color:"east", provinces:["ชลบุรี","ระยอง","จันทบุรี","ตราด","สระแก้ว","ฉะเชิงเทรา","นครนายก","ปราจีนบุรี"]},
-  Central: {label:"Central", color:"central", provinces:["ชัยนาท","ลพบุรี","สระบุรี","อ่างทอง","สิงห์บุรี","พระนครศรีอยุธยา"]},
-  Korat: {label:"Korat", color:"korat", provinces:["นครราชสีมา"]},
-  LEsan: {label:"LEsan", color:"lesan", provinces:["สุรินทร์","ศรีสะเกษ","อุบลราชธานี","ยโสธร","อำนาจเจริญ"],
-    special:{บุรีรัมย์:{exclude:["บ้านใหม่ไชยพจน์","พุทไธสง","นาโพธิ์"]}}},
-  Esan: {label:"Esan", color:"esan", provinces:["ชัยภูมิ","หนองบัวลำภู","อุดรธานี","หนองคาย","ขอนแก่น","บึงกาฬ","สกลนคร","มหาสารคาม","ร้อยเอ็ด","กาฬสินธุ์","มุกดาหาร","นครพนม"],
-    special:{บุรีรัมย์:{include:["บ้านใหม่ไชยพจน์","พุทไธสง","นาโพธิ์"]}, เลย:{exclude:["ด่านซ้าย","นาแห้ว","ภูเรือ"]}, เพชรบูรณ์:{include:["น้ำหนาว"]}}}
+  BKK:    {label:"BKK",    color:"bkk",     clr:"#c0392b", provinces:["กรุงเทพมหานคร","ปทุมธานี","นนทบุรี","สมุทรปราการ","สมุทรสาคร"]},
+  West:   {label:"West",   color:"west",    clr:"#d35400", provinces:["ราชบุรี","นครปฐม","สุพรรณบุรี","กาญจนบุรี"]},
+  South:  {label:"South",  color:"south",   clr:"#27ae60", provinces:["สมุทรสงคราม","เพชรบุรี","ประจวบคีรีขันธ์","ชุมพร","ระนอง","สุราษฎร์ธานี","นครศรีธรรมราช","กระบี่","พังงา","ภูเก็ต","ตรัง","พัทลุง","สตูล","สงขลา","ปัตตานี","ยะลา","นราธิวาส"]},
+  North:  {label:"North",  color:"north",   clr:"#2471a3", provinces:["นครสวรรค์","กำแพงเพชร","อุทัยธานี","ตาก","พิษณุโลก","พิจิตร","อุตรดิตถ์","สุโขทัย","เพชรบูรณ์","ลำปาง","ลำพูน","เชียงใหม่","แพร่","น่าน","แม่ฮ่องสอน","เชียงราย","พะเยา"]},
+  East:   {label:"East",   color:"east",    clr:"#8e44ad", provinces:["ชลบุรี","ระยอง","จันทบุรี","ตราด","สระแก้ว","ฉะเชิงเทรา","นครนายก","ปราจีนบุรี"]},
+  Central:{label:"Central",color:"central", clr:"#0f6e56", provinces:["ชัยนาท","ลพบุรี","สระบุรี","อ่างทอง","สิงห์บุรี","พระนครศรีอยุธยา"]},
+  Korat:  {label:"Korat",  color:"korat",   clr:"#b7950b", provinces:["นครราชสีมา"]},
+  LEsan:  {label:"LEsan",  color:"lesan",   clr:"#a93226", provinces:["สุรินทร์","ศรีสะเกษ","อุบลราชธานี","ยโสธร","อำนาจเจริญ"]},
+  Esan:   {label:"Esan",   color:"esan",    clr:"#1a5276", provinces:["ชัยภูมิ","หนองบัวลำภู","อุดรธานี","หนองคาย","ขอนแก่น","บึงกาฬ","สกลนคร","มหาสารคาม","ร้อยเอ็ด","กาฬสินธุ์","มุกดาหาร","นครพนม"]}
 };
 
 var BRANCH_MAP = {bkk:"กรุงเทพ", ptm:"ปทุมธานี", krt:"นครราชสีมา", ssk:"ศรีสะเกษ"};
 var PAY_TYPES = [
-  {key:"origin", label:"ต้นทาง", color:"#1D9E75"},
-  {key:"dest", label:"ปลายทาง", color:"#E67E22"},
-  {key:"transfer", label:"โอน", color:"#2471A3"},
-  {key:"credit", label:"เครดิต", color:"#8E44AD"},
-  {key:"cod", label:"COD", color:"#C0392B"}
+  {key:"origin",   label:"ต้นทาง",   color:"#1D9E75"},
+  {key:"dest",     label:"ปลายทาง",  color:"#E67E22"},
+  {key:"transfer", label:"โอน",      color:"#2471A3"},
+  {key:"credit",   label:"เครดิต",   color:"#8E44AD"},
+  {key:"cod",      label:"COD",      color:"#C0392B"}
 ];
+var PAY_LABEL = {origin:"ต้นทาง", dest:"ปลายทาง", transfer:"โอน", credit:"เครดิต", cod:"COD"};
 
 function getZone(prov, amphoe) {
   prov = prov||""; amphoe = amphoe||"";
-  // Special cases
   if(prov==="เลย"){
-    var northAmphoe=["ด่านซ้าย","นาแห้ว","ภูเรือ"];
-    return northAmphoe.indexOf(amphoe)>=0 ? "North" : "Esan";
+    return ["ด่านซ้าย","นาแห้ว","ภูเรือ"].indexOf(amphoe)>=0 ? "North" : "Esan";
   }
   if(prov==="บุรีรัมย์"){
-    var lesanExclude=["บ้านใหม่ไชยพจน์","พุทไธสง","นาโพธิ์"];
-    return lesanExclude.indexOf(amphoe)>=0 ? "Esan" : "LEsan";
+    return ["บ้านใหม่ไชยพจน์","พุทไธสง","นาโพธิ์"].indexOf(amphoe)>=0 ? "Esan" : "LEsan";
   }
   if(prov==="เพชรบูรณ์"){
     return amphoe==="น้ำหนาว" ? "Esan" : "North";
@@ -149,6 +182,12 @@ function parseBillDate(b){
   return null;
 }
 
+function fmtBillDate(b){
+  var d=parseBillDate(b);
+  if(!d) return "—";
+  return d.getDate()+"/"+(d.getMonth()+1)+"/"+d.getFullYear();
+}
+
 function filterByDate(bills, from, to){
   return bills.filter(function(b){
     var d=parseBillDate(b);
@@ -158,15 +197,25 @@ function filterByDate(bills, from, to){
   });
 }
 
+function getBillPay(b){
+  return b.freightPay||(b.form&&typeof b.form==="object"?b.form.freightPay:null)||"origin";
+}
+function getBillProv(b){
+  return b.destProv||(b.form&&typeof b.form==="object"?b.form.destProv:null)||"";
+}
+function getBillAmphoe(b){
+  return b.destAmphoe||(b.form&&typeof b.form==="object"?b.form.destAmphoe:null)||"";
+}
+
 function calcSummary(bills){
   var result={total:0,bills:0,byPay:{origin:0,dest:0,transfer:0,credit:0,cod:0},
-    byZone:{},byBranch:{bkk:0,ptm:0,krt:0,ssk:0}};
+    byZone:{},byBranch:{bkk:0,ptm:0,krt:0,ssk:0},zoneBills:{}};
   bills.forEach(function(b){
     var net=parseFloat(b.freightNet||0);
     var cod=parseFloat(b.codTotal||0);
-    var pay=b.freightPay||b.form&&(typeof b.form==="object"?b.form.freightPay:null)||"origin";
-    var prov=b.destProv||b.form&&(typeof b.form==="object"?b.form.destProv:null)||"";
-    var amphoe=b.destAmphoe||b.form&&(typeof b.form==="object"?b.form.destAmphoe:null)||"";
+    var pay=getBillPay(b);
+    var prov=getBillProv(b);
+    var amphoe=getBillAmphoe(b);
     var zone=getZone(prov,amphoe);
     var branch=getBranch(b);
 
@@ -174,48 +223,134 @@ function calcSummary(bills){
     if(result.byPay[pay]!==undefined) result.byPay[pay]+=net;
     else result.byPay.origin+=net;
     if(cod>0) result.byPay.cod+=cod;
-    if(!result.byZone[zone]) result.byZone[zone]={total:0,bills:0,byPay:{origin:0,dest:0,transfer:0,credit:0}};
+
+    if(!result.byZone[zone])    result.byZone[zone]={total:0,bills:0,byPay:{origin:0,dest:0,transfer:0,credit:0}};
+    if(!result.zoneBills[zone]) result.zoneBills[zone]=[];
     result.byZone[zone].total+=net; result.byZone[zone].bills++;
     if(result.byZone[zone].byPay[pay]!==undefined) result.byZone[zone].byPay[pay]+=net;
+    result.zoneBills[zone].push(b);
+
     if(result.byBranch[branch]!==undefined) result.byBranch[branch]+=net;
     else result.byBranch.bkk+=net;
   });
   return result;
 }
 
+// ===== ZONE MODAL =====
+var _currentZoneBills = [];
+
+function openZoneModal(zone, zoneBills){
+  if(!zoneBills||zoneBills.length===0) return;
+  _currentZoneBills = zoneBills;
+  var zd = ZONE_MAP[zone]||{label:zone, clr:"#555"};
+
+  document.getElementById("zone-modal-title").textContent = "Zone "+zone+" — รายการบิล";
+  document.getElementById("zone-modal-sub").textContent = zoneBills.length+" บิล";
+
+  // summary boxes
+  var totalNet=0, byPay={origin:0,dest:0,transfer:0,credit:0};
+  zoneBills.forEach(function(b){
+    var net=parseFloat(b.freightNet||0);
+    var pay=getBillPay(b);
+    totalNet+=net;
+    if(byPay[pay]!==undefined) byPay[pay]+=net;
+    else byPay.origin+=net;
+  });
+  var sumHTML = PAY_TYPES.filter(function(p){return p.key!=="cod";}).map(function(p){
+    return '<div class="zs-box"><div class="zl">'+p.label+'</div><div class="zv" style="color:'+p.color+'">'+fmt(byPay[p.key]||0)+'</div></div>';
+  }).join("");
+  sumHTML += '<div class="zs-box" style="background:#f0faf5;border-color:#0F6E56"><div class="zl">รวมทั้งหมด</div><div class="zv">'+fmt(totalNet)+'</div></div>';
+  document.getElementById("zone-modal-summary").innerHTML = sumHTML;
+
+  // rows
+  var rows = zoneBills.map(function(b, i){
+    var net    = parseFloat(b.freightNet||0);
+    var pay    = getBillPay(b);
+    var prov   = getBillProv(b);
+    var amphoe = getBillAmphoe(b);
+    var recv   = b.receiverName||(b.form&&b.form.receiverName)||"";
+    return '<tr>'
+      +'<td style="text-align:left;color:#aaa;font-size:11px">'+(i+1)+'</td>'
+      +'<td style="text-align:left;font-weight:700;white-space:nowrap">'+b.billNo+'</td>'
+      +'<td style="text-align:left;color:#888;white-space:nowrap">'+fmtBillDate(b)+'</td>'
+      +'<td style="text-align:left">'+recv+'</td>'
+      +'<td style="text-align:left;white-space:nowrap">'+amphoe+'·'+prov+'</td>'
+      +'<td><span style="font-size:10px;padding:2px 6px;border-radius:8px;background:#f0f0f0;color:#555">'+(PAY_LABEL[pay]||pay)+'</span></td>'
+      +'<td style="font-weight:700;color:#0F6E56">'+fmt(net)+'</td>'
+      +'</tr>';
+  }).join("");
+
+  var foot = '<tr style="background:#f0faf5;font-weight:700;border-top:2px solid #d0ede5">'
+    +'<td colspan="6" style="text-align:left">รวม '+zoneBills.length+' บิล</td>'
+    +'<td>'+fmt(totalNet)+'</td>'
+    +'</tr>';
+
+  document.getElementById("zone-modal-rows").innerHTML = rows;
+  document.getElementById("zone-modal-foot").innerHTML = foot;
+  document.getElementById("zone-modal-bg").classList.add("show");
+  document.getElementById("zone-modal").scrollTop = 0;
+}
+
+function closeZoneModal(e){
+  if(!e || e.target===document.getElementById("zone-modal-bg")){
+    document.getElementById("zone-modal-bg").classList.remove("show");
+  }
+}
+
+// ===== RENDER SUMMARY =====
 function renderSummary(bills, title){
   var s=calcSummary(bills);
   var payHTML=PAY_TYPES.map(function(p){
     var val=p.key==="cod"?s.byPay.cod:s.byPay[p.key]||0;
-    return '<div class="stat-box"><div class="lbl">'+p.label+'</div><div class="val" style="color:'+p.color+'">'+fmt(val)+'</div><div class="sub">฿</div></div>';
+    return '<div class="stat-box"><div class="lbl">'+p.label+'</div>'
+      +'<div class="val" style="color:'+p.color+'">'+fmt(val)+'</div>'
+      +'<div class="sub">฿</div></div>';
   }).join("");
 
+  // zone rows — ยอดรวมกดได้
   var zoneRows=Object.keys(ZONE_MAP).map(function(z){
-    var zd=s.byZone[z]||{total:0,bills:0,byPay:{}};
-    return '<tr><td><span class="badge '+ZONE_MAP[z].color+'">'+z+'</span></td>'
+    var zd=s.byZone[z]||{total:0,bills:0,byPay:{origin:0,dest:0,transfer:0,credit:0}};
+    var zBills=s.zoneBills[z]||[];
+    var zclr=ZONE_MAP[z].clr;
+    var clickable=zBills.length>0;
+    var totalCell=clickable
+      ? '<span class="zone-total-link" style="color:'+zclr+'" onclick=\'openZoneModal("'+z+'",_lastZoneBills["'+z+'"])\'>'+fmt(zd.total)+'</span>'
+      : fmt(zd.total);
+    return '<tr>'
+      +'<td><span class="badge '+ZONE_MAP[z].color+'" style="cursor:'+(clickable?"pointer":"default")+'" '
+      +(clickable?'onclick=\'openZoneModal("'+z+'",_lastZoneBills["'+z+'"])\'':'')
+      +'>'+z+'</span></td>'
       +'<td>'+fmt(zd.byPay.origin||0)+'</td>'
       +'<td>'+fmt(zd.byPay.dest||0)+'</td>'
       +'<td>'+fmt(zd.byPay.transfer||0)+'</td>'
       +'<td>'+fmt(zd.byPay.credit||0)+'</td>'
-      +'<td style="color:#0F6E56;font-weight:700">'+fmt(zd.total)+'</td>'
+      +'<td>'+totalCell+'</td>'
       +'<td style="color:#888">'+zd.bills+'</td></tr>';
   }).join("");
 
+  // เก็บ zone bills ไว้ให้ modal ใช้
+  _lastZoneBills = s.zoneBills;
+
   var branchRows=Object.keys(BRANCH_MAP).map(function(k){
-    return '<tr><td>'+BRANCH_MAP[k]+'</td><td style="font-weight:700;color:#0F6E56">'+fmt(s.byBranch[k]||0)+'</td></tr>';
+    return '<tr><td>'+BRANCH_MAP[k]+'</td>'
+      +'<td style="font-weight:700;color:#0F6E56">'+fmt(s.byBranch[k]||0)+'</td></tr>';
   }).join("");
 
   return '<div class="card">'
     +'<div class="card-title">'+title+' — รวม '+s.bills+' บิล | ยอดรวม '+fmt(s.total)+' ฿</div>'
     +'<div class="stat-grid">'+payHTML+'</div>'
     +'<div style="display:grid;grid-template-columns:1fr 300px;gap:12px">'
-    +'<div><div style="font-size:11px;font-weight:700;color:#555;margin-bottom:6px">แยกตาม Zone</div>'
+    +'<div><div style="font-size:11px;font-weight:700;color:#555;margin-bottom:6px">แยกตาม Zone '
+    +'<span style="font-size:10px;color:#888;font-weight:400">(กดยอดรวมเพื่อดูรายการบิล)</span></div>'
     +'<table><tr><th style="text-align:left">Zone</th><th>ต้นทาง</th><th>ปลายทาง</th><th>โอน</th><th>เครดิต</th><th>รวม</th><th>บิล</th></tr>'
     +zoneRows+'</table></div>'
     +'<div><div style="font-size:11px;font-weight:700;color:#555;margin-bottom:6px">แยกตามสาขา</div>'
-    +'<table><tr><th style="text-align:left">สาขา</th><th>ยอดรวม</th></tr>'+branchRows+'</table></div>'
+    +'<table><tr><th style="text-align:left">สาขา</th><th>ยอดรวม</th></tr>'
+    +branchRows+'</table></div>'
     +'</div></div>';
 }
+
+var _lastZoneBills = {};
 
 function renderDailyTable(bills, days){
   var rows=days.map(function(d){
@@ -258,7 +393,6 @@ function render(){
   var today=new Date();
   var todayStart=new Date(today.getFullYear(),today.getMonth(),today.getDate());
   var todayEnd=new Date(today.getFullYear(),today.getMonth(),today.getDate());
-
   var html="";
 
   if(mode==="today"){
@@ -341,7 +475,6 @@ function loadData(){
     document.getElementById("report-wrap").innerHTML='<div class="loading">❌ Firestore ไม่พร้อม</div>';
     return;
   }
-  // รอให้ Firestore ready ก่อน
   if(typeof GolodDB.ready==="function"){
     GolodDB.ready(doLoad);
   } else {
@@ -351,8 +484,7 @@ function loadData(){
 
 // INIT
 buildUI();
-document.addEventListener("DOMContentLoaded",function(){});
-// เรียก init ทันที แล้วรอ ready
+try{ if(typeof GolodDB!=="undefined") GolodDB.init(); }catch(e){}
 function waitAndLoad(){
   if(typeof GolodDB!=="undefined"){
     try{ GolodDB.init(); }catch(e){}
@@ -365,8 +497,6 @@ function waitAndLoad(){
     setTimeout(waitAndLoad, 300);
   }
 }
-// เรียกทันที ไม่ต้องรอ
-try{ if(typeof GolodDB!=="undefined") GolodDB.init(); }catch(e){}
 waitAndLoad();
 </script>
 </body>
