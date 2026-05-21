@@ -102,6 +102,7 @@ if(!_S) throw new Error("no session");
   <div style="color:#fff;font-size:13px;font-weight:700;flex:1">โกโลด ทรานสปอร์ต <span style="font-size:10px;color:#9FE1CB;margin-left:6px">ระบบการเงิน</span></div>
   <div id="golod-user-chip"></div>
   <a href="AuthSystem.html" style="font-size:11px;color:#9FE1CB;text-decoration:none;background:rgba(255,255,255,.15);padding:3px 10px;border-radius:20px">← เมนูหลัก</a>
+  <button onclick="clearAllData()" style="font-size:11px;color:#fff;background:rgba(220,50,50,.5);border:none;padding:3px 10px;border-radius:20px;cursor:pointer;font-family:Arial,sans-serif">🗑 ล้างข้อมูลทั้งหมด</button>
 </div>
 <script>GolodSession.renderTopbar("golod-user-chip", "ระบบการเงิน", "#7C3AED");</script>
 
@@ -411,43 +412,55 @@ function slipRowCls(s){
   return"slip-pending";
 }
 
-// ======= SAMPLE DATA =======
-let SLIPS=[
-  {id:"s1",billNo:"N0503-15",customer:"ร้านเบสท์",amount:450,deliveredDate:today(),slipConfirmed:false,note:"ลูกค้าแจ้งจะโอนตอนเย็น",branch:"bkk"},
-  {id:"s2",billNo:"H0503-03",customer:"บ.ฉัตร",amount:520,deliveredDate:dateAdd(today(),-2),slipConfirmed:false,note:"วางของไว้หน้าบ้าน รอโอน",branch:"bkk"},
-  {id:"s3",billNo:"P0503-10",customer:"คุณสมปอง",amount:320,deliveredDate:dateAdd(today(),-5),slipConfirmed:false,note:"โทรตาม 2 ครั้งแล้ว",branch:"krt"},
-  {id:"s4",billNo:"A0503-07",customer:"ร้านดีดี",amount:680,deliveredDate:dateAdd(today(),-8),slipConfirmed:false,note:"ไม่รับสาย",branch:"bkk"},
-  {id:"s5",billNo:"B0503-06",customer:"คุณวิชัย",amount:290,deliveredDate:dateAdd(today(),-1),slipConfirmed:true,slipDate:today(),note:"โอนแล้ว",branch:"ssk"},
-];
-let CREDITS=[
-  {id:"c1",customer:"บริษัท เอ จำกัด",amount:12500,creditDays:15,dueDate:dateAdd(today(),-3),paid:false,contact:"02-111-2222",branch:"bkk"},
-  {id:"c2",customer:"ห้างหุ้นส่วน บี",amount:8200,creditDays:15,dueDate:dateAdd(today(),5),paid:false,contact:"089-222-3333",branch:"bkk"},
-  {id:"c3",customer:"บริษัท ซี",amount:4500,creditDays:15,dueDate:dateAdd(today(),-10),paid:false,contact:"02-333-4444",branch:"krt"},
-  {id:"c4",customer:"ร้านดีดี",amount:3200,creditDays:15,dueDate:dateAdd(today(),8),paid:false,contact:"081-444-5555",branch:"ssk"},
-  {id:"c5",customer:"บริษัท อี",amount:9800,creditDays:15,dueDate:dateAdd(today(),-1),paid:false,contact:"02-555-6666",branch:"bkk"},
-];
-let INCOMES=[
-  {id:"i1",date:today(),billNo:"A0503-12",customer:"บริษัท เอ",branch:"bkk",method:"origin",amount:850,slipConfirmed:true,status:"received"},
-  {id:"i2",date:today(),billNo:"B0503-08",customer:"คุณสมชาย",branch:"bkk",method:"dest_cash",amount:320,slipConfirmed:false,status:"received"},
-  {id:"i3",date:today(),billNo:"N0503-15",customer:"ร้านเบสท์",branch:"bkk",method:"transfer",amount:450,slipConfirmed:false,status:"pending"},
-  {id:"i4",date:dateAdd(today(),-1),billNo:"P0502-21",customer:"บ.บี",branch:"krt",method:"credit",amount:1200,slipConfirmed:false,status:"credit"},
-  {id:"i5",date:dateAdd(today(),-1),billNo:"H0502-05",customer:"คุณมานี",branch:"ssk",method:"transfer",amount:520,slipConfirmed:true,status:"received"},
-  {id:"i6",date:dateAdd(today(),-2),billNo:"A0501-09",customer:"คุณวิชัย",branch:"bkk",method:"origin",amount:390,slipConfirmed:true,status:"received"},
-];
-let EXPENSES=[
-  {id:"e1",date:today(),cat:"fuel",desc:"น้ำมัน พนักงาน A",branch:"bkk",amount:800,tripId:"T001"},
-  {id:"e2",date:today(),cat:"fuel",desc:"น้ำมัน พนักงาน B",branch:"bkk",amount:650,tripId:"T002"},
-  {id:"e3",date:today(),cat:"fare",desc:"ค่าเที่ยว สมศักดิ์ รถร่วม",branch:"bkk",amount:2800,tripId:"T003"},
-  {id:"e4",date:dateAdd(today(),-1),cat:"fare",desc:"ค่าเที่ยว วิชัย รถร่วม",branch:"krt",amount:1800,tripId:"T004"},
-  {id:"e5",date:dateAdd(today(),-1),cat:"other",desc:"ค่าซ่อมรถ กข-1234",branch:"bkk",amount:3500,tripId:""},
-  {id:"e6",date:dateAdd(today(),-2),cat:"fuel",desc:"น้ำมัน พนักงาน N",branch:"ssk",amount:700,tripId:"T005"},
-];
-let BBL_ENTRIES=[
-  {id:"b1",date:today(),desc:"Bangkok Bank Credit Card Payment",bill:"",type:"credit",amount:15200,matched:true},
-  {id:"b2",date:today(),desc:"โอนค่าขนส่ง คุณวิชัย",bill:"H0502-05",type:"credit",amount:520,matched:true},
-  {id:"b3",date:dateAdd(today(),-1),desc:"ค่าน้ำมัน PTT ลาดพร้าว",bill:"",type:"debit",amount:800,matched:false},
-  {id:"b4",date:dateAdd(today(),-1),desc:"โอนค่าขนส่ง บ.เอ",bill:"A0501-09",type:"credit",amount:390,matched:true},
-];
+// ======= PERSISTENT STORAGE =======
+// ใช้ window.storage เพื่อเก็บข้อมูลถาวร (ไม่หายเมื่อรีเฟรช)
+const STORE_KEY = "golod_finance_v1";
+
+async function loadAllData() {
+  try {
+    const result = await window.storage.get(STORE_KEY);
+    if (result && result.value) {
+      const saved = JSON.parse(result.value);
+      if (saved.SLIPS)    SLIPS        = saved.SLIPS;
+      if (saved.CREDITS)  CREDITS      = saved.CREDITS;
+      if (saved.INCOMES)  INCOMES      = saved.INCOMES;
+      if (saved.EXPENSES) EXPENSES     = saved.EXPENSES;
+      if (saved.BBL_ENTRIES) BBL_ENTRIES = saved.BBL_ENTRIES;
+      if (saved.BEM_ENTRIES) BEM_ENTRIES = saved.BEM_ENTRIES;
+    }
+  } catch(e) {
+    // ยังไม่มีข้อมูลบันทึก — เริ่มด้วย array ว่าง (ปกติ)
+  }
+  // render หลังโหลดเสร็จ
+  initBemDates();
+  renderDashboard();
+}
+
+async function saveAllData() {
+  try {
+    await window.storage.set(STORE_KEY, JSON.stringify({
+      SLIPS, CREDITS, INCOMES, EXPENSES, BBL_ENTRIES, BEM_ENTRIES
+    }));
+  } catch(e) {
+    console.error("บันทึกข้อมูลไม่สำเร็จ:", e);
+  }
+}
+
+// ===== CLEAR DATA (สำหรับล้างข้อมูลตัวอย่าง) =====
+async function clearAllData() {
+  if (!confirm("⚠️ ล้างข้อมูลทั้งหมดในระบบการเงิน?\n\nการกระทำนี้ไม่สามารถยกเลิกได้")) return;
+  SLIPS=[]; CREDITS=[]; INCOMES=[]; EXPENSES=[]; BBL_ENTRIES=[]; BEM_ENTRIES=[];
+  await saveAllData();
+  renderDashboard(); renderSlip(); renderCredit(); renderIncome(); renderExpense(); renderBeM(); renderBBL(); renderPL();
+  alert("✓ ล้างข้อมูลเรียบร้อย พร้อมใช้งานจริง");
+}
+
+// ======= DATA ARRAYS (เริ่มด้วย array ว่าง — โหลดจาก storage หลัง init) =======
+let SLIPS=[];
+let CREDITS=[];
+let INCOMES=[];
+let EXPENSES=[];
+let BBL_ENTRIES=[];
 
 // ======= NAV =======
 function showPage(id){
@@ -572,11 +585,9 @@ function renderSlip(){
 function confirmSlip(id){
   const s=SLIPS.find(x=>x.id===id);if(!s)return;
   s.slipConfirmed=true;s.slipDate=today();
-  // also update income
   const inc=INCOMES.find(x=>x.billNo===s.billNo);
   if(inc){inc.slipConfirmed=true;inc.status="received";}
-  renderSlip();initBemDates();
-renderDashboard();
+  saveAllData();renderSlip();initBemDates();renderDashboard();
 }
 function openAddSlip(){
   document.getElementById("modal-content").innerHTML=`
@@ -601,8 +612,7 @@ function saveAddSlip(){
     deliveredDate:document.getElementById("ms-dt").value,slipConfirmed:false,
     note:document.getElementById("ms-note").value,
     branch:document.getElementById("ms-br").value});
-  closeModal();renderSlip();initBemDates();
-renderDashboard();
+  closeModal();saveAllData();renderSlip();initBemDates();renderDashboard();
 }
 
 // ======= CREDIT =======
@@ -636,8 +646,7 @@ function renderCredit(){
 }
 function payCredit(id){
   const c=CREDITS.find(x=>x.id===id);if(!c)return;
-  if(confirm(`ยืนยันรับเงิน ${c.customer} จำนวน ${fmt(c.amount)} ฿?`)){c.paid=true;renderCredit();initBemDates();
-renderDashboard();}
+  if(confirm(`ยืนยันรับเงิน ${c.customer} จำนวน ${fmt(c.amount)} ฿?`)){c.paid=true;saveAllData();renderCredit();initBemDates();renderDashboard();}
 }
 function openAddCredit(){
   document.getElementById("modal-content").innerHTML=`
@@ -662,8 +671,7 @@ function saveAddCredit(){
   CREDITS.push({id:"c"+Date.now(),customer:cust,amount:amt,creditDays:days,
     dueDate:dateAdd(dt,days),paid:false,contact:document.getElementById("mc-tel").value,
     branch:document.getElementById("mc-br").value});
-  closeModal();renderCredit();initBemDates();
-renderDashboard();
+  closeModal();saveAllData();renderCredit();initBemDates();renderDashboard();
 }
 
 // ======= INCOME =======
@@ -702,8 +710,7 @@ function confirmIncomeSlip(id){
   const x=INCOMES.find(i=>i.id===id);if(!x)return;
   x.slipConfirmed=true;x.status="received";
   const sl=SLIPS.find(s=>s.billNo===x.billNo);if(sl){sl.slipConfirmed=true;sl.slipDate=today();}
-  renderIncome();initBemDates();
-renderDashboard();
+  saveAllData();renderIncome();initBemDates();renderDashboard();
 }
 function openAddIncome(){
   document.getElementById("modal-content").innerHTML=`
@@ -737,8 +744,7 @@ function saveAddIncome(){
       deliveredDate:document.getElementById("mi-dt").value,slipConfirmed:false,note:"",
       branch:document.getElementById("mi-br").value});
   }
-  closeModal();renderIncome();initBemDates();
-renderDashboard();
+  closeModal();saveAllData();renderIncome();initBemDates();renderDashboard();
 }
 
 // ======= EXPENSE =======
@@ -791,8 +797,7 @@ function saveAddExpense(){
     cat:document.getElementById("me-cat").value,desc:document.getElementById("me-desc").value,
     branch:document.getElementById("me-br").value,amount:amt,
     tripId:document.getElementById("me-trip").value});
-  closeModal();renderExpense();initBemDates();
-renderDashboard();
+  closeModal();saveAllData();renderExpense();initBemDates();renderDashboard();
 }
 
 // ======= BBL =======
@@ -831,7 +836,7 @@ function addBBLManual(){
   BBL_ENTRIES.push({id:"b"+Date.now(),date:dt,desc,bill,type,amount:amt,matched:!!bill});
   document.getElementById("bbl-dt").value="";document.getElementById("bbl-amt").value="";
   document.getElementById("bbl-desc").value="";document.getElementById("bbl-bill").value="";
-  renderBBL();
+  saveAllData();renderBBL();
 }
 function importBBLcsv(e){
   const file=e.target.files[0];if(!file)return;
@@ -849,11 +854,11 @@ function importBBLcsv(e){
       added++;
     });
     alert(`นำเข้า ${added} รายการจาก CSV แล้วครับ`);
-    renderBBL();
+    saveAllData();renderBBL();
   };
   reader.readAsText(file,"utf-8");
 }
-function deleteBBL(id){BBL_ENTRIES=BBL_ENTRIES.filter(x=>x.id!==id);renderBBL();}
+function deleteBBL(id){BBL_ENTRIES=BBL_ENTRIES.filter(x=>x.id!==id);saveAllData();renderBBL();}
 function renderBBLReconcile(){renderBBL();}
 
 // ======= P&L =======
@@ -907,12 +912,7 @@ function closeModal(){document.getElementById("modal-bg").classList.remove("open
 
 
 // ======= BEM MERCHANT =======
-let BEM_ENTRIES=[
-  {id:"bm1",acct:1,bemDate:"2568-05-02",amount:15200,bblDate:"2568-05-03",bblActual:15200,note:"ยอดปกติ"},
-  {id:"bm2",acct:2,bemDate:"2568-05-02",amount:8400,bblDate:"2568-05-03",bblActual:null,note:""},
-  {id:"bm3",acct:1,bemDate:"2568-05-01",amount:12800,bblDate:"2568-05-02",bblActual:12800,note:""},
-  {id:"bm4",acct:2,bemDate:"2568-05-01",amount:6500,bblDate:"2568-05-02",bblActual:6500,note:""},
-];
+let BEM_ENTRIES=[];
 
 function initBemDates(){
   const t=today();
@@ -940,16 +940,16 @@ function addBemEntry(acct){
   BEM_ENTRIES.unshift({id:"bm"+Date.now(),acct,bemDate,amount:amt,bblDate,bblActual:null,note});
   document.getElementById(amtId).value="";
   document.getElementById(noteId).value="";
-  renderBeM();
+  saveAllData();renderBeM();
 }
 
 function setBBLActual(id,val){
   const e=BEM_ENTRIES.find(x=>x.id===id);
   if(e)e.bblActual=parseFloat(val)||null;
-  renderBeM();
+  saveAllData();renderBeM();
 }
 
-function deleteBem(id){BEM_ENTRIES=BEM_ENTRIES.filter(x=>x.id!==id);renderBeM();}
+function deleteBem(id){BEM_ENTRIES=BEM_ENTRIES.filter(x=>x.id!==id);saveAllData();renderBeM();}
 
 function importBemCSV(e){
   const file=e.target.files[0];if(!file)return;
@@ -968,7 +968,7 @@ function importBemCSV(e){
       added++;
     });
     alert("นำเข้า "+added+" รายการจาก CSV แล้วครับ\n\nรูปแบบ CSV: วันที่,บัญชี(1/2),ยอด,หมายเหตุ");
-    renderBeM();
+    saveAllData();renderBeM();
   };
   reader.readAsText(file,"utf-8");
 }
@@ -1061,7 +1061,7 @@ function renderBeM(){
 
 // ======= INIT =======
 initBemDates();
-renderDashboard();
+loadAllData(); // โหลดข้อมูลจาก storage (แทน renderDashboard เดิม)
 </script>
 </body>
 </html>
