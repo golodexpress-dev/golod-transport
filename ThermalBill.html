@@ -3519,14 +3519,9 @@ function ThermalBillingApp() {
       } catch(e) {}
     });
     const w = window.open("", "_blank", "width=440,height=800");
-    w.document.write(\`<html><head><meta charset="UTF-8">
-  <title>บิล \${(viewBill?.billNo) || ""}</title>
-    <style>
-      *{box-sizing:border-box;margin:0;padding:0}
-      @page{size:80mm auto;margin:\${mv}mm 3mm \${mv}mm \${ml}mm}
-      body{font-family:'Courier New',Courier,monospace;background:#fff;width:\${76-ml}mm;font-weight:700;-webkit-print-color-adjust:exact;print-color-adjust:exact;}
-      div,span,td,th{font-weight:700!important}
-    </style></head><body>\`);
+    var billTitle = (viewBill && viewBill.billNo) || "";
+    var pageStyle = "<html><head><meta charset=\"UTF-8\"><title>" + billTitle + "</title><style>*{box-sizing:border-box;margin:0;padding:0}@page{size:80mm auto;margin:" + mv + "mm 3mm " + mv + "mm " + ml + "mm}body{font-family:'Courier New',Courier,monospace;background:#fff;width:" + (76-ml) + "mm;font-weight:700;-webkit-print-color-adjust:exact;print-color-adjust:exact;}div,span,td,th{font-weight:700!important}</style></head><body>";
+    w.document.write(pageStyle);
     w.document.write(cloned.innerHTML);
     w.document.write("</body></html>");
     w.document.close();
