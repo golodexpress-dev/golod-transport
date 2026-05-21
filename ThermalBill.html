@@ -15,6 +15,7 @@ input[type=number]{-moz-appearance:textfield;appearance:textfield;}
 input[type=number]::-webkit-outer-spin-button,input[type=number]::-webkit-inner-spin-button{-webkit-appearance:none;margin:0;}
 </style>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/qrcode/build/qrcode.min.js"></script>
 </head><body>
 <div class="golod-bar no-print">
   <h1>โกโลด ทรานสปอร์ต — ออกบิล Thermal 80mm</h1>
@@ -998,69 +999,73 @@ function SecTitle({
 // QR Code component สำหรับ thermal print
 function QRCodeBox({ data, size }) {
   var sz = size || 80;
-  const [imgSrc, setImgSrc] = React.useState(null);
+  const canvasRef = React.useRef(null);
+  const [ready, setReady] = React.useState(false);
+
   React.useEffect(() => {
-    if (!data) return;
-    // วาด QR บน canvas โดยตรง ไม่ต้องพึ่ง DOM hidden div
-    var tmp = document.createElement("div");
-    // opacity:0 แทน visibility:hidden — browser จะ render canvas จริง
-    tmp.style.cssText = "position:fixed;left:-9999px;top:0;opacity:0;pointer-events:none;z-index:-1";
-    document.body.appendChild(tmp);
-    var done = false;
-    try {
-      new QRCode(tmp, {
-        text: data,
-        width: sz * 2,   // render 2x แล้ว scale down → คมขึ้น
-        height: sz * 2,
-        colorDark: "#000000",
-        colorLight: "#ffffff",
-        correctLevel: QRCode.CorrectLevel.M
+    if (!data || !canvasRef.current) return;
+    var canvas = canvasRef.current;
+    // วิธีที่ 1: ใช้ QRCode npm (window.QRCode จาก qrcode.min.js)
+    if (window.QRCode && typeof window.QRCode.toCanvas === "function") {
+      window.QRCode.toCanvas(canvas, data, {
+        width: sz,
+        margin: 1,
+        color: { dark: "#000000", light: "#ffffff" }
+      }, function(err) {
+        if (!err) { setReady(true); }
       });
-    } catch(e) {
-      try { document.body.removeChild(tmp); } catch(_){}
       return;
     }
-    function tryGet(attempt) {
-      var canvas = tmp.querySelector("canvas");
-      var img = tmp.querySelector("img");
-      if (canvas && canvas.width > 0) {
-        try {
-          var url = canvas.toDataURL("image/png");
-          if (url && url.length > 200) {
-            setImgSrc(url);
-            done = true;
-            try { document.body.removeChild(tmp); } catch(_){}
-            return;
-          }
-        } catch(e2) {}
-      }
-      if (img && img.src && img.src.length > 200) {
-        setImgSrc(img.src);
-        done = true;
-        try { document.body.removeChild(tmp); } catch(_){}
+    // วิธีที่ 2: ใช้ qrcodejs (QRCode constructor)
+    if (window.QRCode && typeof window.QRCode === "function") {
+      var ctx = canvas.getContext("2d");
+      canvas.width = sz;
+      canvas.height = sz;
+      // สร้าง div ชั่วคราว แต่วางใน document จริงๆ (display:block, ขนาดเล็ก)
+      var wrap = document.createElement("div");
+      wrap.style.cssText = "position:absolute;left:0;top:0;width:" + sz + "px;height:" + sz + "px;overflow:hidden;opacity:0.01;pointer-events:none;";
+      document.body.appendChild(wrap);
+      try {
+        new window.QRCode(wrap, {
+          text: data, width: sz, height: sz,
+          colorDark: "#000000", colorLight: "#ffffff",
+          correctLevel: window.QRCode.CorrectLevel.M
+        });
+      } catch(e) {
+        document.body.removeChild(wrap);
         return;
       }
-      if (!done && attempt < 15) {
-        setTimeout(function(){ tryGet(attempt+1); }, 80);
-      } else if (!done) {
-        try { document.body.removeChild(tmp); } catch(_){}
-      }
+      var attempts = 0;
+      var poll = setInterval(function() {
+        attempts++;
+        var c2 = wrap.querySelector("canvas");
+        if (c2 && c2.width > 0) {
+          ctx.drawImage(c2, 0, 0, sz, sz);
+          clearInterval(poll);
+          document.body.removeChild(wrap);
+          setReady(true);
+          return;
+        }
+        if (attempts > 20) {
+          clearInterval(poll);
+          document.body.removeChild(wrap);
+        }
+      }, 50);
+      return;
     }
-    setTimeout(function(){ tryGet(0); }, 100);
-  }, [data]);
+  }, [data, sz]);
 
-  if (imgSrc) {
-    return React.createElement("img", {
-      src: imgSrc,
-      width: sz, height: sz,
-      style: { display:"block", imageRendering:"auto", margin:"0 auto" }
-    });
-  }
-  return React.createElement("div", {
-    style: { width:sz, height:sz, background:"#f5f5f5", margin:"0 auto",
-             display:"flex", alignItems:"center", justifyContent:"center",
-             fontSize:9, color:"#aaa" }
-  }, "QR...");
+  return React.createElement("canvas", {
+    ref: canvasRef,
+    width: sz,
+    height: sz,
+    style: {
+      display: "block",
+      margin: "0 auto",
+      imageRendering: "pixelated",
+      opacity: ready ? 1 : 0
+    }
+  });
 }
 
 function ThermalBill({
@@ -3495,24 +3500,38 @@ function ThermalBillingApp() {
   const handlePrint = () => {
     const el = printRef.current;
     if (!el) return;
-    const mv = printMarginV,
-      ml = printMarginL;
+    const mv = printMarginV, ml = printMarginL;
+    // แปลง canvas ทั้งหมดเป็น <img> data URL ก่อน copy innerHTML
+    const cloned = el.cloneNode(true);
+    const origCanvases = el.querySelectorAll("canvas");
+    const clonedCanvases = cloned.querySelectorAll("canvas");
+    origCanvases.forEach(function(c, i) {
+      try {
+        var url = c.toDataURL("image/png");
+        var img = document.createElement("img");
+        img.src = url;
+        img.width = c.width;
+        img.height = c.height;
+        img.style.cssText = "display:block;margin:0 auto;";
+        if (clonedCanvases[i] && clonedCanvases[i].parentNode) {
+          clonedCanvases[i].parentNode.replaceChild(img, clonedCanvases[i]);
+        }
+      } catch(e) {}
+    });
     const w = window.open("", "_blank", "width=440,height=800");
-    w.document.write(`<html><head><meta charset="UTF-8">
-  <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
-  <meta http-equiv="Pragma" content="no-cache">
-  <meta http-equiv="Expires" content="0"><title>บิล ${(viewBill === null || viewBill === void 0 ? void 0 : viewBill.billNo) || ""}</title>
+    w.document.write(\`<html><head><meta charset="UTF-8">
+  <title>บิล \${(viewBill?.billNo) || ""}</title>
     <style>
       *{box-sizing:border-box;margin:0;padding:0}
-      @page{size:80mm auto;margin:${mv}mm 3mm ${mv}mm ${ml}mm}
-      body{font-family:'Courier New',Courier,monospace;background:#fff;width:${76 - ml}mm;font-weight:700;-webkit-print-color-adjust:exact;print-color-adjust:exact;}
+      @page{size:80mm auto;margin:\${mv}mm 3mm \${mv}mm \${ml}mm}
+      body{font-family:'Courier New',Courier,monospace;background:#fff;width:\${76-ml}mm;font-weight:700;-webkit-print-color-adjust:exact;print-color-adjust:exact;}
       div,span,td,th{font-weight:700!important}
-    </style></head><body>`);
-    w.document.write(el.innerHTML);
+    </style></head><body>\`);
+    w.document.write(cloned.innerHTML);
     w.document.write("</body></html>");
     w.document.close();
     w.focus();
-    setTimeout(() => w.print(), 1200);
+    setTimeout(() => w.print(), 500);
   };
   return /*#__PURE__*/React.createElement("div", {
     style: {
