@@ -291,20 +291,43 @@ function doLogin(){
   errEl.textContent = "";
   if(!u||!p){ errEl.textContent = "กรุณากรอก username และ password"; return; }
 
+  errEl.textContent = "กำลังตรวจสอบ...";
+
   GolodDB.ready(function(){
-    GolodDB.getUsers().then(function(users){
-      var found = users.find(function(usr){
-        return usr.username === u && usr.password === p && usr.role === "driver";
-      });
+    var db;
+    try { db = firebase.firestore(); } catch(e) {
+      errEl.textContent = "Firestore ไม่พร้อม: " + e.message; return;
+    }
+
+    // ดึง doc ตรงจาก username เป็น doc id ก่อน
+    db.collection("users").doc(u).get().then(function(doc){
+      if(doc.exists) return doc.data();
+      // fallback: query จาก field username
+      return db.collection("users").where("username","==",u).limit(1).get()
+        .then(function(snap){
+          return snap.empty ? null : snap.docs[0].data();
+        });
+    }).then(function(found){
       if(!found){
-        errEl.textContent = "username/password ไม่ถูกต้อง หรือไม่ใช่คนขับ";
+        errEl.textContent = "ไม่พบ username "" + u + "" ในระบบ";
         return;
       }
-      // save session
-      if(typeof GolodSession !== "undefined"){
-        GolodSession.set({username:found.username, name:found.name||found.username, role:"driver", branch:found.branch||""});
+      if(found.password !== p){
+        errEl.textContent = "password ไม่ถูกต้อง";
+        return;
       }
-      CU = {username:found.username, name:found.name||found.username, role:"driver", branch:found.branch||""};
+      if(found.role !== "driver"){
+        errEl.textContent = "บัญชีนี้ไม่ใช่คนขับ (role: " + found.role + ")";
+        return;
+      }
+      if(found.active === false){
+        errEl.textContent = "บัญชีนี้ถูกระงับการใช้งาน";
+        return;
+      }
+      var sess = {username:found.username||u, name:found.name||u, role:"driver", branch:found.branch||""};
+      if(typeof GolodSession !== "undefined") GolodSession.set(sess);
+      CU = sess;
+      errEl.textContent = "";
       showMain();
     }).catch(function(e){
       errEl.textContent = "เชื่อมต่อไม่ได้: " + e.message;
