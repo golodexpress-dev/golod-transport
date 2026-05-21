@@ -165,7 +165,7 @@ function getBranch(b){
 }
 
 function fmt(n){ return (Math.round(n)||0).toLocaleString("th-TH"); }
-function fmtDate(d){ return d.getDate()+"/"+(d.getMonth()+1)+"/"+(d.getFullYear()); }
+function fmtDate(d){ return d.getDate()+"/"+(d.getMonth()+1)+"/"+(d.getFullYear()+543); }
 
 function parseBillDate(b){
   // ใช้ b.date ก่อนเสมอ เพราะ createdAt เป็น UTC ทำให้วันที่คลาดเคลื่อน +7
@@ -420,8 +420,12 @@ function render(){
     html+=renderDailyTable(mBills, getDays(mStart,mEnd));
 
   } else if(mode==="range"){
-    var f=new Date(document.getElementById("from-d").value);
-    var t=new Date(document.getElementById("to-d").value);
+    var _fv=document.getElementById("from-d").value;
+    var _tv=document.getElementById("to-d").value;
+    // parse เป็น local date ไม่ผ่าน UTC (ป้องกัน timezone shift)
+    var _fp=_fv.split("-"); var _tp=_tv.split("-");
+    var f=_fp.length===3?new Date(parseInt(_fp[0]),parseInt(_fp[1])-1,parseInt(_fp[2])):new Date(_fv);
+    var t=_tp.length===3?new Date(parseInt(_tp[0]),parseInt(_tp[1])-1,parseInt(_tp[2])):new Date(_tv);
     if(isNaN(f)||isNaN(t)){
       wrap.innerHTML='<div class="loading">กรุณาเลือกวันที่</div>'; return;
     }
@@ -466,6 +470,19 @@ function toggleMode(){
   var m=document.getElementById("mode-sel").value;
   document.getElementById("month-ctrl").style.display=m==="month"?"":"none";
   document.getElementById("range-ctrl").style.display=m==="range"?"":"none";
+  // ตั้ง default วันที่เมื่อ switch มา range
+  if(m==="range"){
+    var fd=document.getElementById("from-d");
+    var td=document.getElementById("to-d");
+    if(!fd.value){
+      var now=new Date();
+      var toISO=now.getFullYear()+"-"+String(now.getMonth()+1).padStart(2,"0")+"-"+String(now.getDate()).padStart(2,"0");
+      var yest=new Date(now); yest.setDate(yest.getDate()-1);
+      var fromISO=yest.getFullYear()+"-"+String(yest.getMonth()+1).padStart(2,"0")+"-"+String(yest.getDate()).padStart(2,"0");
+      fd.value=fromISO;
+      td.value=toISO;
+    }
+  }
 }
 
 function loadData(){
