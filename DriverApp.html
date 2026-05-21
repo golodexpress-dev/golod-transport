@@ -267,6 +267,10 @@ function initApp(){
     CU = s;
     showMain();
   } else {
+    // มี session แต่ไม่ใช่ driver → ล้างแล้ว login ใหม่ (ไม่ redirect ออก)
+    if(s && s.role !== "driver"){
+      try{ GolodSession.clear(); }catch(e){}
+    }
     showLogin();
   }
 }
@@ -288,53 +292,34 @@ function doLogin(){
   var u = (document.getElementById("inp-user").value||"").trim();
   var p = (document.getElementById("inp-pass").value||"").trim();
   var errEl = document.getElementById("login-err");
-  errEl.textContent = "";
   if(!u||!p){ errEl.textContent = "กรุณากรอก username และ password"; return; }
-
   errEl.textContent = "กำลังตรวจสอบ...";
 
-  GolodDB.ready(function(){
+  function tryLogin(attempt){
     var db;
-    try { db = firebase.firestore(); } catch(e) {
-      errEl.textContent = "Firestore ไม่พร้อม: " + e.message; return;
+    try{ db = firebase.firestore(); }catch(e){
+      if(attempt < 10){ setTimeout(function(){ tryLogin(attempt+1); }, 400); }
+      else { errEl.textContent = "Firestore ไม่พร้อม กรุณา reload"; }
+      return;
     }
-
-    // ดึง doc ตรงจาก username เป็น doc id ก่อน
     db.collection("users").doc(u).get().then(function(doc){
-      if(doc.exists) return doc.data();
-      // fallback: query จาก field username
+      if(doc.exists && doc.data().username) return doc.data();
       return db.collection("users").where("username","==",u).limit(1).get()
-        .then(function(snap){
-          return snap.empty ? null : snap.docs[0].data();
-        });
+        .then(function(snap){ return snap.empty ? null : snap.docs[0].data(); });
     }).then(function(found){
-      if(!found){
-        errEl.textContent = "ไม่พบ username "" + u + "" ในระบบ";
-        return;
-      }
-      if(found.password !== p){
-        errEl.textContent = "password ไม่ถูกต้อง";
-        return;
-      }
-      if(found.role !== "driver"){
-        errEl.textContent = "บัญชีนี้ไม่ใช่คนขับ (role: " + found.role + ")";
-        return;
-      }
-      if(found.active === false){
-        errEl.textContent = "บัญชีนี้ถูกระงับการใช้งาน";
-        return;
-      }
+      if(!found){ errEl.textContent = 'ไม่พบ username "'+u+'" ในระบบ'; return; }
+      if(found.password !== p){ errEl.textContent = "password ไม่ถูกต้อง"; return; }
+      if(found.role !== "driver"){ errEl.textContent = "บัญชีนี้ไม่ใช่คนขับ (role: "+(found.role||"-")+")"; return; }
+      if(found.active === false){ errEl.textContent = "บัญชีนี้ถูกระงับ"; return; }
       var sess = {username:found.username||u, name:found.name||u, role:"driver", branch:found.branch||""};
-      if(typeof GolodSession !== "undefined") GolodSession.set(sess);
+      try{ GolodSession.set(sess); }catch(e){}
       CU = sess;
       errEl.textContent = "";
       showMain();
-    }).catch(function(e){
-      errEl.textContent = "เชื่อมต่อไม่ได้: " + e.message;
-    });
-  });
+    }).catch(function(e){ errEl.textContent = "ผิดพลาด: "+e.message; });
+  }
+  tryLogin(0);
 }
-
 function doLogout(){
   if(!confirm("ออกจากระบบ?")) return;
   if(typeof GolodSession !== "undefined") GolodSession.clear();
@@ -684,15 +669,15 @@ function showToast(msg, type){
 }
 
 // ===== INIT =====
-GolodDB.ready(function(){
-  initApp();
-});
-// fallback if ready fires before script ends
-if(typeof GolodDB !== "undefined" && typeof GolodDB.ready === "function"){
-  // already wired above
-} else {
-  setTimeout(initApp, 1000);
+function startApp(){
+  if(typeof GolodDB !== "undefined" && typeof GolodDB.ready === "function"){
+    try{ GolodDB.init(); }catch(e){}
+    GolodDB.ready(initApp);
+  } else {
+    setTimeout(startApp, 300);
+  }
 }
+startApp();
 </script>
 </body>
 </html>
