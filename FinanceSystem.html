@@ -415,9 +415,10 @@ function thDate(dt){if(!dt)return"—";const d=parseDate(dt);if(!d||isNaN(d))ret
 
 // slip statuses
 function slipStatus(s){
-  if(s.hasSlipImg)  return{cls:"pill-green",txt:"📎 มีสลิปรูป"};
-  if(s.isDelivered) return{cls:"pill-green",txt:"✅ ยืนยันในแอป"};
-  if(s.slipConfirmed) return{cls:"pill-green",txt:"✓ ยืนยันแล้ว"};
+  if(s.hasSlipImg)   return{cls:"pill-green",txt:"📎 มีสลิปรูป"};
+  if(s.hasFormSlip)  return{cls:"pill-green",txt:"📎 อัปสลิปแล้ว"};
+  if(s.isDelivered)  return{cls:"pill-green",txt:"✅ ยืนยันในแอป"};
+  if(s.slipConfirmed)return{cls:"pill-green",txt:"✓ ยืนยันแล้ว"};
   if(s.slipRequest==="pending")return{cls:"pill-blue",txt:"⏳ รอ admin"};
   const days=daysDiff(s.deliveredDate);
   if(days>=7)return{cls:"pill-red",txt:`⚠ ${days} วัน`};
@@ -461,8 +462,9 @@ function billToIncome(b) {
   const isCredit    = method === "credit";
   const status = isCredit ? "credit" : (isTransfer && !isDelivered) ? "pending" : "received";
   const isoDate = toISO(b.date || "");
-  const slipUrlReal = b.slipUrl || b.slip1 || b.photoUrl || "";
-  const hasSlip = !!(slipUrlReal && slipUrlReal.startsWith("http"));
+  const slipUrlReal = b.slipUrl || b.slip1 || "";
+  const hasSlip = !!(slipUrlReal && slipUrlReal.startsWith("http"))
+               || !!(b.form?.slipUploaded || b.form?.slipName);
   const isDeliveredStatus = b.status === "ส่งสำเร็จ" || b.status === "delivered" || b.status === "ส่งแล้ว";
   return {
     id: "fb_" + b.billNo,
@@ -489,14 +491,19 @@ function billToSlip(b) {
   const branchRaw = b.branch || "";
   const branch = BRANCH_CODE[branchRaw] || CLERK_BRANCH_MAP[b.clerkCode] || CLERK_BRANCH_MAP[clerkInit] || "bkk";
   const isoDate = toISO(b.date || "");
-  const slipUrlReal = b.slipUrl || b.slip1 || b.photoUrl || "";
+  // slipUrl  = DriverApp slot "slip" (URL จริง)
+  // slip1    = ThermalBill (URL จริง)
+  // form.slipUploaded = GolodApp บันทึกว่าอัปสลิปแล้ว (แต่ URL เก็บใน Firebase Storage)
+  // form.slipName = ชื่อไฟล์สลิป (มีชื่อ = อัปแล้ว)
+  const slipUrlReal = b.slipUrl || b.slip1 || "";
   const hasSlipImg  = !!(slipUrlReal && slipUrlReal.startsWith("http"));
+  const hasFormSlip = !!(b.form?.slipUploaded || b.form?.slipName);
   const isDelivered = b.status === "ส่งสำเร็จ" || b.status === "delivered" || b.status === "ส่งแล้ว";
   const isApproved  = b.slipRequest === "approved";
-  const slipConfirmed = hasSlipImg || isDelivered || isApproved;
-  // label แสดงในตาราง
+  const slipConfirmed = hasSlipImg || hasFormSlip || isDelivered || isApproved;
   let confirmLabel = "";
-  if (hasSlipImg)   confirmLabel = "📎 มีสลิป";
+  if (hasSlipImg)       confirmLabel = "📎 มีสลิป";
+  else if (hasFormSlip) confirmLabel = "📎 อัปสลิปแล้ว";
   else if (isDelivered) confirmLabel = "✅ ยืนยันในแอป";
   else if (isApproved)  confirmLabel = "✓ admin อนุมัติ";
   return {
@@ -509,6 +516,7 @@ function billToSlip(b) {
     confirmLabel,
     slipUrl: slipUrlReal,
     hasSlipImg,
+    hasFormSlip,
     isDelivered,
     slipRequest: b.slipRequest || "",
     rawStatus: b.status || "",
@@ -548,6 +556,8 @@ function syncBillsToFinance(bills) {
     const rawPay = b.freightPay || "";
     const isTransferBill = rawPay === "transfer" || rawPay === "dest_transfer"
                         || inc.method === "transfer" || inc.method === "dest_transfer";
+    // "issued" = ออกบิลแล้ว แต่ยังไม่ส่ง — ถ้าเป็น transfer ต้องติดตามสลิป
+    // ปิดเฉพาะ ส่งสำเร็จ / returned เท่านั้น
     const isClosedStatus = b.status === "ส่งสำเร็จ" || b.status === "delivered"
                         || b.status === "ส่งแล้ว" || b.status === "returned";
     // แสดงในตาราง: ทุก transfer bill (แม้มีสลิปแล้ว เพื่อให้เห็นประวัติ)
@@ -581,6 +591,13 @@ function syncBillsToFinance(bills) {
     slipUrl:b.slipUrl, slip1:b.slip1, slipRequest:b.slipRequest,
     photoUrl:b.photoUrl
   })));
+  // หา AD2205-19 โดยเฉพาะ
+  const ad = bills.find(b=>b.billNo==="AD2205-19");
+  if(ad) console.log("[AD2205-19 all fields]", JSON.stringify(ad));
+  else console.warn("[AD2205-19] ไม่พบในผล Firebase — อาจอยู่นอก limit หรือ billNo ต่างกัน");
+  // log bills ที่มี slipUrl จริง
+  const hasSlipBills = bills.filter(b=>b.slipUrl||b.slip1);
+  hasSlipBills.forEach(b=>console.log("[HAS SLIP]",b.billNo,"slipUrl:",b.slipUrl,"slip1:",b.slip1,"pay:",b.freightPay));
   const dbgMsg = `sync ${bills.length} บิล | โอน:${dbgTransfer} | มีสลิป:${dbgHasSlipUrl+dbgHasSlip1} | ค้าง:${dbgSlipPending}`;
   setFbStatus("🔄 " + dbgMsg + " ✓", "#9FE1CB");
   updateBillCount(bills.length);
@@ -765,8 +782,8 @@ function renderSlip(){
   });
   let data=sortedSlips.filter(s=>{
     if(q&&!s.billNo.toLowerCase().includes(q)&&!s.customer.toLowerCase().includes(q))return false;
-    if(f==="has_img")   return s.hasSlipImg;
-    if(f==="app_conf")  return !s.hasSlipImg && s.isDelivered;
+    if(f==="has_img")   return s.hasSlipImg || s.hasFormSlip;
+    if(f==="app_conf")  return !s.hasSlipImg && !s.hasFormSlip && s.isDelivered;
     if(f==="pending")   return !s.slipConfirmed;
     if(f==="confirmed") return s.slipConfirmed;
     const days=daysDiff(s.deliveredDate);
@@ -778,8 +795,8 @@ function renderSlip(){
   const late=pending.filter(s=>daysDiff(s.deliveredDate)>=3);
   const pendingAmt=pending.reduce((s,x)=>s+x.amount,0);
   // alerts
-  const withImg     = sortedSlips.filter(s=>s.hasSlipImg);
-  const withAppConf = sortedSlips.filter(s=>!s.hasSlipImg && s.isDelivered);
+  const withImg     = sortedSlips.filter(s=>s.hasSlipImg || s.hasFormSlip);
+  const withAppConf = sortedSlips.filter(s=>!s.hasSlipImg && !s.hasFormSlip && s.isDelivered);
   const noSlip      = sortedSlips.filter(s=>!s.slipConfirmed);
   const lateNoSlip  = noSlip.filter(s=>daysDiff(s.deliveredDate)>=3);
   const waitAdmin   = sortedSlips.filter(s=>s.slipRequest==="pending"&&!s.hasSlipImg);
@@ -808,16 +825,18 @@ function renderSlip(){
     const st=slipStatus(s);
     const days=s.slipConfirmed?0:daysDiff(s.deliveredDate);
     const hasSlip=!!s.slipUrl;
-    const rowBg=s.hasSlipImg?"#F0FBF7":s.isDelivered?"#F5FDF9":!s.slipConfirmed&&days>=7?"#FFF0F0":!s.slipConfirmed&&days>=3?"#FFF5F5":!s.slipConfirmed&&days>=1?"#FFFBF0":"";
+    const rowBg=(s.hasSlipImg||s.hasFormSlip)?"#F0FBF7":s.isDelivered?"#F5FDF9":!s.slipConfirmed&&days>=7?"#FFF0F0":!s.slipConfirmed&&days>=3?"#FFF5F5":!s.slipConfirmed&&days>=1?"#FFFBF0":"";
     const slipBtn = s.hasSlipImg
       ? `<a href="${s.slipUrl}" target="_blank" style="font-size:11px;background:#E1F5EE;color:#085041;padding:3px 9px;border-radius:6px;text-decoration:none;font-weight:600;border:0.5px solid #9FE1CB">📎 ดูสลิป</a>`
-      : s.isDelivered
-        ? `<span style="font-size:10px;color:#1D9E75;font-weight:600">✅ แอป</span>`
-        : s.slipRequest==="pending"
-          ? `<span style="font-size:10px;color:#0C447C">⏳ รอ admin</span>`
-          : s.slipConfirmed
-            ? `<span style="font-size:10px;color:#1D9E75">✓ ยืนยัน</span>`
-            : `<button class="btn-sm btn-green" onclick="confirmSlip('${s.id}')">✓ ยืนยัน</button>`;
+      : s.hasFormSlip
+        ? `<span style="font-size:10px;background:#E1F5EE;color:#085041;padding:3px 9px;border-radius:6px;font-weight:600;border:0.5px solid #9FE1CB">📎 อัปแล้ว</span>`
+        : s.isDelivered
+          ? `<span style="font-size:10px;color:#1D9E75;font-weight:600">✅ แอป</span>`
+          : s.slipRequest==="pending"
+            ? `<span style="font-size:10px;color:#0C447C">⏳ รอ admin</span>`
+            : s.slipConfirmed
+              ? `<span style="font-size:10px;color:#1D9E75">✓ ยืนยัน</span>`
+              : `<button class="btn-sm btn-green" onclick="confirmSlip('${s.id}')">✓ ยืนยัน</button>`;
     return`<tr style="background:${rowBg}">
       <td style="font-weight:600;color:#0F6E56">${s.billNo}</td>
       <td style="max-width:140px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${s.customer}</td>
