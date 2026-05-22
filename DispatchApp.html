@@ -9,6 +9,26 @@
 <script src="firebase-app-compat.js"></script>
 <script src="firebase-firestore-compat.js"></script>
 <script src="golod-firebase.js?v=1779235612"></script>
+<!-- Modal สรุปการจ่ายงาน -->
+<div class="sum-modal-bg" id="modal-summary">
+  <div class="sum-modal">
+    <div class="sum-head">
+      <div>
+        <div class="sh-title" id="sm-title">สรุปการจ่ายงาน</div>
+        <div class="sh-sub" id="sm-sub"></div>
+      </div>
+      <div style="display:flex;gap:6px">
+        <button onclick="printSummary()" style="padding:5px 12px;background:rgba(255,255,255,.2);border:1px solid rgba(255,255,255,.4);color:#fff;border-radius:6px;cursor:pointer;font-size:12px">🖨 พิมพ์</button>
+        <button onclick="closeSummary()" style="padding:5px 10px;background:rgba(255,255,255,.15);border:1px solid rgba(255,255,255,.3);color:#fff;border-radius:6px;cursor:pointer;font-size:12px">✕</button>
+      </div>
+    </div>
+    <div class="sum-body" id="sm-body"></div>
+  </div>
+</div>
+
+<!-- Print area (hidden, shown only on print) -->
+<div class="print-area" id="print-area" style="display:none"></div>
+
 <script>try{GolodDB.init();}catch(e){}</script>
 <style>
 *{box-sizing:border-box;margin:0;padding:0}
@@ -58,6 +78,36 @@ tr:hover td{background:#f8fffe}
 .date-filter-bar label{font-size:12px;color:#555;font-weight:600}
 .date-filter-bar select{padding:5px 8px;border:1px solid #ddd;border-radius:7px;font-size:12px;font-family:inherit}
 .date-filter-bar input[type=date]{padding:5px 8px;border:1px solid #ddd;border-radius:7px;font-size:12px;font-family:inherit}
+/* ===== SUMMARY MODAL ===== */
+.sum-modal-bg{display:none;position:fixed;inset:0;background:rgba(0,0,0,.55);z-index:200;justify-content:center;align-items:center;padding:16px}
+.sum-modal-bg.show{display:flex}
+.sum-modal{background:#fff;border-radius:14px;width:100%;max-width:560px;max-height:90vh;overflow-y:auto;box-shadow:0 8px 40px rgba(0,0,0,.2)}
+.sum-head{background:#0F6E56;color:#fff;padding:14px 18px;border-radius:14px 14px 0 0;display:flex;align-items:center;gap:10px}
+.sum-head .sh-title{font-size:14px;font-weight:700;flex:1}
+.sum-head .sh-sub{font-size:11px;opacity:.8}
+.sum-body{padding:16px 18px}
+.sum-stat-row{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-bottom:14px}
+.sum-stat{background:#f8fffe;border:1px solid #d0ede5;border-radius:8px;padding:8px 10px;text-align:center}
+.sum-stat .sl{font-size:10px;color:#888;margin-bottom:2px}
+.sum-stat .sv{font-size:16px;font-weight:800;color:#0F6E56}
+.sum-stat.orange .sv{color:#E67E22}
+.sum-stat.blue .sv{color:#2471A3}
+.sum-stat.red .sv{color:#C0392B}
+.sum-stat.gray .sv{color:#555}
+.sum-table{width:100%;border-collapse:collapse;font-size:12px;margin-bottom:14px}
+.sum-table th{background:#f0faf5;padding:6px 8px;text-align:left;font-weight:700;color:#0F6E56;border-bottom:2px solid #d0ede5}
+.sum-table th:not(:first-child){text-align:right}
+.sum-table td{padding:5px 8px;border-bottom:1px solid #f5f5f5;vertical-align:middle}
+.sum-table td:not(:first-child){text-align:right}
+.sum-table tr:last-child td{border-bottom:none}
+.sum-btn-row{display:flex;gap:8px;justify-content:flex-end}
+/* ===== PRINT ===== */
+@media print{
+  body *{visibility:hidden}
+  .print-area, .print-area *{visibility:visible}
+  .print-area{position:fixed;inset:0;background:#fff;padding:20px;font-family:'Sarabun',Arial,sans-serif}
+  .no-print{display:none!important}
+}
 </style>
 </head>
 <body>
@@ -537,23 +587,169 @@ function confirmDispatch(){
   });
 
   Promise.all(promises).then(function(){
+    var dispatchedBills=[];
     ids.forEach(function(id){
       var b=BILLS.find(function(x){return x.billNo===id;});
       if(b){
         b.status=newStatus;
         if(dispatchMode==="branch"){b.targetBranch=target;b.targetBranchLabel=targetText;}
         else{b.driver=target;b.driverName=targetText;}
+        dispatchedBills.push(b);
       }
     });
     closeModal();
     btn.disabled=false; btn.textContent="ยืนยัน";
-    alert("✅ จ่ายงาน "+ids.length+" บิล สำเร็จ!");
     selectedBills={};
     renderApp();
+    // แสดง modal สรุป
+    showSummaryModal(dispatchedBills, target, targetText);
   }).catch(function(e){
     btn.disabled=false; btn.textContent="ยืนยัน";
     alert("❌ เกิดข้อผิดพลาด: "+e.message);
   });
+}
+
+// ===== SUMMARY MODAL =====
+function showSummaryModal(bills, driverKey, driverLabel){
+  var now = new Date();
+  var dateStr = now.getDate()+"/"+(now.getMonth()+1)+"/"+(now.getFullYear()+543);
+  var timeStr = String(now.getHours()).padStart(2,"0")+":"+String(now.getMinutes()).padStart(2,"0");
+
+  // คำนวณยอด
+  var totalOrigin=0, totalDest=0, totalTransfer=0, totalCredit=0, totalCOD=0, totalFreight=0;
+  bills.forEach(function(b){
+    var net = parseFloat(b.freightNet||0);
+    var cod = parseFloat(b.codTotal||0);
+    var pay = b.freightPay||(b.form&&b.form.freightPay)||"origin";
+    totalFreight += net;
+    if(cod>0) totalCOD += cod;
+    if(pay==="origin")   totalOrigin   += net;
+    else if(pay==="dest")     totalDest     += net;
+    else if(pay==="transfer") totalTransfer += net;
+    else if(pay==="credit")   totalCredit   += net;
+    else totalOrigin += net;
+  });
+
+  var fmt = function(n){ return (Math.round(n)||0).toLocaleString("th-TH"); };
+
+  // stat boxes
+  var statHTML = '<div class="sum-stat-row">'
+    +'<div class="sum-stat"><div class="sl">จำนวนบิล</div><div class="sv gray" style="color:#555">'+bills.length+'</div></div>'
+    +'<div class="sum-stat"><div class="sl">ต้นทาง</div><div class="sv">'+fmt(totalOrigin)+'</div></div>'
+    +'<div class="sum-stat orange"><div class="sl">ปลายทาง</div><div class="sv">'+fmt(totalDest)+'</div></div>'
+    +'<div class="sum-stat blue"><div class="sl">โอน</div><div class="sv">'+fmt(totalTransfer)+'</div></div>'
+    +'</div>'
+    +'<div class="sum-stat-row" style="grid-template-columns:repeat(3,1fr)">'
+    +'<div class="sum-stat gray"><div class="sl">เครดิต</div><div class="sv">'+fmt(totalCredit)+'</div></div>'
+    +'<div class="sum-stat red"><div class="sl">COD</div><div class="sv">'+fmt(totalCOD)+'</div></div>'
+    +'<div class="sum-stat" style="background:#f0faf5;border-color:#0F6E56"><div class="sl">รวมค่าขนส่ง</div><div class="sv">'+fmt(totalFreight)+'</div></div>'
+    +'</div>';
+
+  // bill table
+  var PAY_LABEL={origin:"ต้นทาง",dest:"ปลายทาง",transfer:"โอน",credit:"เครดิต"};
+  var rowsHTML = bills.map(function(b,i){
+    var net = parseFloat(b.freightNet||0);
+    var cod = parseFloat(b.codTotal||0);
+    var pay = b.freightPay||(b.form&&b.form.freightPay)||"origin";
+    var recv = b.receiverName||(b.form&&b.form.receiverName)||"";
+    var prov = b.destProv||(b.form&&b.form.destProv)||"";
+    return '<tr>'
+      +'<td style="color:#aaa;font-size:10px">'+(i+1)+'</td>'
+      +'<td style="font-weight:700">'+b.billNo+'</td>'
+      +'<td>'+recv+'</td>'
+      +'<td>'+prov+'</td>'
+      +'<td style="font-size:10px;color:#666">'+(PAY_LABEL[pay]||pay)+'</td>'
+      +'<td style="font-weight:600;color:#0F6E56">'+fmt(net)+'</td>'
+      +'<td style="color:#c0392b;font-weight:600">'+(cod>0?fmt(cod):"—")+'</td>'
+      +'</tr>';
+  }).join("");
+
+  var tableHTML = '<table class="sum-table">'
+    +'<tr><th>#</th><th>เลขบิล</th><th>ผู้รับ</th><th>จังหวัด</th><th>ชำระ</th><th>ค่าขนส่ง</th><th>COD</th></tr>'
+    +rowsHTML
+    +'<tr style="background:#f0faf5;font-weight:700;border-top:2px solid #d0ede5">'
+    +'<td colspan="5" style="color:#0F6E56">รวม '+bills.length+' บิล</td>'
+    +'<td style="color:#0F6E56">'+fmt(totalFreight)+'</td>'
+    +'<td style="color:#c0392b">'+fmt(totalCOD)+'</td>'
+    +'</tr>'
+    +'</table>';
+
+  // set modal content
+  var isDriver = dispatchMode==="driver";
+  document.getElementById("sm-title").textContent = (isDriver?"🚛 จ่ายงานคนขับ: ":"📦 จ่ายให้สาขา: ")+driverLabel;
+  document.getElementById("sm-sub").textContent = "วันที่ "+dateStr+" เวลา "+timeStr+" | "+bills.length+" บิล";
+  document.getElementById("sm-body").innerHTML = statHTML + tableHTML
+    +'<div class="sum-btn-row no-print">'
+    +'<button class="btn btn-gray" onclick="closeSummary()">ปิด</button>'
+    +'<button class="btn btn-green" onclick="printSummary()">🖨 พิมพ์ใบสรุป</button>'
+    +'</div>';
+
+  // เตรียม print area
+  var printHTML = '<div style="font-family:Sarabun,Arial,sans-serif;font-size:13px;padding:10px">'
+    +'<div style="text-align:center;margin-bottom:12px">'
+    +'<div style="font-size:11px;color:#555">บริษัท โกโลด ทรานสปอร์ต จำกัด</div>'
+    +'<div style="font-size:16px;font-weight:800;color:#0F6E56;margin:4px 0">ใบสรุปการจ่ายงานขนส่ง</div>'
+    +'<div style="font-size:12px">'+(isDriver?"คนขับ: ":"สาขา: ")+driverLabel+' | '+dateStr+' '+timeStr+'</div>'
+    +'</div>'
+    +'<table style="width:100%;border-collapse:collapse;font-size:12px;margin-bottom:10px">'
+    +'<tr style="background:#0F6E56;color:#fff"><td style="padding:5px 7px">รายการสรุป</td><td style="padding:5px 7px;text-align:right">จำนวน (฿)</td></tr>'
+    +'<tr><td style="padding:4px 7px;border-bottom:1px solid #eee">จำนวนบิลทั้งหมด</td><td style="padding:4px 7px;text-align:right;border-bottom:1px solid #eee;font-weight:700">'+bills.length+' บิล</td></tr>'
+    +'<tr><td style="padding:4px 7px;border-bottom:1px solid #eee">ค่าขนส่งต้นทาง</td><td style="padding:4px 7px;text-align:right;border-bottom:1px solid #eee">'+fmt(totalOrigin)+'</td></tr>'
+    +'<tr><td style="padding:4px 7px;border-bottom:1px solid #eee">ค่าขนส่งปลายทาง</td><td style="padding:4px 7px;text-align:right;border-bottom:1px solid #eee">'+fmt(totalDest)+'</td></tr>'
+    +'<tr><td style="padding:4px 7px;border-bottom:1px solid #eee">ค่าขนส่งโอน</td><td style="padding:4px 7px;text-align:right;border-bottom:1px solid #eee">'+fmt(totalTransfer)+'</td></tr>'
+    +'<tr><td style="padding:4px 7px;border-bottom:1px solid #eee">ค่าขนส่งเครดิต</td><td style="padding:4px 7px;text-align:right;border-bottom:1px solid #eee">'+fmt(totalCredit)+'</td></tr>'
+    +'<tr><td style="padding:4px 7px;border-bottom:1px solid #eee;color:#c0392b">COD รวม</td><td style="padding:4px 7px;text-align:right;border-bottom:1px solid #eee;color:#c0392b;font-weight:700">'+fmt(totalCOD)+'</td></tr>'
+    +'<tr style="background:#f0faf5"><td style="padding:5px 7px;font-weight:700;color:#0F6E56">รวมค่าขนส่งทั้งหมด</td><td style="padding:5px 7px;text-align:right;font-weight:800;color:#0F6E56">'+fmt(totalFreight)+' ฿</td></tr>'
+    +'</table>'
+    +'<table style="width:100%;border-collapse:collapse;font-size:11px">'
+    +'<tr style="background:#f0faf5"><th style="padding:5px 6px;text-align:left;border-bottom:1px solid #ddd">#</th>'
+    +'<th style="padding:5px 6px;text-align:left;border-bottom:1px solid #ddd">เลขบิล</th>'
+    +'<th style="padding:5px 6px;text-align:left;border-bottom:1px solid #ddd">ผู้รับ</th>'
+    +'<th style="padding:5px 6px;text-align:left;border-bottom:1px solid #ddd">จังหวัด</th>'
+    +'<th style="padding:5px 6px;text-align:right;border-bottom:1px solid #ddd">ชำระ</th>'
+    +'<th style="padding:5px 6px;text-align:right;border-bottom:1px solid #ddd">ค่าส่ง</th>'
+    +'<th style="padding:5px 6px;text-align:right;border-bottom:1px solid #ddd">COD</th></tr>'
+    + bills.map(function(b,i){
+        var net=parseFloat(b.freightNet||0),cod=parseFloat(b.codTotal||0);
+        var pay=b.freightPay||(b.form&&b.form.freightPay)||"origin";
+        var recv=b.receiverName||(b.form&&b.form.receiverName)||"";
+        var prov=b.destProv||(b.form&&b.form.destProv)||"";
+        var PAY2={origin:"ต้นทาง",dest:"ปลายทาง",transfer:"โอน",credit:"เครดิต"};
+        return '<tr style="border-bottom:1px solid #f5f5f5">'
+          +'<td style="padding:4px 6px;color:#aaa">'+(i+1)+'</td>'
+          +'<td style="padding:4px 6px;font-weight:700">'+b.billNo+'</td>'
+          +'<td style="padding:4px 6px">'+recv+'</td>'
+          +'<td style="padding:4px 6px">'+prov+'</td>'
+          +'<td style="padding:4px 6px;text-align:right;font-size:10px">'+(PAY2[pay]||pay)+'</td>'
+          +'<td style="padding:4px 6px;text-align:right;font-weight:600">'+fmt(net)+'</td>'
+          +'<td style="padding:4px 6px;text-align:right;color:#c0392b">'+(cod>0?fmt(cod):"—")+'</td>'
+          +'</tr>';
+      }).join("")
+    +'<tr style="background:#f0faf5;font-weight:700">'
+    +'<td colspan="5" style="padding:5px 6px;color:#0F6E56">รวม '+bills.length+' บิล</td>'
+    +'<td style="padding:5px 6px;text-align:right;color:#0F6E56">'+fmt(totalFreight)+'</td>'
+    +'<td style="padding:5px 6px;text-align:right;color:#c0392b">'+fmt(totalCOD)+'</td>'
+    +'</tr>'
+    +'</table>'
+    +'<div style="margin-top:24px;display:grid;grid-template-columns:1fr 1fr;gap:20px;font-size:12px">'
+    +'<div style="text-align:center"><div style="border-top:1px solid #555;padding-top:4px;margin-top:30px">ลายเซ็นผู้จ่ายงาน</div></div>'
+    +'<div style="text-align:center"><div style="border-top:1px solid #555;padding-top:4px;margin-top:30px">ลายเซ็น'+(isDriver?"คนขับ":"ผู้รับ")+'</div></div>'
+    +'</div>'
+    +'</div>';
+
+  document.getElementById("print-area").innerHTML = printHTML;
+  document.getElementById("modal-summary").classList.add("show");
+}
+
+function closeSummary(){
+  document.getElementById("modal-summary").classList.remove("show");
+}
+
+function printSummary(){
+  var pa = document.getElementById("print-area");
+  pa.style.display = "block";
+  window.print();
+  setTimeout(function(){ pa.style.display = "none"; }, 500);
 }
 
 // ===== STATUS MODAL =====
