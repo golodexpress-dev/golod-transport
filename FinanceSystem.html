@@ -919,41 +919,47 @@ function renderSlip(){
     let slipCell = "";
     const safeLabel = (s.billNo+" — "+s.customer).replace(/['"]/g,"");
     if(s.slipUrl){
-      // มี URL จริงจาก Firestore → แสดงรูปเล็กกดขยาย
+      // มี URL จริง → ปุ่มดูสลิปเสมอ (ไม่พึ่ง img โหลดสำเร็จ)
       window._slipUrlMap[s.id] = s.slipUrl;
-      slipCell = `<img class="slip-thumb" src="${s.slipUrl}"
-        data-id="${s.id}" data-label="${safeLabel}"
-        onclick="openSlipLightbox(window._slipUrlMap[this.dataset.id],this.dataset.label)"
-        onerror="this.style.display='none';this.nextSibling.style.display='inline-flex'"
-        title="${s.billNo} — คลิกดูสลิป"/>
-        <span class="slip-badge" style="display:none"
+      const imgId2 = "img_"+s.id.replace(/[^a-z0-9]/gi,"_");
+      slipCell = `<div style="display:flex;align-items:center;gap:6px">
+        <img id="${imgId2}" class="slip-thumb" src="${s.slipUrl}"
           data-id="${s.id}" data-label="${safeLabel}"
-          onclick="openSlipLightbox(window._slipUrlMap[this.dataset.id],this.dataset.label)">📎 ดูสลิป</span>`;
+          onclick="openSlipLightbox(window._slipUrlMap[this.dataset.id],this.dataset.label)"
+          title="คลิกดูสลิป"
+          onerror="this.style.opacity='.3'"/>
+        <span class="slip-badge"
+          data-id="${s.id}" data-label="${safeLabel}"
+          onclick="openSlipLightbox(window._slipUrlMap[this.dataset.id],this.dataset.label)">📎 ดูสลิป</span>
+      </div>`;
     } else if(s.needsResolve){
-      // บิลเก่า — URL หาย ต้อง resolve จาก Storage
+      // บิลเก่า — resolve URL จาก Storage
       const imgId = "rslv_"+s.id.replace(/[^a-z0-9]/gi,"_");
-      slipCell = `<img id="${imgId}" class="slip-thumb" src=""
-        data-bill="${s.billNo}" data-slot="${s.resolveSlot||'slip1'}" data-label="${safeLabel}"
-        style="display:none"
-        onclick="openSlipLightbox(this.src,this.dataset.label)"
-        title="${s.billNo} — คลิกดูสลิป"/>
-        <span class="slip-badge" id="${imgId}_badge">⏳ กำลังโหลด...</span>`;
-      // resolve async หลัง render
+      window._slipUrlMap[s.id] = ""; // placeholder
+      slipCell = `<div style="display:flex;align-items:center;gap:6px">
+        <img id="${imgId}" class="slip-thumb" src=""
+          style="display:none" title="คลิกดูสลิป"
+          onclick="openSlipLightbox(window._slipUrlMap['${s.id}'],'${safeLabel}')"/>
+        <span class="slip-badge" id="${imgId}_badge"
+          onclick="if(window._slipUrlMap['${s.id}'])openSlipLightbox(window._slipUrlMap['${s.id}'],'${safeLabel}')">
+          ⏳ กำลังโหลด...</span>
+      </div>`;
       setTimeout(()=>{
         const img = document.getElementById(imgId);
         const badge = document.getElementById(imgId+"_badge");
         if(!img) return;
-        resolveSlipUrl(img.dataset.bill, img.dataset.slot, function(url){
+        resolveSlipUrl("${s.billNo}", "${s.resolveSlot||'slip1'}", function(url){
           if(url){
-            img.src = url; img.style.display="";
-            if(badge) badge.style.display="none";
+            window._slipUrlMap["${s.id}"] = url;
+            img.src = url; img.style.display="inline-block";
+            if(badge){ badge.textContent="📎 ดูสลิป"; badge.style.cursor="pointer"; }
           } else {
-            if(badge){ badge.textContent="📎 อัปแล้ว"; }
+            if(badge){ badge.textContent="📎 อัปแล้ว"; badge.style.cursor="default"; }
           }
         });
-      }, 100);
+      }, 200);
     } else if(s.hasFormSlip){
-      slipCell = `<span class="slip-badge">📎 อัปแล้ว</span>`;
+      slipCell = `<span class="slip-badge" style="cursor:default">📎 อัปแล้ว</span>`;
     } else if(s.isDelivered){
       slipCell = `<span style="font-size:10px;color:#1D9E75;font-weight:600">✅ แอป</span>`;
     } else if(s.slipRequest==="pending"){
