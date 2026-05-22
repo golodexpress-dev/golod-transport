@@ -159,11 +159,13 @@ tr:nth-child(even) td{background:#fafafa}
 <div class="page" id="page-slip">
   <div class="filter-row">
     <select class="inp" id="slip-filter" onchange="renderSlip()" style="width:160px">
-      <option value="all">ทุกสถานะ</option>
-      <option value="pending">รอสลิป</option>
-      <option value="late3">เกิน 3 วัน</option>
-      <option value="late7">เกิน 7 วัน</option>
-      <option value="confirmed">ยืนยันแล้ว</option>
+      <option value="all">ทุกรายการ</option>
+      <option value="has_img">📎 มีรูปสลิป</option>
+      <option value="app_conf">✅ ยืนยันในแอป</option>
+      <option value="pending">⏳ รอสลิป</option>
+      <option value="late3">⚠ เกิน 3 วัน</option>
+      <option value="late7">🔴 เกิน 7 วัน</option>
+      <option value="confirmed">✓ ยืนยันแล้วทุกแบบ</option>
     </select>
     <input class="inp" id="slip-search" placeholder="ค้นหาเลขบิล/ชื่อ..." oninput="renderSlip()" style="width:200px"/>
     <button class="btn btn-green" onclick="openAddSlip()">+ เพิ่มรายการโอน</button>
@@ -744,6 +746,15 @@ function renderDashboard(){
 }
 
 // ======= SLIP =======
+function setSlipFilter(val){
+  const sel=document.getElementById("slip-filter");
+  if(sel) sel.value=val;
+  renderSlip();
+  // scroll ไปที่ตาราง
+  const tbl=document.getElementById("slip-table");
+  if(tbl) tbl.closest("div")?.scrollIntoView({behavior:"smooth",block:"start"});
+}
+
 function renderSlip(){
   const q=(document.getElementById("slip-search")?.value||"").toLowerCase();
   const f=document.getElementById("slip-filter")?.value||"all";
@@ -754,8 +765,10 @@ function renderSlip(){
   });
   let data=sortedSlips.filter(s=>{
     if(q&&!s.billNo.toLowerCase().includes(q)&&!s.customer.toLowerCase().includes(q))return false;
-    if(f==="pending")return !s.slipConfirmed;
-    if(f==="confirmed")return s.slipConfirmed;
+    if(f==="has_img")   return s.hasSlipImg;
+    if(f==="app_conf")  return !s.hasSlipImg && s.isDelivered;
+    if(f==="pending")   return !s.slipConfirmed;
+    if(f==="confirmed") return s.slipConfirmed;
     const days=daysDiff(s.deliveredDate);
     if(f==="late3")return !s.slipConfirmed&&days>=3;
     if(f==="late7")return !s.slipConfirmed&&days>=7;
@@ -771,13 +784,26 @@ function renderSlip(){
   const lateNoSlip  = noSlip.filter(s=>daysDiff(s.deliveredDate)>=3);
   const waitAdmin   = sortedSlips.filter(s=>s.slipRequest==="pending"&&!s.hasSlipImg);
   const confirmed   = sortedSlips.filter(s=>s.slipConfirmed);
-  document.getElementById("slip-alerts").innerHTML=[
-    lateNoSlip.length?`<div class="alert red">⚠ ยังไม่ได้รับการยืนยัน เกิน 3 วัน ${lateNoSlip.length} รายการ รวม ${fmt(lateNoSlip.reduce((s,x)=>s+x.amount,0))} ฿</div>`:"",
-    waitAdmin.length?`<div class="alert" style="background:#E6F1FB;border-left:3px solid #5B9BD5;padding:8px 12px;border-radius:6px;color:#0C447C">⏳ รอ admin อนุมัติ ${waitAdmin.length} รายการ</div>`:"",
-    withImg.length?`<div class="alert green">📎 มีรูปสลิป ${withImg.length} รายการ · ${fmt(withImg.reduce((s,x)=>s+x.amount,0))} ฿</div>`:"",
-    withAppConf.length?`<div class="alert green" style="background:#F0FBF7;border-color:#9FE1CB">✅ ยืนยันผ่านแอป ${withAppConf.length} รายการ · ${fmt(withAppConf.reduce((s,x)=>s+x.amount,0))} ฿</div>`:"",
-  ].join("");
-  document.getElementById("slip-summary").textContent=`ยืนยันแล้ว ${confirmed.length} ราย · รอยืนยัน ${noSlip.length} ราย · รวมค้าง ${fmt(noSlip.reduce((s,x)=>s+x.amount,0))} ฿`;
+  // alert cards — กดเพื่อ filter ตารางทันที
+  function makeAlertCard(filter, style, icon, label, count, amt) {
+    if(!count) return "";
+    const amtStr = amt>0 ? ` · ${fmt(amt)} ฿` : "";
+    return `<div onclick="setSlipFilter('${filter}')" style="cursor:pointer;padding:10px 14px;border-radius:8px;display:flex;align-items:center;justify-content:space-between;gap:8px;${style}transition:opacity .15s" onmouseover="this.style.opacity='.8'" onmouseout="this.style.opacity='1'">
+      <span style="font-size:13px;font-weight:600">${icon} ${label}</span>
+      <span style="font-size:12px;background:rgba(0,0,0,.08);padding:2px 10px;border-radius:20px;font-weight:700">${count} รายการ${amtStr}</span>
+    </div>`;
+  }
+  const late7NoSlip = noSlip.filter(s=>daysDiff(s.deliveredDate)>=7);
+  document.getElementById("slip-alerts").innerHTML=`
+    <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(240px,1fr));gap:8px;margin-bottom:12px">
+      ${makeAlertCard("late7","background:#FDECEA;border:1px solid #F5C6C6;color:#B71C1C;","🔴","เกิน 7 วัน ยังไม่ยืนยัน",late7NoSlip.length,late7NoSlip.reduce((s,x)=>s+x.amount,0))}
+      ${makeAlertCard("late3","background:#FFF8E7;border:1px solid #FADA90;color:#7B5200;","⚠","เกิน 3 วัน ยังไม่ยืนยัน",lateNoSlip.filter(s=>daysDiff(s.deliveredDate)<7).length,lateNoSlip.filter(s=>daysDiff(s.deliveredDate)<7).reduce((s,x)=>s+x.amount,0))}
+      ${makeAlertCard("pending","background:#F5F5F5;border:1px solid #DDD;color:#444;","⏳","รอสลิป (ไม่ถึง 3 วัน)",noSlip.filter(s=>daysDiff(s.deliveredDate)<3).length,noSlip.filter(s=>daysDiff(s.deliveredDate)<3).reduce((s,x)=>s+x.amount,0))}
+      ${makeAlertCard("has_img","background:#E8F5E9;border:1px solid #A5D6A7;color:#1B5E20;","📎","มีรูปสลิป",withImg.length,withImg.reduce((s,x)=>s+x.amount,0))}
+      ${makeAlertCard("app_conf","background:#F0FBF7;border:1px solid #9FE1CB;color:#085041;","✅","ยืนยันในแอป",withAppConf.length,withAppConf.reduce((s,x)=>s+x.amount,0))}
+      ${waitAdmin.length?makeAlertCard("pending","background:#E6F1FB;border:1px solid #A8CAEA;color:#0C447C;","🔔","รอ admin อนุมัติ",waitAdmin.length,0):""}
+    </div>`;
+  document.getElementById("slip-summary").innerHTML=`<b>${confirmed.length}</b> ยืนยันแล้ว &nbsp;|&nbsp; <b style="color:#E24B4A">${noSlip.length}</b> รอยืนยัน &nbsp;|&nbsp; รวมค้าง <b>${fmt(noSlip.reduce((s,x)=>s+x.amount,0))} ฿</b>`;
   document.getElementById("slip-table").innerHTML=data.map(s=>{
     const st=slipStatus(s);
     const days=s.slipConfirmed?0:daysDiff(s.deliveredDate);
