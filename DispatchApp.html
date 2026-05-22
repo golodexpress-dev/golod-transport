@@ -388,11 +388,12 @@ function filterBills(tab){
 // ===== RENDER =====
 function renderApp(){
   var tabs = [
-    {k:"pending", l:"รอจ่ายงาน"},
-    {k:"branch",  l:"ระหว่างส่งสาขา"},
-    {k:"driving", l:"กำลังส่ง"},
-    {k:"done",    l:"สำเร็จ/ไม่สำเร็จ"},
-    {k:"all",     l:"ทั้งหมด"}
+    {k:"pending",  l:"รอจ่ายงาน"},
+    {k:"branch",   l:"ระหว่างส่งสาขา"},
+    {k:"driving",  l:"กำลังส่ง"},
+    {k:"done",     l:"สำเร็จ/ไม่สำเร็จ"},
+    {k:"all",      l:"ทั้งหมด"},
+    {k:"history",  l:"📋 ประวัติจ่ายงาน"}
   ];
 
   var tabHTML = tabs.map(function(t){
@@ -486,9 +487,141 @@ function renderApp(){
     +'<div style="font-size:11px;color:#888;margin-top:8px">แสดง '+filtered.length+' บิล</div>'
     +'</div>';
 
+  if(currentTab === "history"){
+    renderHistoryTab();
+    return;
+  }
+
   document.getElementById("app").innerHTML = html;
   selectedBills = {};
   updateSelCount();
+}
+
+// ===== HISTORY TAB =====
+var historyDateMode = "week";
+var historyDateFrom = "";
+var historyDateTo = "";
+var historyFilter = "all"; // all | driver | branch
+
+function renderHistoryTab(){
+  var app = document.getElementById("app");
+  app.innerHTML = '<div class="card"><div class="card-title">📋 ประวัติการจ่ายงาน</div>'
+    +'<div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-bottom:12px">'
+    +'<select onchange="historyDateMode=this.value;loadHistory()" id="h-mode-sel">'
+    +'<option value="today">วันนี้</option>'
+    +'<option value="yesterday">เมื่อวาน</option>'
+    +'<option value="week" selected>7 วัน</option>'
+    +'<option value="month">30 วัน</option>'
+    +'<option value="all">ทั้งหมด</option>'
+    +'</select>'
+    +'<select onchange="historyFilter=this.value;loadHistory()">'
+    +'<option value="all">ทุกประเภท</option>'
+    +'<option value="driver">คนขับ</option>'
+    +'<option value="branch">สาขา</option>'
+    +'</select>'
+    +'<button class="btn btn-gray" onclick="loadHistory()">🔄 โหลด</button>'
+    +'</div>'
+    +'<div id="history-body"><div class="loading">⏳ กำลังโหลด...</div></div>'
+    +'</div>';
+  loadHistory();
+}
+
+function getHistoryDateRange(){
+  var now = new Date();
+  var pad = function(n){return String(n).padStart(2,"0");};
+  var fmt = function(d){return d.getFullYear()+"-"+pad(d.getMonth()+1)+"-"+pad(d.getDate());};
+  var today = fmt(now);
+  if(historyDateMode==="today") return {from:today, to:today};
+  if(historyDateMode==="yesterday"){
+    var y=new Date(now); y.setDate(y.getDate()-1); var s=fmt(y); return {from:s,to:s};
+  }
+  if(historyDateMode==="week"){
+    var w=new Date(now); w.setDate(w.getDate()-6); return {from:fmt(w),to:today};
+  }
+  if(historyDateMode==="month"){
+    var m=new Date(now); m.setDate(m.getDate()-29); return {from:fmt(m),to:today};
+  }
+  return {from:"",to:""};
+}
+
+function loadHistory(){
+  var el = document.getElementById("history-body");
+  if(!el) return;
+  el.innerHTML = '<div class="loading">⏳ กำลังดึงข้อมูล...</div>';
+
+  var range = getHistoryDateRange();
+  var opts = {limitN:300, dateFrom:range.from, dateTo:range.to};
+  if(historyFilter !== "all") opts.mode = historyFilter;
+
+  GolodDB.getDispatchLogs(opts).then(function(logs){
+    if(logs.length === 0){
+      el.innerHTML = '<div style="text-align:center;padding:30px;color:#aaa">ไม่พบประวัติในช่วงนี้</div>';
+      return;
+    }
+    var fmt = function(n){ return (Math.round(n)||0).toLocaleString("th-TH"); };
+    var fmtDT = function(iso){
+      if(!iso) return "—";
+      var d=new Date(iso);
+      return d.getDate()+"/"+(d.getMonth()+1)+"/"+(d.getFullYear())
+        +" "+String(d.getHours()).padStart(2,"0")+":"+String(d.getMinutes()).padStart(2,"0");
+    };
+
+    // สรุปยอดรวมทั้งหมดในช่วง
+    var sumBills=0,sumFreight=0,sumOrigin=0,sumDest=0,sumTransfer=0,sumCredit=0,sumCOD=0;
+    logs.forEach(function(l){
+      sumBills+=l.billCount||0;
+      sumFreight+=l.totalFreight||0;
+      sumOrigin+=l.totalOrigin||0;
+      sumDest+=l.totalDest||0;
+      sumTransfer+=l.totalTransfer||0;
+      sumCredit+=l.totalCredit||0;
+      sumCOD+=l.totalCOD||0;
+    });
+
+    var summaryHTML = '<div style="display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-bottom:14px;padding:10px;background:#f8fffe;border-radius:8px;border:1px solid #d0ede5">'
+      +'<div style="text-align:center"><div style="font-size:10px;color:#888">จ่ายงาน</div><div style="font-size:16px;font-weight:800;color:#555">'+logs.length+' ครั้ง</div></div>'
+      +'<div style="text-align:center"><div style="font-size:10px;color:#888">บิลรวม</div><div style="font-size:16px;font-weight:800;color:#0F6E56">'+sumBills+' ใบ</div></div>'
+      +'<div style="text-align:center"><div style="font-size:10px;color:#888">ค่าขนส่งรวม</div><div style="font-size:16px;font-weight:800;color:#0F6E56">'+fmt(sumFreight)+'</div></div>'
+      +'<div style="text-align:center"><div style="font-size:10px;color:#888">COD รวม</div><div style="font-size:16px;font-weight:800;color:#c0392b">'+fmt(sumCOD)+'</div></div>'
+      +'</div>';
+
+    var rowsHTML = logs.map(function(l){
+      var modeLabel = l.mode==="driver"?"🚛":"📦";
+      return '<tr onclick="openHistoryDetail(''+l._docId+'')" style="cursor:pointer">'
+        +'<td style="white-space:nowrap;color:#888;font-size:11px">'+fmtDT(l.dispatchAt)+'</td>'
+        +'<td>'+modeLabel+' '+l.targetName+'</td>'
+        +'<td style="text-align:center">'+l.billCount+'</td>'
+        +'<td style="text-align:right;color:#1D9E75">'+fmt(l.totalOrigin||0)+'</td>'
+        +'<td style="text-align:right;color:#E67E22">'+fmt(l.totalDest||0)+'</td>'
+        +'<td style="text-align:right;color:#2471A3">'+fmt(l.totalTransfer||0)+'</td>'
+        +'<td style="text-align:right;color:#c0392b">'+fmt(l.totalCOD||0)+'</td>'
+        +'<td style="text-align:right;font-weight:700;color:#0F6E56">'+fmt(l.totalFreight||0)+'</td>'
+        +'<td style="font-size:10px;color:#aaa">'+( l.dispatchByName||l.dispatchBy||"")+'</td>'
+        +'</tr>';
+    }).join("");
+
+    el.innerHTML = summaryHTML
+      +'<div style="overflow-x:auto"><table>'
+      +'<tr><th style="text-align:left">วันเวลา</th><th style="text-align:left">คนขับ/สาขา</th>'
+      +'<th style="text-align:center">บิล</th>'
+      +'<th style="text-align:right">ต้นทาง</th><th style="text-align:right">ปลายทาง</th>'
+      +'<th style="text-align:right">โอน</th><th style="text-align:right">COD</th>'
+      +'<th style="text-align:right">รวม</th><th>ผู้จ่าย</th></tr>'
+      +rowsHTML
+      +'</table></div>'
+      +'<div style="font-size:11px;color:#aaa;margin-top:8px">กดแถวเพื่อดูรายละเอียดบิล</div>';
+
+    // เก็บ logs ไว้ให้ openHistoryDetail ใช้
+    window._historyLogs = logs;
+  }).catch(function(e){
+    el.innerHTML = '<div style="text-align:center;padding:20px;color:#c00">❌ '+e.message+'</div>';
+  });
+}
+
+function openHistoryDetail(docId){
+  var log = (window._historyLogs||[]).find(function(l){ return l._docId===docId; });
+  if(!log) return;
+  showSummaryModal(log.bills||[], log.targetId, log.targetName, log.dispatchAt, log.dispatchByName||log.dispatchBy);
 }
 
 function onDateModeChange(mode){
@@ -601,6 +734,8 @@ function confirmDispatch(){
     btn.disabled=false; btn.textContent="ยืนยัน";
     selectedBills={};
     renderApp();
+    // บันทึก dispatch log
+    saveDispatchLogNow(dispatchedBills, target, targetText);
     // แสดง modal สรุป
     showSummaryModal(dispatchedBills, target, targetText);
   }).catch(function(e){
@@ -610,10 +745,55 @@ function confirmDispatch(){
 }
 
 // ===== SUMMARY MODAL =====
-function showSummaryModal(bills, driverKey, driverLabel){
-  var now = new Date();
-  var dateStr = now.getDate()+"/"+(now.getMonth()+1)+"/"+(now.getFullYear()+543);
-  var timeStr = String(now.getHours()).padStart(2,"0")+":"+String(now.getMinutes()).padStart(2,"0");
+function saveDispatchLogNow(bills, targetId, targetName){
+  var totOrigin=0,totDest=0,totTransfer=0,totCredit=0,totCOD=0,totFreight=0;
+  var billSnap = bills.map(function(b){
+    var net=parseFloat(b.freightNet||0);
+    var cod=parseFloat(b.codTotal||0);
+    var pay=b.freightPay||(b.form&&b.form.freightPay)||"origin";
+    totFreight+=net; if(cod>0) totCOD+=cod;
+    if(pay==="origin") totOrigin+=net;
+    else if(pay==="dest") totDest+=net;
+    else if(pay==="transfer") totTransfer+=net;
+    else if(pay==="credit") totCredit+=net;
+    else totOrigin+=net;
+    return {
+      billNo: b.billNo,
+      receiverName: b.receiverName||(b.form&&b.form.receiverName)||"",
+      destProv: b.destProv||(b.form&&b.form.destProv)||"",
+      destAmphoe: b.destAmphoe||(b.form&&b.form.destAmphoe)||"",
+      freightNet: net, codTotal: cod, freightPay: pay
+    };
+  });
+  var log = {
+    dispatchAt: new Date().toISOString(),
+    dispatchBy: CU ? CU.username : "",
+    dispatchByName: CU ? CU.name : "",
+    mode: dispatchMode,
+    targetId: targetId,
+    targetName: targetName,
+    billCount: bills.length,
+    totalFreight: totFreight,
+    totalOrigin: totOrigin,
+    totalDest: totDest,
+    totalTransfer: totTransfer,
+    totalCredit: totCredit,
+    totalCOD: totCOD,
+    bills: billSnap
+  };
+  // บันทึกลง Firestore (ไม่ต้องรอ)
+  if(typeof GolodDB !== "undefined" && GolodDB.saveDispatchLog) {
+    GolodDB.saveDispatchLog(log).catch(function(e){
+      console.warn("saveDispatchLog error:", e);
+    });
+  }
+}
+
+function showSummaryModal(bills, driverKey, driverLabel, dispatchAtISO, dispatchByName){
+  var _dt = dispatchAtISO ? new Date(dispatchAtISO) : new Date();
+  var dateStr = _dt.getDate()+"/"+((_dt.getMonth()+1))+"/"+((_dt.getFullYear())+543);
+  var timeStr = String(_dt.getHours()).padStart(2,"0")+":"+String(_dt.getMinutes()).padStart(2,"0");
+  var byStr = dispatchByName ? " | ผู้จ่าย: "+dispatchByName : "";
 
   // คำนวณยอด
   var totalOrigin=0, totalDest=0, totalTransfer=0, totalCredit=0, totalCOD=0, totalFreight=0;
@@ -677,7 +857,7 @@ function showSummaryModal(bills, driverKey, driverLabel){
   // set modal content
   var isDriver = dispatchMode==="driver";
   document.getElementById("sm-title").textContent = (isDriver?"🚛 จ่ายงานคนขับ: ":"📦 จ่ายให้สาขา: ")+driverLabel;
-  document.getElementById("sm-sub").textContent = "วันที่ "+dateStr+" เวลา "+timeStr+" | "+bills.length+" บิล";
+  document.getElementById("sm-sub").textContent = "วันที่ "+dateStr+" เวลา "+timeStr+" | "+bills.length+" บิล"+byStr;
   document.getElementById("sm-body").innerHTML = statHTML + tableHTML
     +'<div class="sum-btn-row no-print">'
     +'<button class="btn btn-gray" onclick="closeSummary()">ปิด</button>'
