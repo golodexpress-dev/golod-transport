@@ -583,15 +583,17 @@ function syncBillsToFinance(bills) {
                         || b.status === "ส่งแล้ว" || b.status === "returned";
     // โอนล่วงหน้าแล้ว (slip1/form) = ชำระแล้ว ไม่ต้องรอสลิปอีก
     const hasPrepaid = !!(b.slip1?.startsWith("http") || b.form?.slipUploaded || b.form?.slipName);
-    const hasAnySlip = !!(b.slipUrl?.startsWith("http") || b.slip1?.startsWith("http")
-                       || b.form?.slipUploaded || b.form?.slipName);
+    // URL จริง = startsWith("http") เท่านั้น (ไม่นับ path สั้น)
+    const hasRealSlipUrl = !!(b.slipUrl?.startsWith("http") || b.slip1?.startsWith("http"));
+    const hasAnySlip = hasRealSlipUrl || !!(b.form?.slipUploaded || b.form?.slipName);
+
     if (isTransferBill) {
       // transfer ทุกใบ — ใส่เพื่อติดตาม
       const sl = billToSlip(b);
       if (isClosedStatus || hasPrepaid) sl.slipConfirmed = true;
       SLIPS.unshift(sl);
-    } else if (hasAnySlip) {
-      // origin/dest ที่มีสลิปอยู่ — ใส่เพื่อดูประวัติ (slipConfirmed=true)
+    } else if (hasRealSlipUrl) {
+      // origin/dest ที่มี URL สลิปจริง — ใส่เพื่อดูรูปได้
       const sl = billToSlip(b);
       sl.slipConfirmed = true;
       SLIPS.unshift(sl);
