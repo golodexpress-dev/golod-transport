@@ -996,61 +996,55 @@ function SecTitle({
 // 80mm ≈ 302px at 96dpi  — ใช้ 298px เผื่อ margin printer
 
 // QR Code component สำหรับ thermal print
-// === QR Code Box ===
-function makeQRDataUrl(text, px) {
-  try {
-    var wrap = document.createElement("div");
-    wrap.style.cssText = "position:fixed;right:-9999px;top:0;width:"+px+"px;height:"+px+"px;";
-    document.body.appendChild(wrap);
-    new QRCode(wrap, {
-      text: text, width: px, height: px,
-      colorDark: "#000000", colorLight: "#ffffff",
-      correctLevel: QRCode.CorrectLevel.M
-    });
-    var result = null;
-    var cv = wrap.querySelector("canvas");
-    if (cv && cv.width > 0) {
-      try { result = cv.toDataURL("image/png"); } catch(e2) {}
-    }
-    if (!result) {
-      var im = wrap.querySelector("img");
-      if (im && im.src && im.src.startsWith("data:")) result = im.src;
-    }
-    document.body.removeChild(wrap);
-    return result;
-  } catch(e) { return null; }
-}
-
+// === QR Code Box — render ใน visible element แล้ว capture ===
 function QRCodeBox({ data, size }) {
   var sz = size || 80;
-  const [src, setSrc] = React.useState(null);
-  const [tick, setTick] = React.useState(0);
+  const [url, setUrl] = React.useState(null);
 
-  React.useEffect(() => {
-    if (!data || src) return;
-    var t = setTimeout(function() {
-      var url = makeQRDataUrl(data, sz * 2);
-      if (url && url.length > 500) {
-        setSrc(url);
-      } else if (tick < 20) {
-        setTick(function(n){ return n + 1; });
+  // ใช้ callback ref — จะเรียกทันทีที่ div mount เข้า DOM
+  const refCb = React.useCallback(function(el) {
+    if (!el || !data || url) return;
+    el.innerHTML = "";
+    try {
+      new QRCode(el, {
+        text: String(data),
+        width: sz,
+        height: sz,
+        colorDark: "#000000",
+        colorLight: "#ffffff",
+        correctLevel: QRCode.CorrectLevel.M
+      });
+    } catch(e) { return; }
+    var n = 0;
+    var timer = setInterval(function() {
+      n++;
+      var cv = el.querySelector("canvas");
+      if (cv && cv.width > 0) {
+        try {
+          var u = cv.toDataURL("image/png");
+          if (u && u.length > 500) { setUrl(u); clearInterval(timer); return; }
+        } catch(e2) {}
       }
-    }, 150 + tick * 80);
-    return function() { clearTimeout(t); };
-  }, [data, sz, tick]);
+      var im = el.querySelector("img");
+      if (im && im.complete && im.naturalWidth > 0 && im.src && im.src.startsWith("data:")) {
+        setUrl(im.src); clearInterval(timer); return;
+      }
+      if (n > 80) clearInterval(timer);
+    }, 50);
+  }, [data, sz]);
 
-  if (src) {
+  if (url) {
     return React.createElement("img", {
-      src: src,
+      src: url,
       style: { display:"block", width:sz, height:sz, margin:"0 auto" }
     });
   }
   return React.createElement("div", {
-    style: { width:sz, height:sz, margin:"0 auto", background:"#f0f0f0",
-             display:"flex", alignItems:"center", justifyContent:"center",
-             fontSize:9, color:"#bbb" }
-  }, "QR...");
+    ref: refCb,
+    style: { width:sz, height:sz, margin:"0 auto", lineHeight:0, overflow:"hidden" }
+  });
 }
+
 
 function ThermalBill({
   form,
