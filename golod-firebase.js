@@ -289,18 +289,24 @@ var GolodDB = (function() {
     opts = opts || {};
     return new Promise(function(resolve, reject) {
       ready(function() {
-        var q = db.collection("dispatchLogs").orderBy("dispatchAt", "desc");
-        if(opts.targetId) {
-          q = db.collection("dispatchLogs").where("targetId","==",opts.targetId).orderBy("dispatchAt","desc");
-        } else if(opts.mode) {
-          q = db.collection("dispatchLogs").where("mode","==",opts.mode).orderBy("dispatchAt","desc");
-        }
-        q.limit(opts.limitN || 200).get()
-          .then(function(snap) {
+        // ใช้ query เดียว (orderBy dispatchAt) แล้วกรอง mode/targetId ใน JS
+        // เพื่อไม่ต้องสร้าง composite index หลายตัว
+        var q = db.collection("dispatchLogs")
+          .orderBy("dispatchAt", "desc")
+          .limit(opts.limitN || 300);
+
+        q.get().then(function(snap) {
             var logs = [];
             snap.forEach(function(doc) {
               var d = doc.data(); d._docId = doc.id; logs.push(d);
             });
+            // กรอง mode / targetId / date ใน JS
+            if(opts.targetId) {
+              logs = logs.filter(function(l){ return l.targetId === opts.targetId; });
+            }
+            if(opts.mode) {
+              logs = logs.filter(function(l){ return l.mode === opts.mode; });
+            }
             if(opts.dateFrom || opts.dateTo) {
               logs = logs.filter(function(l) {
                 var d = l.dispatchAt ? l.dispatchAt.slice(0,10) : "";
