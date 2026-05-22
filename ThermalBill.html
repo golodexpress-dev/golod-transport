@@ -1122,21 +1122,25 @@ function ThermalBill({
   }) => /*#__PURE__*/React.createElement("div", {
     style: {
       display: "flex",
-      justifyContent: "space-between",
+      justifyContent: "flex-end",
       alignItems: "baseline",
+      gap: 8,
       padding: sep ? "4px 0" : "1px 0",
       borderBottom: sep ? "0.5px dashed #ccc" : "none",
-      marginBottom: sep ? 4 : 0
+      marginBottom: sep ? 4 : 0,
+      paddingRight: 2
     }
   }, /*#__PURE__*/React.createElement("span", {
     style: {
-      fontSize: bold ? 12 : 11,
+      fontSize: bold ? 13 : 12,
       ...B
     }
   }, l), /*#__PURE__*/React.createElement("span", {
     style: {
-      fontSize: lg ? 15 : bold ? 12 : 11,
-      ...B
+      fontSize: lg ? 16 : bold ? 13 : 12,
+      ...B,
+      minWidth: 70,
+      textAlign: "right"
     }
   }, r));
   const Div = ({
@@ -1180,34 +1184,27 @@ function ThermalBill({
     }
   }, "GOLOD TRANSPORT"), /*#__PURE__*/React.createElement("div", {
     style: {
+      fontSize: 10,
+      fontWeight: 700
+    }
+  }, "527 \u0E16.\u0E25\u0E31\u0E14\u0E19\u0E34\u0E48\u0E21\u0E44\u0E2A\u0E27 \u0E41\u0E02\u0E27\u0E07\u0E17\u0E27\u0E35\u0E27\u0E31\u0E12\u0E19\u0E32 \u0E40\u0E02\u0E15\u0E17\u0E27\u0E35\u0E27\u0E31\u0E12\u0E19\u0E32", /*#__PURE__*/React.createElement("br",null), "\u0E01\u0E23\u0E38\u0E07\u0E40\u0E17\u0E1E\u0E2F 10170  Tax ID: 0105556152968"), /*#__PURE__*/React.createElement("div", {
+    style: {
       fontSize: 12,
-      fontWeight: 800,
-      lineHeight: 1.1,
-      marginBottom: 2
-    }
-  }, "CO.,LTD."), /*#__PURE__*/React.createElement("div", {
-    style: {
-      fontSize: 10,
-      fontWeight: 700
-    }
-  }, "527 \u0E16.\u0E25\u0E31\u0E14\u0E19\u0E34\u0E48\u0E21\u0E44\u0E2A\u0E27 \u0E41\u0E02\u0E27\u0E07\u0E17\u0E27\u0E35\u0E27\u0E31\u0E12\u0E19\u0E32 \u0E40\u0E02\u0E15\u0E17\u0E27\u0E35\u0E27\u0E31\u0E12\u0E19\u0E32 \u0E01\u0E23\u0E38\u0E07\u0E40\u0E17\u0E1E\u0E2F 10170 Tax ID: 0105556152968"), /*#__PURE__*/React.createElement("div", {
-    style: {
-      fontSize: 10,
       fontWeight: 800
     }
-  }, "\u0E42\u0E17\u0E23 099-1015858, 098-4518141"), /*#__PURE__*/React.createElement("div", {
+  }, "\u0E42\u0E17\u0E23 099-1875230, 086-0741212"), /*#__PURE__*/React.createElement("div", {
     style: {
-      fontSize: 10,
+      fontSize: 12,
       fontWeight: 800
     }
-  }, "086-0741212, 094-4721796, 099-1872300"), /*#__PURE__*/React.createElement("div", {
+  }, "094-4721796, 099-1872300"), /*#__PURE__*/React.createElement("div", {
     style: {
-      fontSize: 10,
+      fontSize: 12,
       fontWeight: 700
     }
-  }, "Line: @golod"), /*#__PURE__*/React.createElement("div", {
+  }, "\u0E40\u0E0A\u0E47\u0E04\u0E2A\u0E16\u0E32\u0E19\u0E30\u0E17\u0E35\u0E48 @glexpress , \u0E15\u0E35\u0E23\u0E32\u0E04\u0E32\u0E23\u0E31\u0E1A\u0E07\u0E32\u0E19 @golod"), /*#__PURE__*/React.createElement("div", {
     style: {
-      fontSize: 10,
+      fontSize: 12,
       fontWeight: 700
     }
   }, "\u0E1A\u0E23\u0E34\u0E01\u0E32\u0E23\u0E2A\u0E48\u0E07\u0E2A\u0E34\u0E19\u0E04\u0E49\u0E32 57 \u0E08\u0E31\u0E07\u0E2B\u0E27\u0E31\u0E14\u0E17\u0E31\u0E48\u0E27\u0E44\u0E17\u0E22")), /*#__PURE__*/React.createElement(Div, null), /*#__PURE__*/React.createElement("div", {
@@ -1217,13 +1214,13 @@ function ThermalBill({
     }
   }, /*#__PURE__*/React.createElement("div", {
     style: {
-      fontSize: 10,
-      fontWeight: 700
+      fontSize: 12,
+      fontWeight: 800
     }
   }, "บิลขนส่งเลขที่"), /*#__PURE__*/React.createElement("div", {
     style: {
-      fontSize: 20,
-      fontWeight: 800,
+      fontSize: 22,
+      fontWeight: 900,
       letterSpacing: 3,
       marginTop: 2
     }
@@ -1238,9 +1235,9 @@ function ThermalBill({
       fontSize: 10,
       fontWeight: 700
     }
-  }, "\u0E1E\u0E19\u0E31\u0E01\u0E07\u0E32\u0E19: ", form.staff), /*#__PURE__*/React.createElement(QRCodeBox, {
+  }, /*#__PURE__*/React.createElement(QRCodeBox, {
     data: String(billNo||"GOLOD"),
-    size: 80
+    size: 110
   })), /*#__PURE__*/React.createElement(Div, {
     dashed: true
   }), /*#__PURE__*/React.createElement("div", {
@@ -1248,17 +1245,11 @@ function ThermalBill({
       marginBottom: 4
     }
   }, /*#__PURE__*/React.createElement("div", {
-    style: {
-      fontSize: 10,
-      fontWeight: 800,
-      marginBottom: 1
-    }
-  }, "[ \u0E1C\u0E39\u0E49\u0E2A\u0E48\u0E07 ]"), /*#__PURE__*/React.createElement("div", {
-    style: {
-      fontSize: 12,
-      fontWeight: 800
-    }
-  }, form.senderName || "—"), /*#__PURE__*/React.createElement("div", {
+    style: { display:"flex", alignItems:"baseline", flexWrap:"wrap", gap:4, marginBottom:1 }
+  },
+    /*#__PURE__*/React.createElement("span", { style:{ fontSize:10, fontWeight:800, whiteSpace:"nowrap" }}, "[ \u0E1C\u0E39\u0E49\u0E2A\u0E48\u0E07 ]"),
+    /*#__PURE__*/React.createElement("span", { style:{ fontSize:16, fontWeight:800, wordBreak:"break-word" }}, form.senderName || "—")
+  ), /*#__PURE__*/React.createElement("div", {
     style: {
       fontSize: 13,
       fontWeight: 900
@@ -1288,24 +1279,18 @@ function ThermalBill({
       marginBottom: 4
     }
   }, /*#__PURE__*/React.createElement("div", {
-    style: {
-      fontSize: 10,
-      fontWeight: 800,
-      marginBottom: 1
-    }
-  }, "[ \u0E1C\u0E39\u0E49\u0E23\u0E31\u0E1A ]"), /*#__PURE__*/React.createElement("div", {
-    style: {
-      fontSize: 16,
-      fontWeight: 800
-    }
-  }, form.receiverName || "—"), /*#__PURE__*/React.createElement("div", {
+    style: { display:"flex", alignItems:"baseline", flexWrap:"wrap", gap:4, marginBottom:1 }
+  },
+    /*#__PURE__*/React.createElement("span", { style:{ fontSize:10, fontWeight:800, whiteSpace:"nowrap" }}, "[ \u0E1C\u0E39\u0E49\u0E23\u0E31\u0E1A ]"),
+    /*#__PURE__*/React.createElement("span", { style:{ fontSize:16, fontWeight:800, wordBreak:"break-word" }}, form.receiverName || "—")
+  ), /*#__PURE__*/React.createElement("div", {
     style: {
       fontSize: 13,
       fontWeight: 900
     }
   }, "\u0E42\u0E17\u0E23: ", form.receiverPhone || "—"), form.receiverAddr && /*#__PURE__*/React.createElement("div", {
     style: {
-      fontSize: 10,
+      fontSize: 11,
       fontWeight: 700
     }
   }, form.receiverAddr), (form.receiverTambon || form.receiverAmphoe || form.destProv) && /*#__PURE__*/React.createElement("div", {
@@ -1317,15 +1302,17 @@ function ThermalBill({
     style: {
       fontWeight: 800
     }
-  }, (isGTM ? "แขวง" : "ต.") + form.receiverTambon + " "), form.receiverAmphoe && (isGTM ? "เขต" : "อ.") + form.receiverAmphoe + " · ", "จ." + form.destProv + " [" + zoneLabel + "]", form.receiverZip && /*#__PURE__*/React.createElement("span", {
+  }, (isGTM ? "แขวง" : "ต.") + form.receiverTambon + " "), form.receiverAmphoe && (isGTM ? "เขต" : "อ.") + form.receiverAmphoe + " · ", "จ." + form.destProv + " [" + (form.isSpecialArea ? "พิเศษ" : zoneLabel) + "]", form.receiverZip && /*#__PURE__*/React.createElement("span", {
     style: {
       fontWeight: 800
     }
   }, " ", form.receiverZip))), /*#__PURE__*/React.createElement(Div, null), /*#__PURE__*/React.createElement("div", {
-    style: {
-      marginBottom: 4
-    }
-  }, /*#__PURE__*/React.createElement("table", {
+    style: { marginBottom: 4 }
+  },
+  /*#__PURE__*/React.createElement("div", {
+    style: { fontSize:9, color:"#555", marginBottom:2, fontWeight:700 }
+  }, "Kg.=น้ำหนักต่อชิ้น  S=ผลรวม ก+ย+ส"),
+  /*#__PURE__*/React.createElement("table", {
     style: {
       width: "100%",
       borderCollapse: "collapse",
@@ -1339,22 +1326,22 @@ function ThermalBill({
       borderTop: "1px solid #111"
     }
   }, /*#__PURE__*/React.createElement("th", {
-    style: { textAlign: "left", padding: "2px 3px", fontWeight: 700, maxWidth: 90, borderRight: "0.5px solid #111", background:"#eee" }
+    style: { textAlign: "left", padding: "2px 3px", fontWeight: 700, fontSize:10, maxWidth: 90, borderRight: "0.5px solid #111", background:"#eee" }
   }, "\u0E23\u0E32\u0E22\u0E01\u0E32\u0E23\u0E02\u0E2D\u0E07"),
   /*#__PURE__*/React.createElement("th", {
-    style: { textAlign: "center", padding: "2px 3px", fontWeight: 700, borderRight: "0.5px solid #111", background:"#eee" }
-  }, "\u0E19\u0E19./\u0E0A\u0E34\u0E49\u0E19"),
+    style: { textAlign: "center", padding: "2px 3px", fontWeight: 700, fontSize:10, borderRight: "0.5px solid #111", background:"#eee" }
+  }, "Kg."),
   /*#__PURE__*/React.createElement("th", {
-    style: { textAlign: "center", padding: "2px 3px", fontWeight: 700, borderRight: "0.5px solid #111", background:"#eee" }
-  }, "\u0E01+\u0E22+\u0E2A"),
+    style: { textAlign: "center", padding: "2px 3px", fontWeight: 700, fontSize:10, borderRight: "0.5px solid #111", background:"#eee" }
+  }, "S"),
   !form.hidePrice && /*#__PURE__*/React.createElement("th", {
-    style: { textAlign: "right", padding: "2px 3px", fontWeight: 700, borderRight: "0.5px solid #111", background:"#eee" }
+    style: { textAlign: "center", padding: "2px 3px", fontWeight: 700, borderRight: "0.5px solid #111", background:"#eee" }
   }, "P"),
   /*#__PURE__*/React.createElement("th", {
-    style: { textAlign: "center", padding: "2px 3px", fontWeight: 700, borderRight: "0.5px solid #111", background:"#eee" }
+    style: { textAlign: "center", padding: "2px 3px", fontWeight: 700, fontSize:10, borderRight: "0.5px solid #111", background:"#eee" }
   }, "Q"),
   !form.hidePrice && /*#__PURE__*/React.createElement("th", {
-    style: { textAlign: "right", padding: "2px 3px", fontWeight: 700, background:"#eee" }
+    style: { textAlign: "right", padding: "2px 3px", fontWeight: 700, fontSize:10, background:"#eee" }
   }, "\u0E04\u0E48\u0E32\u0E2A\u0E48\u0E07"))), /*#__PURE__*/React.createElement("tbody", null, items.map((item, i) => {
     const sumCm = parseFloat(item.sumCm) || 0;
     const sz = calcSize(item.kg, sumCm);
@@ -1374,7 +1361,7 @@ function ThermalBill({
     }, /*#__PURE__*/React.createElement("td", {
       style: {
         padding: "1px 2px",
-        fontSize: 10,
+        fontSize: 11,
         fontWeight: 900,
         maxWidth: 90,
         wordBreak: "break-word",
@@ -1448,19 +1435,19 @@ function ThermalBill({
       alignItems: "baseline",
       margin: "4px 0"
     }
-  }, /*#__PURE__*/React.createElement("span", {
-    style: {
-      fontSize: 11,
-      fontWeight: 700
-    }
-  }, "\u0E23\u0E27\u0E21\u0E04\u0E48\u0E32\u0E02\u0E19\u0E2A\u0E48\u0E07"), /*#__PURE__*/React.createElement("div", {style:{textAlign:"right"}},
+  }, /*#__PURE__*/React.createElement("div", {
+    style: { display:"flex", justifyContent:"flex-end", alignItems:"baseline", gap:8, width:"100%" }
+  },
+  /*#__PURE__*/React.createElement("span", {
+    style: { fontSize: 12, fontWeight: 700 }
+  }, "\u0E04\u0E48\u0E32\u0E02\u0E19\u0E2A\u0E48\u0E07\u0E2A\u0E38\u0E17\u0E18\u0E34"), /*#__PURE__*/React.createElement("div", {style:{textAlign:"right"}},
     /*#__PURE__*/React.createElement("span", {
-      style: { fontSize: 16, fontWeight: 700 }
+      style: { fontSize: 17, fontWeight: 900 }
     }, (summary&&summary.freightNet||0).toLocaleString("th-TH"), " \u0E3F"),
     _isMinApplied && /*#__PURE__*/React.createElement("div", {
       style: { fontSize: 9, color: "#E67E22", fontWeight: 700, marginTop: 1 }
     }, "(ยอดขั้นต่ำพื้นที่พิเศษ)")
-  )), !form.hidePrice && /*#__PURE__*/React.createElement("div", {
+  ))), !form.hidePrice && /*#__PURE__*/React.createElement("div", {
     style: {
       display: "flex",
       justifyContent: "space-between",
@@ -1472,40 +1459,48 @@ function ThermalBill({
       marginBottom: 3
     }
   }, /*#__PURE__*/React.createElement("span", {
-    style: { fontSize: 11, fontWeight: 900, color: "#000" }
+    style: { fontSize: 12, fontWeight: 900, color: "#000" }
   }, "\u25CF COD \u0E23\u0E27\u0E21 (\u0E3F)"),
-  /*#__PURE__*/React.createElement("input", {
-    type: "number",
-    value: (summary&&summary.codTotal)||"",
-    readOnly: true,
-    style: {
-      width: 90, textAlign: "right", fontSize: 14, fontWeight: 900,
-      border: "1.5px solid #000", borderRadius: 4, padding: "2px 6px",
-      background: "#fff", color: "#000"
-    }
-  })), /*#__PURE__*/React.createElement(Div, {
+  /*#__PURE__*/React.createElement("span", {
+    style: { fontSize: 14, fontWeight: 900, color: "#000" }
+  }, (summary&&summary.codTotal&&summary.codTotal>0)
+    ? (summary.codTotal).toLocaleString("th-TH")+" ฿"
+    : "-\u0E44\u0E21\u0E48\u0E21\u0E35-")), /*#__PURE__*/React.createElement(Div, {
     dashed: true
-  }), /*#__PURE__*/React.createElement("div", {
+  }),
+  /*#__PURE__*/React.createElement("div", {
+    style: { margin:"4px 0 2px 0" }
+  },
+    /*#__PURE__*/React.createElement("span", { style:{ fontSize:12, fontWeight:700 }},
+      "\u0E0A\u0E33\u0E23\u0E30\u0E04\u0E48\u0E32\u0E02\u0E19\u0E2A\u0E48\u0E07: ",
+      /*#__PURE__*/React.createElement("strong", null, freightLabel),
+      form.slipUploaded && /*#__PURE__*/React.createElement("span", { style:{ fontSize:10, color:"#1D9E75" }}, " \u2713 \u0E21\u0E35\u0E2A\u0E25\u0E34\u0E1B")
+    )
+  ),
+  /*#__PURE__*/React.createElement("div", {
     style: {
-      textAlign: "center",
-      margin: "4px 0"
+      border: "2px solid #000", borderRadius:4, padding:"4px 8px",
+      marginBottom:4, background:"#fff"
     }
-  }, /*#__PURE__*/React.createElement("span", {
-    style: {
-      fontSize: 9,
-      color: "#555"
-    }
-  }, "\u0E0A\u0E33\u0E23\u0E30\u0E04\u0E48\u0E32\u0E02\u0E19\u0E2A\u0E48\u0E07: "), /*#__PURE__*/React.createElement("span", {
-    style: {
-      fontSize: 11,
-      fontWeight: 700
-    }
-  }, freightLabel), form.slipUploaded && /*#__PURE__*/React.createElement("span", {
-    style: {
-      fontSize: 9,
-      color: "#1D9E75"
-    }
-  }, " \u2713 \u0E21\u0E35\u0E2A\u0E25\u0E34\u0E1B")), form.note && /*#__PURE__*/React.createElement("div", {
+  },
+    /*#__PURE__*/React.createElement("div", { style:{ fontSize:10, fontWeight:700, color:"#333", marginBottom:2 }},
+      "\u0E04\u0E19\u0E02\u0E31\u0E1A\u0E15\u0E49\u0E2D\u0E07\u0E40\u0E01\u0E47\u0E1A\u0E40\u0E07\u0E34\u0E19\u0E01\u0E31\u0E1A\u0E1C\u0E39\u0E49\u0E23\u0E31\u0E1A:"
+    ),
+    /*#__PURE__*/React.createElement("div", { style:{ fontSize:16, fontWeight:900, color:"#000" }},
+      (()=>{
+        const isDestPay = form.freightPay && form.freightPay.indexOf("dest")>=0;
+        const cod = (summary&&summary.codTotal>0) ? summary.codTotal : 0;
+        const freight = isDestPay ? (summary&&summary.freightNet||0) : 0;
+        const total = freight + cod;
+        if(total <= 0) return "-\u0E44\u0E21\u0E48\u0E21\u0E35-";
+        const parts = [];
+        if(freight>0) parts.push("\u0E04\u0E48\u0E32\u0E2A\u0E48\u0E07 "+freight.toLocaleString("th-TH")+" \u0E3F");
+        if(cod>0) parts.push("COD "+cod.toLocaleString("th-TH")+" \u0E3F");
+        return parts.join(" + ")+" = "+total.toLocaleString("th-TH")+" \u0E3F";
+      })()
+    )
+  )
+), form.note && /*#__PURE__*/React.createElement("div", {
     style: {
       fontSize: 9,
       color: "#555",
@@ -1513,23 +1508,11 @@ function ThermalBill({
       margin: "2px 0"
     }
   }, "\u0E2B\u0E21\u0E32\u0E22\u0E40\u0E2B\u0E15\u0E38: ", form.note), /*#__PURE__*/React.createElement(Div, null), /*#__PURE__*/React.createElement("div", {
-    style: {
-      display: "flex",
-      flexDirection: "column",
-      alignItems: "center",
-      margin: "6px 0"
-    }
-  }, /*#__PURE__*/React.createElement("svg", {
-    width: totalBarW,
-    height: 22,
-    viewBox: `0 0 ${totalBarW} 22`
-  }, barEls), /*#__PURE__*/React.createElement("div", {
-    style: {
-      fontSize: 9,
-      letterSpacing: 2,
-      marginTop: 2,
-      fontFamily: "monospace"
-    }
+    style: { display:"flex", flexDirection:"column", alignItems:"center", margin:"6px 0" }
+  },
+  /*#__PURE__*/React.createElement(QRCodeBox, { data: String(billNo||"GOLOD"), size: 110 }),
+  /*#__PURE__*/React.createElement("div", {
+    style: { fontSize:9, letterSpacing:2, marginTop:2, fontFamily:"monospace" }
   }, billNo)), /*#__PURE__*/React.createElement(Div, {
     dashed: true
   }), /*#__PURE__*/React.createElement("div", {
