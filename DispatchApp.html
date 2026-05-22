@@ -512,6 +512,8 @@ var historyDateFrom = "";
 var historyDateTo = "";
 var historyFilter = "all"; // all | driver | branch
 
+function setHistoryFilter(f){ historyFilter=f; renderHistoryTab(); }
+
 function renderHistoryTab(){
   var app = document.getElementById("app");
   app.innerHTML = '<div class="card"><div class="card-title">📋 ประวัติการจ่ายงาน</div>'
@@ -523,9 +525,9 @@ function renderHistoryTab(){
     +'<option value="month">30 วัน</option>'
     +'<option value="all">ทั้งหมด</option>'
     +'</select>'
-    +'<button class="btn '+(historyFilter==="all"?"btn-blue":"btn-gray")+'" onclick="historyFilter='all';loadHistory()">ทุกประเภท</button>'
-    +'<button class="btn '+(historyFilter==="driver"?"btn-blue":"btn-gray")+'" onclick="historyFilter='driver';loadHistory()">🚛 คนรถ</button>'
-    +'<button class="btn '+(historyFilter==="branch"?"btn-blue":"btn-gray")+'" onclick="historyFilter='branch';loadHistory()">📦 สาขา</button>'
+    +'<button class="btn '+(historyFilter==="all"?"btn-blue":"btn-gray")+'" onclick="setHistoryFilter('all')">ทุกประเภท</button>'
+    +'<button class="btn '+(historyFilter==="driver"?"btn-blue":"btn-gray")+'" onclick="setHistoryFilter('driver')">🚛 คนรถ</button>'
+    +'<button class="btn '+(historyFilter==="branch"?"btn-blue":"btn-gray")+'" onclick="setHistoryFilter('branch')">📦 สาขา</button>'
     +'<button class="btn btn-gray" onclick="loadHistory()">🔄 โหลด</button>'
     +'</div>'
     +'<div id="history-body"><div class="loading">⏳ กำลังโหลด...</div></div>'
