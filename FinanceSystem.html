@@ -411,9 +411,11 @@ function daysDiff(dt){const d=parseDate(dt);if(!d||isNaN(d))return 0;return Math
 function dateAdd(dt,n){const d=parseDate(dt)||new Date();d.setDate(d.getDate()+n);return d.getFullYear()+"-"+String(d.getMonth()+1).padStart(2,"0")+"-"+String(d.getDate()).padStart(2,"0");}
 function thDate(dt){if(!dt)return"—";const d=parseDate(dt);if(!d||isNaN(d))return String(dt);return d.getDate()+"/"+(d.getMonth()+1)+"/"+(d.getFullYear()+543);}
 
-// slip statuses
+// slip statuses — ตรวจจาก slip1 URL จริงจาก Firebase
 function slipStatus(s){
+  if(s.slipUrl)return{cls:"pill-green",txt:"✅ มีสลิปแล้ว"};
   if(s.slipConfirmed)return{cls:"pill-green",txt:"✓ ยืนยันแล้ว"};
+  if(s.slipRequest==="pending")return{cls:"pill-blue",txt:"⏳ รอ admin อนุมัติ"};
   const days=daysDiff(s.deliveredDate);
   if(days>=7)return{cls:"pill-red",txt:`⚠ เกิน ${days} วัน`};
   if(days>=3)return{cls:"pill-amber",txt:`⚠ ${days} วัน`};
@@ -456,6 +458,7 @@ function billToIncome(b) {
   const isCredit    = method === "credit";
   const status = isCredit ? "credit" : (isTransfer && !isDelivered) ? "pending" : "received";
   const isoDate = toISO(b.date || "");
+  const hasSlip = !!(b.slip1 && b.slip1.startsWith("http"));
   return {
     id: "fb_" + b.billNo,
     date: isoDate,
@@ -464,26 +467,33 @@ function billToIncome(b) {
     branch,
     method,
     amount: parseFloat(b.freightNet) || 0,
-    slipConfirmed: isDelivered || (!isTransfer && !isCredit),
-    status,
+    slipConfirmed: isDelivered || hasSlip || (!isTransfer && !isCredit),
+    slipUrl: b.slip1 || "",
+    status: (isCredit?"credit": hasSlip||isDelivered?"received": (isTransfer?"pending":"received")),
     _fromFirebase: true,
   };
 }
 
-// แปลง bill ที่ยังไม่ได้สลิป → slip entry
+// แปลง bill → slip entry (ตรวจ slip1 URL จริงจาก Firebase)
 function billToSlip(b) {
   const clerkInit = (b.clerkCode||"")[0]||"";
   const CLERK_BRANCH_MAP = {A:"bkk",B:"bkk",N:"bkk",P:"bkk",H:"ssk",S:"ssk",K:"krt",BA:"bkk",BB:"bkk",KA:"krt"};
   const branchRaw = b.branch || "";
   const branch = BRANCH_CODE[branchRaw] || CLERK_BRANCH_MAP[b.clerkCode] || CLERK_BRANCH_MAP[clerkInit] || "bkk";
   const isoDate = toISO(b.date || "");
+  // ตรวจสอบว่าอัปโหลดสลิปแล้วหรือยัง
+  const hasSlip = !!(b.slip1 && b.slip1.startsWith("http"));
+  const isApproved = b.slipRequest === "approved" || b.status === "delivered";
   return {
     id: "fbs_" + b.billNo,
     billNo: b.billNo || "",
     customer: b.senderName || b.receiverName || "",
     amount: parseFloat(b.freightNet) || 0,
     deliveredDate: isoDate || today(),
-    slipConfirmed: b.status === "delivered",
+    slipConfirmed: hasSlip || isApproved,
+    slipUrl: b.slip1 || "",          // URL รูปสลิป
+    slipRequest: b.slipRequest || "", // pending / approved
+    slipApprovedAt: b.slipApprovedAt || "",
     note: "",
     branch,
     _fromFirebase: true,
@@ -516,11 +526,15 @@ function syncBillsToFinance(bills) {
     if (!b.billNo || !b.freightNet) return;
     const inc = billToIncome(b);
     if (inc.amount > 0) INCOMES.unshift(inc);
-    // สลิปค้าง: transfer (จาก Firebase) ที่ยังไม่ delivered
+    // สลิปค้าง: transfer ที่ยังไม่ส่งสลิป (ตรวจจาก slip1 URL จริงใน Firebase)
     const rawPay = b.freightPay || "";
     const isTransferBill = rawPay === "transfer" || rawPay === "dest_transfer"
                         || inc.method === "transfer" || inc.method === "dest_transfer";
-    if (isTransferBill && b.status !== "delivered" && b.status !== "returned") {
+    const hasSlipUrl = !!(b.slip1 && b.slip1.startsWith("http"));
+    const isClosedStatus = b.status === "delivered" || b.status === "returned";
+    // แสดงในตาราง: ทุก transfer bill (แม้มีสลิปแล้ว เพื่อให้เห็นประวัติ)
+    // แต่ slipConfirmed จะถูก set ตาม slip1 ใน billToSlip
+    if (isTransferBill && !isClosedStatus) {
       SLIPS.unshift(billToSlip(b));
     }
   });
@@ -716,24 +730,37 @@ function renderSlip(){
   const late=pending.filter(s=>daysDiff(s.deliveredDate)>=3);
   const pendingAmt=pending.reduce((s,x)=>s+x.amount,0);
   // alerts
+  const withSlip=sortedSlips.filter(s=>!!s.slipUrl);
+  const noSlip=sortedSlips.filter(s=>!s.slipUrl&&!s.slipConfirmed);
+  const lateNoSlip=noSlip.filter(s=>daysDiff(s.deliveredDate)>=3);
+  const waitAdmin=sortedSlips.filter(s=>s.slipRequest==="pending"&&!s.slipUrl);
   document.getElementById("slip-alerts").innerHTML=[
-    late.length?`<div class="alert red">⚠ มีสลิปค้างเกิน 3 วัน ${late.length} รายการ รวม ${fmt(late.reduce((s,x)=>s+x.amount,0))} ฿ — ติดตามด่วน!</div>`:"",
-    pending.filter(s=>daysDiff(s.deliveredDate)<3).length?`<div class="alert amber">📎 รอสลิปภายใน 3 วัน ${pending.filter(s=>daysDiff(s.deliveredDate)<3).length} รายการ</div>`:"",
+    lateNoSlip.length?`<div class="alert red">⚠ ยังไม่ส่งสลิป เกิน 3 วัน ${lateNoSlip.length} รายการ รวม ${fmt(lateNoSlip.reduce((s,x)=>s+x.amount,0))} ฿</div>`:"",
+    waitAdmin.length?`<div class="alert blue" style="background:#E6F1FB;border-color:#A8CAEA;color:#0C447C">⏳ รอ admin อนุมัติสลิป ${waitAdmin.length} รายการ</div>`:"",
+    withSlip.length?`<div class="alert green">✅ อัปโหลดสลิปแล้ว ${withSlip.length} รายการ รวม ${fmt(withSlip.reduce((s,x)=>s+x.amount,0))} ฿</div>`:"",
   ].join("");
-  document.getElementById("slip-summary").textContent=`รอสลิป ${pending.length} ราย · ${fmt(pendingAmt)} ฿`;
+  document.getElementById("slip-summary").textContent=`ยังไม่มีสลิป ${noSlip.length} ราย · ${fmt(noSlip.reduce((s,x)=>s+x.amount,0))} ฿ | มีสลิปแล้ว ${withSlip.length} ราย`;
   document.getElementById("slip-table").innerHTML=data.map(s=>{
     const st=slipStatus(s);
     const days=s.slipConfirmed?0:daysDiff(s.deliveredDate);
-    const rowBg=!s.slipConfirmed&&days>=3?"#FFF5F5":!s.slipConfirmed&&days>=1?"#FFFBF0":"";
+    const hasSlip=!!s.slipUrl;
+    const rowBg=hasSlip?"#F0FBF7":!s.slipConfirmed&&days>=7?"#FFF0F0":!s.slipConfirmed&&days>=3?"#FFF5F5":!s.slipConfirmed&&days>=1?"#FFFBF0":"";
+    const slipBtn=hasSlip
+      ? `<a href="${s.slipUrl}" target="_blank" style="font-size:11px;background:#E1F5EE;color:#085041;padding:3px 9px;border-radius:6px;text-decoration:none;font-weight:600;border:0.5px solid #9FE1CB">📎 ดูสลิป</a>`
+      : s.slipRequest==="pending"
+        ? `<span style="font-size:10px;color:#0C447C">⏳ รอ admin</span>`
+        : s.slipConfirmed
+          ? `<span style="font-size:10px;color:#1D9E75">✓ ยืนยันแล้ว</span>`
+          : `<button class="btn-sm btn-green" onclick="confirmSlip('${s.id}')">✓ ยืนยันสลิป</button>`;
     return`<tr style="background:${rowBg}">
       <td style="font-weight:600;color:#0F6E56">${s.billNo}</td>
-      <td>${s.customer}</td>
+      <td style="max-width:140px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${s.customer}</td>
       <td style="font-weight:600;text-align:right">${fmt(s.amount)} ฿</td>
       <td>${thDate(s.deliveredDate)}</td>
-      <td style="text-align:center;font-weight:${days>=3?600:400};color:${days>=7?"#E24B4A":days>=3?"#854F0B":"#555"}">${s.slipConfirmed?"-":days+" วัน"}</td>
+      <td style="text-align:center;font-weight:${days>=3?600:400};color:${days>=7?"#E24B4A":days>=3?"#854F0B":"#555"}">${hasSlip||s.slipConfirmed?`<span style="color:#1D9E75">✓</span>`:days+" วัน"}</td>
       <td><span class="pill ${st.cls}">${st.txt}</span></td>
-      <td style="font-size:11px;color:#888;max-width:150px">${s.note||""}</td>
-      <td>${s.slipConfirmed?"":`<button class="btn-sm btn-green" onclick="confirmSlip('${s.id}')">✓ ยืนยันสลิป</button>`}</td>
+      <td style="font-size:11px;color:#888;max-width:120px">${s.note||""}</td>
+      <td>${slipBtn}</td>
     </tr>`;
   }).join("")||`<tr><td colspan="8" style="text-align:center;padding:24px;color:#bbb">ไม่มีรายการ</td></tr>`;
   const tot=data.reduce((s,x)=>s+x.amount,0);
