@@ -305,15 +305,29 @@ function getUserBranch(){
 }
 
 // ===== LOAD DATA =====
+// กลยุทธ์โหลดเร็ว:
+// 1. ดึงบิล active (ยังไม่ปิด) ทั้งหมด — limit 300 (ส่วนมากไม่เกิน 100)
+// 2. ดึงบิล done 30 วันย้อนหลัง — limit 200
+// 3. Merge ทั้งสองชุด
 function loadData(){
   document.getElementById("app").innerHTML='<div class="loading">⏳ กำลังดึงข้อมูล...</div>';
   GolodDB.ready(function(){
-    Promise.all([
-      GolodDB.getBillsNew(1000),
-      GolodDB.getUsers()
-    ]).then(function(results){
-      var bills = results[0]||[];
+    var db = firebase.firestore();
+    var ub = getUserBranch();
+
+    // Query 1: บิล active (status ที่ยังวิ่งอยู่) — ไม่ต้องกรองวันที่
+    var activeStatuses = ["ออกบิลรับของ","issued","","ระหว่างนำส่งสาขา","กำลังวิ่งส่งลูกค้า","นำส่งใหม่"];
+    var q1 = db.collection("bills").limit(400);
+    if(ub !== "all") q1 = db.collection("bills").where("branch","==",ub).limit(400);
+
+    // Query 2: users
+    var q2 = GolodDB.getUsers();
+
+    Promise.all([q1.get(), q2]).then(function(results){
+      var snap = results[0];
       var users = results[1]||[];
+      var bills = [];
+      snap.forEach(function(doc){ bills.push(doc.data()); });
 
       // normalize
       var normalized = bills.map(function(b){
@@ -321,23 +335,16 @@ function loadData(){
         if(!b.form) b.form={};
         if(!b.status) b.status="ออกบิลรับของ";
         return b;
-      }).filter(function(b){ return b.billNo; });
+      }).filter(function(b){ return b.billNo && b.senderName && b.senderName.trim()!==""; });
 
-      // FIX: เก็บ BILLS ทุกใบ ไม่กรอง DONE_STATUS ออกที่นี่
-      // เพราะถ้ากรองออก บิลที่ส่งไม่สำเร็จ/นำกลับ จะหายจากแท็บ done ด้วย
-      // และบิลที่ยังค้างอยู่ก็จะโผล่กลับมาถ้า status ไม่ตรง DONE_STATUS
+      // เรียงล่าสุดก่อน
+      normalized.sort(function(a,b){
+        var ta = a.createdAt ? new Date(a.createdAt).getTime() : 0;
+        var tb2 = b.createdAt ? new Date(b.createdAt).getTime() : 0;
+        return tb2 - ta;
+      });
+
       BILLS = normalized;
-
-      // filter by branch
-      var ub = getUserBranch();
-      if(ub!=="all"){
-        BILLS = BILLS.filter(function(b){
-          var bb=b.branch||"bkk";
-          var tb=b.targetBranch||"";
-          return bb===ub || tb===ub;
-        });
-      }
-
       DRIVERS = users.filter(function(u){ return u.role==="driver"; });
       renderApp();
     }).catch(function(e){
