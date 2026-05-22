@@ -242,7 +242,7 @@ var GolodDB = (function() {
   function getBillsNew(limitN) {
     return new Promise(function(resolve, reject) {
       ready(function() {
-        db.collection("bills").limit(limitN || 8000).get().then(function(snap) {
+        db.collection("bills").limit(limitN || 2000).get().then(function(snap) {
           var bills = [];
           snap.forEach(function(doc) { bills.push(doc.data()); });
           
@@ -267,13 +267,53 @@ var GolodDB = (function() {
             return tB - tA;
           });
           
-          // กรองเฉพาะบิลที่มี senderName (บิลใหม่)
-          var newBills = bills.filter(function(b){ return b.senderName && b.senderName.trim() !== ""; });
-          resolve(newBills);
+          resolve(bills);
         }).catch(reject);
       });
     });
   }
 
-  return { init, saveBill, getBills, updateBill, saveContact, getContacts, saveUser, getUsers, saveEditLog, getEditLogs, listenBills, getAllBills, getBillsNew, ready };
+
+  // ===== DISPATCH LOGS =====
+  function saveDispatchLog(log) {
+    return new Promise(function(resolve, reject) {
+      ready(function() {
+        db.collection("dispatchLogs").add(log)
+          .then(function(ref) { resolve(ref.id); })
+          .catch(reject);
+      });
+    });
+  }
+
+  function getDispatchLogs(opts) {
+    opts = opts || {};
+    return new Promise(function(resolve, reject) {
+      ready(function() {
+        var q = db.collection("dispatchLogs").orderBy("dispatchAt", "desc");
+        if(opts.targetId) {
+          q = db.collection("dispatchLogs").where("targetId","==",opts.targetId).orderBy("dispatchAt","desc");
+        } else if(opts.mode) {
+          q = db.collection("dispatchLogs").where("mode","==",opts.mode).orderBy("dispatchAt","desc");
+        }
+        q.limit(opts.limitN || 200).get()
+          .then(function(snap) {
+            var logs = [];
+            snap.forEach(function(doc) {
+              var d = doc.data(); d._docId = doc.id; logs.push(d);
+            });
+            if(opts.dateFrom || opts.dateTo) {
+              logs = logs.filter(function(l) {
+                var d = l.dispatchAt ? l.dispatchAt.slice(0,10) : "";
+                if(opts.dateFrom && d < opts.dateFrom) return false;
+                if(opts.dateTo   && d > opts.dateTo)   return false;
+                return true;
+              });
+            }
+            resolve(logs);
+          }).catch(reject);
+      });
+    });
+  }
+
+  return { init, saveBill, getBills, updateBill, saveContact, getContacts, saveUser, getUsers, saveEditLog, getEditLogs, listenBills, getAllBills, getBillsNew, saveDispatchLog, getDispatchLogs, ready };
 })();
