@@ -505,20 +505,19 @@ function billToSlip(b) {
   // slip1    = ThermalBill — ลูกค้าโอนล่วงหน้าตอนออกบิล (origin/dest ก็มี)
   // form.slipName = GolodApp — เดียวกับ slip1 แต่เก็บชื่อไฟล์
   // สำหรับ "สลิปค้าง" ดูเฉพาะ slipUrl (คนขับได้รับสลิปตอนส่ง)
-  // slip1/form.slipName = โอนล่วงหน้าแล้ว = ถือว่าชำระแล้ว ไม่ค้าง
-  const FB_BASE = "https://firebasestorage.googleapis.com/v0/b/status-81cd0.firebasestorage.app/o/";
-  function makeStorageUrl(path){ return FB_BASE + encodeURIComponent(path) + "?alt=media"; }
-  // slip ตอนส่ง (transfer) = slipUrl จาก DriverApp
+  // slipUrl  = DriverApp "slip" slot → URL ใน Firestore ✅
+  // slip1    = ThermalBill "slip1" slot → URL ใน Firestore ✅ (บิลใหม่)
+  // form.slipUploaded/slipName = บิลเก่า → อัปขึ้น Storage แล้วแต่ URL หาย
+  //   path ใน Storage: slips/{billNo}/slip1.{ext}  ext = jpg/png/pdf
   const driverSlipUrl = b.slipUrl?.startsWith("http") ? b.slipUrl : "";
-  // slip ล่วงหน้า (ออกบิล) = slip1 หรือ form.slipName
-  const preSlipUrl = (b.slip1?.startsWith("http") ? b.slip1 : "")
-    || (b.form?.slipName ? makeStorageUrl(`slips%2F${b.billNo}%2F${b.form.slipName}`) : "");
-  // URL ที่ใช้แสดง = driver slip ก่อน ถ้าไม่มีใช้ pre slip
-  const slipUrlReal = driverSlipUrl || preSlipUrl;
-  const hasSlipImg  = !!slipUrlReal;
-  // โอนล่วงหน้าแล้ว (slip1 หรือ form.slipUploaded)
-  const hasPrepaidSlip = !!(b.slip1?.startsWith("http") || b.form?.slipUploaded || b.form?.slipName);
-  const hasFormSlip = hasPrepaidSlip;
+  const preSlipUrl    = b.slip1?.startsWith("http")   ? b.slip1   : "";
+  const slipUrlReal   = driverSlipUrl || preSlipUrl;
+  const hasSlipImg    = !!slipUrlReal;
+  // บิลเก่าที่ไม่มี URL → ต้อง resolve จาก Storage ด้วย trySlipUrls
+  const needsResolve  = !slipUrlReal && !!(b.form?.slipUploaded || b.form?.slipName);
+  const hasFormSlip   = needsResolve;
+  const resolveSlot   = "slip1"; // ThermalBill ใช้ slot "slip1"
+  const hasPrepaidSlip = hasSlipImg || needsResolve;
   const isDelivered = b.status === "ส่งสำเร็จ" || b.status === "delivered" || b.status === "ส่งแล้ว";
   const isApproved  = b.slipRequest === "approved";
   const slipConfirmed = hasSlipImg || hasFormSlip || isDelivered || isApproved;
@@ -535,9 +534,11 @@ function billToSlip(b) {
     deliveredDate: isoDate || today(),
     slipConfirmed,
     confirmLabel,
-    slipUrl: slipUrlReal,
-    hasSlipImg,
-    hasFormSlip,
+    slipUrl: slipUrlReal,    // URL ที่รู้แล้ว (อาจว่าง)
+    hasSlipImg,              // มี URL จริงพร้อมแสดง
+    hasFormSlip,             // มีสลิปแต่ต้อง resolve URL
+    needsResolve,            // ต้อง fetch Storage เพื่อหา URL
+    resolveSlot,             // slot name สำหรับ resolve
     isDelivered,
     slipRequest: b.slipRequest || "",
     rawStatus: b.status || "",
@@ -565,6 +566,7 @@ function updateBillCount(n) {
 
 function syncBillsToFinance(bills) {
   FB_BILLS = bills;
+  window.FB_BILLS = bills; // expose for console debugging
   // merge: ลบ entry ที่มาจาก Firebase เก่าออก แล้วใส่ใหม่
   INCOMES = INCOMES.filter(x => !x._fromFirebase);
   SLIPS   = SLIPS.filter(x => !x._fromFirebase);
@@ -581,12 +583,15 @@ function syncBillsToFinance(bills) {
                         || b.status === "ส่งแล้ว" || b.status === "returned";
     // โอนล่วงหน้าแล้ว (slip1/form) = ชำระแล้ว ไม่ต้องรอสลิปอีก
     const hasPrepaid = !!(b.slip1?.startsWith("http") || b.form?.slipUploaded || b.form?.slipName);
-    // แสดงใน SLIPS: transfer ที่ยังไม่ปิด และยังไม่ได้โอนล่วงหน้า
-    // (ถ้าโอนล่วงหน้าแล้วก็จบ ไม่ต้องติดตาม)
-    if (isTransferBill && !isClosedStatus && !hasPrepaid) {
-      SLIPS.unshift(billToSlip(b));
-    } else if (isTransferBill && (isClosedStatus || hasPrepaid)) {
-      // ยังใส่ใน SLIPS แต่ slipConfirmed=true เพื่อดูประวัติ
+    const hasAnySlip = !!(b.slipUrl?.startsWith("http") || b.slip1?.startsWith("http")
+                       || b.form?.slipUploaded || b.form?.slipName);
+    if (isTransferBill) {
+      // transfer ทุกใบ — ใส่เพื่อติดตาม
+      const sl = billToSlip(b);
+      if (isClosedStatus || hasPrepaid) sl.slipConfirmed = true;
+      SLIPS.unshift(sl);
+    } else if (hasAnySlip) {
+      // origin/dest ที่มีสลิปอยู่ — ใส่เพื่อดูประวัติ (slipConfirmed=true)
       const sl = billToSlip(b);
       sl.slipConfirmed = true;
       SLIPS.unshift(sl);
@@ -800,27 +805,45 @@ function closeSlipLightbox(){
 }
 document.addEventListener("keydown",e=>{if(e.key==="Escape")closeSlipLightbox();});
 
-// สร้าง Firebase Storage URL จาก billNo + slipName
-// path pattern: slips/{billNo}/slip1.jpg หรือ slips/{billNo}/slip.jpg
+// Firebase Storage base
 const FB_STORAGE_BASE = "https://firebasestorage.googleapis.com/v0/b/status-81cd0.firebasestorage.app/o/";
-function buildSlipUrl(billNo, slipName){
+
+// สร้าง Storage URL — ลอง ext หลายแบบ (jpg/png/pdf)
+// path: slips/{billNo}/{slotName}.{ext}
+function buildSlipUrl(billNo, slotName, ext){
   if(!billNo) return "";
-  // ลอง path หลายแบบตาม pattern ที่เห็นใน Firebase
-  const paths = [
-    `slips/${billNo}/slip1.jpg`,
-    `slips/${billNo}/slip.jpg`,
-    slipName ? `slips/${billNo}/${slipName}` : null,
-  ].filter(Boolean);
-  // return แบบแรกเป็น default (encode /)
-  const p = encodeURIComponent(paths[0]).replace(/%2F/g,"%2F");
-  return FB_STORAGE_BASE + p + "?alt=media";
+  const path = `slips/${billNo}/${slotName||"slip1"}.${ext||"jpg"}`;
+  return FB_STORAGE_BASE + encodeURIComponent(path) + "?alt=media";
 }
 
-// หา URL สลิปที่ดีที่สุดจาก bill
-function getSlipUrl(slip){
-  if(slip.slipUrl && slip.slipUrl.startsWith("http")) return slip.slipUrl;
-  if(slip.slipUrl && slip.slipUrl.startsWith("slip")) return null; // relative path
-  return null;
+// ลอง fetch URL ด้วย HEAD request — คืน URL แรกที่ใช้ได้
+function trySlipUrls(billNo, slotName, callback){
+  const exts = ["jpg","jpeg","png","pdf"];
+  let i = 0;
+  function next(){
+    if(i >= exts.length){ callback(null); return; }
+    const url = buildSlipUrl(billNo, slotName, exts[i++]);
+    fetch(url, {method:"HEAD"}).then(r=>{
+      if(r.ok) callback(url); else next();
+    }).catch(()=>next());
+  }
+  next();
+}
+
+// cache สำหรับ slip URL ที่หาเจอแล้ว
+window._slipUrlCache = window._slipUrlCache || {};
+
+// resolve URL สลิปจาก billNo — ใช้ cache ถ้ามี
+// callback(url) หรือ callback(null)
+function resolveSlipUrl(billNo, slotName, callback){
+  const cacheKey = billNo + "_" + (slotName||"slip1");
+  if(window._slipUrlCache[cacheKey]){
+    callback(window._slipUrlCache[cacheKey]); return;
+  }
+  trySlipUrls(billNo, slotName||"slip1", function(url){
+    if(url) window._slipUrlCache[cacheKey] = url;
+    callback(url);
+  });
 }
 
 // ======= SLIP =======
@@ -882,20 +905,51 @@ function renderSlip(){
       ${waitAdmin.length?makeAlertCard("pending","background:#E6F1FB;border:1px solid #A8CAEA;color:#0C447C;","🔔","รอ admin อนุมัติ",waitAdmin.length,0):""}
     </div>`;
   document.getElementById("slip-summary").innerHTML=`<b>${confirmed.length}</b> ยืนยันแล้ว &nbsp;|&nbsp; <b style="color:#E24B4A">${noSlip.length}</b> รอยืนยัน &nbsp;|&nbsp; รวมค้าง <b>${fmt(noSlip.reduce((s,x)=>s+x.amount,0))} ฿</b>`;
+  // เก็บ slip URL ไว้ใน map เพื่อให้ onclick เรียกได้ถูกต้อง (หลีกเลี่ยง quote ใน attribute)
+  window._slipUrlMap = {};
+  data.forEach(s=>{ if(s.slipUrl) window._slipUrlMap[s.id]=s.slipUrl; });
+
   document.getElementById("slip-table").innerHTML=data.map(s=>{
     const st=slipStatus(s);
     const days=s.slipConfirmed?0:daysDiff(s.deliveredDate);
-    const hasSlip=!!s.slipUrl;
     const rowBg=(s.hasSlipImg||s.hasFormSlip)?"#F0FBF7":s.isDelivered?"#F5FDF9":!s.slipConfirmed&&days>=7?"#FFF0F0":!s.slipConfirmed&&days>=3?"#FFF5F5":!s.slipConfirmed&&days>=1?"#FFFBF0":"";
     // thumbnail + lightbox
     let slipCell = "";
+    const safeLabel = (s.billNo+" — "+s.customer).replace(/['"]/g,"");
     if(s.slipUrl){
-      // มี URL จริง → แสดงรูปเล็ก กดขยาย
+      // มี URL จริงจาก Firestore → แสดงรูปเล็กกดขยาย
+      window._slipUrlMap[s.id] = s.slipUrl;
       slipCell = `<img class="slip-thumb" src="${s.slipUrl}"
-        onclick="openSlipLightbox('${s.slipUrl}','${s.billNo} — ${s.customer}')"
+        data-id="${s.id}" data-label="${safeLabel}"
+        onclick="openSlipLightbox(window._slipUrlMap[this.dataset.id],this.dataset.label)"
         onerror="this.style.display='none';this.nextSibling.style.display='inline-flex'"
-        title="คลิกดูสลิป"/>
-        <span class="slip-badge" style="display:none" onclick="openSlipLightbox('${s.slipUrl}','${s.billNo}')">📎 ดูสลิป</span>`;
+        title="${s.billNo} — คลิกดูสลิป"/>
+        <span class="slip-badge" style="display:none"
+          data-id="${s.id}" data-label="${safeLabel}"
+          onclick="openSlipLightbox(window._slipUrlMap[this.dataset.id],this.dataset.label)">📎 ดูสลิป</span>`;
+    } else if(s.needsResolve){
+      // บิลเก่า — URL หาย ต้อง resolve จาก Storage
+      const imgId = "rslv_"+s.id.replace(/[^a-z0-9]/gi,"_");
+      slipCell = `<img id="${imgId}" class="slip-thumb" src=""
+        data-bill="${s.billNo}" data-slot="${s.resolveSlot||'slip1'}" data-label="${safeLabel}"
+        style="display:none"
+        onclick="openSlipLightbox(this.src,this.dataset.label)"
+        title="${s.billNo} — คลิกดูสลิป"/>
+        <span class="slip-badge" id="${imgId}_badge">⏳ กำลังโหลด...</span>`;
+      // resolve async หลัง render
+      setTimeout(()=>{
+        const img = document.getElementById(imgId);
+        const badge = document.getElementById(imgId+"_badge");
+        if(!img) return;
+        resolveSlipUrl(img.dataset.bill, img.dataset.slot, function(url){
+          if(url){
+            img.src = url; img.style.display="";
+            if(badge) badge.style.display="none";
+          } else {
+            if(badge){ badge.textContent="📎 อัปแล้ว"; }
+          }
+        });
+      }, 100);
     } else if(s.hasFormSlip){
       slipCell = `<span class="slip-badge">📎 อัปแล้ว</span>`;
     } else if(s.isDelivered){
