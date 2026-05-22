@@ -969,7 +969,7 @@ function renderSlip(){
       <td style="max-width:140px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${s.customer}</td>
       <td style="font-weight:600;text-align:right">${fmt(s.amount)} ฿</td>
       <td>${thDate(s.deliveredDate)}</td>
-      <td style="text-align:center;font-weight:${days>=3?600:400};color:${days>=7?"#E24B4A":days>=3?"#854F0B":"#555"}">${hasSlip||s.slipConfirmed?`<span style="color:#1D9E75">✓</span>`:days+" วัน"}</td>
+      <td style="text-align:center;font-weight:${days>=3?600:400};color:${days>=7?"#E24B4A":days>=3?"#854F0B":"#555"}">${s.hasSlipImg||s.hasFormSlip||s.slipConfirmed?`<span style="color:#1D9E75">✓</span>`:days+" วัน"}</td>
       <td><span class="pill ${st.cls}">${st.txt}</span></td>
       <td style="font-size:11px;color:#888;max-width:100px">${s.note||""}</td>
       <td style="text-align:center;min-width:60px">${slipBtn}</td>
