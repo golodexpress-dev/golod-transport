@@ -21,9 +21,7 @@
 </div>
 <div id="root"></div>
 <script>// ===== โกโลด ทรานสปอร์ต — Session Manager =====
-
 var GolodSession = {
-
   save: function(user, system) {
     var data = {
       id: user.id,
@@ -40,7 +38,6 @@ var GolodSession = {
     };
     localStorage.setItem("golod_session", JSON.stringify(data));
   },
-
   get: function() {
     try {
       var raw = localStorage.getItem("golod_session");
@@ -50,11 +47,9 @@ var GolodSession = {
       return data;
     } catch(e) { return null; }
   },
-
   clear: function() {
     localStorage.removeItem("golod_session");
   },
-
   // ===== KEY FIX: Admin/branch ไม่บังคับ perm — เข้าได้ทุกระบบ =====
   require: function(requiredSystem, requiredPerm) {
     var s = this.get();
@@ -75,7 +70,6 @@ var GolodSession = {
     }
     return s;
   },
-
   renderTopbar: function(containerId, systemName, systemColor) {
     var s = this.get();
     if (!s) return;
@@ -93,7 +87,6 @@ var GolodSession = {
       '<button onclick="GolodSession.logout()" style="padding:4px 10px;background:rgba(255,255,255,.15);color:#fff;border:none;border-radius:20px;font-size:11px;cursor:pointer">ออก</button>' +
       '</div>';
   },
-
   logout: function() {
     this.clear();
     window.location.href = "GolodApp.html";
@@ -377,7 +370,6 @@ null})}),!0):!1};M.unstable_batchedUpdates=ai;M.unstable_createPortal=function(a
 })();
 </script><script>var useState=React.useState,useRef=React.useRef,useEffect=React.useEffect,useCallback=React.useCallback,useMemo=React.useMemo,useContext=React.useContext,useReducer=React.useReducer;
 // ===== SearchSelect — พิมพ์ค้นหาในช่องเลือกจังหวัด/อำเภอ =====
-
 function SearchSelect({
   value,
   onChange,
@@ -391,7 +383,6 @@ function SearchSelect({
   const ref = React.useRef(null);
   const listRef = React.useRef(null);
   const filtered = options.filter(o => !q || o.toLowerCase().includes(q.toLowerCase())).slice(0, 30);
-
   React.useEffect(() => {
     function onClickOut(e) {
       if (ref.current && !ref.current.contains(e.target)) setOpen(false);
@@ -399,14 +390,12 @@ function SearchSelect({
     document.addEventListener("mousedown", onClickOut);
     return () => document.removeEventListener("mousedown", onClickOut);
   }, []);
-
   React.useEffect(() => {
     if (cursor >= 0 && listRef.current) {
       const el = listRef.current.children[cursor];
       if (el) el.scrollIntoView({ block: "nearest" });
     }
   }, [cursor]);
-
   const handleKey = (e) => {
     if (!open) {
       if (e.key === "ArrowDown" || e.key === "ArrowUp") {
@@ -423,7 +412,6 @@ function SearchSelect({
     }
     else if (e.key === "Escape") { setOpen(false); setCursor(-1); }
   };
-
   const display = value || "";
   return /*#__PURE__*/React.createElement("div", {
     ref: ref,
@@ -465,7 +453,6 @@ function SearchSelect({
     }
   }, o))));
 }
-
 // ===== AI จำแนกประเภทสินค้าจากชื่อ =====
 function classifyGoods(desc) {
   const d = (desc || "").toLowerCase();
@@ -477,7 +464,6 @@ function classifyGoods(desc) {
   if (/เหล็ก|ท่อ|ปูน|อิฐ|กระเบื้อง|ไม้|สี|วัสดุก่อสร้าง|อุปกรณ์/.test(d)) return "วัสดุก่อสร้าง";
   return "ทั่วไป";
 }
-
 // =================== DATA ===================
 const BKK_ZONES = {
   "กรุงเทพมหานคร": "near",
@@ -759,7 +745,6 @@ const ALL_PROVS = [
   "สุราษฎร์ธานี","สุรินทร์","หนองคาย","หนองบัวลำภู","อ่างทอง",
   "อำนาจเจริญ","อุดรธานี","อุตรดิตถ์","อุทัยธานี","อุบลราชธานี"
 ];
-
 // =================== HELPERS ===================
 function calcSize(kg, sumCm) {
   const kgN = parseFloat(kg) || 0,
@@ -824,7 +809,6 @@ function nowStr() {
   const d = new Date();
   return `${String(d.getHours()).padStart(2, "0")}:${String(d.getMinutes()).padStart(2, "0")}`;
 }
-
 // ===== GoodsInput: autocomplete รายการสินค้าจากประวัติ =====
 function saveGoodsHistory(desc, goodsType) {
   if (!desc || desc.length < 2) return;
@@ -938,7 +922,6 @@ const blankItem = () => ({
   codAmount: "",
   declaredValue: ""
 });
-
 // =================== SHARED UI ===================
 const INP = {
   width: "100%",
@@ -987,10 +970,8 @@ function SecTitle({
     }
   }, children);
 }
-
 // =================== THERMAL RECEIPT ===================
 // 80mm ≈ 302px at 96dpi  — ใช้ 298px เผื่อ margin printer
-
 // QR Code component สำหรับ thermal print
 // Global QR scanner
 (function() {
@@ -1008,17 +989,22 @@ function SecTitle({
   setInterval(scanQR, 400);
   setTimeout(scanQR, 300);
 })();
-
-function QRCodeBox({ data, size }) {
-  var sz = size || 80;
-  return React.createElement("div", {
-    "data-qr": String(data||""),
-    "data-qr-size": String(sz),
-    style: { width:sz, height:sz, margin:"0 auto", lineHeight:0, overflow:"hidden" }
-  });
+(function(){
+  function scanQR(){
+    if(typeof QRCode==="undefined")return;
+    document.querySelectorAll("[data-qr]:not([data-qr-done])").forEach(function(el){
+      var t=el.getAttribute("data-qr"),sz=parseInt(el.getAttribute("data-qr-size"))||80;
+      if(!t)return;
+      el.setAttribute("data-qr-done","1");el.innerHTML="";
+      try{new QRCode(el,{text:t,width:sz,height:sz,colorDark:"#000000",colorLight:"#ffffff",correctLevel:QRCode.CorrectLevel.L});}catch(e){}
+    });
+  }
+  setInterval(scanQR,400);setTimeout(scanQR,300);
+})();
+function QRCodeBox({data,size}){
+  var sz=size||80;
+  return React.createElement("div",{"data-qr":String(data||""),"data-qr-size":String(sz),style:{width:sz,height:sz,margin:"0 auto",lineHeight:0,overflow:"hidden"}});
 }
-
-
 function ThermalBill({
   form,
   items,
@@ -1057,7 +1043,6 @@ function ThermalBill({
     }) : null;
   }).filter(Boolean);
   const totalBarW = bx;
-
   // ทุกข้อความหนาและ +1pt
   const B = {
     fontWeight: "700",
@@ -1148,8 +1133,9 @@ function ThermalBill({
     }
   }, /*#__PURE__*/React.createElement("div", {
     style: {
-      fontSize: 10,
-      fontWeight: 700
+      fontSize: 18,
+      fontWeight: 900,
+      letterSpacing: 0.5
     }
   }, "บิลขนส่งเลขที่  ", billNo), /*#__PURE__*/React.createElement("div", {
     style: { fontSize: 10, fontWeight: 700, marginTop: 1 }
@@ -1189,7 +1175,9 @@ function ThermalBill({
   }, form.receiverAmphoe && (isGTM?"เขต":"อ.")+form.receiverAmphoe+" ", "จ."+form.destProv+" ["+(form.isSpecialArea?"พิเศษ":zoneLabel)+"]", form.receiverZip && "  "+form.receiverZip)
 ), /*#__PURE__*/React.createElement(Div, null), /*#__PURE__*/React.createElement("div", {
     style: { marginBottom: 4 }
-  }, /*#__PURE__*/React.createElement("table", {
+  }, /*#__PURE__*/React.createElement("div", {
+    style: { fontSize:9, color:"#555", marginBottom:2, fontWeight:700 }
+  }, "Kg.=น้ำหนักต่อชิ้น  S=ผลรวม ก+ย+ส"), /*#__PURE__*/React.createElement("table", {
     style: {
       width: "100%",
       borderCollapse: "collapse",
@@ -1201,13 +1189,13 @@ function ThermalBill({
       borderBottom: "0.5px solid #333"
     }
   }, /*#__PURE__*/React.createElement("th", {
-    style: { textAlign: "left", padding: "1px 2px", fontWeight: 700, maxWidth: 90 }
+    style: { textAlign: "left", padding: "1px 2px", fontWeight: 700, maxWidth: 90, borderRight:"0.5px solid #999", background:"#eee", fontSize:10 }
   }, "\u0E23\u0E32\u0E22\u0E01\u0E32\u0E23\u0E02\u0E2D\u0E07"),
   /*#__PURE__*/React.createElement("th", {
-    style: { textAlign: "center", padding: "1px 2px", fontWeight: 700 }
+    style: { textAlign: "center", padding: "1px 2px", fontWeight: 700, borderRight:"0.5px solid #999", background:"#eee" }
   }, "Kg."),
   /*#__PURE__*/React.createElement("th", {
-    style: { textAlign: "center", padding: "1px 2px", fontWeight: 700 }
+    style: { textAlign: "center", padding: "1px 2px", fontWeight: 700, borderRight:"0.5px solid #999", background:"#eee" }
   }, "S"),
   !form.hidePrice && /*#__PURE__*/React.createElement("th", {
     style: { textAlign: "right", padding: "1px 8px 1px 2px", fontWeight: 700 }
@@ -1232,9 +1220,10 @@ function ThermalBill({
     }, /*#__PURE__*/React.createElement("td", {
       style: {
         padding: "2px 2px",
-        fontSize: 16,
+        fontSize: 10,
         fontWeight: 700,
         maxWidth: 90,
+        borderRight: "0.5px solid #ccc",
         wordBreak: "break-word",
         whiteSpace: "normal"
       }
@@ -1242,13 +1231,15 @@ function ThermalBill({
       style: {
         textAlign: "center",
         padding: "2px 2px",
-        fontSize: 9
+        borderRight: "0.5px solid #ccc",
+        fontSize: 12
       }
     }, item.kg || "-"), /*#__PURE__*/React.createElement("td", {
       style: {
         textAlign: "center",
         padding: "2px 2px",
-        fontSize: 9
+        borderRight: "0.5px solid #ccc",
+        fontSize: 12
       }
     }, sumCm > 0 ? sumCm : "-"), !form.hidePrice && /*#__PURE__*/React.createElement("td", {
       style: {
@@ -1260,7 +1251,8 @@ function ThermalBill({
       style: {
         textAlign: "center",
         padding: "2px 2px",
-        fontSize: 9
+        borderRight: "0.5px solid #ccc",
+        fontSize: 12
       }
     }, item.qty), !form.hidePrice && /*#__PURE__*/React.createElement("td", {
       style: {
@@ -1284,7 +1276,7 @@ function ThermalBill({
         padding: "1px 2px"
       }
     }, "\u0E1B\u0E23\u0E30\u0E01\u0E31\u0E19: ", Math.round((parseFloat(item.declaredValue) || 0) * 0.005).toLocaleString("th-TH"), " \u0E3F")));
-  })))), /*#__PURE__*/React.createElement(Div, null), !form.hidePrice && /*#__PURE__*/React.createElement("div", {
+  })))), !form.hidePrice && /*#__PURE__*/React.createElement("div", {
     style: {
       marginBottom: 4
     }
@@ -1330,13 +1322,15 @@ function ThermalBill({
     (summary&&summary.codTotal>0) && /*#__PURE__*/React.createElement("span", null, "  COD: ", /*#__PURE__*/React.createElement("strong", null, (summary.codTotal).toLocaleString("th-TH"))),
     form.slipUploaded && /*#__PURE__*/React.createElement("span", { style:{ fontSize:10, color:"#1D9E75" }}, " \u2713 \u0E21\u0E35\u0E2A\u0E25\u0E34\u0E1B")
   )), form.note && /*#__PURE__*/React.createElement("div", {
-    style: { fontSize: 9, color: "#555", textAlign: "center", margin: "1px 0" }
+    style: { fontSize: 12, color: "#555", textAlign: "center", margin: "1px 0" }
   }, "\u0E2B\u0E21\u0E32\u0E22\u0E40\u0E2B\u0E15\u0E38: ", form.note),
   !form.hidePrice && /*#__PURE__*/React.createElement("div", {
     style: { marginTop: 3 }
-  }, /*#__PURE__*/React.createElement("div", { style:{ fontSize:11, fontWeight:700, marginBottom:1 }},
-    "\u25CF \u0E04\u0E19\u0E02\u0E31\u0E1A\u0E15\u0E49\u0E2D\u0E07\u0E40\u0E01\u0E47\u0E1A\u0E01\u0E31\u0E1A\u0E1C\u0E39\u0E49\u0E23\u0E31\u0E1A:"
-  ), /*#__PURE__*/React.createElement("div", { style:{ fontSize:19, fontWeight:900 }},
+  }, /*#__PURE__*/React.createElement("div", { style:{ marginTop:2 }},
+    /*#__PURE__*/React.createElement("div", { style:{ display:"flex", alignItems:"baseline", gap:6, flexWrap:"wrap" }},
+      /*#__PURE__*/React.createElement("span", { style:{ fontSize:11, fontWeight:700 }},
+        "\u25CF \u0E04\u0E19\u0E02\u0E31\u0E1A\u0E15\u0E49\u0E2D\u0E07\u0E40\u0E01\u0E47\u0E1A\u0E01\u0E31\u0E1A\u0E1C\u0E39\u0E49\u0E23\u0E31\u0E1A:"),
+      /*#__PURE__*/React.createElement("span", { style:{ fontSize:17, fontWeight:900 }},
     (function(){
       var isD=form.freightPay&&form.freightPay.indexOf("dest")>=0;
       var cod=(summary&&summary.codTotal>0)?summary.codTotal:0;
@@ -1344,7 +1338,7 @@ function ThermalBill({
       var tot=fr+cod;
       return tot>0?tot.toLocaleString("th-TH")+" \u0E3F":"-\u0E44\u0E21\u0E48\u0E21\u0E35-";
     })()
-  )), /*#__PURE__*/React.createElement(Div, null), /*#__PURE__*/React.createElement("div", {
+  )))), /*#__PURE__*/React.createElement(Div, null), /*#__PURE__*/React.createElement("div", {
     style: { display:"flex", flexDirection:"column", alignItems:"center", margin:"3px 0" }
   }, /*#__PURE__*/React.createElement("div", {
     "data-qr": String(billNo||"GOLOD"),
@@ -1425,7 +1419,6 @@ function ThermalBill({
     }
   }, "* * * \u0E2A\u0E33\u0E40\u0E19\u0E32\u0E25\u0E39\u0E01\u0E04\u0E49\u0E32 * * *")));
 }
-
 // =================== ITEM ROW ===================
 function ItemRow({
   item,
@@ -1664,15 +1657,12 @@ function ItemRow({
     style: INP
   }))));
 }
-
 // =================== BILL LIST ===================
-
 function EditBillBtn({
   bill
 }) {
   const session = JSON.parse(localStorage.getItem("golod_session") || "{}");
   const check = canEditBill(bill, session);
-
   // คำนวณเวลาที่เหลือ
   const getTimeLeft = () => {
     if (session.role === "admin") return null;
@@ -1917,9 +1907,7 @@ function BillList({
     }
   }, fil.reduce((s, b) => s + b.summary.codTotal, 0).toLocaleString("th-TH"), " \u0E3F")))));
 }
-
 // =================== MAIN ===================
-
 // ===== ContactInput: input พร้อม autocomplete จากประวัติ =====
 function ContactInput({
   value,
@@ -2094,9 +2082,7 @@ function saveContact(key, data) {
     localStorage.setItem("golod_contacts", JSON.stringify(contacts));
   } catch (e) {}
 }
-
 // Export บิลทั้งหมดเป็น CSV
-
 function ExportPanel() {
   const [show, setShow] = useState(false);
   const [from, setFrom] = useState("");
@@ -2301,10 +2287,8 @@ function exportAllBillsCSV(dateFrom, dateTo) {
     alert("Export ผิดพลาด: " + e.message);
   }
 }
-
 // ===== ระบบแก้ไขบิล =====
 const EDIT_WINDOW_MS = 3 * 60 * 60 * 1000; // 3 ชั่วโมง
-
 function canEditBill(bill, sessionUser) {
   if (!bill) return {
     allowed: false,
@@ -2314,7 +2298,6 @@ function canEditBill(bill, sessionUser) {
     allowed: true,
     reason: "admin"
   };
-
   // ตรวจ admin อนุมัติพิเศษ
   try {
     const windows = JSON.parse(localStorage.getItem("golod_edit_windows") || "{}");
@@ -2326,7 +2309,6 @@ function canEditBill(bill, sessionUser) {
       };
     }
   } catch (e) {}
-
   // ตรวจเจ้าของบิล — clerk แก้ได้แค่บิลตัวเอง
   const userCode = (() => {
     try {
@@ -2339,7 +2321,6 @@ function canEditBill(bill, sessionUser) {
       !(bill.billNo && bill.billNo.startsWith(userCode))) {
     return { allowed: false, reason: "บิลนี้ออกโดย " + (bill.clerkCode||"ผู้อื่น") + " — แก้ไขได้เฉพาะเจ้าของบิล" };
   }
-
   // ตรวจเวลาปกติ 3 ชม.
   if (!bill.createdAt) return {
     allowed: true,
@@ -2437,7 +2418,6 @@ const initForm = () => ({
   slipName: "",
   hidePrice: false
 });
-
 // ===== AMPHOE DATA (สำหรับ OcrConfirm dropdown) =====
 const AMPHOE = {
   "กระบี่": ["คลองท่อม", "ปลายพระยา", "ลำทับ", "อ่าวลึก", "เกาะลันตา", "เขาพนม", "เมืองกระบี่", "เหนือคลอง"],
@@ -2518,7 +2498,6 @@ const AMPHOE = {
   "แพร่": ["ร้องกวาง", "ลอง", "วังชิ้น", "สอง", "สูงเม่น", "หนองม่วงไข่", "เด่นชัย", "เมืองแพร่"],
   "แม่ฮ่องสอน": ["ขุนยวม", "ปางมะผ้า", "ปาย", "สบเมย", "เมืองแม่ฮ่องสอน", "แม่ลาน้อย", "แม่สะเรียง"]
 };
-
 // ===== OCR Confirm Component (ช่องตรงกับฟอร์ม) =====
 function OcrConfirm({
   result,
@@ -2696,7 +2675,6 @@ function ThermalBillingApp() {
       return null;
     }
   });
-
   // หา staff code จาก session — ใช้ clerkCode จาก USERS ก่อน
   const getStaffCode = () => {
     if (!sessionUser) return "BA";
@@ -2737,7 +2715,6 @@ function ThermalBillingApp() {
   };
   const staffCode = getStaffCode();
   const staffName = sessionUser ? sessionUser.name : "";
-
   // โหลดทุกบิลจาก localStorage
   const [allBills, setAllBills] = useState(() => {
     try {
@@ -2754,7 +2731,6 @@ function ThermalBillingApp() {
       var s = {};
       try { s = JSON.parse(localStorage.getItem("golod_session") || "{}"); } catch(e) {}
       var isAdminRole = s.role === "admin" || s.role === "branch";
-
       if (isAdminRole) {
         // admin/branch: ดึงบิลใหม่จาก Firestore (มี clerkCode)
         GolodDB.getBillsNew && GolodDB.getBillsNew(500).then(function(bills) {
@@ -2870,7 +2846,6 @@ function ThermalBillingApp() {
     ...f,
     [k]: v
   }));
-
   // Set staff และ billNo จาก session หลัง mount
   useEffect(() => {
     var code = staffCode;
@@ -2936,17 +2911,14 @@ function ThermalBillingApp() {
     setOcrResult(null);
     setView("form");
   };
-
   // parse ข้อความ OCR → ชื่อ เบอร์ ที่อยู่
   const parseAndFill = (text, target) => {
     // ทำความสะอาด: แบ่งบรรทัด, ตัดช่องว่างซ้ำ
     const raw = text.split("\n").map(l => l.replace(/\s+/g, " ").trim()).filter(l => l.length > 2);
-
     // regex patterns
     const phoneRe = /0[0-9]{8,9}/;
     const noiseRe = /^[^ก-๙a-zA-Z0-9]{0,2}$/; // บรรทัด noise ล้วนๆ
     const numNoiseRe = /^[0-9\s\.,#%*"'=:()\[\]]{1,5}$/; // ตัวเลข/สัญลักษณ์ล้วน
-
     // กรอง noise ออก
     const lines = raw.filter(l => {
       if (noiseRe.test(l)) return false;
@@ -2959,12 +2931,10 @@ function ThermalBillingApp() {
       phone = "",
       addr = "";
     const addrParts = [];
-
     // หาเบอร์โทรศัพท์ก่อน (pattern ชัดเจน)
     const allText = lines.join(" ");
     const phoneMatch = allText.match(/0[689][0-9]{7,8}/);
     if (phoneMatch) phone = phoneMatch[0];
-
     // หาชื่อ: บรรทัดที่
     // - มีตัวอักษรไทยเป็นหลัก
     // - ไม่มี / หมู่ ตรอก ซอย ถนน จังหวัด เขต อำเภอ
@@ -2973,7 +2943,6 @@ function ThermalBillingApp() {
     // - ดูเหมือน "ชื่อ นามสกุล" (2 กลุ่มคำ ขั้นด้วยช่องว่าง)
     const addrKeywords = /หมู่|ซอย|ถนน|จังหวัด|เขต|อำเภอ|ตำบล|แขวง|หมู้|\/|เลขที่|บ้าน/;
     const nameRe = /^[ก-๙\s]+$/; // ไทยล้วนหรือมีช่องว่าง
-
     for (const l of lines) {
       if (phoneRe.test(l.replace(/\D/g, ""))) continue; // skip เบอร์
       if (addrKeywords.test(l)) {
@@ -2993,7 +2962,6 @@ function ThermalBillingApp() {
       if (name) addrParts.push(l); // บรรทัดหลังชื่อ = ที่อยู่
     }
     addr = addrParts.join(" ").trim();
-
     // จับจังหวัด/อำเภอจากข้อความ
     let prov = "",
       amphoe = "";
@@ -3018,13 +2986,11 @@ function ThermalBillingApp() {
     if (!prov && (allTextJoin.includes("กรุงเทพ") || allTextJoin.includes("กทม"))) {
       prov = "กรุงเทพมหานคร";
     }
-
     // ตัดจังหวัด/อำเภอออกจาก addr เพราะมีช่องแยก
     let addrClean = addr;
     if (prov) addrClean = addrClean.replace(prov, "").trim();
     if (amphoe) addrClean = addrClean.replace(amphoe, "").trim();
     addrClean = addrClean.replace(/จังหวัด|เขต|อำเภอ|จ\.\s*|อ\.\s*|เขต\s*/g, "").trim();
-
     // ไม่ setF ทันที — รอให้ผู้ใช้ confirm ก่อน
     return {
       name,
@@ -3035,7 +3001,6 @@ function ThermalBillingApp() {
       raw: lines
     };
   };
-
   // OCR จาก canvas หรือ file
   const runOCR = (imageSource, target) => {
     setOcrStatus("🔍 กำลังอ่านข้อความ...");
@@ -3149,7 +3114,6 @@ function ThermalBillingApp() {
     if (items.length < 100) setItems(p => [...p, blankItem()]);
   };
   const remItem = idx => setItems(p => p.filter((_, i) => i !== idx));
-
   // banner โหมดแก้ไข
   const editBanner = form._editBillNo ? /*#__PURE__*/React.createElement("div", {
     style: {
@@ -3308,7 +3272,6 @@ function ThermalBillingApp() {
   };
   const [printMarginV, setPrintMarginV] = useState(4); // mm บน-ล่าง
   const [printMarginL, setPrintMarginL] = useState(4); // mm ซ้าย
-
   const handlePrint = () => {
     const el = printRef.current;
     if (!el) return;
@@ -4247,7 +4210,6 @@ function ThermalBillingApp() {
     }
   }, "\uD83D\uDCA1 \u0E01\u0E14 \"\u0E1E\u0E34\u0E21\u0E1E\u0E4C Thermal\" \u0E08\u0E30\u0E40\u0E1B\u0E34\u0E14\u0E2B\u0E19\u0E49\u0E32\u0E15\u0E48\u0E32\u0E07\u0E43\u0E2B\u0E21\u0E48", /*#__PURE__*/React.createElement("br", null), "\u0E15\u0E31\u0E49\u0E07\u0E04\u0E48\u0E32 printer: \u0E02\u0E19\u0E32\u0E14 80mm \xD7 \u0E22\u0E32\u0E27\u0E2D\u0E31\u0E15\u0E42\u0E19\u0E21\u0E31\u0E15\u0E34", /*#__PURE__*/React.createElement("br", null), "\u0E1B\u0E34\u0E14 margin \u0E43\u0E19 print dialog")))));
 }
-
 // ========== RECEIPT SYSTEM ==========
 function genReceiptNo(staffCode) {
   const d = new Date();
@@ -4268,7 +4230,6 @@ function genReceiptNo(staffCode) {
   localStorage.setItem(KEY, seq);
   return staffCode + mm + String(seq).padStart(4,"0");
 }
-
 
 function bahtText(n) {
   const digits = ["","หนึ่ง","สอง","สาม","สี่","ห้า","หก","เจ็ด","แปด","เก้า"];
@@ -4302,7 +4263,6 @@ function bahtText(n) {
   }
   return result;
 }
-
 function ReceiptPrint({ receipt }) {
   const W = 298;
   const fmt = n => (n||0).toLocaleString("th-TH");
@@ -4383,7 +4343,6 @@ function ReceiptPrint({ receipt }) {
   );
 }
 
-
 // ========== MANUAL BILL (บิลมือ) ==========
 function ManualBillForm({ staffCode, staffName, onSave }) {
   const [manualNo, setManualNo] = React.useState("");
@@ -4398,24 +4357,19 @@ function ManualBillForm({ staffCode, staffName, onSave }) {
   });
   const setF=(k,v)=>setForm(f=>({...f,[k]:v}));
   const billNo = staffCode+(manualNo?"-"+manualNo:"");
-
   // dropdown helpers
   const sAmphs = form.senderProv && THAILAND_TAMBON[form.senderProv] ? Object.keys(THAILAND_TAMBON[form.senderProv]).sort() : [];
   const sTambons = form.senderProv && form.senderAmphoe && THAILAND_TAMBON[form.senderProv]&&THAILAND_TAMBON[form.senderProv][form.senderAmphoe] ? THAILAND_TAMBON[form.senderProv][form.senderAmphoe] : [];
   const dAmphs = form.destProv && THAILAND_TAMBON[form.destProv] ? Object.keys(THAILAND_TAMBON[form.destProv]).sort() : [];
   const dTambons = form.destProv && form.receiverAmphoe && THAILAND_TAMBON[form.destProv]&&THAILAND_TAMBON[form.destProv][form.receiverAmphoe] ? THAILAND_TAMBON[form.destProv][form.receiverAmphoe] : [];
-
   const autoZip=(prov,amph,tamb,setZip)=>{
     if(typeof getZipCode==="function"){ const z=getZipCode(prov,amph,tamb); if(z) setZip(z); }
   };
-
   const INP2={border:"0.5px solid #ccc",borderRadius:7,padding:"5px 9px",fontSize:12,width:"100%",boxSizing:"border-box"};
   const SEL2={...INP2,background:"#fff"};
   const LBL={fontSize:11,color:"#666",marginBottom:2};
   const CARD={background:"#fff",border:"0.5px solid #ddd",borderRadius:8,padding:"10px 12px",marginBottom:10};
-
   const totalFreight = items.reduce((s,it)=>s+(parseFloat(it.price)||0)*(parseInt(it.qty)||1),0);
-
   const handleSave=()=>{
     if(!manualNo){alert("กรุณาระบุเลขที่บิลมือ");return;}
     if(!form.senderName){alert("กรุณาระบุชื่อผู้ส่ง");return;}
@@ -4439,7 +4393,6 @@ function ManualBillForm({ staffCode, staffName, onSave }) {
     setManualNo(""); setItems([blankItem()]);
     setForm(f=>({...f,senderName:"",senderPhone:"",receiverName:"",receiverPhone:"",freightNet:0,note:"",codTotal:0}));
   };
-
   const Field=(label,k,opts={})=>React.createElement("div",null,
     React.createElement("div",{style:LBL},label),
     React.createElement("input",{value:form[k]||"",onChange:e=>setF(k,e.target.value),...opts,style:{...INP2,...(opts.style||{})}})
@@ -4451,10 +4404,8 @@ function ManualBillForm({ staffCode, staffName, onSave }) {
       options.map(o=>React.createElement("option",{key:o,value:o},o))
     )
   );
-
   return React.createElement("div",{style:{maxWidth:600}},
     React.createElement("div",{style:{fontWeight:700,fontSize:13,marginBottom:12,color:"#0a3d2e"}},"📝 นำเข้าบิลมือ"),
-
     // เลขบิล + วันที่
     React.createElement("div",{style:{...CARD,background:"#f0faf5",border:"0.5px solid #9FE1CB"}},
       React.createElement("div",{style:{fontWeight:600,fontSize:12,marginBottom:8}},"เลขที่บิล"),
@@ -4465,7 +4416,6 @@ function ManualBillForm({ staffCode, staffName, onSave }) {
       manualNo&&React.createElement("div",{style:{fontSize:12,color:"#0F6E56",marginBottom:8}},"เลขที่บิล: ",React.createElement("strong",null,billNo)),
       React.createElement("div",null,React.createElement("div",{style:LBL},"วันที่บิล"),React.createElement("input",{value:form.date,onChange:e=>setF("date",e.target.value),style:INP2}))
     ),
-
     // ผู้ส่ง
     React.createElement("div",{style:CARD},
       React.createElement("div",{style:{fontWeight:600,fontSize:12,marginBottom:8}},"ผู้ส่ง"),
@@ -4479,7 +4429,6 @@ function ManualBillForm({ staffCode, staffName, onSave }) {
         React.createElement("div",{style:{gridColumn:"1/-1"}},Field("ที่อยู่","senderAddr"))
       )
     ),
-
     // ผู้รับ
     React.createElement("div",{style:CARD},
       React.createElement("div",{style:{fontWeight:600,fontSize:12,marginBottom:8}},"ผู้รับ / ปลายทาง"),
@@ -4493,7 +4442,6 @@ function ManualBillForm({ staffCode, staffName, onSave }) {
         React.createElement("div",{style:{gridColumn:"1/-1"}},Field("ที่อยู่","receiverAddr"))
       )
     ),
-
     // รายการของ
     React.createElement("div",{style:CARD},
       React.createElement("div",{style:{fontWeight:600,fontSize:12,marginBottom:8}},"รายการของ"),
@@ -4523,7 +4471,6 @@ function ManualBillForm({ staffCode, staffName, onSave }) {
         React.createElement("div",{style:{fontWeight:700}},"รวม: ",totalFreight.toLocaleString("th-TH")," ฿")
       )
     ),
-
     // การเงิน
     React.createElement("div",{style:CARD},
       React.createElement("div",{style:{fontWeight:600,fontSize:12,marginBottom:8}},"การเงิน"),
@@ -4547,9 +4494,7 @@ function ManualBillForm({ staffCode, staffName, onSave }) {
         )
       )
     ),
-
     Field("หมายเหตุ","note",{placeholder:"หมายเหตุเพิ่มเติม"}),
-
     React.createElement("button",{
       onClick:handleSave,
       style:{width:"100%",padding:"11px",background:"#1D9E75",color:"#fff",border:"none",borderRadius:9,fontWeight:700,fontSize:14,cursor:"pointer",marginTop:8}
@@ -4557,25 +4502,20 @@ function ManualBillForm({ staffCode, staffName, onSave }) {
   );
 }
 
-
 // ===== SLIP UPLOADER =====
 var SLIP_WINDOW_MS = 12 * 60 * 60 * 1000;
-
 function SlipUploadBtn({ bill, onUploaded, isDriver }) {
   const [loading, setLoading] = React.useState(false);
   const [url, setUrl] = React.useState(bill.slip1 || "");
   const [err, setErr] = React.useState("");
   const ref = React.useRef(null);
-
   const elapsed = bill.createdAt ? Date.now() - new Date(bill.createdAt).getTime() : 0;
   const canSelfUpload = elapsed < SLIP_WINDOW_MS || isDriver;
-
   const slipWindows = (() => {
     try { return JSON.parse(localStorage.getItem("golod_slip_windows")||"{}"); } catch(e){ return {}; }
   })();
   const adminApproved = slipWindows[bill.billNo] && Date.now() < slipWindows[bill.billNo];
   const canUpload = canSelfUpload || adminApproved;
-
   const handleFile = (e) => {
     const f = e.target.files[0];
     if (!f) return;
@@ -4600,7 +4540,6 @@ function SlipUploadBtn({ bill, onUploaded, isDriver }) {
         setLoading(false);
       });
   };
-
   const requestSlipAdmin = () => {
     try {
       const reqs = JSON.parse(localStorage.getItem("golod_slip_requests")||"[]");
@@ -4613,7 +4552,6 @@ function SlipUploadBtn({ bill, onUploaded, isDriver }) {
       alert("📨 ส่งคำขออนุมัติให้ admin แล้ว");
     } catch(e) { alert("เกิดข้อผิดพลาด"); }
   };
-
   if (url) return React.createElement("div", {style:{display:"flex",alignItems:"center",gap:6}},
     React.createElement("a", {href:url, target:"_blank", style:{fontSize:11,color:"#0F6E56",fontWeight:600}}, "✅ ดูสลิป"),
     canUpload && React.createElement("button", {
@@ -4622,12 +4560,10 @@ function SlipUploadBtn({ bill, onUploaded, isDriver }) {
     }, "เปลี่ยน"),
     React.createElement("input",{ref,type:"file",accept:"image/*",onChange:handleFile,style:{display:"none"}})
   );
-
   if (!canUpload) return React.createElement("button", {
     onClick: requestSlipAdmin,
     style:{fontSize:11,padding:"4px 10px",border:"0.5px solid #E67E22",borderRadius:6,background:"#FFF3E0",color:"#E67E22",cursor:"pointer",fontWeight:600}
   }, "📨 ขออนุมัติสลิป");
-
   return React.createElement("div", {style:{display:"flex",alignItems:"center",gap:6}},
     React.createElement("button", {
       onClick:()=>ref.current&&ref.current.click(),
@@ -4638,7 +4574,6 @@ function SlipUploadBtn({ bill, onUploaded, isDriver }) {
     React.createElement("input",{ref,type:"file",accept:"image/*",onChange:handleFile,style:{display:"none"}})
   );
 }
-
 
 function ReceiptForm({ bills, staffCode, staffName }) {
   const fmt = n => (n||0).toLocaleString("th-TH");
@@ -4658,10 +4593,8 @@ function ReceiptForm({ bills, staffCode, staffName }) {
   });
   const [form, setForm] = React.useState(emptyForm());
   const [previewRcpt, setPreviewRcpt] = React.useState(null);
-
   const setF = (k,v) => setForm(f=>({...f,[k]:v}));
   const total = (form.items||[]).reduce((s,it)=>s+(parseFloat(it.amount)||0),0);
-
   // เลือกบิลอ้างอิง → auto-fill
   const pickBill = (b) => {
     setSelBill(b);
@@ -4678,7 +4611,6 @@ function ReceiptForm({ bills, staffCode, staffName }) {
       items: [{desc:"ค่าขนส่ง บิล "+b.billNo, amount: b.freightNet||b.summary&&b.summary.freightNet||0}]
     }));
   };
-
   const saveReceipt = () => {
     const rcptNo = genReceiptNo(staffCode);
     const rcpt = {
@@ -4703,7 +4635,6 @@ function ReceiptForm({ bills, staffCode, staffName }) {
     setPreviewRcpt(rcpt);
     setMode("preview");
   };
-
   const doPrint = () => {
     if (!printRef.current) return;
     const w = window.open("","_blank","width=400,height=600");
@@ -4713,7 +4644,6 @@ function ReceiptForm({ bills, staffCode, staffName }) {
     w.document.close();
     setTimeout(()=>w.print(),600);
   };
-
   // เฉพาะบิลที่จ่ายต้นทาง (origin) หรือโอน (transfer/dest_transfer)
   const eligibleBills = bills.filter(b => {
     const p = b.freightPay || b.form&&b.form.freightPay || "";
@@ -4723,7 +4653,6 @@ function ReceiptForm({ bills, staffCode, staffName }) {
     !search || (b.billNo&&b.billNo.toLowerCase().includes(search.toLowerCase())) ||
     (b.form&&b.form.senderName&&b.form.senderName.includes(search))
   );
-
   if (mode==="preview" && previewRcpt) return React.createElement("div",null,
     React.createElement("div",{style:{display:"flex",gap:8,marginBottom:10,flexWrap:"wrap"}},
       React.createElement("button",{onClick:doPrint,style:{padding:"7px 16px",background:"#1D9E75",color:"#fff",border:"none",borderRadius:8,fontWeight:700,cursor:"pointer"}},"🖨 พิมพ์ใบเสร็จ"),
@@ -4734,7 +4663,6 @@ function ReceiptForm({ bills, staffCode, staffName }) {
       React.createElement(ReceiptPrint,{receipt:previewRcpt})
     )
   );
-
   if (mode==="form") return React.createElement("div",{style:{maxWidth:500}},
     React.createElement("div",{style:{display:"flex",gap:8,marginBottom:10}},
       React.createElement("button",{onClick:()=>setMode("list"),style:{padding:"5px 12px",background:"#eee",border:"none",borderRadius:8,cursor:"pointer"}},"← รายการ"),
@@ -4847,7 +4775,6 @@ function ReceiptForm({ bills, staffCode, staffName }) {
       style:{width:"100%",padding:"10px",background:"#1D9E75",color:"#fff",border:"none",borderRadius:9,fontWeight:700,fontSize:14,cursor:"pointer"}
     },"💾 บันทึกและออกใบเสร็จ")
   );
-
   // mode === list
   return React.createElement("div",null,
     React.createElement("div",{style:{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:10}},
@@ -4889,7 +4816,6 @@ function ReceiptForm({ bills, staffCode, staffName }) {
 }
 </script>
 <script>(function(){var s=GolodSession.get();if(!s){window.location.href="GolodApp.html";return;}GolodSession.renderTopbar("golod-chip","ออกบิล","#1D9E75");
-
 // sync บิลจาก Firestore → localStorage ก่อน render
 (function(){
   function doRender(){ ReactDOM.render(React.createElement(ThermalBillingApp),document.getElementById('root')); }
