@@ -516,22 +516,32 @@ function setHistoryFilter(f){ historyFilter=f; renderHistoryTab(); }
 
 function renderHistoryTab(){
   var app = document.getElementById("app");
-  app.innerHTML = '<div class="card"><div class="card-title">📋 ประวัติการจ่ายงาน</div>'
-    +'<div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-bottom:8px">'
-    +'<select onchange="historyDateMode=this.value;loadHistory()" id="h-mode-sel">'
-    +'<option value="today">วันนี้</option>'
-    +'<option value="yesterday">เมื่อวาน</option>'
-    +'<option value="week" selected>7 วัน</option>'
-    +'<option value="month">30 วัน</option>'
-    +'<option value="all">ทั้งหมด</option>'
-    +'</select>'
-    +'<button class="btn '+(historyFilter==="all"?"btn-blue":"btn-gray")+'" onclick="setHistoryFilter('all')">ทุกประเภท</button>'
-    +'<button class="btn '+(historyFilter==="driver"?"btn-blue":"btn-gray")+'" onclick="setHistoryFilter('driver')">🚛 คนรถ</button>'
-    +'<button class="btn '+(historyFilter==="branch"?"btn-blue":"btn-gray")+'" onclick="setHistoryFilter('branch')">📦 สาขา</button>'
-    +'<button class="btn btn-gray" onclick="loadHistory()">🔄 โหลด</button>'
-    +'</div>'
+  app.innerHTML = '<div class="card" id="history-card">'
+    +'<div class="card-title">📋 ประวัติการจ่ายงาน</div>'
+    +'<div id="h-filter-bar" style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-bottom:8px"></div>'
     +'<div id="history-body"><div class="loading">⏳ กำลังโหลด...</div></div>'
     +'</div>';
+  var bar = document.getElementById("h-filter-bar");
+  var sel = document.createElement("select");
+  sel.style.cssText = "padding:6px 10px;border:1px solid #ddd;border-radius:7px;font-size:12px;font-family:inherit";
+  [["today","วันนี้"],["yesterday","เมื่อวาน"],["week","7 วัน"],["month","30 วัน"],["all","ทั้งหมด"]].forEach(function(o){
+    var opt = document.createElement("option");
+    opt.value = o[0]; opt.text = o[1];
+    if(historyDateMode === o[0]) opt.selected = true;
+    sel.appendChild(opt);
+  });
+  sel.onchange = function(){ historyDateMode = this.value; loadHistory(); };
+  bar.appendChild(sel);
+  [["all","ทุกประเภท"],["driver","🚛 คนรถ"],["branch","📦 สาขา"]].forEach(function(f){
+    var btn = document.createElement("button");
+    btn.className = "btn " + (historyFilter === f[0] ? "btn-blue" : "btn-gray");
+    btn.textContent = f[1];
+    btn.onclick = (function(fv){ return function(){ setHistoryFilter(fv); }; })(f[0]);
+    bar.appendChild(btn);
+  });
+  var rb = document.createElement("button");
+  rb.className = "btn btn-gray"; rb.textContent = "🔄 โหลด";
+  rb.onclick = loadHistory; bar.appendChild(rb);
   loadHistory();
 }
 
