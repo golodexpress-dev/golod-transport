@@ -999,44 +999,43 @@ function SecTitle({
 // === QR Code Box — render ใน visible element แล้ว capture ===
 function QRCodeBox({ data, size }) {
   var sz = size || 80;
-  var elRef = React.useRef(null);
-  var doneRef = React.useRef(false);
-
-  React.useLayoutEffect(function() {
-    if (!data || doneRef.current || !elRef.current) return;
-    var el = elRef.current;
-    doneRef.current = true;
-    el.innerHTML = "";
-    if (typeof QRCode === "undefined") {
-      el.textContent = "no lib";
-      return;
-    }
-    try {
-      new QRCode(el, {
-        text: String(data),
-        width: sz,
-        height: sz,
-        colorDark: "#000000",
-        colorLight: "#ffffff",
-        correctLevel: QRCode.CorrectLevel.M
-      });
-    } catch(e) {
-      el.textContent = "err:" + e.message;
-      return;
-    }
-    // ไม่ต้อง capture dataUrl — render ตรงใน el ได้เลย
-    // แต่ตอน print ต้องแปลง canvas → img ใน handlePrint
-  }, [data, sz]);
-
-  // render div เสมอ — ไม่สลับ
+  // render div พร้อม attribute — vanilla JS จะ scan และสร้าง QR
   return React.createElement("div", {
-    ref: elRef,
-    style: {
-      width: sz, height: sz, margin: "0 auto",
-      lineHeight: 0, overflow: "hidden"
-    }
+    "data-qr": String(data||""),
+    "data-qr-size": String(sz),
+    style: { width:sz, height:sz, margin:"0 auto", lineHeight:0, overflow:"hidden", background:"#f0f0f0" }
   });
 }
+
+// Global QR scanner — ทำงานนอก React ทุก 200ms
+(function startQRScanner() {
+  function scanAndRender() {
+    if (typeof QRCode === "undefined") return;
+    var els = document.querySelectorAll("[data-qr]:not([data-qr-done])");
+    els.forEach(function(el) {
+      var text = el.getAttribute("data-qr");
+      var sz = parseInt(el.getAttribute("data-qr-size")) || 80;
+      if (!text) return;
+      el.setAttribute("data-qr-done", "1");
+      el.innerHTML = "";
+      try {
+        new QRCode(el, {
+          text: text, width: sz, height: sz,
+          colorDark: "#000000", colorLight: "#ffffff",
+          correctLevel: QRCode.CorrectLevel.M
+        });
+      } catch(e) {}
+    });
+  }
+  // รัน scan ทุก 300ms
+  setInterval(scanAndRender, 300);
+  // รันทันทีหลัง page load
+  if (document.readyState === "loading") {
+    document.addEventListener("DOMContentLoaded", scanAndRender);
+  } else {
+    setTimeout(scanAndRender, 100);
+  }
+})();
 
 function ThermalBill({
   form,
@@ -3565,7 +3564,20 @@ function ThermalBillingApp() {
     const el = printRef.current;
     if (!el) return;
     const mv = printMarginV, ml = printMarginL;
-    // แปลง canvas ทั้งหมดเป็น <img> data URL ก่อน copy innerHTML
+    // แปลง canvas และ data-qr div → img ก่อน copy innerHTML
+    // รอ QR scanner render ก่อน (ถ้ายังไม่เสร็จ)
+    var qrDivs = el.querySelectorAll("[data-qr]:not([data-qr-done])");
+    if (qrDivs.length > 0 && typeof QRCode !== "undefined") {
+      qrDivs.forEach(function(qd) {
+        var text = qd.getAttribute("data-qr");
+        var sz = parseInt(qd.getAttribute("data-qr-size")) || 80;
+        qd.innerHTML = "";
+        try {
+          new QRCode(qd, { text:text, width:sz, height:sz, colorDark:"#000000", colorLight:"#ffffff", correctLevel:QRCode.CorrectLevel.M });
+          qd.setAttribute("data-qr-done","1");
+        } catch(e) {}
+      });
+    }
     const cloned = el.cloneNode(true);
     const origCanvases = el.querySelectorAll("canvas");
     const clonedCanvases = cloned.querySelectorAll("canvas");
