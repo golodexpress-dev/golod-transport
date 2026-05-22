@@ -425,12 +425,14 @@ function renderApp(){
 
   var filtered = filterBills(currentTab);
 
+  var isAdmin = CU && (CU.role==="admin"||CU.role==="branch");
+  var canDispatch = CU && (CU.role==="admin"||CU.role==="branch"||CU.role==="clerk");
   var actionBar = '';
-  if(currentTab !== "done"){
+  if(currentTab !== "done" && currentTab !== "history"){
     actionBar = '<div class="action-bar">'
-      +'<button class="btn btn-gray" onclick="toggleSelectAll()">☑ เลือกทั้งหมด</button>'
-      +'<button class="btn btn-orange" onclick="openDispatch(&quot;branch&quot;)">📦 จ่ายให้สาขา</button>'
-      +'<button class="btn btn-blue" onclick="openDispatch(&quot;driver&quot;)">🚛 จ่ายให้คนรถ</button>'
+      +(canDispatch ? '<button class="btn btn-gray" onclick="toggleSelectAll()">☑ เลือกทั้งหมด</button>' : '')
+      +(canDispatch ? '<button class="btn btn-orange" onclick="openDispatch(&quot;branch&quot;)">📦 จ่ายให้สาขา</button>' : '')
+      +(canDispatch ? '<button class="btn btn-blue" onclick="openDispatch(&quot;driver&quot;)">🚛 จ่ายให้คนรถ</button>' : '')
       +'<span style="font-size:11px;color:#666">เลือก <span id="sel-count">0</span> บิล</span>'
       +'</div>';
   }
@@ -463,7 +465,7 @@ function renderApp(){
       +'<td>'+zoneHTML+'</td>'
       +'<td style="color:#666">'+driver+'</td>'
       +'<td>'
-      +'<button class="btn btn-gray" onclick="openStatusModal(\''+b.billNo+'\')">อัปเดต</button>'
+      +(isAdmin ? '<button class="btn btn-gray" onclick="openStatusModal(\''+b.billNo+'\')">อัปเดต</button>' : '<span style="font-size:10px;color:#ccc">—</span>')
       +'</td>'
       +'</tr>';
   }).join("");
@@ -506,7 +508,7 @@ var historyFilter = "all"; // all | driver | branch
 function renderHistoryTab(){
   var app = document.getElementById("app");
   app.innerHTML = '<div class="card"><div class="card-title">📋 ประวัติการจ่ายงาน</div>'
-    +'<div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-bottom:12px">'
+    +'<div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-bottom:8px">'
     +'<select onchange="historyDateMode=this.value;loadHistory()" id="h-mode-sel">'
     +'<option value="today">วันนี้</option>'
     +'<option value="yesterday">เมื่อวาน</option>'
@@ -514,11 +516,9 @@ function renderHistoryTab(){
     +'<option value="month">30 วัน</option>'
     +'<option value="all">ทั้งหมด</option>'
     +'</select>'
-    +'<select onchange="historyFilter=this.value;loadHistory()">'
-    +'<option value="all">ทุกประเภท</option>'
-    +'<option value="driver">คนขับ</option>'
-    +'<option value="branch">สาขา</option>'
-    +'</select>'
+    +'<button class="btn '+(historyFilter==="all"?"btn-blue":"btn-gray")+'" onclick="historyFilter='all';loadHistory()">ทุกประเภท</button>'
+    +'<button class="btn '+(historyFilter==="driver"?"btn-blue":"btn-gray")+'" onclick="historyFilter='driver';loadHistory()">🚛 คนรถ</button>'
+    +'<button class="btn '+(historyFilter==="branch"?"btn-blue":"btn-gray")+'" onclick="historyFilter='branch';loadHistory()">📦 สาขา</button>'
     +'<button class="btn btn-gray" onclick="loadHistory()">🔄 โหลด</button>'
     +'</div>'
     +'<div id="history-body"><div class="loading">⏳ กำลังโหลด...</div></div>'
@@ -596,7 +596,7 @@ function loadHistory(){
         +'<td style="text-align:right;color:#2471A3">'+fmt(l.totalTransfer||0)+'</td>'
         +'<td style="text-align:right;color:#c0392b">'+fmt(l.totalCOD||0)+'</td>'
         +'<td style="text-align:right;font-weight:700;color:#0F6E56">'+fmt(l.totalFreight||0)+'</td>'
-        +'<td style="font-size:10px;color:#aaa">'+( l.dispatchByName||l.dispatchBy||"")+'</td>'
+        +'<td style="font-size:11px;font-weight:600;color:#7B5200;background:#FFF8E7">'+( l.dispatchByName||l.dispatchBy||"—")+'</td>'
         +'</tr>';
     }).join("");
 
@@ -606,7 +606,7 @@ function loadHistory(){
       +'<th style="text-align:center">บิล</th>'
       +'<th style="text-align:right">ต้นทาง</th><th style="text-align:right">ปลายทาง</th>'
       +'<th style="text-align:right">โอน</th><th style="text-align:right">COD</th>'
-      +'<th style="text-align:right">รวม</th><th>ผู้จ่าย</th></tr>'
+      +'<th style="text-align:right">รวม</th><th style="background:#FFF8E7;color:#7B5200">👤 ผู้จ่ายงาน</th></tr>'
       +rowsHTML
       +'</table></div>'
       +'<div style="font-size:11px;color:#aaa;margin-top:8px">กดแถวเพื่อดูรายละเอียดบิล</div>';
@@ -925,11 +925,24 @@ function closeSummary(){
   document.getElementById("modal-summary").classList.remove("show");
 }
 
+var _printing = false;
 function printSummary(){
+  if(_printing) return; // guard ไม่ให้ trigger ซ้ำ
+  _printing = true;
   var pa = document.getElementById("print-area");
   pa.style.display = "block";
+  // ใช้ onafterprint แทน setTimeout — รอจนปิด dialog จริงๆ
+  function afterPrint(){
+    pa.style.display = "none";
+    _printing = false;
+    window.removeEventListener("afterprint", afterPrint);
+  }
+  window.addEventListener("afterprint", afterPrint);
+  // fallback กรณี afterprint ไม่ trigger (บาง browser)
+  setTimeout(function(){
+    if(_printing){ pa.style.display = "none"; _printing = false; }
+  }, 30000);
   window.print();
-  setTimeout(function(){ pa.style.display = "none"; }, 500);
 }
 
 // ===== STATUS MODAL =====
