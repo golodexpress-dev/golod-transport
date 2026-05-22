@@ -27,7 +27,7 @@
 </div>
 
 <!-- Print area (hidden, shown only on print) -->
-<div class="print-area" id="print-area" style="display:none"></div>
+<div id="print-area" style="display:none;position:fixed;inset:0;background:#fff;padding:20px;z-index:99999;overflow:auto"></div>
 
 <script>try{GolodDB.init();}catch(e){}</script>
 <style>
@@ -103,9 +103,8 @@ tr:hover td{background:#f8fffe}
 .sum-btn-row{display:flex;gap:8px;justify-content:flex-end}
 /* ===== PRINT ===== */
 @media print{
-  body *{visibility:hidden}
-  .print-area, .print-area *{visibility:visible}
-  .print-area{position:fixed;inset:0;background:#fff;padding:20px;font-family:'Sarabun',Arial,sans-serif}
+  body > *:not(#print-area){display:none!important}
+  #print-area{display:block!important;position:fixed;inset:0;background:#fff;padding:20px;font-family:'Sarabun',Arial,sans-serif;z-index:99999}
   .no-print{display:none!important}
 }
 </style>
@@ -945,23 +944,28 @@ function closeSummary(){
 }
 
 var _printing = false;
-function printSummary(){
-  if(_printing) return; // guard ไม่ให้ trigger ซ้ำ
-  _printing = true;
+
+// ตั้ง afterprint ครั้งเดียวตอนโหลดหน้า — ไม่ add listener ซ้ำทุกครั้งที่กดพิมพ์
+window.onafterprint = function(){
   var pa = document.getElementById("print-area");
+  if(pa) pa.style.display = "none";
+  _printing = false;
+};
+
+function printSummary(){
+  if(_printing) return;
+  var pa = document.getElementById("print-area");
+  if(!pa){ alert("ไม่พบ print area"); return; }
+  _printing = true;
   pa.style.display = "block";
-  // ใช้ onafterprint แทน setTimeout — รอจนปิด dialog จริงๆ
-  function afterPrint(){
-    pa.style.display = "none";
-    _printing = false;
-    window.removeEventListener("afterprint", afterPrint);
-  }
-  window.addEventListener("afterprint", afterPrint);
-  // fallback กรณี afterprint ไม่ trigger (บาง browser)
+  // รอให้ browser render ก่อนสั่งพิมพ์
   setTimeout(function(){
-    if(_printing){ pa.style.display = "none"; _printing = false; }
-  }, 30000);
-  window.print();
+    window.print();
+    // fallback: ถ้า afterprint ไม่ fire ใน 60 วิ
+    setTimeout(function(){
+      if(_printing){ pa.style.display = "none"; _printing = false; }
+    }, 60000);
+  }, 100);
 }
 
 // ===== STATUS MODAL =====
