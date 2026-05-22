@@ -668,31 +668,48 @@ function pgDashboard(showAll){
 window._golodSlipMap = window._golodSlipMap || {};
 
 function slipCellHtml(b) {
-  var billNo = b.billNo || "";
-  var hasSlipUrl = b.slipUrl && b.slipUrl.startsWith("http");
-  var hasSlip1   = b.slip1  && b.slip1.startsWith("http");
-  var hasPrepaid = b.form && (b.form.slipUploaded || b.form.slipName);
+  var bn = b.billNo || "";
   var isTransfer = b.freightPay === "transfer";
   if (!isTransfer) return "<td style='text-align:center;color:#bbb'>—</td>";
-  var slipUrl = hasSlipUrl ? b.slipUrl : (hasSlip1 ? b.slip1 : "");
-  window._golodSlipMap[billNo] = slipUrl;
+  var slipUrl = (b.slipUrl && b.slipUrl.startsWith("http")) ? b.slipUrl
+              : (b.slip1  && b.slip1.startsWith("http"))  ? b.slip1 : "";
+  var hasPrepaid = b.form && (b.form.slipUploaded || b.form.slipName);
+  window._golodSlipMap[bn] = slipUrl;
+
+  // ใช้ data-bill แทน inline parameter เพื่อหลีกเลี่ยง quote ชนกัน
+  var uploadBtn = "<label style='cursor:pointer;font-size:10px;color:#1D9E75'>"
+    + "<input type='file' accept='image/*,application/pdf' style='display:none'"
+    + " data-bill='" + bn + "' onchange='_golodUploadFromInput(this)'/>✏️</label>";
+
   if (slipUrl) {
-    return "<td style='text-align:center'>" +
-      "<img src='" + slipUrl + "' style='width:36px;height:36px;object-fit:cover;border-radius:5px;border:1px solid #9FE1CB;cursor:pointer;vertical-align:middle' " +
-      "onclick="showSlipViewer('" + billNo + "')" title='คลิกดูสลิป' onerror="this.style.display='none'"/>" +
-      " <label title='เปลี่ยนสลิป' style='cursor:pointer;font-size:10px;color:#1D9E75'>" +
-      "<input type='file' accept='image/*,application/pdf' style='display:none' onchange="uploadSlipInline('" + billNo + "',this)"/>✏️</label></td>";
+    return "<td style='text-align:center'>"
+      + "<img src='" + slipUrl + "'"
+      + " data-bill='" + bn + "'"
+      + " style='width:36px;height:36px;object-fit:cover;border-radius:5px;border:1px solid #9FE1CB;cursor:pointer;vertical-align:middle'"
+      + " onclick='showSlipViewer(this.dataset.bill)'"
+      + " onerror='this.style.opacity=0.3'"
+      + " title='คลิกดูสลิป'/>"
+      + " " + uploadBtn + "</td>";
   }
   if (hasPrepaid) {
-    return "<td style='text-align:center'>" +
-      "<span style='font-size:10px;background:#E1F5EE;color:#085041;padding:2px 7px;border-radius:12px;border:0.5px solid #9FE1CB'>📎 อัปแล้ว</span>" +
-      " <label title='เปลี่ยนสลิป' style='cursor:pointer;font-size:10px;color:#1D9E75'>" +
-      "<input type='file' accept='image/*,application/pdf' style='display:none' onchange="uploadSlipInline('" + billNo + "',this)"/>✏️</label></td>";
+    var uploadBtn2 = "<label style='cursor:pointer;font-size:10px;color:#1D9E75'>"
+      + "<input type='file' accept='image/*,application/pdf' style='display:none'"
+      + " data-bill='" + bn + "' onchange='_golodUploadFromInput(this)'/>✏️</label>";
+    return "<td style='text-align:center'>"
+      + "<span style='font-size:10px;background:#E1F5EE;color:#085041;padding:2px 7px;border-radius:12px;border:0.5px solid #9FE1CB'>📎 อัปแล้ว</span>"
+      + " " + uploadBtn2 + "</td>";
   }
-  // ยังไม่มีสลิป → ปุ่มอัป
-  return "<td style='text-align:center'>" +
-    "<label style='cursor:pointer;display:inline-flex;align-items:center;gap:3px;font-size:10px;background:#fff;border:1px dashed #9FE1CB;color:#085041;padding:3px 8px;border-radius:12px'>" +
-    "<input type='file' accept='image/*,application/pdf' style='display:none' onchange="uploadSlipInline('" + billNo + "',this)"/>📎 อัปสลิป</label></td>";
+  // ยังไม่มีสลิป
+  return "<td style='text-align:center'>"
+    + "<label style='cursor:pointer;display:inline-flex;align-items:center;gap:3px;font-size:10px;background:#fff;border:1px dashed #9FE1CB;color:#085041;padding:3px 8px;border-radius:12px'>"
+    + "<input type='file' accept='image/*,application/pdf' style='display:none'"
+    + " data-bill='" + bn + "' onchange='_golodUploadFromInput(this)'/>📎 อัปสลิป</label></td>";
+}
+
+// helper สำหรับ onchange ที่ไม่ต้องส่ง billNo ผ่าน attribute
+function _golodUploadFromInput(input) {
+  var billNo = input.dataset.bill;
+  if (billNo) uploadSlipInline(billNo, input);
 }
 
 function showSlipViewer(billNo) {
@@ -723,10 +740,15 @@ function uploadSlipInline(billNo, input) {
   GolodStorage.uploadAndSave(billNo, file, "slip1").then(function(url) {
     window._golodSlipMap[billNo] = url;
     cell.innerHTML =
-      "<img src='" + url + "' style='width:36px;height:36px;object-fit:cover;border-radius:5px;border:1px solid #9FE1CB;cursor:pointer;vertical-align:middle' " +
-      "onclick="showSlipViewer('" + billNo + "')" title='คลิกดูสลิป'/>" +
-      " <label style='cursor:pointer;font-size:10px;color:#1D9E75'>" +
-      "<input type='file' accept='image/*,application/pdf' style='display:none' onchange="uploadSlipInline('" + billNo + "',this)"/>✏️</label>";
+      "<img src='" + url + "'"
+      + " data-bill='" + billNo + "'"
+      + " style='width:36px;height:36px;object-fit:cover;border-radius:5px;border:1px solid #9FE1CB;cursor:pointer;vertical-align:middle'"
+      + " onclick='showSlipViewer(this.dataset.bill)'"
+      + " onerror='this.style.opacity=0.3'"
+      + " title='คลิกดูสลิป'/>"
+      + " <label style='cursor:pointer;font-size:10px;color:#1D9E75'>"
+      + "<input type='file' accept='image/*,application/pdf' style='display:none'"
+      + " data-bill='" + billNo + "' onchange='_golodUploadFromInput(this)'/>✏️</label>";
     // update bill in memory
     var b = BILLS.find(function(x){ return x.billNo===billNo; });
     if (b) b.slip1 = url;
