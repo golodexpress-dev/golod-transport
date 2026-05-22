@@ -662,21 +662,108 @@ function pgDashboard(showAll){
 }
 
 // ===== BILL TABLE helper =====
-function billTable(data){
-  var h='<div style="overflow-x:auto"><table><thead><tr><th>เลขบิล</th><th>วันที่</th><th>เสมียน</th><th>ปลายทาง</th><th>ภาค</th><th>Zone</th><th>ชิ้น</th><th>ค่าส่ง</th><th>ชำระ</th><th>สถานะ</th></tr></thead><tbody>';
+// ===== SLIP UPLOAD INLINE =====
+window._golodSlipMap = window._golodSlipMap || {};
+
+function slipCellHtml(b) {
+  var billNo = b.billNo || "";
+  var hasSlipUrl = b.slipUrl && b.slipUrl.startsWith("http");
+  var hasSlip1   = b.slip1  && b.slip1.startsWith("http");
+  var hasPrepaid = b.form && (b.form.slipUploaded || b.form.slipName);
+  var isTransfer = b.freightPay === "transfer";
+  if (!isTransfer) return "<td style='text-align:center;color:#bbb'>—</td>";
+  var slipUrl = hasSlipUrl ? b.slipUrl : (hasSlip1 ? b.slip1 : "");
+  window._golodSlipMap[billNo] = slipUrl;
+  if (slipUrl) {
+    return "<td style='text-align:center'>" +
+      "<img src='" + slipUrl + "' style='width:36px;height:36px;object-fit:cover;border-radius:5px;border:1px solid #9FE1CB;cursor:pointer;vertical-align:middle' " +
+      "onclick="showSlipViewer('" + billNo + "')" title='คลิกดูสลิป' onerror="this.style.display='none'"/>" +
+      " <label title='เปลี่ยนสลิป' style='cursor:pointer;font-size:10px;color:#1D9E75'>" +
+      "<input type='file' accept='image/*,application/pdf' style='display:none' onchange="uploadSlipInline('" + billNo + "',this)"/>✏️</label></td>";
+  }
+  if (hasPrepaid) {
+    return "<td style='text-align:center'>" +
+      "<span style='font-size:10px;background:#E1F5EE;color:#085041;padding:2px 7px;border-radius:12px;border:0.5px solid #9FE1CB'>📎 อัปแล้ว</span>" +
+      " <label title='เปลี่ยนสลิป' style='cursor:pointer;font-size:10px;color:#1D9E75'>" +
+      "<input type='file' accept='image/*,application/pdf' style='display:none' onchange="uploadSlipInline('" + billNo + "',this)"/>✏️</label></td>";
+  }
+  // ยังไม่มีสลิป → ปุ่มอัป
+  return "<td style='text-align:center'>" +
+    "<label style='cursor:pointer;display:inline-flex;align-items:center;gap:3px;font-size:10px;background:#fff;border:1px dashed #9FE1CB;color:#085041;padding:3px 8px;border-radius:12px'>" +
+    "<input type='file' accept='image/*,application/pdf' style='display:none' onchange="uploadSlipInline('" + billNo + "',this)"/>📎 อัปสลิป</label></td>";
+}
+
+function showSlipViewer(billNo) {
+  var url = window._golodSlipMap[billNo];
+  if (!url) return;
+  var lb = document.getElementById("golod-slip-lb");
+  if (!lb) {
+    lb = document.createElement("div");
+    lb.id = "golod-slip-lb";
+    lb.style.cssText = "display:none;position:fixed;inset:0;background:rgba(0,0,0,.88);z-index:9999;align-items:center;justify-content:center;flex-direction:column;gap:12px";
+    lb.innerHTML = "<div onclick="document.getElementById('golod-slip-lb').style.display='none'" style='position:absolute;top:16px;right:20px;color:#fff;font-size:32px;cursor:pointer'>✕</div>" +
+      "<img id='golod-slip-lb-img' style='max-width:94vw;max-height:84vh;border-radius:10px'/>" +
+      "<div id='golod-slip-lb-lbl' style='color:#fff;font-size:12px;opacity:.7'></div>";
+    document.body.appendChild(lb);
+    lb.onclick = function(e){ if(e.target===lb) lb.style.display="none"; };
+  }
+  document.getElementById("golod-slip-lb-img").src = url;
+  document.getElementById("golod-slip-lb-lbl").textContent = billNo;
+  lb.style.display = "flex";
+}
+
+function uploadSlipInline(billNo, input) {
+  var file = input.files[0];
+  if (!file) return;
+  if (typeof GolodStorage === "undefined") { alert("Storage ไม่พร้อม"); return; }
+  var cell = input.closest("td");
+  cell.innerHTML = "<span style='font-size:10px;color:#888'>⏳ กำลังอัป...</span>";
+  GolodStorage.uploadAndSave(billNo, file, "slip1").then(function(url) {
+    window._golodSlipMap[billNo] = url;
+    cell.innerHTML =
+      "<img src='" + url + "' style='width:36px;height:36px;object-fit:cover;border-radius:5px;border:1px solid #9FE1CB;cursor:pointer;vertical-align:middle' " +
+      "onclick="showSlipViewer('" + billNo + "')" title='คลิกดูสลิป'/>" +
+      " <label style='cursor:pointer;font-size:10px;color:#1D9E75'>" +
+      "<input type='file' accept='image/*,application/pdf' style='display:none' onchange="uploadSlipInline('" + billNo + "',this)"/>✏️</label>";
+    // update bill in memory
+    var b = BILLS.find(function(x){ return x.billNo===billNo; });
+    if (b) b.slip1 = url;
+  }).catch(function(e) {
+    cell.innerHTML = "<span style='color:red;font-size:10px'>❌ " + e.message + "</span>";
+  });
+}
+
+function billTable(data, opts){
+  opts = opts || {};
+  var isAdmin = CU && (CU.role==="admin"||CU.role==="branch");
+  var isClerk = CU && (CU.role==="clerk");
+  // หัวตาราง
+  var h='<div style="overflow-x:auto"><table><thead><tr>';
+  h+='<th>เลขบิล</th><th>วันที่</th>';
+  if (isAdmin) h+='<th>เสมียน</th>';
+  h+='<th>ปลายทาง</th>';
+  if (isAdmin) { h+='<th>ภาค</th><th>Zone</th>'; }
+  h+='<th>ชิ้น</th><th>ค่าส่ง</th><th>ชำระ</th><th>สถานะ</th><th>สลิปโอน</th>';
+  h+='</tr></thead><tbody>';
+
   data.forEach(function(b){
     var regionClass=b.region==="ตะวันออก"?"pg":b.region==="อีสาน"?"pa":b.region==="เหนือ"?"pb":"px";
     var zoneClass=b.zone==="ใกล้"?"pg":b.zone==="ไกล"?"pa":"pp";
-    h+="<tr><td style='font-weight:600;color:#0F6E56'>"+b.billNo+"</td>";
+    h+="<tr>";
+    h+="<td style='font-weight:600;color:#0F6E56'>"+b.billNo+"</td>";
     h+="<td style='font-size:10px;color:#888'>"+(b.dateDisplay||thDate(b.date))+"</td>";
-    h+="<td>"+(b.clerkName||"")+"</td>";
+    if (isAdmin) h+="<td style='font-size:11px'>"+(b.clerkName||"")+"</td>";
     h+="<td>"+(b.destAmphoe||"")+"·"+(b.destProv||"")+"</td>";
-    h+="<td><span class='pill "+regionClass+"'>"+(b.region||"")+"</span></td>";
-    h+="<td><span class='pill "+zoneClass+"'>"+(b.zone||"-")+"</span></td>";
+    if (isAdmin) {
+      h+="<td><span class='pill "+regionClass+"'>"+(b.region||"")+"</span></td>";
+      h+="<td><span class='pill "+zoneClass+"'>"+(b.zone||"-")+"</span></td>";
+    }
     h+="<td style='text-align:center'>"+(b.items||1)+"</td>";
     h+="<td style='text-align:right;font-weight:600'>"+fmt(b.freightNet||0)+"฿</td>";
     h+="<td><span class='pill px' style='font-size:9px'>"+(b.freightPayLabel||MPAYLAB[b.freightPay]||b.freightPay||"")+"</span></td>";
-    h+="<td><span class='pill "+(STCLS[b.status]||"px")+"'>"+(STLAB[b.status]||b.status)+"</span></td></tr>";
+    h+="<td><span class='pill "+(STCLS[b.status]||"px")+"'>"+(STLAB[b.status]||b.status)+"</span></td>";
+    h+=slipCellHtml(b);
+    h+="</tr>";
   });
   h+="</tbody></table></div>";
   return h;
@@ -725,9 +812,12 @@ function pgBills(){
     }
   }
   var h='<div class="frow">';
-  h+='<input id="bq" placeholder="ค้นหาเลขบิล / ปลายทาง..." oninput="filterBillsPage()" style="max-width:200px"/>';
-  h+='<select id="breg" onchange="filterBillsPage()" style="width:120px"><option value="all">ทุกภาค</option><option value="ตะวันออก">ตะวันออก</option><option value="อีสาน">อีสาน</option></select>';
-  h+='<select id="bst" onchange="filterBillsPage()" style="width:120px"><option value="all">ทุกสถานะ</option><option value="issued">ออกบิล/รับของ</option><option value="in_transit">นำส่งสาขา</option><option value="delivering">กำลังวิ่งส่ง</option><option value="delivered">ส่งสำเร็จ</option><option value="failed">ส่งไม่สำเร็จ</option><option value="returned">ตีกลับต้นทาง</option><option value="reschedule">จัดส่งรอบใหม่</option></select>';
+  h+='<input id="bq" placeholder="ค้นหาเลขบิล / ปลายทาง / ชื่อ..." oninput="filterBillsPage()" style="max-width:180px"/>';
+  if(CU&&(CU.role==="admin"||CU.role==="branch")){
+    h+='<select id="breg" onchange="filterBillsPage()" style="width:110px"><option value="all">ทุกภาค</option><option value="ตะวันออก">ตะวันออก</option><option value="อีสาน">อีสาน</option></select>';
+  } else { h+='<span id="breg" style="display:none"></span>'; }
+  h+='<select id="bst" onchange="filterBillsPage()" style="width:130px"><option value="all">ทุกสถานะ</option><option value="issued">ออกบิล/รับของ</option><option value="in_transit">นำส่งสาขา</option><option value="delivering">กำลังวิ่งส่ง</option><option value="delivered">ส่งสำเร็จ</option><option value="failed">ส่งไม่สำเร็จ</option><option value="returned">ตีกลับต้นทาง</option><option value="reschedule">จัดส่งรอบใหม่</option></select>';
+  h+='<select id="bslip" onchange="filterBillsPage()" style="width:140px"><option value="all">ทุกสลิป</option><option value="has_slip">📎 มีสลิปแล้ว</option><option value="no_slip">⏳ รอสลิป</option><option value="late3">⚠ เกิน 3 วัน</option><option value="late7">🔴 เกิน 7 วัน</option></select>';
   h+='<span id="bcnt" style="font-size:11px;color:#888;margin-left:auto"></span></div>';
   h+='<div class="card" style="padding:0;overflow:hidden"><div id="btable"></div></div>';
   document.getElementById("content").innerHTML=h;
@@ -750,6 +840,7 @@ function filterBillsPage(){
     }
     window._billsData=data;
   }
+  var slipF=document.getElementById("bslip")?.value||"all";
   var filtered=data.filter(function(b){
     if(q){
       var inBill=(b.billNo||"").toLowerCase().indexOf(q)>=0;
@@ -760,6 +851,29 @@ function filterBillsPage(){
     }
     if(reg!=="all"&&b.region!==reg) return false;
     if(st!=="all"&&b.status!==st) return false;
+    // filter สลิปโอน (เฉพาะ transfer)
+    if(slipF!=="all"&&b.freightPay==="transfer"){
+      var hasSlip=!!(
+        (b.slipUrl&&b.slipUrl.startsWith("http"))||
+        (b.slip1&&b.slip1.startsWith("http"))||
+        (b.form&&(b.form.slipUploaded||b.form.slipName))
+      );
+      var daysSince=0;
+      if(b.date){
+        var dd=b.date;
+        if(/\d{1,2}\/\d{1,2}\/\d{4}/.test(dd)){
+          var p=dd.split("/");var y=parseInt(p[2]);if(y>2400)y-=543;
+          daysSince=Math.floor((Date.now()-new Date(y,parseInt(p[1])-1,parseInt(p[0])).getTime())/86400000);
+        }
+      }
+      if(slipF==="has_slip"&&!hasSlip) return false;
+      if(slipF==="no_slip"&&hasSlip) return false;
+      if(slipF==="late3"&&(hasSlip||daysSince<3)) return false;
+      if(slipF==="late7"&&(hasSlip||daysSince<7)) return false;
+    } else if(slipF!=="all"&&b.freightPay!=="transfer") {
+      // ถ้า filter สลิป แต่บิลนี้ไม่ใช่ transfer → ซ่อน
+      if(slipF==="has_slip"||slipF==="no_slip"||slipF==="late3"||slipF==="late7") return false;
+    }
     return true;
   });
   var cnt=document.getElementById("bcnt");if(cnt)cnt.textContent=filtered.length+" บิล";
