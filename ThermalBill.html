@@ -1022,7 +1022,7 @@ function QRCodeBox({ data, size }) {
         new QRCode(el, {
           text: text, width: sz, height: sz,
           colorDark: "#000000", colorLight: "#ffffff",
-          correctLevel: QRCode.CorrectLevel.M
+          correctLevel: QRCode.CorrectLevel.L
         });
       } catch(e) {}
     });
@@ -1469,7 +1469,7 @@ function ThermalBill({
     style: { display:"flex", flexDirection:"column", alignItems:"center", margin:"6px 0" }
   },
   /*#__PURE__*/React.createElement(QRCodeBox, {
-    data: String(billNo||"GOLOD")+"\n"+(form.receiverName||"")+"\n"+(form.receiverAmphoe||"")+"/"+( form.destProv||"")+"\n\u0E3F"+(summary&&summary.freightNet||0).toLocaleString("th-TH")+((summary&&summary.codTotal>0)?"\nCOD "+(summary.codTotal).toLocaleString("th-TH"):"")+(form.receiverPhone?"\n"+form.receiverPhone:""),
+    data: String(billNo||"GOLOD"),
     size: 110
   }),
   /*#__PURE__*/React.createElement("div", {
