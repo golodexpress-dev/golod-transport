@@ -374,7 +374,7 @@ function renderDashboard(){
     h+='<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(160px,1fr));gap:10px">';
     systems.forEach(function(s){
       if(!canAccess_sys(s.url))return;
-      h+='<a href="'+s.url+'" style="display:block;padding:14px 12px;border-radius:11px;text-decoration:none;border:1px solid '+s.color+'22;background:'+s.color+'0A;transition:all .15s" onmouseover="this.style.background=''+s.color+'18'" onmouseout="this.style.background=''+s.color+'0A'">';
+      h+='<a href="'+s.url+'" style="display:block;padding:14px 12px;border-radius:11px;text-decoration:none;border:1px solid '+s.color+'22;background:'+s.color+'0A;transition:all .15s" onmouseover="this.style.opacity=.85" onmouseout="this.style.opacity=1">';
       h+='<div style="font-size:26px;margin-bottom:7px">'+s.ic+'</div>';
       h+='<div style="font-size:13px;font-weight:600;color:'+s.color+';margin-bottom:3px">'+s.name+'</div>';
       h+='<div style="font-size:10px;color:#888">'+s.desc+'</div></a>';
