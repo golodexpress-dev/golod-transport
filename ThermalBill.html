@@ -997,54 +997,72 @@ function SecTitle({
 
 // QR Code component สำหรับ thermal print
 // === QR Code Box — render ใน visible element แล้ว capture ===
+// QRCodeBox — render QRCode ลงใน div ที่ mount แล้ว
 function QRCodeBox({ data, size }) {
   var sz = size || 80;
-  const [url, setUrl] = React.useState(null);
+  var [imgSrc, setImgSrc] = React.useState(null);
+  var divId = React.useRef("qr-" + Math.random().toString(36).slice(2));
 
-  // ใช้ callback ref — จะเรียกทันทีที่ div mount เข้า DOM
-  const refCb = React.useCallback(function(el) {
-    if (!el || !data || url) return;
-    el.innerHTML = "";
-    try {
-      new QRCode(el, {
-        text: String(data),
-        width: sz,
-        height: sz,
-        colorDark: "#000000",
-        colorLight: "#ffffff",
-        correctLevel: QRCode.CorrectLevel.M
-      });
-    } catch(e) { return; }
-    var n = 0;
-    var timer = setInterval(function() {
-      n++;
-      var cv = el.querySelector("canvas");
-      if (cv && cv.width > 0) {
-        try {
-          var u = cv.toDataURL("image/png");
-          if (u && u.length > 500) { setUrl(u); clearInterval(timer); return; }
-        } catch(e2) {}
-      }
-      var im = el.querySelector("img");
-      if (im && im.complete && im.naturalWidth > 0 && im.src && im.src.startsWith("data:")) {
-        setUrl(im.src); clearInterval(timer); return;
-      }
-      if (n > 80) clearInterval(timer);
-    }, 50);
+  React.useEffect(function() {
+    if (!data || imgSrc) return;
+    // ใช้ setTimeout(0) รอให้ React flush DOM ก่อน
+    var t1 = setTimeout(function() {
+      var el = document.getElementById(divId.current);
+      if (!el) return;
+      if (typeof QRCode === "undefined") return;
+      el.innerHTML = "";
+      try {
+        new QRCode(el, {
+          text: String(data),
+          width: sz,
+          height: sz,
+          colorDark: "#000000",
+          colorLight: "#ffffff",
+          correctLevel: QRCode.CorrectLevel.M
+        });
+      } catch(e) { return; }
+      // poll ผล
+      var n = 0;
+      var t2 = setInterval(function() {
+        n++;
+        var cv = el.querySelector("canvas");
+        if (cv && cv.width > 0) {
+          try {
+            var url = cv.toDataURL("image/png");
+            if (url && url.length > 500) {
+              setImgSrc(url);
+              clearInterval(t2);
+              return;
+            }
+          } catch(e2) {}
+        }
+        var im = el.querySelector("img");
+        if (im && im.src && im.src.indexOf("data:") === 0 && im.src.length > 500) {
+          setImgSrc(im.src);
+          clearInterval(t2);
+          return;
+        }
+        if (n > 100) clearInterval(t2);
+      }, 30);
+    }, 0);
+    return function() { clearTimeout(t1); };
   }, [data, sz]);
 
-  if (url) {
+  if (imgSrc) {
     return React.createElement("img", {
-      src: url,
-      style: { display:"block", width:sz, height:sz, margin:"0 auto" }
+      src: imgSrc,
+      style: { display: "block", width: sz, height: sz, margin: "0 auto" }
     });
   }
   return React.createElement("div", {
-    ref: refCb,
-    style: { width:sz, height:sz, margin:"0 auto", lineHeight:0, overflow:"hidden" }
+    id: divId.current,
+    style: {
+      width: sz, height: sz, margin: "0 auto",
+      lineHeight: 0, overflow: "hidden",
+      background: "#f5f5f5"
+    }
   });
 }
-
 
 function ThermalBill({
   form,
