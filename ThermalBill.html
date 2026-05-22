@@ -992,28 +992,32 @@ function SecTitle({
 // 80mm ≈ 302px at 96dpi  — ใช้ 298px เผื่อ margin printer
 
 // QR Code component สำหรับ thermal print
-function QRCodeBox({ data, size }) {
-  const ref = React.useRef(null);
-  React.useEffect(() => {
-    if (!ref.current || !data) return;
-    var el = ref.current;
-    setTimeout(function() {
-      if (!el) return;
+// Global QR scanner
+(function() {
+  function scanQR() {
+    if (typeof QRCode === "undefined") return;
+    document.querySelectorAll("[data-qr]:not([data-qr-done])").forEach(function(el) {
+      var text = el.getAttribute("data-qr");
+      var sz = parseInt(el.getAttribute("data-qr-size")) || 80;
+      if (!text) return;
+      el.setAttribute("data-qr-done", "1");
       el.innerHTML = "";
-      try {
-        new QRCode(el, {
-          text: data,
-          width: size || 64,
-          height: size || 64,
-          colorDark: "#000",
-          colorLight: "#fff",
-          correctLevel: QRCode.CorrectLevel.M
-        });
-      } catch(e) {}
-    }, 50);
-  }, [data, size]);
-  return React.createElement("div", { ref, style:{ lineHeight:0 } });
+      try { new QRCode(el, { text:text, width:sz, height:sz, colorDark:"#000000", colorLight:"#ffffff", correctLevel:QRCode.CorrectLevel.L }); } catch(e) {}
+    });
+  }
+  setInterval(scanQR, 400);
+  setTimeout(scanQR, 300);
+})();
+
+function QRCodeBox({ data, size }) {
+  var sz = size || 80;
+  return React.createElement("div", {
+    "data-qr": String(data||""),
+    "data-qr-size": String(sz),
+    style: { width:sz, height:sz, margin:"0 auto", lineHeight:0, overflow:"hidden" }
+  });
 }
+
 
 function ThermalBill({
   form,
@@ -1090,7 +1094,7 @@ function ThermalBill({
   }) => /*#__PURE__*/React.createElement("div", {
     style: {
       borderTop: dashed ? "1px dashed #999" : "1.5px solid #111",
-      margin: "5px 0"
+      margin: "3px 0"
     }
   });
   return /*#__PURE__*/React.createElement("div", {
@@ -1099,10 +1103,10 @@ function ThermalBill({
       fontFamily: "'Courier New',Courier,monospace",
       background: "#fff",
       color: "#111",
-      padding: "10px 12px 10px 12px",
+      padding: "6px 10px 6px 10px",
       boxSizing: "border-box",
       fontSize: 11,
-      lineHeight: 1.55,
+      lineHeight: 1.25,
       fontWeight: "700"
     }
   }, /*#__PURE__*/React.createElement("div", {
@@ -1126,36 +1130,17 @@ function ThermalBill({
     }
   }, "GOLOD TRANSPORT"), /*#__PURE__*/React.createElement("div", {
     style: {
-      fontSize: 12,
-      fontWeight: 800,
-      lineHeight: 1.1,
-      marginBottom: 2
-    }
-  }, "CO.,LTD."), /*#__PURE__*/React.createElement("div", {
-    style: {
       fontSize: 10,
       fontWeight: 700
     }
-  }, "527 \u0E16.\u0E25\u0E31\u0E14\u0E19\u0E34\u0E48\u0E21\u0E44\u0E2A\u0E27 \u0E41\u0E02\u0E27\u0E07\u0E17\u0E27\u0E35\u0E27\u0E31\u0E12\u0E19\u0E32 \u0E40\u0E02\u0E15\u0E17\u0E27\u0E35\u0E27\u0E31\u0E12\u0E19\u0E32 \u0E01\u0E23\u0E38\u0E07\u0E40\u0E17\u0E1E\u0E2F 10170 Tax ID: 0105556152968"), /*#__PURE__*/React.createElement("div", {
-    style: {
-      fontSize: 10,
-      fontWeight: 800
-    }
-  }, "\u0E42\u0E17\u0E23 099-1015858, 098-4518141"), /*#__PURE__*/React.createElement("div", {
-    style: {
-      fontSize: 10,
-      fontWeight: 800
-    }
-  }, "086-0741212, 094-4721796, 099-1872300"), /*#__PURE__*/React.createElement("div", {
-    style: {
-      fontSize: 10,
-      fontWeight: 700
-    }
-  }, "Line: @golod"), /*#__PURE__*/React.createElement("div", {
-    style: {
-      fontSize: 10,
-      fontWeight: 700
-    }
+  }, "527 \u0E16.\u0E25\u0E31\u0E14\u0E19\u0E34\u0E48\u0E21\u0E44\u0E2A\u0E27 \u0E41\u0E02\u0E27\u0E07\u0E17\u0E27\u0E35\u0E27\u0E31\u0E12\u0E19\u0E32 \u0E40\u0E02\u0E15\u0E17\u0E27\u0E35\u0E27\u0E31\u0E12\u0E19\u0E32", /*#__PURE__*/React.createElement("br",null), "\u0E01\u0E23\u0E38\u0E07\u0E40\u0E17\u0E1E\u0E2F 10170  Tax ID: 0105556152968"), /*#__PURE__*/React.createElement("div", {
+    style: { fontSize: 12, fontWeight: 800 }
+  }, "\u0E42\u0E17\u0E23 099-1875230, 086-0741212"), /*#__PURE__*/React.createElement("div", {
+    style: { fontSize: 12, fontWeight: 800 }
+  }, "094-4721796, 099-1872300"), /*#__PURE__*/React.createElement("div", {
+    style: { fontSize: 12, fontWeight: 700 }
+  }, "\u0E40\u0E0A\u0E47\u0E04\u0E2A\u0E16\u0E32\u0E19\u0E30\u0E17\u0E35\u0E48 @glexpress , \u0E15\u0E35\u0E23\u0E32\u0E04\u0E32\u0E23\u0E31\u0E1A\u0E07\u0E32\u0E19 @golod"), /*#__PURE__*/React.createElement("div", {
+    style: { fontSize: 12, fontWeight: 700 }
   }, "\u0E1A\u0E23\u0E34\u0E01\u0E32\u0E23\u0E2A\u0E48\u0E07\u0E2A\u0E34\u0E19\u0E04\u0E49\u0E32 57 \u0E08\u0E31\u0E07\u0E2B\u0E27\u0E31\u0E14\u0E17\u0E31\u0E48\u0E27\u0E44\u0E17\u0E22")), /*#__PURE__*/React.createElement(Div, null), /*#__PURE__*/React.createElement("div", {
     style: {
       textAlign: "center",
@@ -1166,42 +1151,18 @@ function ThermalBill({
       fontSize: 10,
       fontWeight: 700
     }
-  }, "บิลขนส่งเลขที่"), /*#__PURE__*/React.createElement("div", {
-    style: {
-      fontSize: 20,
-      fontWeight: 800,
-      letterSpacing: 3,
-      marginTop: 2
-    }
-  }, billNo), /*#__PURE__*/React.createElement("div", {
-    style: {
-      fontSize: 10,
-      fontWeight: 700,
-      marginTop: 1
-    }
-  }, printDate, " ", nowStr(), " \u0E19. | ", branchLabel), /*#__PURE__*/React.createElement("div", {
-    style: {
-      fontSize: 10,
-      fontWeight: 700
-    }
-  }, "\u0E1E\u0E19\u0E31\u0E01\u0E07\u0E32\u0E19: ", form.staff), /*#__PURE__*/React.createElement(QRCodeBox, {
-    data: [
-      billNo,
-      (form&&form.receiverAmphoe?form.receiverAmphoe:"")+"/"+(form&&form.destProv?form.destProv:""),
-      "฿"+(summary&&summary.freightNet?(summary&&summary.freightNet||0).toLocaleString("th-TH"):"0"),
-      (items&&items.length?items.reduce((s,it)=>s+(parseInt(it.qty)||1),0):1)+"ชิ้น"
-    ].join("\n"),
-    size: 60
-  })), /*#__PURE__*/React.createElement(Div, {
+  }, "บิลขนส่งเลขที่  ", billNo), /*#__PURE__*/React.createElement("div", {
+    style: { fontSize: 10, fontWeight: 700, marginTop: 1 }
+  }, printDate, " ", nowStr(), " \u0E19. | ", branchLabel)), /*#__PURE__*/React.createElement(Div, {
     dashed: true
   }), /*#__PURE__*/React.createElement("div", {
     style: { marginBottom: 2, textAlign:"left" }
   }, /*#__PURE__*/React.createElement("div", {
-    style: { display:"flex", alignItems:"baseline", flexWrap:"wrap", gap:3, marginBottom:0 }
+    style: { display:"flex", alignItems:"baseline", flexWrap:"wrap", gap:4, marginBottom:0 }
   },
     /*#__PURE__*/React.createElement("span", { style:{ fontSize:10, fontWeight:800, whiteSpace:"nowrap", flexShrink:0, marginRight:2 }}, "[ \u0E1C\u0E39\u0E49\u0E2A\u0E48\u0E07 ]"),
-    /*#__PURE__*/React.createElement("span", { style:{ fontSize:14, fontWeight:800, wordBreak:"break-word", flex:1 }}, form.senderName || "—")
-  ), /*#__PURE__*/React.createElement("div", { style:{ fontSize: 12, fontWeight: 900 }},
+    /*#__PURE__*/React.createElement("span", { style:{ fontSize:14, fontWeight:800, wordBreak:"break-word" }}, form.senderName || "—")
+  ), /*#__PURE__*/React.createElement("div", { style:{ fontSize:12, fontWeight:900 }},
     "\u0E42\u0E17\u0E23: ", form.senderPhone || "—"),
   (form.senderAddr || form.senderTambon) && /*#__PURE__*/React.createElement("div", {
     style: { fontSize: 10, fontWeight: 700 }
@@ -1209,16 +1170,16 @@ function ThermalBill({
   (form.senderAmphoe || form.senderProv) && /*#__PURE__*/React.createElement("div", {
     style: { fontSize: 10, fontWeight: 700 }
   }, form.senderAmphoe && (isSGTM?"เขต":"อ.")+form.senderAmphoe+" ", form.senderProv && "จ."+form.senderProv, form.senderZip && "  "+form.senderZip)
-  ), /*#__PURE__*/React.createElement(Div, {
+), /*#__PURE__*/React.createElement(Div, {
     dashed: true
   }), /*#__PURE__*/React.createElement("div", {
     style: { marginBottom: 2, textAlign:"left" }
   }, /*#__PURE__*/React.createElement("div", {
-    style: { display:"flex", alignItems:"baseline", flexWrap:"wrap", gap:3, marginBottom:0 }
+    style: { display:"flex", alignItems:"baseline", flexWrap:"wrap", gap:4, marginBottom:0 }
   },
     /*#__PURE__*/React.createElement("span", { style:{ fontSize:10, fontWeight:800, whiteSpace:"nowrap", flexShrink:0, marginRight:2 }}, "[ \u0E1C\u0E39\u0E49\u0E23\u0E31\u0E1A ]"),
-    /*#__PURE__*/React.createElement("span", { style:{ fontSize:14, fontWeight:800, wordBreak:"break-word", flex:1 }}, form.receiverName || "—")
-  ), /*#__PURE__*/React.createElement("div", { style:{ fontSize: 12, fontWeight: 900 }},
+    /*#__PURE__*/React.createElement("span", { style:{ fontSize:14, fontWeight:800, wordBreak:"break-word" }}, form.receiverName || "—")
+  ), /*#__PURE__*/React.createElement("div", { style:{ fontSize:12, fontWeight:900 }},
     "\u0E42\u0E17\u0E23: ", form.receiverPhone || "—"),
   (form.receiverAddr || form.receiverTambon) && /*#__PURE__*/React.createElement("div", {
     style: { fontSize: 10, fontWeight: 700 }
@@ -1226,10 +1187,8 @@ function ThermalBill({
   (form.receiverAmphoe || form.destProv) && /*#__PURE__*/React.createElement("div", {
     style: { fontSize: 10, fontWeight: 700 }
   }, form.receiverAmphoe && (isGTM?"เขต":"อ.")+form.receiverAmphoe+" ", "จ."+form.destProv+" ["+(form.isSpecialArea?"พิเศษ":zoneLabel)+"]", form.receiverZip && "  "+form.receiverZip)
-  ), /*#__PURE__*/React.createElement(Div, null), /*#__PURE__*/React.createElement("div", {
-    style: {
-      marginBottom: 4
-    }
+), /*#__PURE__*/React.createElement(Div, null), /*#__PURE__*/React.createElement("div", {
+    style: { marginBottom: 4 }
   }, /*#__PURE__*/React.createElement("table", {
     style: {
       width: "100%",
@@ -1246,10 +1205,10 @@ function ThermalBill({
   }, "\u0E23\u0E32\u0E22\u0E01\u0E32\u0E23\u0E02\u0E2D\u0E07"),
   /*#__PURE__*/React.createElement("th", {
     style: { textAlign: "center", padding: "1px 2px", fontWeight: 700 }
-  }, "\u0E19\u0E19./\u0E0A\u0E34\u0E49\u0E19"),
+  }, "Kg."),
   /*#__PURE__*/React.createElement("th", {
     style: { textAlign: "center", padding: "1px 2px", fontWeight: 700 }
-  }, "\u0E01+\u0E22+\u0E2A"),
+  }, "S"),
   !form.hidePrice && /*#__PURE__*/React.createElement("th", {
     style: { textAlign: "right", padding: "1px 8px 1px 2px", fontWeight: 700 }
   }, "P"),
@@ -1325,20 +1284,20 @@ function ThermalBill({
         padding: "1px 2px"
       }
     }, "\u0E1B\u0E23\u0E30\u0E01\u0E31\u0E19: ", Math.round((parseFloat(item.declaredValue) || 0) * 0.005).toLocaleString("th-TH"), " \u0E3F")));
-  })))), !form.hidePrice && /*#__PURE__*/React.createElement("div", {
+  })))), /*#__PURE__*/React.createElement(Div, null), !form.hidePrice && /*#__PURE__*/React.createElement("div", {
     style: {
-      marginBottom: 2
+      marginBottom: 4
     }
   }, /*#__PURE__*/React.createElement(Row, {
     l: "\u0E04\u0E48\u0E32\u0E02\u0E19\u0E2A\u0E48\u0E07\u0E23\u0E27\u0E21",
     r: `${(summary&&(summary.freightTotal||summary.freightNet)||0).toLocaleString("th-TH")} ฿`
-  }), (summary&&summary.discount) > 0 && /*#__PURE__*/React.createElement(Row, {
-    l: `ส่วนลด`,
-    r: `-${(summary&&summary.discount||0).toLocaleString("th-TH")} ฿`
+  }), /*#__PURE__*/React.createElement(Row, {
+    l: "\u0E2A\u0E48\u0E27\u0E19\u0E25\u0E14",
+    r: (summary&&summary.discount>0)?"-"+(summary.discount||0).toLocaleString("th-TH")+" \u0E3F":"\u2014"
   }), (summary&&summary.insurance) > 0 && /*#__PURE__*/React.createElement(Row, {
     l: "\u0E1B\u0E23\u0E30\u0E01\u0E31\u0E19\u0E2A\u0E34\u0E19\u0E04\u0E49\u0E32",
     r: `+${(summary&&summary.insurance||0).toLocaleString("th-TH")} ฿`
-  })), !form.hidePrice && /*#__PURE__*/React.createElement("div", {
+  })), /*#__PURE__*/React.createElement(Div, null), !form.hidePrice && /*#__PURE__*/React.createElement("div", {
     style: {
       display: "flex",
       justifyContent: "flex-end",
@@ -1358,77 +1317,44 @@ function ThermalBill({
     _isMinApplied && /*#__PURE__*/React.createElement("div", {
       style: { fontSize: 9, color: "#E67E22", fontWeight: 700, marginTop: 1 }
     }, "(ยอดขั้นต่ำพื้นที่พิเศษ)")
-  )), !form.hidePrice && (summary&&summary.codTotal) > 0 && /*#__PURE__*/React.createElement("div", {
-    style: {
-      display: "flex",
-      justifyContent: "space-between",
-      alignItems: "baseline",
-      padding: "3px 6px",
-      background: "#FFF8E7",
-      border: "1px solid #F0C060",
-      borderRadius: 4,
-      marginBottom: 3
-    }
-  }, /*#__PURE__*/React.createElement("span", {
-    style: {
-      fontSize: 11,
-      fontWeight: 700,
-      color: "#854F0B"
-    }
-  }, "\u2605 COD \u0E23\u0E27\u0E21"), /*#__PURE__*/React.createElement("span", {
-    style: {
-      fontSize: 14,
-      fontWeight: 700,
-      color: "#854F0B"
-    }
-  }, (summary&&summary.codTotal||0).toLocaleString("th-TH"), " \u0E3F")), /*#__PURE__*/React.createElement(Div, {
+  )), /*#__PURE__*/React.createElement(Div, {
     dashed: true
   }), /*#__PURE__*/React.createElement("div", {
     style: {
       textAlign: "center",
       margin: "4px 0"
     }
-  }, /*#__PURE__*/React.createElement("span", {
-    style: {
-      fontSize: 9,
-      color: "#555"
-    }
-  }, "\u0E0A\u0E33\u0E23\u0E30\u0E04\u0E48\u0E32\u0E02\u0E19\u0E2A\u0E48\u0E07: "), /*#__PURE__*/React.createElement("span", {
-    style: {
-      fontSize: 11,
-      fontWeight: 700
-    }
-  }, freightLabel), form.slipUploaded && /*#__PURE__*/React.createElement("span", {
-    style: {
-      fontSize: 9,
-      color: "#1D9E75"
-    }
-  }, " \u2713 \u0E21\u0E35\u0E2A\u0E25\u0E34\u0E1B")), form.note && /*#__PURE__*/React.createElement("div", {
-    style: {
-      fontSize: 9,
-      color: "#555",
-      textAlign: "center",
-      margin: "2px 0"
-    }
-  }, "\u0E2B\u0E21\u0E32\u0E22\u0E40\u0E2B\u0E15\u0E38: ", form.note), /*#__PURE__*/React.createElement(Div, null), /*#__PURE__*/React.createElement("div", {
-    style: {
-      display: "flex",
-      flexDirection: "column",
-      alignItems: "center",
-      margin: "6px 0"
-    }
-  }, /*#__PURE__*/React.createElement("svg", {
-    width: totalBarW,
-    height: 22,
-    viewBox: `0 0 ${totalBarW} 22`
-  }, barEls), /*#__PURE__*/React.createElement("div", {
-    style: {
-      fontSize: 9,
-      letterSpacing: 2,
-      marginTop: 2,
-      fontFamily: "monospace"
-    }
-  }, billNo)), /*#__PURE__*/React.createElement("div", {
+  }, /*#__PURE__*/React.createElement("span", { style:{ fontSize:12, fontWeight:700 }},
+    "\u0E0A\u0E33\u0E23\u0E30\u0E04\u0E48\u0E32\u0E02\u0E19\u0E2A\u0E48\u0E07: ",
+    /*#__PURE__*/React.createElement("strong", null, freightLabel),
+    (summary&&summary.codTotal>0) && /*#__PURE__*/React.createElement("span", null, "  COD: ", /*#__PURE__*/React.createElement("strong", null, (summary.codTotal).toLocaleString("th-TH"))),
+    form.slipUploaded && /*#__PURE__*/React.createElement("span", { style:{ fontSize:10, color:"#1D9E75" }}, " \u2713 \u0E21\u0E35\u0E2A\u0E25\u0E34\u0E1B")
+  )), form.note && /*#__PURE__*/React.createElement("div", {
+    style: { fontSize: 9, color: "#555", textAlign: "center", margin: "1px 0" }
+  }, "\u0E2B\u0E21\u0E32\u0E22\u0E40\u0E2B\u0E15\u0E38: ", form.note),
+  !form.hidePrice && /*#__PURE__*/React.createElement("div", {
+    style: { marginTop: 3 }
+  }, /*#__PURE__*/React.createElement("div", { style:{ fontSize:11, fontWeight:700, marginBottom:1 }},
+    "\u25CF \u0E04\u0E19\u0E02\u0E31\u0E1A\u0E15\u0E49\u0E2D\u0E07\u0E40\u0E01\u0E47\u0E1A\u0E01\u0E31\u0E1A\u0E1C\u0E39\u0E49\u0E23\u0E31\u0E1A:"
+  ), /*#__PURE__*/React.createElement("div", { style:{ fontSize:19, fontWeight:900 }},
+    (function(){
+      var isD=form.freightPay&&form.freightPay.indexOf("dest")>=0;
+      var cod=(summary&&summary.codTotal>0)?summary.codTotal:0;
+      var fr=isD?(summary&&summary.freightNet||0):0;
+      var tot=fr+cod;
+      return tot>0?tot.toLocaleString("th-TH")+" \u0E3F":"-\u0E44\u0E21\u0E48\u0E21\u0E35-";
+    })()
+  )), /*#__PURE__*/React.createElement(Div, null), /*#__PURE__*/React.createElement("div", {
+    style: { display:"flex", flexDirection:"column", alignItems:"center", margin:"3px 0" }
+  }, /*#__PURE__*/React.createElement("div", {
+    "data-qr": String(billNo||"GOLOD"),
+    "data-qr-size": "90",
+    style: { width:90, height:90, margin:"0 auto", lineHeight:0, overflow:"hidden" }
+  }), /*#__PURE__*/React.createElement("div", {
+    style: { fontSize:9, letterSpacing:2, marginTop:2, fontFamily:"monospace" }
+  }, billNo)), /*#__PURE__*/React.createElement(Div, {
+    dashed: true
+  }), /*#__PURE__*/React.createElement("div", {
     style: {
       display: "grid",
       gridTemplateColumns: "1fr 1fr",
