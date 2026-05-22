@@ -458,7 +458,9 @@ function billToIncome(b) {
   const isCredit    = method === "credit";
   const status = isCredit ? "credit" : (isTransfer && !isDelivered) ? "pending" : "received";
   const isoDate = toISO(b.date || "");
-  const hasSlip = !!(b.slip1 && b.slip1.startsWith("http"));
+  const slipUrlReal = b.slipUrl || b.slip1 || b.photoUrl || "";
+  const hasSlip = !!(slipUrlReal && slipUrlReal.startsWith("http"));
+  const isDeliveredStatus = b.status === "ส่งสำเร็จ" || b.status === "delivered" || b.status === "ส่งแล้ว";
   return {
     id: "fb_" + b.billNo,
     date: isoDate,
@@ -467,33 +469,37 @@ function billToIncome(b) {
     branch,
     method,
     amount: parseFloat(b.freightNet) || 0,
-    slipConfirmed: isDelivered || hasSlip || (!isTransfer && !isCredit),
-    slipUrl: b.slip1 || "",
-    status: (isCredit?"credit": hasSlip||isDelivered?"received": (isTransfer?"pending":"received")),
+    slipConfirmed: isDeliveredStatus || hasSlip || (!isTransfer && !isCredit),
+    slipUrl: slipUrlReal,
+    status: (isCredit?"credit": hasSlip||isDeliveredStatus?"received": (isTransfer?"pending":"received")),
     _fromFirebase: true,
   };
 }
 
-// แปลง bill → slip entry (ตรวจ slip1 URL จริงจาก Firebase)
+// แปลง bill → slip entry
+// DriverApp บันทึก: slipUrl, status="ส่งสำเร็จ"
+// ThermalBill บันทึก: slip1 (localStorage) + slipRequest (Firestore)
 function billToSlip(b) {
   const clerkInit = (b.clerkCode||"")[0]||"";
   const CLERK_BRANCH_MAP = {A:"bkk",B:"bkk",N:"bkk",P:"bkk",H:"ssk",S:"ssk",K:"krt",BA:"bkk",BB:"bkk",KA:"krt"};
   const branchRaw = b.branch || "";
   const branch = BRANCH_CODE[branchRaw] || CLERK_BRANCH_MAP[b.clerkCode] || CLERK_BRANCH_MAP[clerkInit] || "bkk";
   const isoDate = toISO(b.date || "");
-  // ตรวจสอบว่าอัปโหลดสลิปแล้วหรือยัง
-  const hasSlip = !!(b.slip1 && b.slip1.startsWith("http"));
-  const isApproved = b.slipRequest === "approved" || b.status === "delivered";
+  // slipUrl = DriverApp field (เก็บลง Firestore จริง)
+  // slip1   = ThermalBill field (เก็บลง Firestore ผ่าน GolodStorage.uploadAndSave)
+  const slipUrlReal = b.slipUrl || b.slip1 || b.photoUrl || "";
+  const hasSlip = !!(slipUrlReal && slipUrlReal.startsWith("http"));
+  const isDelivered = b.status === "ส่งสำเร็จ" || b.status === "delivered" || b.status === "ส่งแล้ว";
+  const isApproved  = b.slipRequest === "approved";
   return {
     id: "fbs_" + b.billNo,
     billNo: b.billNo || "",
     customer: b.senderName || b.receiverName || "",
     amount: parseFloat(b.freightNet) || 0,
     deliveredDate: isoDate || today(),
-    slipConfirmed: hasSlip || isApproved,
-    slipUrl: b.slip1 || "",          // URL รูปสลิป
-    slipRequest: b.slipRequest || "", // pending / approved
-    slipApprovedAt: b.slipApprovedAt || "",
+    slipConfirmed: hasSlip || isDelivered || isApproved,
+    slipUrl: slipUrlReal,
+    slipRequest: b.slipRequest || "",
     note: "",
     branch,
     _fromFirebase: true,
@@ -530,8 +536,8 @@ function syncBillsToFinance(bills) {
     const rawPay = b.freightPay || "";
     const isTransferBill = rawPay === "transfer" || rawPay === "dest_transfer"
                         || inc.method === "transfer" || inc.method === "dest_transfer";
-    const hasSlipUrl = !!(b.slip1 && b.slip1.startsWith("http"));
-    const isClosedStatus = b.status === "delivered" || b.status === "returned";
+    const isClosedStatus = b.status === "ส่งสำเร็จ" || b.status === "delivered"
+                        || b.status === "ส่งแล้ว" || b.status === "returned";
     // แสดงในตาราง: ทุก transfer bill (แม้มีสลิปแล้ว เพื่อให้เห็นประวัติ)
     // แต่ slipConfirmed จะถูก set ตาม slip1 ใน billToSlip
     if (isTransferBill && !isClosedStatus) {
@@ -545,7 +551,26 @@ function syncBillsToFinance(bills) {
     return db.getTime()-da.getTime();
   });
 
-  setFbStatus("🔄 sync " + bills.length + " บิล ✓", "#9FE1CB");
+  // Debug: นับ field สลิปจริงจาก Firebase
+  const dbgHasSlipUrl  = bills.filter(b=>b.slipUrl).length;
+  const dbgHasSlip1    = bills.filter(b=>b.slip1).length;
+  const dbgSentStatus  = bills.filter(b=>b.status==="ส่งสำเร็จ").length;
+  const dbgTransfer    = bills.filter(b=>b.freightPay==="transfer").length;
+  const dbgSlipPending = SLIPS.filter(s=>!s.slipConfirmed).length;
+  const dbgSlipHas     = SLIPS.filter(s=>!!s.slipUrl).length;
+  console.log("[FinanceDebug] bills:", bills.length,
+    "| slipUrl:", dbgHasSlipUrl, "| slip1:", dbgHasSlip1,
+    "| ส่งสำเร็จ:", dbgSentStatus, "| transfer:", dbgTransfer,
+    "| SLIPS ค้าง:", dbgSlipPending, "| มีสลิป:", dbgSlipHas);
+  // Sample 3 transfer bills for field inspection
+  const sampleT = bills.filter(b=>b.freightPay==="transfer").slice(0,3);
+  sampleT.forEach(b=>console.log("[Sample transfer bill]", JSON.stringify({
+    billNo:b.billNo, status:b.status, freightPay:b.freightPay,
+    slipUrl:b.slipUrl, slip1:b.slip1, slipRequest:b.slipRequest,
+    photoUrl:b.photoUrl
+  })));
+  const dbgMsg = `sync ${bills.length} บิล | โอน:${dbgTransfer} | มีสลิป:${dbgHasSlipUrl+dbgHasSlip1} | ค้าง:${dbgSlipPending}`;
+  setFbStatus("🔄 " + dbgMsg + " ✓", "#9FE1CB");
   updateBillCount(bills.length);
   fbSyncStatus = "ok";
   initBemDates();
