@@ -112,8 +112,6 @@ input:checked+.slider:before{transform:translateX(15px)}
 <script src="firebase-app-compat.js"></script>
 <script src="firebase-firestore-compat.js"></script>
 <script src="golod-firebase.js"></script>
-<script src="firebase-storage-compat.js"></script>
-<script src="golod-storage.js"></script>
 <script src="golod-sheets-sync.js"></script>
 </head>
 <body>
@@ -720,9 +718,20 @@ function showSlipViewer(billNo) {
     lb = document.createElement("div");
     lb.id = "golod-slip-lb";
     lb.style.cssText = "display:none;position:fixed;inset:0;background:rgba(0,0,0,.88);z-index:9999;align-items:center;justify-content:center;flex-direction:column;gap:12px";
-    lb.innerHTML = "<div onclick="document.getElementById('golod-slip-lb').style.display='none'" style='position:absolute;top:16px;right:20px;color:#fff;font-size:32px;cursor:pointer'>✕</div>" +
-      "<img id='golod-slip-lb-img' style='max-width:94vw;max-height:84vh;border-radius:10px'/>" +
-      "<div id='golod-slip-lb-lbl' style='color:#fff;font-size:12px;opacity:.7'></div>";
+    // สร้าง element แทนการใช้ innerHTML เพื่อหลีกเลี่ยง quote ชนกัน
+    var closeBtn = document.createElement("div");
+    closeBtn.textContent = "✕";
+    closeBtn.style.cssText = "position:absolute;top:16px;right:20px;color:#fff;font-size:32px;cursor:pointer";
+    closeBtn.onclick = function(){ lb.style.display="none"; };
+    var slipImg = document.createElement("img");
+    slipImg.id = "golod-slip-lb-img";
+    slipImg.style.cssText = "max-width:94vw;max-height:84vh;border-radius:10px";
+    var slipLbl = document.createElement("div");
+    slipLbl.id = "golod-slip-lb-lbl";
+    slipLbl.style.cssText = "color:#fff;font-size:12px;opacity:.7";
+    lb.appendChild(closeBtn);
+    lb.appendChild(slipImg);
+    lb.appendChild(slipLbl);
     document.body.appendChild(lb);
     lb.onclick = function(e){ if(e.target===lb) lb.style.display="none"; };
   }
@@ -734,7 +743,7 @@ function showSlipViewer(billNo) {
 function uploadSlipInline(billNo, input) {
   var file = input.files[0];
   if (!file) return;
-  if (typeof GolodStorage === "undefined") { alert("Storage ไม่พร้อม"); return; }
+  if (typeof GolodStorage === "undefined") { alert("ระบบ Storage ไม่พร้อม — กรุณาติดต่อแอดมิน"); return; }
   var cell = input.closest("td");
   cell.innerHTML = "<span style='font-size:10px;color:#888'>⏳ กำลังอัป...</span>";
   GolodStorage.uploadAndSave(billNo, file, "slip1").then(function(url) {
