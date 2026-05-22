@@ -996,72 +996,59 @@ function SecTitle({
 // 80mm ≈ 302px at 96dpi  — ใช้ 298px เผื่อ margin printer
 
 // QR Code component สำหรับ thermal print
+// === QR Code Box ===
+function makeQRDataUrl(text, px) {
+  try {
+    var wrap = document.createElement("div");
+    wrap.style.cssText = "position:fixed;right:-9999px;top:0;width:"+px+"px;height:"+px+"px;";
+    document.body.appendChild(wrap);
+    new QRCode(wrap, {
+      text: text, width: px, height: px,
+      colorDark: "#000000", colorLight: "#ffffff",
+      correctLevel: QRCode.CorrectLevel.M
+    });
+    var result = null;
+    var cv = wrap.querySelector("canvas");
+    if (cv && cv.width > 0) {
+      try { result = cv.toDataURL("image/png"); } catch(e2) {}
+    }
+    if (!result) {
+      var im = wrap.querySelector("img");
+      if (im && im.src && im.src.startsWith("data:")) result = im.src;
+    }
+    document.body.removeChild(wrap);
+    return result;
+  } catch(e) { return null; }
+}
+
 function QRCodeBox({ data, size }) {
   var sz = size || 80;
-  const [dataUrl, setDataUrl] = React.useState(null);
+  const [src, setSrc] = React.useState(null);
+  const [tick, setTick] = React.useState(0);
 
   React.useEffect(() => {
-    if (!data || dataUrl) return;
-    // สร้าง div ชั่วคราวใน body โดยตรง (ไม่พึ่ง ref ที่อาจยังไม่ mount)
-    var tmp = document.createElement("div");
-    tmp.style.cssText = "position:fixed;left:0;top:0;width:"+sz+"px;height:"+sz+"px;opacity:0.01;z-index:-999;pointer-events:none;";
-    document.body.appendChild(tmp);
-    try {
-      new QRCode(tmp, {
-        text: data,
-        width: sz,
-        height: sz,
-        colorDark: "#000000",
-        colorLight: "#ffffff",
-        correctLevel: QRCode.CorrectLevel.M
-      });
-    } catch(e) {
-      document.body.removeChild(tmp);
-      return;
-    }
-    var n = 0;
-    var t = setInterval(function() {
-      n++;
-      var cv = tmp.querySelector("canvas");
-      if (cv && cv.width > 0) {
-        try {
-          var url = cv.toDataURL("image/png");
-          if (url && url.length > 500) {
-            setDataUrl(url);
-            clearInterval(t);
-            document.body.removeChild(tmp);
-            return;
-          }
-        } catch(e2) {}
+    if (!data || src) return;
+    var t = setTimeout(function() {
+      var url = makeQRDataUrl(data, sz * 2);
+      if (url && url.length > 500) {
+        setSrc(url);
+      } else if (tick < 20) {
+        setTick(function(n){ return n + 1; });
       }
-      var im = tmp.querySelector("img");
-      if (im && im.src && im.src.indexOf("data:") === 0 && im.src.length > 500) {
-        setDataUrl(im.src);
-        clearInterval(t);
-        document.body.removeChild(tmp);
-        return;
-      }
-      if (n > 50) {
-        clearInterval(t);
-        try { document.body.removeChild(tmp); } catch(_) {}
-      }
-    }, 60);
-    return function() {
-      clearInterval(t);
-      try { if(tmp.parentNode) document.body.removeChild(tmp); } catch(_) {}
-    };
-  }, [data, sz]);
+    }, 150 + tick * 80);
+    return function() { clearTimeout(t); };
+  }, [data, sz, tick]);
 
-  if (dataUrl) {
+  if (src) {
     return React.createElement("img", {
-      src: dataUrl,
-      style: { display:"block", width:sz, height:sz, margin:"0 auto", imageRendering:"auto" }
+      src: src,
+      style: { display:"block", width:sz, height:sz, margin:"0 auto" }
     });
   }
   return React.createElement("div", {
-    style: { width:sz, height:sz, margin:"0 auto", background:"#f5f5f5",
+    style: { width:sz, height:sz, margin:"0 auto", background:"#f0f0f0",
              display:"flex", alignItems:"center", justifyContent:"center",
-             fontSize:9, color:"#aaa" }
+             fontSize:9, color:"#bbb" }
   }, "QR...");
 }
 
