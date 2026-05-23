@@ -340,7 +340,10 @@ function loadBills(){
       // เฉพาะบิลที่จ่ายให้คนขับคนนี้ และสถานะที่ยังต้องทำงาน
       var ACTIVE = ["กำลังวิ่งส่งลูกค้า","นำส่งใหม่"];
       BILLS = bills.filter(function(b){
-        var driverMatch = b.driver === CU.username || b.driverName === CU.name;
+        // match username ตรงๆ หรือ driverName ที่อาจมี " (สาขา)" ต่อท้าย
+        var driverMatch = b.driver === CU.username
+          || b.driverName === CU.name
+          || (b.driverName && CU.name && b.driverName.indexOf(CU.name) === 0);
         return driverMatch && ACTIVE.indexOf(b.status) >= 0;
       });
       renderBillList();
