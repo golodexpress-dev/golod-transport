@@ -1,6 +1,4 @@
 // ===== GOLOD FIREBASE SERVICE =====
-// โหลด Firebase SDK จาก CDN (compat version ใช้ได้กับ vanilla JS)
-
 const FIREBASE_CONFIG = {
   apiKey: "AIzaSyCwgIOP-fIe5v4VOpnn3oblVYzqIGsCpK0",
   authDomain: "status-81cd0.firebaseapp.com",
@@ -15,16 +13,12 @@ var GolodDB = (function() {
   var initialized = false;
   var pending = [];
 
-  // init Firebase
   function init() {
     try {
-      if (!firebase.apps.length) {
-        firebase.initializeApp(FIREBASE_CONFIG);
-      }
+      if (!firebase.apps.length) firebase.initializeApp(FIREBASE_CONFIG);
       db = firebase.firestore();
       initialized = true;
       console.log("[GolodDB] Firestore connected");
-      // flush pending
       pending.forEach(function(fn) { fn(); });
       pending = [];
     } catch(e) {
@@ -43,7 +37,6 @@ var GolodDB = (function() {
       ready(function() {
         db.collection("bills").doc(bill.billNo).set(bill)
           .then(function() {
-            // sync to localStorage ด้วย
             try {
               var bills = JSON.parse(localStorage.getItem("golod_bills") || "[]");
               var idx = bills.findIndex(function(b) { return b.billNo === bill.billNo; });
@@ -51,8 +44,7 @@ var GolodDB = (function() {
               localStorage.setItem("golod_bills", JSON.stringify(bills));
             } catch(e) {}
             resolve(bill);
-          })
-          .catch(reject);
+          }).catch(reject);
       });
     });
   }
@@ -68,12 +60,10 @@ var GolodDB = (function() {
           .then(function(snap) {
             var bills = [];
             snap.forEach(function(doc) { bills.push(doc.data()); });
-            // sync to localStorage
             try {
               if (isAdmin) {
                 localStorage.setItem("golod_bills", JSON.stringify(bills));
               } else {
-                // merge: เก็บบิลคนอื่นไว้ เพิ่มบิลตัวเอง
                 var all = JSON.parse(localStorage.getItem("golod_bills") || "[]");
                 var myBillNos = new Set(bills.map(function(b){ return b.billNo; }));
                 var others = all.filter(function(b){ return !myBillNos.has(b.billNo); });
@@ -84,7 +74,6 @@ var GolodDB = (function() {
           })
           .catch(function(e) {
             console.warn("[GolodDB] getBills error, using localStorage:", e);
-            // fallback localStorage
             try {
               var local = JSON.parse(localStorage.getItem("golod_bills") || "[]");
               resolve(local);
@@ -99,7 +88,6 @@ var GolodDB = (function() {
       ready(function() {
         db.collection("bills").doc(billNo).update(updates)
           .then(function() {
-            // sync localStorage
             try {
               var bills = JSON.parse(localStorage.getItem("golod_bills") || "[]");
               var idx = bills.findIndex(function(b){ return b.billNo === billNo; });
@@ -215,16 +203,13 @@ var GolodDB = (function() {
     });
   }
 
-  
   function getAllBills(limitN) {
     return new Promise(function(resolve, reject) {
       ready(function() {
-        // ไม่ใช้ orderBy เพื่อให้ดึงได้ทุกบิล รวมบิลที่ไม่มี createdAt
         db.collection("bills").limit(limitN||5000).get()
           .then(function(snap) {
             var bills=[];
             snap.forEach(function(doc){ bills.push(doc.data()); });
-            // เรียงตาม date+billNo แทน
             bills.sort(function(a,b){
               var da=a.date||""; var db2=b.date||"";
               if(da!==db2) return da>db2?-1:1;
@@ -236,27 +221,20 @@ var GolodDB = (function() {
     });
   }
 
-  
-  // ดึงเฉพาะบิลใหม่ที่มี clerkCode (ไม่ใช่บิลเก่า format เดิม)
-  // ดึงบิลทั้งหมดและเรียงลำดับด้วย Javascript
   function getBillsNew(limitN) {
     return new Promise(function(resolve, reject) {
       ready(function() {
-        db.collection("bills").limit(limitN || 2000).get().then(function(snap) {
+        db.collection("bills").limit(limitN || 8000).get().then(function(snap) {
           var bills = [];
           snap.forEach(function(doc) { bills.push(doc.data()); });
-          
           bills.sort(function(a, b) {
             var parseDate = function(v) {
               if (!v) return 0;
               var str = String(v);
-              if (str.match(/^\d{4}-\d{2}-\d{2}/)) {
-                return new Date(str).getTime();
-              }
+              if (str.match(/^\d{4}-\d{2}-\d{2}/)) return new Date(str).getTime();
               if (str.match(/\d{1,2}\/\d{1,2}\/\d{4}/)) {
                 var p = str.split("/");
-                var y = parseInt(p[2]);
-                if (y > 2400) y -= 543;
+                var y = parseInt(p[2]); if (y > 2400) y -= 543;
                 return new Date(y, parseInt(p[1])-1, parseInt(p[0])).getTime();
               }
               var fallback = new Date(str).getTime();
@@ -266,47 +244,75 @@ var GolodDB = (function() {
             var tB = b.createdAt ? new Date(b.createdAt).getTime() : parseDate(b.date);
             return tB - tA;
           });
-          
-          resolve(bills);
+          // FIX: senderName อาจอยู่ใน root หรือใน form.senderName ก็ได้
+          var newBills = bills.filter(function(b){
+            var sn = b.senderName || (b.form && b.form.senderName) || "";
+            return sn.trim() !== "";
+          });
+          resolve(newBills);
         }).catch(reject);
       });
     });
   }
 
+  // ===================================================
+  // ===== DISPATCH LOGS (ใหม่) =====
+  // collection: dispatchLogs
+  // doc structure:
+  //   id        : auto
+  //   dispatchAt: ISO string
+  //   dispatchBy: username ของคนกดจ่าย
+  //   mode      : "driver" | "branch"
+  //   targetId  : username หรือ branch id
+  //   targetName: ชื่อคนขับหรือสาขา
+  //   billCount : จำนวนบิล
+  //   totalFreight : ยอดค่าขนส่งรวม
+  //   totalOrigin  : ยอดต้นทาง
+  //   totalDest    : ยอดปลายทาง
+  //   totalTransfer: ยอดโอน
+  //   totalCredit  : ยอดเครดิต
+  //   totalCOD     : ยอด COD
+  //   bills     : array ของ {billNo, receiverName, destProv, freightNet, codTotal, freightPay}
+  // ===================================================
 
-  // ===== DISPATCH LOGS =====
   function saveDispatchLog(log) {
     return new Promise(function(resolve, reject) {
       ready(function() {
         db.collection("dispatchLogs").add(log)
-          .then(function(ref) { resolve(ref.id); })
-          .catch(reject);
+          .then(function(ref) {
+            resolve(ref.id);
+          }).catch(reject);
       });
     });
   }
 
   function getDispatchLogs(opts) {
+    // opts: { limitN, targetId, mode, dateFrom, dateTo }
     opts = opts || {};
     return new Promise(function(resolve, reject) {
       ready(function() {
-        // ใช้ query เดียว (orderBy dispatchAt) แล้วกรอง mode/targetId ใน JS
-        // เพื่อไม่ต้องสร้าง composite index หลายตัว
-        var q = db.collection("dispatchLogs")
-          .orderBy("dispatchAt", "desc")
-          .limit(opts.limitN || 300);
+        var q = db.collection("dispatchLogs").orderBy("dispatchAt", "desc");
 
-        q.get().then(function(snap) {
+        if(opts.targetId) {
+          q = db.collection("dispatchLogs")
+            .where("targetId","==",opts.targetId)
+            .orderBy("dispatchAt","desc");
+        }
+        if(opts.mode && !opts.targetId) {
+          q = db.collection("dispatchLogs")
+            .where("mode","==",opts.mode)
+            .orderBy("dispatchAt","desc");
+        }
+
+        q.limit(opts.limitN || 200).get()
+          .then(function(snap) {
             var logs = [];
             snap.forEach(function(doc) {
-              var d = doc.data(); d._docId = doc.id; logs.push(d);
+              var d = doc.data();
+              d._docId = doc.id;
+              logs.push(d);
             });
-            // กรอง mode / targetId / date ใน JS
-            if(opts.targetId) {
-              logs = logs.filter(function(l){ return l.targetId === opts.targetId; });
-            }
-            if(opts.mode) {
-              logs = logs.filter(function(l){ return l.mode === opts.mode; });
-            }
+            // filter by date client-side (Firestore ไม่ต้องการ composite index เพิ่ม)
             if(opts.dateFrom || opts.dateTo) {
               logs = logs.filter(function(l) {
                 var d = l.dispatchAt ? l.dispatchAt.slice(0,10) : "";
@@ -321,5 +327,12 @@ var GolodDB = (function() {
     });
   }
 
-  return { init, saveBill, getBills, updateBill, saveContact, getContacts, saveUser, getUsers, saveEditLog, getEditLogs, listenBills, getAllBills, getBillsNew, saveDispatchLog, getDispatchLogs, ready };
+  return {
+    init, saveBill, getBills, updateBill,
+    saveContact, getContacts,
+    saveUser, getUsers,
+    saveEditLog, getEditLogs,
+    listenBills, getAllBills, getBillsNew,
+    saveDispatchLog, getDispatchLogs
+  };
 })();
