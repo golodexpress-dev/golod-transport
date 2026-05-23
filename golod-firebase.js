@@ -386,7 +386,8 @@ var GolodDB = (function() {
   }
 
   return {
-    init, saveBill, getBills, updateBill,
+    init, ready,
+    saveBill, getBills, updateBill,
     saveContact, getContacts,
     saveUser, getUsers,
     saveEditLog, getEditLogs,
