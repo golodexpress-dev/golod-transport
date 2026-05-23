@@ -221,36 +221,94 @@ var GolodDB = (function() {
     });
   }
 
+  // ฟังก์ชัน sort+filter กลาง
+  function _sortAndFilter(bills){
+    var parseDate = function(v) {
+      if (!v) return 0;
+      var str = String(v);
+      if (str.match(/^\d{4}-\d{2}-\d{2}/)) return new Date(str).getTime();
+      if (str.match(/\d{1,2}\/\d{1,2}\/\d{4}/)) {
+        var p = str.split("/");
+        var y = parseInt(p[2]); if (y > 2400) y -= 543;
+        return new Date(y, parseInt(p[1])-1, parseInt(p[0])).getTime();
+      }
+      return isNaN(new Date(str).getTime()) ? 0 : new Date(str).getTime();
+    };
+    bills.sort(function(a,b){
+      var tA = a.createdAt ? new Date(a.createdAt).getTime() : parseDate(a.date);
+      var tB = b.createdAt ? new Date(b.createdAt).getTime() : parseDate(b.date);
+      return tB - tA;
+    });
+    // FIX: senderName อาจอยู่ใน root หรือใน form เท่านั้น
+    return bills.filter(function(b){
+      var sn = b.senderName || (b.form && b.form.senderName) || "";
+      return sn.trim() !== "";
+    });
+  }
+
+  // getBillsNew — ใช้กับ SalesReport / หน้าที่ต้องการข้อมูลย้อนหลังเยอะ
   function getBillsNew(limitN) {
     return new Promise(function(resolve, reject) {
       ready(function() {
-        db.collection("bills").limit(limitN || 8000).get().then(function(snap) {
-          var bills = [];
-          snap.forEach(function(doc) { bills.push(doc.data()); });
-          bills.sort(function(a, b) {
-            var parseDate = function(v) {
-              if (!v) return 0;
-              var str = String(v);
-              if (str.match(/^\d{4}-\d{2}-\d{2}/)) return new Date(str).getTime();
-              if (str.match(/\d{1,2}\/\d{1,2}\/\d{4}/)) {
-                var p = str.split("/");
-                var y = parseInt(p[2]); if (y > 2400) y -= 543;
-                return new Date(y, parseInt(p[1])-1, parseInt(p[0])).getTime();
-              }
-              var fallback = new Date(str).getTime();
-              return isNaN(fallback) ? 0 : fallback;
-            };
-            var tA = a.createdAt ? new Date(a.createdAt).getTime() : parseDate(a.date);
-            var tB = b.createdAt ? new Date(b.createdAt).getTime() : parseDate(b.date);
-            return tB - tA;
+        db.collection("bills").limit(limitN || 3000).get()
+          .then(function(snap) {
+            var bills = [];
+            snap.forEach(function(doc) { bills.push(doc.data()); });
+            resolve(_sortAndFilter(bills));
+          }).catch(reject);
+      });
+    });
+  }
+
+  // getBillsDispatch — ใช้กับ DispatchApp เท่านั้น
+  // ดึงเฉพาะบิลที่ยัง active หรือ createdAt ภายใน N วัน → เร็วกว่ามาก
+  function getBillsDispatch(opts) {
+    // opts: { days: 14 }  — กี่วันย้อนหลัง default 14
+    opts = opts || {};
+    var days = opts.days || 14;
+    return new Promise(function(resolve, reject) {
+      ready(function() {
+        // cutoff date สำหรับกรอง
+        var cutoff = new Date();
+        cutoff.setDate(cutoff.getDate() - days);
+        var cutoffISO = cutoff.toISOString();
+
+        // Query 1: บิลที่ createdAt ภายใน N วัน (ต้องมี index: createdAt desc)
+        var q1 = db.collection("bills")
+          .where("createdAt", ">=", cutoffISO)
+          .orderBy("createdAt", "desc")
+          .limit(500);
+
+        // Query 2: บิลที่ยัง active อยู่ (กำลังวิ่ง/รอจ่าย) ไม่ว่าวันไหน
+        var ACTIVE_STATUS = ["กำลังวิ่งส่งลูกค้า","ระหว่างนำส่งสาขา","ออกบิลรับของ","นำส่งใหม่"];
+        var activeQueries = ACTIVE_STATUS.map(function(st){
+          return db.collection("bills").where("status","==",st).limit(200).get();
+        });
+
+        Promise.all([q1.get()].concat(activeQueries))
+          .then(function(results) {
+            var seen = {};
+            var bills = [];
+            results.forEach(function(snap){
+              snap.forEach(function(doc){
+                var d = doc.data();
+                if(!seen[d.billNo]){
+                  seen[d.billNo] = true;
+                  bills.push(d);
+                }
+              });
+            });
+            resolve(_sortAndFilter(bills));
+          }).catch(function(e){
+            // fallback: ถ้า index ยังไม่มี ดึงแบบปกติ จำกัด 300
+            console.warn("[getBillsDispatch] fallback:", e.message);
+            db.collection("bills").limit(300).get()
+              .then(function(snap){
+                var bills = [];
+                snap.forEach(function(doc){ bills.push(doc.data()); });
+                resolve(_sortAndFilter(bills));
+              }).catch(reject);
           });
-          // FIX: senderName อาจอยู่ใน root หรือใน form.senderName ก็ได้
-          var newBills = bills.filter(function(b){
-            var sn = b.senderName || (b.form && b.form.senderName) || "";
-            return sn.trim() !== "";
-          });
-          resolve(newBills);
-        }).catch(reject);
       });
     });
   }
@@ -333,6 +391,7 @@ var GolodDB = (function() {
     saveUser, getUsers,
     saveEditLog, getEditLogs,
     listenBills, getAllBills, getBillsNew,
-    saveDispatchLog, getDispatchLogs
+    saveDispatchLog, getDispatchLogs,
+    getBillsDispatch
   };
 })();
