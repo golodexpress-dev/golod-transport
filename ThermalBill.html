@@ -1268,10 +1268,7 @@ function ThermalBill({
   }), /*#__PURE__*/React.createElement(Row, {
     l: "\u0E2A\u0E48\u0E27\u0E19\u0E25\u0E14",
     r: (summary&&summary.discount>0)?"-"+(summary.discount||0).toLocaleString("th-TH")+" \u0E3F":"\u2014"
-  }), (summary&&summary.insurance) > 0 && /*#__PURE__*/React.createElement(Row, {
-    l: "\u0E1B\u0E23\u0E30\u0E01\u0E31\u0E19\u0E2A\u0E34\u0E19\u0E04\u0E49\u0E32",
-    r: `+${(summary&&summary.insurance||0).toLocaleString("th-TH")} ฿`
-  })), !form.hidePrice && /*#__PURE__*/React.createElement("div", {
+  }), false), !form.hidePrice && /*#__PURE__*/React.createElement("div", {
     style: {
       display: "flex",
       justifyContent: "flex-end",
@@ -1629,18 +1626,11 @@ function ItemRow({
       background: "#FEFCE8"
     }
   })), /*#__PURE__*/React.createElement("div", {
-    style: {
-      flex: 1,
-      minWidth: 120
-    }
-  }, /*#__PURE__*/React.createElement(Lbl, {
-    c: "\u0E21\u0E39\u0E25\u0E04\u0E48\u0E32\u0E2A\u0E34\u0E19\u0E04\u0E49\u0E32 (\u0E1B\u0E23\u0E30\u0E01\u0E31\u0E19)"
-  }), /*#__PURE__*/React.createElement("input", {
+    style: { display: "none" }
+  }, /*#__PURE__*/React.createElement("input", {
     type: "number",
     value: item.declaredValue,
-    onChange: e => u("declaredValue", e.target.value),
-    placeholder: "0 = \u0E44\u0E21\u0E48\u0E1B\u0E23\u0E30\u0E01\u0E31\u0E19",
-    style: INP
+    onChange: e => u("declaredValue", e.target.value)
   }))));
 }
 // =================== BILL LIST ===================
@@ -3080,7 +3070,7 @@ function ThermalBillingApp() {
     const v = parseFloat(item.declaredValue) || 0;
     return s + (v > 0 ? Math.round(v * 0.005) : 0);
   }, 0);
-  const freightNetRaw = Math.max(0, freightTotal - discountAmt + insuranceTotal);
+  const freightNetRaw = Math.max(0, freightTotal - discountAmt);
   const minFr = form.isSpecialArea ? (parseInt(form.minFreight) || 0) : 0;
   const freightNet = Math.max(freightNetRaw, minFr);
   const isMinApplied = minFr > 0 && freightNetRaw < minFr;
@@ -3088,7 +3078,7 @@ function ThermalBillingApp() {
   const summary = {
     freightTotal,
     discount: discountAmt,
-    insurance: insuranceTotal,
+    insurance: 0,
     freightNet,
     codTotal
   };
