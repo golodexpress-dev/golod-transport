@@ -336,22 +336,39 @@ document.addEventListener("keydown", function(e){
 function loadBills(){
   document.getElementById("bill-list").innerHTML = '<div class="loading-state"><span class="spin-inline">⏳</span><br><br>กำลังโหลดงาน...</div>';
   GolodDB.ready(function(){
-    GolodDB.getBillsNew(500).then(function(bills){
-      // เฉพาะบิลที่จ่ายให้คนขับคนนี้ และสถานะที่ยังต้องทำงาน
-      var ACTIVE = ["กำลังวิ่งส่งลูกค้า","นำส่งใหม่"];
-      BILLS = bills.filter(function(b){
-        // match username ตรงๆ หรือ driverName ที่อาจมี " (สาขา)" ต่อท้าย
-        var driverMatch = b.driver === CU.username
-          || b.driverName === CU.name
-          || (b.driverName && CU.name && b.driverName.indexOf(CU.name) === 0);
-        return driverMatch && ACTIVE.indexOf(b.status) >= 0;
+    // query driver=username + status active ตรงๆ จาก Firestore ไม่จำกัดวัน
+    var ACTIVE = ["กำลังวิ่งส่งลูกค้า","นำส่งใหม่"];
+    var db;
+    try{ db = firebase.firestore(); }catch(e){ db=null; }
+    if(!db){ throw new Error("Firestore ไม่พร้อม"); }
+
+    var queries = ACTIVE.map(function(st){
+      return db.collection("bills")
+        .where("driver","==",CU.username)
+        .where("status","==",st)
+        .limit(200).get();
+    });
+
+    Promise.all(queries).then(function(results){
+      var seen = {};
+      var bills = [];
+      results.forEach(function(snap){
+        snap.forEach(function(doc){
+          var d = doc.data();
+          if(!seen[d.billNo]){
+            seen[d.billNo] = true;
+            if(d.form && typeof d.form==="string"){ try{d.form=JSON.parse(d.form);}catch(e){d.form={};} }
+            if(!d.form) d.form={};
+            bills.push(d);
+          }
+        });
       });
+      BILLS = bills;
       renderBillList();
     }).catch(function(e){
       document.getElementById("bill-list").innerHTML =
         '<div class="empty-state"><div class="ico">❌</div><div class="msg">โหลดไม่สำเร็จ: '+e.message+'</div></div>';
     });
-  });
 }
 
 // ===== RENDER LIST =====
