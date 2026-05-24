@@ -135,6 +135,11 @@ tr:nth-child(even) td{background:#fafafa}
 <script>
 var _S = GolodSession.require("transport", null);
 if(!_S) throw new Error("no session");
+// ซ่อน tab staff สำหรับ clerk (clerk ใช้หน้า DispatchApp แทน)
+// แต่เปิด tab admin ให้ clerk เห็นด้วย
+var _role = _S ? (_S.role||"") : "";
+var _canAdmin = ["admin","branch","clerk"].includes(_role);
+var _canStaff = ["admin","branch","driver"].includes(_role);
 </script>
 </head>
 <body>
@@ -143,7 +148,12 @@ if(!_S) throw new Error("no session");
   <div id="golod-user-chip"></div>
   <a href="AuthSystem.html" style="font-size:11px;color:#9FE1CB;text-decoration:none;background:rgba(255,255,255,.15);padding:3px 10px;border-radius:20px">← เมนูหลัก</a>
 </div>
-<script>GolodSession.renderTopbar("golod-user-chip", "ระบบติดตาม", "#EF9F27");</script>
+<script>
+GolodSession.renderTopbar("golod-user-chip", "ระบบติดตาม", "#EF9F27");
+// แสดง tab ตาม role
+if(_canStaff) document.getElementById("tab-staff").style.display="";
+if(_canAdmin) document.getElementById("tab-admin").style.display="";
+</script>
 
 
 <!-- TAB BAR -->
@@ -151,11 +161,11 @@ if(!_S) throw new Error("no session");
   <div class="tab active" onclick="showTab('customer')" id="tab-customer">
     <div class="t1">🔍 ลูกค้าค้นหา</div><div class="t2">หน้าสาธารณะ</div>
   </div>
-  <div class="tab" onclick="showTab('staff')" id="tab-staff">
+  <div class="tab" onclick="showTab('staff')" id="tab-staff" style="display:none">
     <div class="t1">📱 พนักงานอัปเดต</div><div class="t2">มือถือ</div>
   </div>
-  <div class="tab" onclick="showTab('admin')" id="tab-admin">
-    <div class="t1">📋 ภาพรวม</div><div class="t2">เสมียน</div>
+  <div class="tab" onclick="showTab('admin')" id="tab-admin" style="display:none">
+    <div class="t1">📋 ภาพรวม</div><div class="t2">เสมียน/Admin</div>
   </div>
 </div>
 
@@ -336,6 +346,26 @@ function loadAllBillsFromFirestore(callback){
   } else { callback(); }
 }
 
+// ======= PRIVACY MASK =======
+function maskName(name){
+  if(!name) return "—";
+  // แสดงแค่คำแรก + *** เช่น "คุณสมชาย ***"
+  var parts = name.trim().split(" ");
+  if(parts.length <= 1) return parts[0].slice(0,3) + "***";
+  return parts[0] + " ***";
+}
+function maskPhone(phone){
+  if(!phone) return "—";
+  // แสดงแค่ 3 ตัวแรก + ***-**** เช่น 089-***-****
+  var p = phone.replace(/[^0-9]/g,"");
+  if(p.length < 6) return "***-****";
+  return p.slice(0,3) + "-***-" + p.slice(-2)+"**";
+}
+function maskAddr(addr){
+  if(!addr || addr.trim()==="") return "";
+  return "ซ่อนข้อมูล (เพื่อความเป็นส่วนตัว)";
+}
+
 // ======= UTILS =======
 function dtDisplay(dt){
   if(!dt)return"";
@@ -436,6 +466,10 @@ function doTrack(){
         <div class="dest-chip">ปลายทาง: <b>${bill.destAmphoe} · ${bill.destProv}</b></div>
         ${bill.codTotal>0?`<div class="cod-chip">★ COD ${bill.codTotal.toLocaleString("th-TH")} ฿</div>`:""}
       </div>
+      <div style="margin-top:8px;padding:6px 10px;background:rgba(0,0,0,.06);border-radius:8px;font-size:11px;color:#666">
+        👤 ผู้รับ: ${maskName(bill.receiverName)} &nbsp;|&nbsp; 📞 ${maskPhone(bill.receiverName)}
+        <div style="font-size:10px;color:#999;margin-top:2px">🔒 ข้อมูลส่วนตัวถูกซ่อนเพื่อความปลอดภัย</div>
+      </div>
     </div>
     <div class="progress-wrap">
       <div class="progress-steps">
@@ -448,7 +482,7 @@ function doTrack(){
       <div class="tl-title">ประวัติการเคลื่อนไหว</div>
       <div class="tl-list"><div class="tl-line"></div>${tlHtml}</div>
     </div>
-    <div class="card-footer">สอบถามเพิ่มเติม Line OA: @golodtrans · โทร 02-XXX-XXXX</div>
+    <div class="card-footer">สอบถามเพิ่มเติม Line OA: @glexpress · โทร 099-1875230</div>
   </div>`;
   }); // end loadBillFromFirestore
 }
