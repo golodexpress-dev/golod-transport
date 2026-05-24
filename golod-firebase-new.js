@@ -221,32 +221,91 @@ var GolodDB = (function() {
     });
   }
 
+  // ฟังก์ชัน sort+filter กลาง
+  function _sortAndFilter(bills){
+    var parseDate = function(v) {
+      if (!v) return 0;
+      var str = String(v);
+      if (str.match(/^\d{4}-\d{2}-\d{2}/)) return new Date(str).getTime();
+      if (str.match(/\d{1,2}\/\d{1,2}\/\d{4}/)) {
+        var p = str.split("/");
+        var y = parseInt(p[2]); if (y > 2400) y -= 543;
+        return new Date(y, parseInt(p[1])-1, parseInt(p[0])).getTime();
+      }
+      return isNaN(new Date(str).getTime()) ? 0 : new Date(str).getTime();
+    };
+    bills.sort(function(a,b){
+      var tA = a.createdAt ? new Date(a.createdAt).getTime() : parseDate(a.date);
+      var tB = b.createdAt ? new Date(b.createdAt).getTime() : parseDate(b.date);
+      return tB - tA;
+    });
+    // FIX: senderName อาจอยู่ใน root หรือใน form เท่านั้น
+    return bills.filter(function(b){
+      var sn = b.senderName || (b.form && b.form.senderName) || "";
+      return sn.trim() !== "";
+    });
+  }
+
+  // getBillsNew — ใช้กับ SalesReport / หน้าที่ต้องการข้อมูลย้อนหลังเยอะ
   function getBillsNew(limitN) {
     return new Promise(function(resolve, reject) {
       ready(function() {
-        db.collection("bills").limit(limitN || 8000).get().then(function(snap) {
-          var bills = [];
-          snap.forEach(function(doc) { bills.push(doc.data()); });
-          bills.sort(function(a, b) {
-            var parseDate = function(v) {
-              if (!v) return 0;
-              var str = String(v);
-              if (str.match(/^\d{4}-\d{2}-\d{2}/)) return new Date(str).getTime();
-              if (str.match(/\d{1,2}\/\d{1,2}\/\d{4}/)) {
-                var p = str.split("/");
-                var y = parseInt(p[2]); if (y > 2400) y -= 543;
-                return new Date(y, parseInt(p[1])-1, parseInt(p[0])).getTime();
-              }
-              var fallback = new Date(str).getTime();
-              return isNaN(fallback) ? 0 : fallback;
-            };
-            var tA = a.createdAt ? new Date(a.createdAt).getTime() : parseDate(a.date);
-            var tB = b.createdAt ? new Date(b.createdAt).getTime() : parseDate(b.date);
-            return tB - tA;
+        db.collection("bills").limit(limitN || 3000).get()
+          .then(function(snap) {
+            var bills = [];
+            snap.forEach(function(doc) { bills.push(doc.data()); });
+            resolve(_sortAndFilter(bills));
+          }).catch(reject);
+      });
+    });
+  }
+
+  // getBillsDispatch — ใช้กับ DispatchApp เท่านั้น
+  // ดึง: active ทุกวัน + createdAt ภายใน N วัน (รวม done status)
+  function getBillsDispatch(opts) {
+    opts = opts || {};
+    var days = opts.days || 14;
+    return new Promise(function(resolve, reject) {
+      ready(function() {
+        var cutoff = new Date();
+        cutoff.setDate(cutoff.getDate() - days);
+        var cutoffISO = cutoff.toISOString();
+
+        // Query 1: บิลทุกสถานะ ภายใน N วัน (รวม done)
+        var q1 = db.collection("bills")
+          .where("createdAt", ">=", cutoffISO)
+          .orderBy("createdAt", "desc")
+          .limit(500);
+
+        // Query 2: บิล active ทุกวัน (ไม่จำกัดช่วงเวลา)
+        var ACTIVE_ST = ["กำลังวิ่งส่งลูกค้า","ระหว่างนำส่งสาขา","ออกบิลรับของ","นำส่งใหม่"];
+        var activeQueries = ACTIVE_ST.map(function(st){
+          return db.collection("bills").where("status","==",st).limit(200).get();
+        });
+
+        Promise.all([q1.get()].concat(activeQueries))
+          .then(function(results) {
+            var seen = {};
+            var bills = [];
+            results.forEach(function(snap){
+              snap.forEach(function(doc){
+                var d = doc.data();
+                if(!seen[d.billNo]){
+                  seen[d.billNo] = true;
+                  bills.push(d);
+                }
+              });
+            });
+            resolve(_sortAndFilter(bills));
+          }).catch(function(e){
+            console.warn("[getBillsDispatch] fallback:", e.message);
+            db.collection("bills").limit(500).get()
+              .then(function(snap){
+                var bills = [];
+                snap.forEach(function(doc){ bills.push(doc.data()); });
+                resolve(_sortAndFilter(bills));
+              }).catch(reject);
           });
-          var newBills = bills.filter(function(b){ return b.senderName && b.senderName.trim() !== ""; });
-          resolve(newBills);
-        }).catch(reject);
       });
     });
   }
@@ -323,12 +382,84 @@ var GolodDB = (function() {
     });
   }
 
+  // ===== TRIPS =====
+  // collection: trips
+  // doc: { id, driverUsername, driverName, branch, route, departDate, days,
+  //         baseFare, fuelDist, fuelPrice, fuelRate, fuelAdvance, odomStart,
+  //         extras:{overweight,openTail,longLoad,overHeight},
+  //         note, billIds:[], status:"open"|"closed",
+  //         createdAt, createdBy,
+  //         summary:{billCount,destTotal,codTotal,pickupCount} }
+
+  function saveTrip(trip) {
+    return new Promise(function(resolve, reject) {
+      ready(function() {
+        var ref = trip.id
+          ? db.collection("trips").doc(trip.id)
+          : db.collection("trips").doc();
+        if(!trip.id) trip.id = ref.id;
+        trip.updatedAt = new Date().toISOString();
+        ref.set(trip, {merge:true})
+          .then(function(){ resolve(trip); })
+          .catch(reject);
+      });
+    });
+  }
+
+  function getTrips(opts) {
+    opts = opts || {};
+    return new Promise(function(resolve, reject) {
+      ready(function() {
+        var q = db.collection("trips").orderBy("createdAt","desc").limit(opts.limitN||200);
+        if(opts.driverUsername){
+          q = db.collection("trips")
+            .where("driverUsername","==",opts.driverUsername)
+            .orderBy("createdAt","desc").limit(opts.limitN||100);
+        }
+        q.get().then(function(snap){
+          var trips=[];
+          snap.forEach(function(doc){ trips.push(doc.data()); });
+          if(opts.dateFrom||opts.dateTo){
+            trips=trips.filter(function(t){
+              var d=t.departDate||t.createdAt&&t.createdAt.slice(0,10)||"";
+              if(opts.dateFrom&&d<opts.dateFrom) return false;
+              if(opts.dateTo&&d>opts.dateTo)   return false;
+              return true;
+            });
+          }
+          resolve(trips);
+        }).catch(reject);
+      });
+    });
+  }
+
+  function updateTrip(tripId, updates) {
+    return new Promise(function(resolve, reject) {
+      ready(function() {
+        updates.updatedAt = new Date().toISOString();
+        db.collection("trips").doc(tripId).update(updates)
+          .then(resolve).catch(reject);
+      });
+    });
+  }
+
+  // เพิ่ม tripId ลงในหลาย bills พร้อมกัน
+  function assignBillsToTrip(billNos, tripId) {
+    var promises = billNos.map(function(billNo){
+      return updateBill(billNo, {tripId: tripId});
+    });
+    return Promise.all(promises);
+  }
+
   return {
-    init, saveBill, getBills, updateBill,
+    init, ready,
+    saveBill, getBills, updateBill,
     saveContact, getContacts,
     saveUser, getUsers,
     saveEditLog, getEditLogs,
     listenBills, getAllBills, getBillsNew,
-    saveDispatchLog, getDispatchLogs
+    saveDispatchLog, getDispatchLogs,
+    getBillsDispatch,
+    saveTrip, getTrips, updateTrip, assignBillsToTrip
   };
 })();
