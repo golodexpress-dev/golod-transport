@@ -877,7 +877,7 @@ function renderTripForm(existingTrip){
     var pay  = b.freightPay||form.freightPay||"origin";
     var payLabel = {origin:"ต้นทาง",dest:"ปลายทาง",transfer:"โอน",credit:"เครดิต"};
     var amtColor = pay==="dest"?"color:#E67E22":pay==="cod"?"color:#c0392b":"color:#555";
-    return '<div class="bill-pick-row'+(sel?" selected":"")+'" onclick="toggleTripBill(''+b.billNo+'')">'
+    return '<div class="bill-pick-row'+(sel?" selected":"")+'" data-bno="'+b.billNo+'" onclick="toggleTripBill(this.dataset.bno)">'
       +'<input type="checkbox" class="bpr-check" '+(sel?"checked":"")+'>'
       +'<div class="bpr-no">'+b.billNo+'</div>'
       +'<div class="bpr-info">'+recv+'<br><span style="color:#aaa">'+prov+'</span></div>'
