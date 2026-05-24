@@ -149,12 +149,7 @@ tr:hover td{background:#f8fffe}
       <!-- ค่าน้ำมัน -->
       <div style="font-size:11px;font-weight:700;color:#0F6E56;margin-bottom:6px">⛽ ค่าน้ำมัน</div>
       <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;margin-bottom:8px">
-        <div>
-          <div style="font-size:10px;color:#888;margin-bottom:3px">ระยะทาง (กม.)</div>
-          <input id="md-dist" type="number" style="width:100%;padding:7px 10px;border:1px solid #ddd;border-radius:7px;font-size:12px;font-family:inherit" placeholder="0" oninput="calcModalFuel()">
-        </div>
-        <div>
-          <div style="font-size:10px;color:#888;margin-bottom:3px">ราคาน้ำมัน (฿/ลิตร)</div>
+        <input id="md-dist" type="hidden" value="0">
           <input id="md-price" type="number" style="width:100%;padding:7px 10px;border:1px solid #ddd;border-radius:7px;font-size:12px;font-family:inherit" placeholder="กรอกราคา" oninput="calcModalFuel()">
           <div id="md-price-total" style="font-size:10px;color:#0F6E56;margin-top:2px">รวม — ฿/ล</div>
         </div>
@@ -197,6 +192,139 @@ tr:hover td{background:#f8fffe}
     </div>
   </div>
 </div>
+<!-- Modal เคลียร์เที่ยว -->
+<div class="modal-bg" id="modal-clear-trip" style="display:none">
+  <div class="modal" style="max-width:520px;max-height:92vh;overflow-y:auto">
+    <h3 style="color:#0F6E56;margin-bottom:4px">💰 เคลียร์เที่ยว</h3>
+    <div id="ct-trip-info" style="font-size:11px;color:#888;margin-bottom:12px"></div>
+
+    <!-- ไมล์จบ + ระยะทางจริง -->
+    <div style="background:#f8fffe;border:1px solid #d0ede5;border-radius:8px;padding:10px;margin-bottom:10px">
+      <div style="font-size:11px;font-weight:700;color:#0F6E56;margin-bottom:8px">🚗 ระยะทาง</div>
+      <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px">
+        <div>
+          <div style="font-size:10px;color:#888;margin-bottom:3px">ไมล์เริ่ม</div>
+          <input id="ct-odo-start" readonly style="width:100%;padding:7px 10px;border:1px solid #ddd;border-radius:7px;font-size:12px;background:#f5f5f5;color:#888">
+        </div>
+        <div>
+          <div style="font-size:10px;color:#888;margin-bottom:3px">ไมล์จบ (กรอก)</div>
+          <input id="ct-odo-end" type="number" style="width:100%;padding:7px 10px;border:1px solid #0F6E56;border-radius:7px;font-size:12px" placeholder="เลขไมล์จบ" oninput="calcClearTrip()">
+        </div>
+        <div>
+          <div style="font-size:10px;color:#0F6E56;margin-bottom:3px">ระยะทางจริง (กม.)</div>
+          <input id="ct-dist-real" readonly style="width:100%;padding:7px 10px;border:1px solid #d0ede5;border-radius:7px;font-size:12px;background:#f0faf5;font-weight:700;color:#0F6E56">
+        </div>
+      </div>
+    </div>
+
+    <!-- ค่าน้ำมันจริง -->
+    <div style="background:#fff8e1;border:1px solid #ffe082;border-radius:8px;padding:10px;margin-bottom:10px">
+      <div style="font-size:11px;font-weight:700;color:#b7950b;margin-bottom:8px">⛽ ค่าน้ำมันจริง</div>
+      <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px">
+        <div>
+          <div style="font-size:10px;color:#888;margin-bottom:3px">ราคา/ลิตร (฿)</div>
+          <input id="ct-fuel-price" readonly style="width:100%;padding:7px 10px;border:1px solid #ddd;border-radius:7px;font-size:12px;background:#f5f5f5;color:#888">
+        </div>
+        <div>
+          <div style="font-size:10px;color:#888;margin-bottom:3px">อัตราสิ้นเปลือง</div>
+          <input id="ct-fuel-rate" readonly style="width:100%;padding:7px 10px;border:1px solid #ddd;border-radius:7px;font-size:12px;background:#f5f5f5;color:#888">
+        </div>
+        <div>
+          <div style="font-size:10px;color:#b7950b;margin-bottom:3px">ค่าน้ำมันจริง (฿)</div>
+          <input id="ct-fuel-real" readonly style="width:100%;padding:7px 10px;border:1px solid #ffe082;border-radius:7px;font-size:12px;background:#fff8e1;font-weight:700;color:#b7950b">
+        </div>
+      </div>
+    </div>
+
+    <!-- เงินรับ -->
+    <div style="background:#f8fffe;border:1px solid #d0ede5;border-radius:8px;padding:10px;margin-bottom:10px">
+      <div style="font-size:11px;font-weight:700;color:#0F6E56;margin-bottom:8px">💵 เงินที่ได้รับ</div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:6px">
+        <div>
+          <div style="font-size:10px;color:#888;margin-bottom:3px">ปลายทาง (฿) — จากบิล</div>
+          <input id="ct-dest-amt" readonly style="width:100%;padding:7px 10px;border:1px solid #ddd;border-radius:7px;font-size:12px;background:#f5f5f5;color:#0F6E56;font-weight:700">
+        </div>
+        <div>
+          <div style="font-size:10px;color:#888;margin-bottom:3px">COD (฿) — จากบิล</div>
+          <input id="ct-cod-amt" readonly style="width:100%;padding:7px 10px;border:1px solid #ddd;border-radius:7px;font-size:12px;background:#f5f5f5;color:#c0392b;font-weight:700">
+        </div>
+      </div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">
+        <div>
+          <div style="font-size:10px;color:#888;margin-bottom:3px">งานรับ-รับสดต้นทาง (฿)</div>
+          <input id="ct-pickup-cash" type="number" style="width:100%;padding:7px 10px;border:1px solid #ddd;border-radius:7px;font-size:12px" placeholder="0" oninput="calcClearTrip()">
+        </div>
+        <div>
+          <div style="font-size:10px;color:#888;margin-bottom:3px">งานรับ-เก็บปลายทาง (฿)</div>
+          <input id="ct-pickup-dest" type="number" style="width:100%;padding:7px 10px;border:1px solid #ddd;border-radius:7px;font-size:12px" placeholder="0" oninput="calcClearTrip()">
+        </div>
+      </div>
+    </div>
+
+    <!-- เงินเบิก -->
+    <div style="background:#fdf2f2;border:1px solid #f5c6c6;border-radius:8px;padding:10px;margin-bottom:10px">
+      <div style="font-size:11px;font-weight:700;color:#c0392b;margin-bottom:8px">📤 เงินเบิก</div>
+      <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px">
+        <div>
+          <div style="font-size:10px;color:#888;margin-bottom:3px">เบิกน้ำมันล่วงหน้า (฿)</div>
+          <input id="ct-fuel-advance" readonly style="width:100%;padding:7px 10px;border:1px solid #ddd;border-radius:7px;font-size:12px;background:#f5f5f5;color:#c0392b;font-weight:700">
+        </div>
+        <div>
+          <div style="font-size:10px;color:#888;margin-bottom:3px">เบิกอื่นๆ (฿) <span style="color:#aaa">กรอก</span></div>
+          <input id="ct-other-advance" type="number" style="width:100%;padding:7px 10px;border:1px solid #ddd;border-radius:7px;font-size:12px" placeholder="0" oninput="calcClearTrip()">
+        </div>
+        <div>
+          <div style="font-size:10px;color:#888;margin-bottom:3px">ค่าเบิก % <span style="color:#aaa">เรท</span></div>
+          <input id="ct-draw-rate" type="number" style="width:100%;padding:7px 10px;border:1px solid #ddd;border-radius:7px;font-size:12px" placeholder="0" step="0.1" oninput="calcClearTrip()">
+        </div>
+      </div>
+    </div>
+
+    <!-- สรุป -->
+    <div id="ct-summary" style="background:#0F6E56;color:#fff;border-radius:10px;padding:12px;margin-bottom:12px">
+      <div style="font-size:10px;opacity:.8;margin-bottom:8px">📊 สรุปยอดเคลียร์</div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">
+        <div>
+          <div style="font-size:10px;opacity:.8">ต้องเคลียร์</div>
+          <div id="ct-must-pay" style="font-size:18px;font-weight:800">—</div>
+        </div>
+        <div>
+          <div style="font-size:10px;opacity:.8">เบิกรวม+ค่าเบิก</div>
+          <div id="ct-total-advance" style="font-size:18px;font-weight:800">—</div>
+        </div>
+      </div>
+      <div style="border-top:1px solid rgba(255,255,255,.3);margin:8px 0;padding-top:8px;display:grid;grid-template-columns:1fr 1fr;gap:8px">
+        <div>
+          <div style="font-size:10px;opacity:.8">ยอดต้องคืน/รับคืน</div>
+          <div id="ct-net" style="font-size:20px;font-weight:800">—</div>
+        </div>
+        <div>
+          <div style="font-size:10px;opacity:.8">ค่าน้ำมันจริง</div>
+          <div id="ct-fuel-diff" style="font-size:14px;font-weight:700;opacity:.9">—</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- เงินเคลียร์จริง -->
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:10px">
+      <div>
+        <div style="font-size:10px;color:#888;margin-bottom:3px">เคลียร์เงินสด (฿)</div>
+        <input id="ct-clr-cash" type="number" style="width:100%;padding:8px 10px;border:2px solid #0F6E56;border-radius:7px;font-size:13px;font-weight:600" placeholder="0" oninput="calcClearDiff()">
+      </div>
+      <div>
+        <div style="font-size:10px;color:#888;margin-bottom:3px">เคลียร์โอน (฿)</div>
+        <input id="ct-clr-trans" type="number" style="width:100%;padding:8px 10px;border:2px solid #0F6E56;border-radius:7px;font-size:13px;font-weight:600" placeholder="0" oninput="calcClearDiff()">
+      </div>
+    </div>
+    <div id="ct-diff-row" style="text-align:center;font-size:16px;font-weight:800;padding:8px;border-radius:8px;margin-bottom:10px;display:none"></div>
+
+    <div class="btn-row">
+      <button class="btn btn-gray" onclick="closeClearTrip()">ยกเลิก</button>
+      <button class="btn btn-orange" onclick="saveClearTrip()">💾 บันทึกเคลียร์</button>
+    </div>
+  </div>
+</div>
+
 <div class="modal-bg" id="modal-status">
   <div class="modal">
     <h3>อัปเดตสถานะ</h3>
@@ -346,6 +474,8 @@ tr:hover td{background:#f8fffe}
 .ds-box{background:rgba(255,255,255,.15);border-radius:7px;padding:6px 8px;text-align:center}
 .ds-box .dsl{font-size:9px;opacity:.8}
 .ds-box .dsv{font-size:14px;font-weight:800}
+.btn-orange{background:#EF9F27;color:#fff;border:none}
+.btn-orange:hover{background:#D4891A}
 /* ===== PRINT ===== */
 @media print{
   body *{visibility:hidden}
@@ -382,6 +512,139 @@ tr:hover td{background:#f8fffe}
 </div>
 
 <!-- Modal อัปเดตสถานะ -->
+<!-- Modal เคลียร์เที่ยว -->
+<div class="modal-bg" id="modal-clear-trip" style="display:none">
+  <div class="modal" style="max-width:520px;max-height:92vh;overflow-y:auto">
+    <h3 style="color:#0F6E56;margin-bottom:4px">💰 เคลียร์เที่ยว</h3>
+    <div id="ct-trip-info" style="font-size:11px;color:#888;margin-bottom:12px"></div>
+
+    <!-- ไมล์จบ + ระยะทางจริง -->
+    <div style="background:#f8fffe;border:1px solid #d0ede5;border-radius:8px;padding:10px;margin-bottom:10px">
+      <div style="font-size:11px;font-weight:700;color:#0F6E56;margin-bottom:8px">🚗 ระยะทาง</div>
+      <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px">
+        <div>
+          <div style="font-size:10px;color:#888;margin-bottom:3px">ไมล์เริ่ม</div>
+          <input id="ct-odo-start" readonly style="width:100%;padding:7px 10px;border:1px solid #ddd;border-radius:7px;font-size:12px;background:#f5f5f5;color:#888">
+        </div>
+        <div>
+          <div style="font-size:10px;color:#888;margin-bottom:3px">ไมล์จบ (กรอก)</div>
+          <input id="ct-odo-end" type="number" style="width:100%;padding:7px 10px;border:1px solid #0F6E56;border-radius:7px;font-size:12px" placeholder="เลขไมล์จบ" oninput="calcClearTrip()">
+        </div>
+        <div>
+          <div style="font-size:10px;color:#0F6E56;margin-bottom:3px">ระยะทางจริง (กม.)</div>
+          <input id="ct-dist-real" readonly style="width:100%;padding:7px 10px;border:1px solid #d0ede5;border-radius:7px;font-size:12px;background:#f0faf5;font-weight:700;color:#0F6E56">
+        </div>
+      </div>
+    </div>
+
+    <!-- ค่าน้ำมันจริง -->
+    <div style="background:#fff8e1;border:1px solid #ffe082;border-radius:8px;padding:10px;margin-bottom:10px">
+      <div style="font-size:11px;font-weight:700;color:#b7950b;margin-bottom:8px">⛽ ค่าน้ำมันจริง</div>
+      <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px">
+        <div>
+          <div style="font-size:10px;color:#888;margin-bottom:3px">ราคา/ลิตร (฿)</div>
+          <input id="ct-fuel-price" readonly style="width:100%;padding:7px 10px;border:1px solid #ddd;border-radius:7px;font-size:12px;background:#f5f5f5;color:#888">
+        </div>
+        <div>
+          <div style="font-size:10px;color:#888;margin-bottom:3px">อัตราสิ้นเปลือง</div>
+          <input id="ct-fuel-rate" readonly style="width:100%;padding:7px 10px;border:1px solid #ddd;border-radius:7px;font-size:12px;background:#f5f5f5;color:#888">
+        </div>
+        <div>
+          <div style="font-size:10px;color:#b7950b;margin-bottom:3px">ค่าน้ำมันจริง (฿)</div>
+          <input id="ct-fuel-real" readonly style="width:100%;padding:7px 10px;border:1px solid #ffe082;border-radius:7px;font-size:12px;background:#fff8e1;font-weight:700;color:#b7950b">
+        </div>
+      </div>
+    </div>
+
+    <!-- เงินรับ -->
+    <div style="background:#f8fffe;border:1px solid #d0ede5;border-radius:8px;padding:10px;margin-bottom:10px">
+      <div style="font-size:11px;font-weight:700;color:#0F6E56;margin-bottom:8px">💵 เงินที่ได้รับ</div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:6px">
+        <div>
+          <div style="font-size:10px;color:#888;margin-bottom:3px">ปลายทาง (฿) — จากบิล</div>
+          <input id="ct-dest-amt" readonly style="width:100%;padding:7px 10px;border:1px solid #ddd;border-radius:7px;font-size:12px;background:#f5f5f5;color:#0F6E56;font-weight:700">
+        </div>
+        <div>
+          <div style="font-size:10px;color:#888;margin-bottom:3px">COD (฿) — จากบิล</div>
+          <input id="ct-cod-amt" readonly style="width:100%;padding:7px 10px;border:1px solid #ddd;border-radius:7px;font-size:12px;background:#f5f5f5;color:#c0392b;font-weight:700">
+        </div>
+      </div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">
+        <div>
+          <div style="font-size:10px;color:#888;margin-bottom:3px">งานรับ-รับสดต้นทาง (฿)</div>
+          <input id="ct-pickup-cash" type="number" style="width:100%;padding:7px 10px;border:1px solid #ddd;border-radius:7px;font-size:12px" placeholder="0" oninput="calcClearTrip()">
+        </div>
+        <div>
+          <div style="font-size:10px;color:#888;margin-bottom:3px">งานรับ-เก็บปลายทาง (฿)</div>
+          <input id="ct-pickup-dest" type="number" style="width:100%;padding:7px 10px;border:1px solid #ddd;border-radius:7px;font-size:12px" placeholder="0" oninput="calcClearTrip()">
+        </div>
+      </div>
+    </div>
+
+    <!-- เงินเบิก -->
+    <div style="background:#fdf2f2;border:1px solid #f5c6c6;border-radius:8px;padding:10px;margin-bottom:10px">
+      <div style="font-size:11px;font-weight:700;color:#c0392b;margin-bottom:8px">📤 เงินเบิก</div>
+      <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px">
+        <div>
+          <div style="font-size:10px;color:#888;margin-bottom:3px">เบิกน้ำมันล่วงหน้า (฿)</div>
+          <input id="ct-fuel-advance" readonly style="width:100%;padding:7px 10px;border:1px solid #ddd;border-radius:7px;font-size:12px;background:#f5f5f5;color:#c0392b;font-weight:700">
+        </div>
+        <div>
+          <div style="font-size:10px;color:#888;margin-bottom:3px">เบิกอื่นๆ (฿) <span style="color:#aaa">กรอก</span></div>
+          <input id="ct-other-advance" type="number" style="width:100%;padding:7px 10px;border:1px solid #ddd;border-radius:7px;font-size:12px" placeholder="0" oninput="calcClearTrip()">
+        </div>
+        <div>
+          <div style="font-size:10px;color:#888;margin-bottom:3px">ค่าเบิก % <span style="color:#aaa">เรท</span></div>
+          <input id="ct-draw-rate" type="number" style="width:100%;padding:7px 10px;border:1px solid #ddd;border-radius:7px;font-size:12px" placeholder="0" step="0.1" oninput="calcClearTrip()">
+        </div>
+      </div>
+    </div>
+
+    <!-- สรุป -->
+    <div id="ct-summary" style="background:#0F6E56;color:#fff;border-radius:10px;padding:12px;margin-bottom:12px">
+      <div style="font-size:10px;opacity:.8;margin-bottom:8px">📊 สรุปยอดเคลียร์</div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">
+        <div>
+          <div style="font-size:10px;opacity:.8">ต้องเคลียร์</div>
+          <div id="ct-must-pay" style="font-size:18px;font-weight:800">—</div>
+        </div>
+        <div>
+          <div style="font-size:10px;opacity:.8">เบิกรวม+ค่าเบิก</div>
+          <div id="ct-total-advance" style="font-size:18px;font-weight:800">—</div>
+        </div>
+      </div>
+      <div style="border-top:1px solid rgba(255,255,255,.3);margin:8px 0;padding-top:8px;display:grid;grid-template-columns:1fr 1fr;gap:8px">
+        <div>
+          <div style="font-size:10px;opacity:.8">ยอดต้องคืน/รับคืน</div>
+          <div id="ct-net" style="font-size:20px;font-weight:800">—</div>
+        </div>
+        <div>
+          <div style="font-size:10px;opacity:.8">ค่าน้ำมันจริง</div>
+          <div id="ct-fuel-diff" style="font-size:14px;font-weight:700;opacity:.9">—</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- เงินเคลียร์จริง -->
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:10px">
+      <div>
+        <div style="font-size:10px;color:#888;margin-bottom:3px">เคลียร์เงินสด (฿)</div>
+        <input id="ct-clr-cash" type="number" style="width:100%;padding:8px 10px;border:2px solid #0F6E56;border-radius:7px;font-size:13px;font-weight:600" placeholder="0" oninput="calcClearDiff()">
+      </div>
+      <div>
+        <div style="font-size:10px;color:#888;margin-bottom:3px">เคลียร์โอน (฿)</div>
+        <input id="ct-clr-trans" type="number" style="width:100%;padding:8px 10px;border:2px solid #0F6E56;border-radius:7px;font-size:13px;font-weight:600" placeholder="0" oninput="calcClearDiff()">
+      </div>
+    </div>
+    <div id="ct-diff-row" style="text-align:center;font-size:16px;font-weight:800;padding:8px;border-radius:8px;margin-bottom:10px;display:none"></div>
+
+    <div class="btn-row">
+      <button class="btn btn-gray" onclick="closeClearTrip()">ยกเลิก</button>
+      <button class="btn btn-orange" onclick="saveClearTrip()">💾 บันทึกเคลียร์</button>
+    </div>
+  </div>
+</div>
+
 <div class="modal-bg" id="modal-status">
   <div class="modal">
     <h3>อัปเดตสถานะ</h3>
@@ -640,6 +903,7 @@ function renderApp(){
     {k:"done",     l:"สำเร็จ/ไม่สำเร็จ"},
     {k:"all",      l:"ทั้งหมด"},
     {k:"trip",     l:"🚛 จัดการเที่ยว"},
+    {k:"monthly",  l:"📅 สรุปสิ้นเดือน"},
     {k:"history",  l:"📋 ประวัติจ่ายงาน"}
   ];
 
@@ -814,6 +1078,7 @@ function renderTripList(){
         +'</div>'
         +'<div style="display:flex;flex-direction:column;gap:4px;align-items:flex-end">'
           +'<button class="btn btn-gray" data-tid="'+t.id+'" onclick="editTrip(this.dataset.tid)">✏️ แก้ไข</button>'
+          +'<button class="btn btn-orange" data-tid="'+t.id+'" onclick="openClearTrip(this.dataset.tid)">💰 เคลียร์เที่ยว</button>'
           +'<button class="btn btn-green" data-tid="'+t.id+'" onclick="closeTrip(this.dataset.tid)">✅ ปิดเที่ยว</button>'
           +'<button class="btn btn-blue" data-tid="'+t.id+'" onclick="printTripSummary(this.dataset.tid)">🖨 พิมพ์</button>'
         +'</div>'+'</div>'
@@ -1031,13 +1296,7 @@ function renderTripForm(existingTrip){
 
     +'<div class="trip-section-title">⛽ ค่าน้ำมัน</div>'
     +'<div class="trip-form-grid cols3">'
-    +'<div><div class="trip-lbl">ระยะทาง (กม.)</div>'
-    +'<input id="tf-dist" type="number" class="trip-inp" placeholder="กม." value="'+(t.fuelDist||"")+'"></div>'
-    +'<div><div class="trip-lbl">ราคาน้ำมัน (฿/ลิตร)</div>'
-    +'<input id="tf-price" type="number" class="trip-inp" value="'+(t.fuelPrice||40)+'"></div>'
-    +'<div><div class="trip-lbl">อัตราสิ้นเปลือง (กม./ลิตร)</div>'
-    +'<input id="tf-rate" type="number" class="trip-inp" value="'+(t.fuelRate||8)+'"></div>'
-    +'</div>'
+    /* ระยะทางคำนวณจากไมล์ ไม่ต้องกรอก */
     +'<div class="trip-form-grid">'
     +'<div><div class="trip-lbl">เบิกล่วงหน้าน้ำมัน (฿)</div>'
     +'<input id="tf-adv" type="number" class="trip-inp" placeholder="0" value="'+(t.fuelAdvance||"")+'"></div>'
@@ -1418,6 +1677,207 @@ function printTripSummary(tripId){
   }
 }
 
+// ===== MONTHLY TAB =====
+function renderMonthlyTab(){
+  var app = document.getElementById("app");
+  app.innerHTML = '<div class="card"><div class="loading">⏳ กำลังโหลด...</div></div>';
+
+  // เลือกเดือน/ปี + คนขับ
+  var now = new Date();
+  var defMonth = now.getFullYear()+"-"+String(now.getMonth()+1).padStart(2,"0");
+
+  // โหลด drivers + trips
+  Promise.all([
+    GolodDB.getUsers ? GolodDB.getUsers() : Promise.resolve([]),
+    GolodDB.getTrips ? GolodDB.getTrips({limitN:500}) : Promise.resolve([])
+  ]).then(function(results){
+    var drivers = (results[0]||[]).filter(function(u){ return u.role==="driver"; });
+    var allTrips = results[1]||[];
+    renderMonthlyView(drivers, allTrips, defMonth, "");
+  }).catch(function(e){
+    app.innerHTML = '<div class="card"><div class="loading">❌ '+e.message+'</div></div>';
+  });
+}
+
+function renderMonthlyView(drivers, allTrips, selMonth, selDriver){
+  var ub = getUserBranch();
+  var isAdmin = CU && CU.role==="admin";
+  var fmt = function(n){ return n?Math.round(n).toLocaleString("th-TH"):"-"; };
+
+  // filter trips
+  var trips = allTrips.filter(function(t){
+    if(ub!=="all" && t.branch!==ub) return false;
+    if(selDriver && t.driverUsername!==selDriver) return false;
+    if(selMonth){
+      var dp = (t.departDate||t.createdAt||"").slice(0,7);
+      if(dp!==selMonth) return false;
+    }
+    return true;
+  });
+
+  // group by driver
+  var byDriver = {};
+  trips.forEach(function(t){
+    var k = t.driverUsername||"unknown";
+    if(!byDriver[k]) byDriver[k]={name:t.driverName||k, trips:[]};
+    byDriver[k].trips.push(t);
+  });
+
+  var driverOpts = drivers.map(function(d){
+    return '<option value="'+d.username+'"'+(selDriver===d.username?" selected":"")+'>'+d.name+'</option>';
+  }).join("");
+
+  // สร้างตาราง
+  var tables = "";
+  Object.values(byDriver).forEach(function(dData){
+    var dTrips = dData.trips.slice().sort(function(a,b){
+      return (a.departDate||a.createdAt||"").localeCompare(b.departDate||b.createdAt||"");
+    });
+    // คำนวณ totals
+    var tot = {fare:0,hotel:0,labor:0,fareTotal:0,fuel:0,
+               dest:0,cod:0,pkCash:0,pkDest:0,
+               mustPay:0,advance:0,drawFee:0,
+               clrCash:0,clrTrans:0,diff:0,fine:0};
+
+    var rows = dTrips.map(function(t,i){
+      var s = t.summary||{};
+      var cd = t.clearData||{};
+      var fare = parseFloat(t.baseFare||0)+parseFloat(t.extraFare||0);
+      var hotel = parseFloat(t.hotelFare||0);
+      var labor = parseFloat(t.ratePerBill||0)*(s.billCount||0);
+      var fareTotal = fare+hotel+labor;
+      var fuel = parseFloat(cd.fuelReal||t.fuelEst||0);
+      var dest = parseFloat(s.destTotal||0);
+      var cod  = parseFloat(s.codTotal||0);
+      var pkD  = parseFloat(cd.pickupDest||0);
+      var pkC  = parseFloat(cd.pickupCash||0);
+      var mustP= parseFloat(cd.mustPay||dest+cod+pkD);
+      var adv  = parseFloat(cd.clrCash||0)+parseFloat(cd.clrTrans||0);
+      var drawF= parseFloat(cd.drawFee||0);
+      var clrC = parseFloat(cd.clrCash||0);
+      var clrT = parseFloat(cd.clrTrans||0);
+      var diff = parseFloat(cd.diff||0);
+      var fine = parseFloat(cd.fine||0);
+      tot.fare+=fare; tot.hotel+=hotel; tot.labor+=labor; tot.fareTotal+=fareTotal;
+      tot.fuel+=fuel; tot.dest+=dest; tot.cod+=cod;
+      tot.pkCash+=pkC; tot.pkDest+=pkD; tot.mustPay+=mustP;
+      tot.advance+=adv; tot.drawFee+=drawF;
+      tot.clrCash+=clrC; tot.clrTrans+=clrT; tot.diff+=diff; tot.fine+=fine;
+
+      var status = t.status==="cleared"?'<span style="color:#0F6E56;font-weight:700">✅</span>'
+                 : t.status==="open"?'<span style="color:#EF9F27">🟡</span>':'';
+      var diffClr = diff<0?"color:#c0392b":"color:#0F6E56";
+      return '<tr style="border-bottom:1px solid #f0f0f0">'
+        +'<td style="text-align:center;color:#888;font-size:10px">'+(i+1)+'</td>'
+        +'<td style="text-align:center">'+status+'</td>'
+        +'<td style="font-size:11px;color:#888">'+((t.departDate||"").slice(5)||"—")+'</td>'
+        +'<td style="font-size:11px">'+((t.route||"—").slice(0,10))+'</td>'
+        +'<td style="text-align:right;font-size:11px;color:#b7950b">'+fmt(fuel)+'</td>'
+        +(isAdmin?'<td style="text-align:right;font-size:11px">'+fmt(fare)+'</td>'
+          +'<td style="text-align:right;font-size:11px">'+fmt(hotel)+'</td>'
+          +'<td style="text-align:right;font-size:11px">'+fmt(labor)+'</td>'
+          +'<td style="text-align:right;font-size:11px;font-weight:700;color:#0F6E56">'+fmt(fareTotal)+'</td>':'')
+        +'<td style="text-align:right;font-size:11px">'+fmt(dest)+'</td>'
+        +'<td style="text-align:right;font-size:11px;color:#c0392b">'+fmt(cod)+'</td>'
+        +'<td style="text-align:right;font-size:11px">'+fmt(pkC)+'</td>'
+        +'<td style="text-align:right;font-size:11px">'+fmt(pkD)+'</td>'
+        +'<td style="text-align:right;font-size:11px;font-weight:700;color:#c0392b">'+fmt(mustP)+'</td>'
+        +'<td style="text-align:right;font-size:11px">'+fmt(clrC)+'</td>'
+        +'<td style="text-align:right;font-size:11px">'+fmt(clrT)+'</td>'
+        +'<td style="text-align:right;font-size:11px;font-weight:700;'+diffClr+'">'+fmt(diff)+'</td>'
+        +'<td style="text-align:right;font-size:11px;color:#c0392b">'+fmt(fine)+'</td>'
+        +'</tr>';
+    }).join("");
+
+    // summary row
+    var totDiff = tot.diff;
+    var totDiffClr = totDiff<0?"color:#c0392b":"color:#0F6E56";
+    var sumRow = '<tr style="background:#f0faf5;font-weight:700;font-size:11px">'
+      +'<td colspan="4" style="text-align:right;color:#0F6E56">รวม</td>'
+      +'<td style="text-align:right;color:#b7950b">'+fmt(tot.fuel)+'</td>'
+      +(isAdmin?'<td style="text-align:right">'+fmt(tot.fare)+'</td>'
+        +'<td style="text-align:right">'+fmt(tot.hotel)+'</td>'
+        +'<td style="text-align:right">'+fmt(tot.labor)+'</td>'
+        +'<td style="text-align:right;color:#0F6E56">'+fmt(tot.fareTotal)+'</td>':'')
+      +'<td style="text-align:right">'+fmt(tot.dest)+'</td>'
+      +'<td style="text-align:right;color:#c0392b">'+fmt(tot.cod)+'</td>'
+      +'<td style="text-align:right">'+fmt(tot.pkCash)+'</td>'
+      +'<td style="text-align:right">'+fmt(tot.pkDest)+'</td>'
+      +'<td style="text-align:right;color:#c0392b">'+fmt(tot.mustPay)+'</td>'
+      +'<td style="text-align:right">'+fmt(tot.clrCash)+'</td>'
+      +'<td style="text-align:right">'+fmt(tot.clrTrans)+'</td>'
+      +'<td style="text-align:right;'+totDiffClr+'">'+fmt(totDiff)+'</td>'
+      +'<td style="text-align:right;color:#c0392b">'+fmt(tot.fine)+'</td>'
+      +'</tr>';
+
+    // สรุปรายได้สุทธิ (admin)
+    var netSummary = "";
+    if(isAdmin){
+      var bonus   = dTrips.reduce(function(a,t){ return a+parseFloat(t.bonusFare||0); },0);
+      var phone   = dTrips.reduce(function(a,t){ return a+parseFloat(t.phoneFare||0); },0);
+      var insurD  = dTrips.reduce(function(a,t){ return a+parseFloat(t.insurDeduct||0); },0);
+      var drawCash= dTrips.reduce(function(a,t){ return a+parseFloat(t.drawCash||0); },0);
+      var incomeTotal = tot.fareTotal + bonus + phone;
+      var netIncome   = incomeTotal - tot.diff - insurD - drawCash;
+      netSummary = '<div style="background:#0F6E56;color:#fff;border-radius:8px;padding:10px 14px;margin-top:8px;display:flex;gap:16px;flex-wrap:wrap;align-items:center">'
+        +'<div><div style="font-size:9px;opacity:.8">ค่าเที่ยวรวม</div><div style="font-weight:800">'+fmt(tot.fareTotal)+'</div></div>'
+        +'<div style="opacity:.5">+</div>'
+        +'<div><div style="font-size:9px;opacity:.8">เบี้ย+ค่าโทร</div><div style="font-weight:800">'+fmt(bonus+phone)+'</div></div>'
+        +'<div style="opacity:.5">−</div>'
+        +'<div><div style="font-size:9px;opacity:.8">เบิก/เกินรวม</div><div style="font-weight:800">'+fmt(tot.diff)+'</div></div>'
+        +'<div style="opacity:.5">−</div>'
+        +'<div><div style="font-size:9px;opacity:.8">ประกัน+เบิกร้าน</div><div style="font-weight:800">'+fmt(insurD+drawCash)+'</div></div>'
+        +'<div style="background:rgba(255,255,255,.2);border-radius:6px;padding:6px 12px;margin-left:auto">'
+        +'<div style="font-size:10px;opacity:.8">รายได้สุทธิ</div>'
+        +'<div style="font-size:18px;font-weight:800">'+fmt(netIncome)+' ฿</div>'
+        +'</div></div>';
+    }
+
+    var hCols = '<th>⬛</th><th>สถานะ</th><th>วันที่</th><th>เส้นทาง</th><th>น้ำมัน</th>'
+      +(isAdmin?'<th>ค่าเที่ยว</th><th>โรงแรม</th><th>ค่าแรง</th><th>รวมเที่ยว</th>':'')
+      +'<th>ปลายทาง</th><th>COD</th><th>รับสด</th><th>รับปลาย</th>'
+      +'<th>ต้องเคลียร์</th><th>เคลียร์สด</th><th>เคลียร์โอน</th><th>ขาด/เกิน</th><th>ปรับ</th>';
+
+    tables += '<div class="card" style="margin-bottom:12px">'
+      +'<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px">'
+      +'<div class="card-title" style="margin:0">🚛 '+dData.name+'</div>'
+      +'<div style="font-size:11px;color:#888">'+dTrips.length+' เที่ยว</div>'
+      +'</div>'
+      +'<div style="overflow-x:auto"><table style="width:100%;border-collapse:collapse;font-size:11px">'
+      +'<tr style="background:#0F6E56;color:#fff">'+hCols+'</tr>'
+      +rows+sumRow
+      +'</table></div>'
+      +netSummary
+      +'</div>';
+  });
+
+  if(!tables) tables = '<div class="card"><div style="text-align:center;padding:30px;color:#aaa">ไม่พบข้อมูลเที่ยวในช่วงนี้</div></div>';
+
+  var html = '<div class="card" style="margin-bottom:10px">'
+    +'<div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap">'
+    +'<div class="card-title" style="margin:0">📅 สรุปสิ้นเดือน</div>'
+    +'<input type="month" value="'+selMonth+'" style="padding:6px 10px;border:1px solid #ddd;border-radius:7px;font-size:12px" '
+    +'onchange="reloadMonthly(this.value, document.getElementById('monthly-driver').value)">'
+    +'<select id="monthly-driver" style="padding:6px 10px;border:1px solid #ddd;border-radius:7px;font-size:12px" '
+    +'onchange="reloadMonthly(document.querySelector('input[type=month]').value,this.value)">'
+    +'<option value="">-- ทุกคน --</option>'+driverOpts+'</select>'
+    +'<button class="btn btn-gray" onclick="renderMonthlyTab()">🔄</button>'
+    +'</div></div>'
+    +tables;
+
+  // เก็บ context สำหรับ reload
+  window._monthlyCtx = {drivers: drivers, allTrips: allTrips};
+  document.getElementById("app").innerHTML = html;
+}
+
+function reloadMonthly(month, driver){
+  if(window._monthlyCtx){
+    renderMonthlyView(window._monthlyCtx.drivers, window._monthlyCtx.allTrips, month, driver);
+  } else {
+    renderMonthlyTab();
+  }
+}
+
 // ===== HISTORY TAB =====
 var historyDateMode = "week";
 var historyDateFrom = "";
@@ -1694,6 +2154,7 @@ function onDateModeChange(mode){
 
 function switchTab(t){
   currentTab=t; selectedBills={};
+  if(t==="monthly"){ renderMonthlyTab(); return; }
   if(t==="done" && typeof loadDoneBills==="function"){
     // default done tab = 7 วัน (บิลส่งสำเร็จมักไม่ใช่วันนี้)
     if(filterDateMode==="today") filterDateMode="week";
@@ -2092,6 +2553,165 @@ function getPickupData(){
     }
   });
   return pickups;
+}
+
+// ====== CLEAR TRIP ======
+var _clearTripId = null;
+var _clearTripData = null;
+
+function openClearTrip(tripId){
+  var trip = (_tripState.openTrips||[]).find(function(t){ return t.id===tripId; });
+  if(!trip){ alert("ไม่พบข้อมูลเที่ยว"); return; }
+  _clearTripId = tripId;
+  _clearTripData = trip;
+
+  // แสดงข้อมูลเที่ยว
+  var s = trip.summary||{};
+  var info = (trip.driverName||"—") + " | " + (trip.route||"—") + " | " + (trip.departDate||"—");
+  document.getElementById("ct-trip-info").textContent = info;
+
+  // ไมล์เริ่ม
+  var g = function(id, val){
+    var el = document.getElementById(id);
+    if(el) el.value = val!=null&&val!==""?val:"";
+  };
+  g("ct-odo-start", trip.odomStart||"");
+  g("ct-odo-end", trip.odomEnd||"");
+  g("ct-fuel-price", trip.fuelPrice||40);
+  g("ct-fuel-rate", trip.fuelRate||8);
+  g("ct-fuel-advance", trip.fuelAdvance||0);
+  g("ct-dest-amt", (s.destTotal||0).toLocaleString("th-TH"));
+  g("ct-cod-amt", (s.codTotal||0).toLocaleString("th-TH"));
+  g("ct-pickup-cash", trip.clearData&&trip.clearData.pickupCash||"");
+  g("ct-pickup-dest", trip.clearData&&trip.clearData.pickupDest||"");
+  g("ct-other-advance", trip.clearData&&trip.clearData.otherAdvance||"");
+  g("ct-draw-rate", trip.clearData&&trip.clearData.drawRate||"");
+  g("ct-clr-cash", trip.clearData&&trip.clearData.clrCash||"");
+  g("ct-clr-trans", trip.clearData&&trip.clearData.clrTrans||"");
+
+  calcClearTrip();
+  document.getElementById("modal-clear-trip").style.display = "flex";
+}
+
+function closeClearTrip(){
+  document.getElementById("modal-clear-trip").style.display = "none";
+  _clearTripId = null; _clearTripData = null;
+}
+
+function calcClearTrip(){
+  var trip = _clearTripData||{};
+  var s = trip.summary||{};
+  var fuelPrice = parseFloat(trip.fuelPrice||40);
+  var fuelRate  = parseFloat(trip.fuelRate||8);
+  var odoStart  = parseFloat(trip.odomStart||0);
+  var odoEnd    = parseFloat((document.getElementById("ct-odo-end")||{}).value||0);
+
+  // ระยะทางจริง
+  var distReal = odoEnd > odoStart ? odoEnd - odoStart : 0;
+  var el = document.getElementById("ct-dist-real");
+  if(el) el.value = distReal > 0 ? distReal.toLocaleString("th-TH")+" กม." : "—";
+
+  // ค่าน้ำมันจริง
+  var fuelReal = fuelRate > 0 ? Math.round((distReal/fuelRate)*fuelPrice) : 0;
+  var fe = document.getElementById("ct-fuel-real");
+  if(fe) fe.value = fuelReal > 0 ? fuelReal.toLocaleString("th-TH")+" ฿" : "—";
+
+  // ต้องเคลียร์ = ปลายทาง + COD + งานรับเก็บปลาย
+  var destAmt   = parseFloat(s.destTotal||0);
+  var codAmt    = parseFloat(s.codTotal||0);
+  var pkDest    = parseFloat((document.getElementById("ct-pickup-dest")||{}).value||0);
+  var mustPay   = destAmt + codAmt + pkDest;
+
+  // เงินเบิกรวม = เบิกน้ำมัน + เบิกอื่น + ค่าเบิก
+  var fuelAdv   = parseFloat(trip.fuelAdvance||0);
+  var otherAdv  = parseFloat((document.getElementById("ct-other-advance")||{}).value||0);
+  var drawRate  = parseFloat((document.getElementById("ct-draw-rate")||{}).value||0)/100;
+  var totalAdv  = fuelAdv + otherAdv;
+  var drawFee   = Math.round(totalAdv * drawRate);
+  var totalAdvWithFee = totalAdv + drawFee;
+
+  // ยอดต้องคืน = เบิกรวม+ค่าเบิก - ต้องเคลียร์
+  // ถ้า + → คนรถต้องคืน, ถ้า - → บริษัทคืนคนรถ
+  var netPay = totalAdvWithFee - mustPay;
+
+  var fmt = function(n){ return (Math.round(n)||0).toLocaleString("th-TH"); };
+  var sg = function(id, val){ var el=document.getElementById(id); if(el)el.textContent=val; };
+  sg("ct-must-pay", fmt(mustPay)+" ฿");
+  sg("ct-total-advance", fmt(totalAdvWithFee)+" ฿"+(drawFee>0?" (รวมค่าเบิก "+fmt(drawFee)+"฿)":""));
+  sg("ct-net", (netPay>=0?"+":"")+fmt(netPay)+" ฿");
+  sg("ct-fuel-diff", "น้ำมันจริง "+fmt(fuelReal)+" ฿ (เบิกล่วงหน้า "+fmt(fuelAdv)+" ฿)");
+
+  // สีสรุป
+  var sumEl = document.getElementById("ct-summary");
+  if(sumEl) sumEl.style.background = netPay < 0 ? "#1565C0" : "#0F6E56";
+
+  calcClearDiff();
+}
+
+function calcClearDiff(){
+  var trip = _clearTripData||{};
+  var s = trip.summary||{};
+  var destAmt = parseFloat(s.destTotal||0);
+  var codAmt  = parseFloat(s.codTotal||0);
+  var pkDest  = parseFloat((document.getElementById("ct-pickup-dest")||{}).value||0);
+  var mustPay = destAmt + codAmt + pkDest;
+  var clrCash = parseFloat((document.getElementById("ct-clr-cash")||{}).value||0);
+  var clrTrans= parseFloat((document.getElementById("ct-clr-trans")||{}).value||0);
+  var diff = (clrCash + clrTrans) - mustPay;
+  var el = document.getElementById("ct-diff-row");
+  if(!el) return;
+  if(mustPay === 0){ el.style.display="none"; return; }
+  el.style.display = "block";
+  var fine = diff < 0
+    ? (Math.abs(diff)>=2500 ? Math.round(Math.abs(diff)*0.05)
+    : Math.abs(diff)>=1200 ? Math.round(Math.abs(diff)*0.03) : 0)
+    : 0;
+  var txt = diff >= 0
+    ? "✅ เกิน " + diff.toLocaleString("th-TH") + " ฿"
+    : "❌ ขาด " + Math.abs(diff).toLocaleString("th-TH") + " ฿"
+      + (fine>0 ? " | ค่าปรับ " + fine.toLocaleString("th-TH") + " ฿" : "");
+  el.textContent = txt;
+  el.style.background = diff >= 0 ? "#e8f5e9" : "#ffebee";
+  el.style.color = diff >= 0 ? "#1B5E20" : "#B71C1C";
+}
+
+function saveClearTrip(){
+  if(!_clearTripId) return;
+  var trip = _clearTripData||{};
+  var s = trip.summary||{};
+  var odoEnd = parseFloat((document.getElementById("ct-odo-end")||{}).value||0);
+  var odoStart = parseFloat(trip.odomStart||0);
+  var distReal = odoEnd > odoStart ? odoEnd - odoStart : parseFloat(trip.fuelDist||0);
+  var fuelReal = trip.fuelRate>0 ? Math.round((distReal/trip.fuelRate)*trip.fuelPrice) : 0;
+  var pkCash  = parseFloat((document.getElementById("ct-pickup-cash")||{}).value||0);
+  var pkDest  = parseFloat((document.getElementById("ct-pickup-dest")||{}).value||0);
+  var otherAdv= parseFloat((document.getElementById("ct-other-advance")||{}).value||0);
+  var drawRate= parseFloat((document.getElementById("ct-draw-rate")||{}).value||0)/100;
+  var totalAdv= parseFloat(trip.fuelAdvance||0) + otherAdv;
+  var drawFee = Math.round(totalAdv * drawRate);
+  var mustPay = parseFloat(s.destTotal||0) + parseFloat(s.codTotal||0) + pkDest;
+  var clrCash = parseFloat((document.getElementById("ct-clr-cash")||{}).value||0);
+  var clrTrans= parseFloat((document.getElementById("ct-clr-trans")||{}).value||0);
+  var diff    = (clrCash + clrTrans) - mustPay;
+  var fine    = diff < 0
+    ? (Math.abs(diff)>=2500 ? Math.round(Math.abs(diff)*0.05)
+    : Math.abs(diff)>=1200 ? Math.round(Math.abs(diff)*0.03) : 0) : 0;
+
+  var clearData = {
+    odomEnd: odoEnd, distReal: distReal, fuelReal: fuelReal,
+    pickupCash: pkCash, pickupDest: pkDest,
+    otherAdvance: otherAdv, drawRate: drawRate*100, drawFee: drawFee,
+    mustPay: mustPay, clrCash: clrCash, clrTrans: clrTrans,
+    diff: diff, fine: fine, clearedAt: new Date().toISOString(),
+    clearedBy: CU ? CU.username : ""
+  };
+
+  GolodDB.updateTrip(_clearTripId, {clearData: clearData, status:"cleared"})
+    .then(function(){
+      alert("✅ บันทึกการเคลียร์แล้ว");
+      closeClearTrip();
+      renderTripTab();
+    }).catch(function(e){ alert("❌ "+e.message); });
 }
 
 function saveDispatchLogNow(bills, targetId, targetName){
