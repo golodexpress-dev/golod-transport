@@ -1738,86 +1738,24 @@ function showDriverSummary(bills, driverName){
   var dateStr=now.getDate()+"/"+(now.getMonth()+1)+"/"+(now.getFullYear());
 
   // สร้าง text สำหรับ Line share
-  var lineText = "📦 ใบงานวันที่ "+dateStr+"
-";
-  lineText += "คนขับ: "+driverName+"
-";
-  lineText += "━━━━━━━━━━━━━━━
-";
-  lineText += "📋 บิลทั้งหมด: "+bills.length+" ใบ
-";
+  var lineText = "📦 ใบงานวันที่ "+dateStr+"\n";
+  lineText += "คนขับ: "+driverName+"\n";
+  lineText += "━━━━━━━━━━━━━━━\n";
+  lineText += "📋 บิลทั้งหมด: "+bills.length+" ใบ\n";
   if(destBills.length>0){
-    lineText += "💰 เก็บเงินปลายทาง: "+destBills.length+" ใบ รวม "+fmt(destTotal)+" ฿
-";
-    destBills.forEach(function(b){ lineText += "  • "+b.billNo+" "+b.recv+" ("+b.dest+") "+fmt(b.amt)+"฿
-"; });
+    lineText += "💰 เก็บเงินปลายทาง: "+destBills.length+" ใบ รวม "+fmt(destTotal)+" ฿\n";
+    destBills.forEach(function(b){ lineText += "  • "+b.billNo+" "+b.recv+" ("+b.dest+") "+fmt(b.amt)+"฿\n"; });
   }
   if(codBills.length>0){
-    lineText += "💳 COD รวม: "+fmt(codTotal)+" ฿
-";
-    codBills.forEach(function(b){ lineText += "  • "+b.billNo+" "+b.recv+" COD "+fmt(b.cod)+"฿
-"; });
+    lineText += "💳 COD รวม: "+fmt(codTotal)+" ฿\n";
+    codBills.forEach(function(b){ lineText += "  • "+b.billNo+" "+b.recv+" COD "+fmt(b.cod)+"฿\n"; });
   }
   if(pickupBills.length>0){
-    lineText += "📦 งานรับ "+pickupBills.length+" จุด:
-";
-    pickupBills.forEach(function(b){ lineText += "  • "+b.billNo+" "+b.recv+" ("+b.dest+")
-"; });
+    lineText += "📦 งานรับ "+pickupBills.length+" จุด:\n";
+    pickupBills.forEach(function(b){ lineText += "  • "+b.billNo+" "+b.recv+" ("+b.dest+")\n"; });
   }
-  lineText += "━━━━━━━━━━━━━━━
-";
+  lineText += "━━━━━━━━━━━━━━━\n";
   lineText += "✅ รวมต้องเก็บ: "+fmt(destTotal+codTotal)+" ฿";
-
-  // HTML summary
-  var summaryHTML = '<div style="font-family:Arial,sans-serif;max-width:360px;margin:0 auto">'
-    +'<div style="background:#0F6E56;color:#fff;padding:12px 16px;border-radius:10px 10px 0 0;text-align:center">'
-    +'<div style="font-size:11px;opacity:.8">โกโลด ทรานสปอร์ต · '+dateStr+'</div>'
-    +'<div style="font-size:15px;font-weight:800;margin:4px 0">📋 ใบงานคนขับ</div>'
-    +'<div style="font-size:12px">'+driverName+'</div>'
-    +'</div>'
-    +'<div style="background:#fff;border:1px solid #d0ede5;border-top:none;padding:14px;border-radius:0 0 10px 10px">'
-    // stats grid
-    +'<div style="display:grid;grid-template-columns:repeat(4,1fr);gap:6px;margin-bottom:12px;text-align:center">'
-    +'<div style="background:#f8fffe;border:1px solid #d0ede5;border-radius:7px;padding:8px 4px"><div style="font-size:9px;color:#888">บิลทั้งหมด</div><div style="font-size:18px;font-weight:800;color:#0F6E56">'+bills.length+'</div></div>'
-    +'<div style="background:#fff8e1;border:1px solid #ffe082;border-radius:7px;padding:8px 4px"><div style="font-size:9px;color:#888">ปลายทาง</div><div style="font-size:14px;font-weight:800;color:#b7950b">'+fmt(destTotal)+'</div></div>'
-    +'<div style="background:#fdf2f2;border:1px solid #f5c6c6;border-radius:7px;padding:8px 4px"><div style="font-size:9px;color:#888">COD</div><div style="font-size:14px;font-weight:800;color:#c0392b">'+fmt(codTotal)+'</div></div>'
-    +'<div style="background:'+(pickupBills.length>0?"#fff3e0":"#f8fffe")+';border:1px solid '+(pickupBills.length>0?"#ffcc80":"#d0ede5")+';border-radius:7px;padding:8px 4px"><div style="font-size:9px;color:#888">งานรับ</div><div style="font-size:18px;font-weight:800;color:'+(pickupBills.length>0?"#e67e22":"#555")+'">'+pickupBills.length+'</div></div>'
-    +'</div>'
-    // total must collect
-    +'<div style="background:#0F6E56;color:#fff;border-radius:8px;padding:10px 14px;text-align:center;margin-bottom:10px">'
-    +'<div style="font-size:10px;opacity:.8">ยอดรวมต้องเก็บทั้งหมด</div>'
-    +'<div style="font-size:22px;font-weight:800">'+fmt(destTotal+codTotal)+' ฿</div>'
-    +'</div>'
-    // dest bills
-    +(destBills.length>0?'<div style="margin-bottom:8px"><div style="font-size:10px;font-weight:700;color:#b7950b;margin-bottom:4px">💰 เก็บเงินปลายทาง ('+destBills.length+' ใบ)</div>'
-      +destBills.map(function(b){ return '<div style="display:flex;justify-content:space-between;padding:4px 0;border-bottom:1px solid #f5f5f5;font-size:11px"><span style="color:#555">'+b.billNo+' '+b.recv+'</span><span style="font-weight:700;color:#b7950b">'+fmt(b.amt)+'฿</span></div>'; }).join("")
-      +'</div>':"")
-    // cod bills
-    +(codBills.length>0?'<div style="margin-bottom:8px"><div style="font-size:10px;font-weight:700;color:#c0392b;margin-bottom:4px">💳 COD ('+codBills.length+' ใบ)</div>'
-      +codBills.map(function(b){ return '<div style="display:flex;justify-content:space-between;padding:4px 0;border-bottom:1px solid #f5f5f5;font-size:11px"><span style="color:#555">'+b.billNo+' '+b.recv+'</span><span style="font-weight:700;color:#c0392b">'+fmt(b.cod)+'฿</span></div>'; }).join("")
-      +'</div>':"")
-    // pickup
-    +(pickupBills.length>0?'<div style="margin-bottom:8px"><div style="font-size:10px;font-weight:700;color:#e67e22;margin-bottom:4px">📦 งานรับ ('+pickupBills.length+' จุด)</div>'
-      +pickupBills.map(function(b){ return '<div style="padding:4px 0;border-bottom:1px solid #f5f5f5;font-size:11px;color:#555">'+b.billNo+' '+b.recv+' ('+b.dest+')</div>'; }).join("")
-      +'</div>':"")
-    +'</div></div>';
-
-  // แสดงใน print-area-driver (สร้างถ้าไม่มี)
-  var pa = document.getElementById("print-area-driver");
-  if(!pa){
-    pa = document.createElement("div");
-    pa.id = "print-area-driver";
-    pa.style.cssText = "position:fixed;inset:0;background:#fff;z-index:9999;overflow-y:auto;padding:20px";
-    document.body.appendChild(pa);
-  }
-  pa.style.display = "block";
-  pa.innerHTML = summaryHTML
-    +'<div style="display:flex;gap:10px;justify-content:center;padding:16px;position:sticky;bottom:0;background:#fff;border-top:1px solid #eee">'
-    +'<button onclick="shareDriverSummary()" style="flex:1;padding:12px;background:#06C755;color:#fff;border:none;border-radius:10px;font-size:14px;font-weight:700;cursor:pointer">📱 แชร์ Line</button>'
-    +'<button onclick="copyDriverSummary()" style="flex:1;padding:12px;background:#0F6E56;color:#fff;border:none;border-radius:10px;font-size:14px;font-weight:700;cursor:pointer">📋 คัดลอก</button>'
-    +'<button onclick="document.getElementById('print-area-driver').style.display='none'" style="padding:12px 16px;background:#eee;border:none;border-radius:10px;font-size:14px;cursor:pointer">✕</button>'
-    +'</div>';
-
   window._driverSummaryText = lineText;
 }
 
