@@ -1464,8 +1464,13 @@ function onDateModeChange(mode){
 
 function switchTab(t){
   currentTab=t; selectedBills={};
-  if(t==="done" && typeof loadDoneBills==="function") loadDoneBills();
-  else renderApp();
+  if(t==="done" && typeof loadDoneBills==="function"){
+    // default done tab = 7 วัน (บิลส่งสำเร็จมักไม่ใช่วันนี้)
+    if(filterDateMode==="today") filterDateMode="week";
+    loadDoneBills();
+  } else {
+    renderApp();
+  }
 }
 
 function filterTable(){
