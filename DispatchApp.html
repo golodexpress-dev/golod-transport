@@ -633,8 +633,9 @@ function renderApp(){
     } else {
       cnt = filterBills(t.k).length;
     }
-    return '<div class="tab'+(currentTab===t.k?" active":"")+'" onclick="switchTab(''+t.k+'')">'
-      +t.l+(cnt!==""?'<span class="count-badge">'+cnt+'</span>':"")+'</div>';
+    var badge = cnt!=="" ? '<span class="count-badge">'+cnt+'</span>' : "";
+    var cls = 'tab'+(currentTab===t.k?" active":"");
+    return '<div class="'+cls+'" onclick="switchTab(\'' + t.k + '\')">' + t.l + badge + '</div>';
   }).join("");
 
   // Date filter bar
