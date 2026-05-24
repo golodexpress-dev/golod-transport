@@ -886,6 +886,7 @@ function editTrip(tripId){
 function renderTripForm(existingTrip){
   var t = existingTrip || {};
   var isEdit = _tripState.mode === "edit";
+  var isAdmin = CU && (CU.role==="admin");
   var ub = getUserBranch();
   var drivers = _tripState.drivers.filter(function(d){
     if(ub==="all") return true;
@@ -958,20 +959,74 @@ function renderTripForm(existingTrip){
     +'<input id="tf-note" class="trip-inp" placeholder="หมายเหตุ" value="'+(t.note||"")+'"></div>'
     +'</div>'
 
-    +'<div class="trip-section-title">▶ ค่าเที่ยว</div>'
+    +'<div class="trip-section-title">▶ ค่าเที่ยว '+(isAdmin?'<span style="font-size:10px;color:#b7950b">[Admin]</span>':'')+' <span style="font-size:10px;color:#aaa">'+(isAdmin?'':'เสมียนดูได้อย่างเดียว')+'</span></div>'
     +'<div class="trip-form-grid cols3">'
     +'<div><div class="trip-lbl">ค่าเที่ยวฐาน (฿)</div>'
-    +'<input id="tf-base" type="number" class="trip-inp" placeholder="กรอกค่าเที่ยว" value="'+(t.baseFare||"")+'"></div>'
+    +'<input id="tf-base" type="number" class="trip-inp" placeholder="กรอกค่าเที่ยว" value="'+(t.baseFare||"")+'" '+(isAdmin?'':'readonly style="background:#f5f5f5;color:#888"')+'></div>'
     +'<div><div class="trip-lbl">ค่าบวกเพิ่ม (฿)</div>'
-    +'<input id="tf-extra" type="number" class="trip-inp" placeholder="0" value="'+(t.extraFare||"")+'"></div>'
-    +'<div><div class="trip-lbl">รวมค่าเที่ยว</div>'
+    +'<input id="tf-extra" type="number" class="trip-inp" placeholder="0" value="'+(t.extraFare||"")+'" '+(isAdmin?'':'readonly style="background:#f5f5f5;color:#888"')+'></div>'
+    +'<div><div class="trip-lbl">รวมค่าเที่ยว (฿)</div>'
     +'<input id="tf-total-fare" class="trip-inp" readonly style="background:#f0faf5;font-weight:700;color:#0F6E56"></div>'
     +'</div>'
+    // ค่าโรงแรม (admin only, แสดงถ้า days>=2)
+    +(isAdmin?'<div class="trip-form-grid cols3" id="tf-hotel-wrap" style="'+(t.days>=2?"":"display:none")+'">'
+      +'<div><div class="trip-lbl">ค่าโรงแรม (฿) <span style="color:#aaa;font-size:9px">400-700 · ค้างคืนเท่านั้น</span></div>'
+      +'<input id="tf-hotel" type="number" class="trip-inp" placeholder="400-700" value="'+(t.hotelFare||"")+'" min="0" max="1000" oninput="calcTotalFare()"></div>'
+      +'<div><div class="trip-lbl">ค่าโทรศัพท์ (฿)</div>'
+      +'<input id="tf-phone" type="number" class="trip-inp" placeholder="0" value="'+(t.phoneFare||"")+'" oninput="calcTotalFare()"></div>'
+      +'<div><div class="trip-lbl">เบี้ยขยัน (฿)</div>'
+      +'<input id="tf-bonus" type="number" class="trip-inp" placeholder="0" value="'+(t.bonusFare||"")+'" oninput="calcTotalFare()"></div>'
+      +'</div>'
+    // เรทค่าส่งงาน + สรุปรายได้ (admin)
+      +'<div class="trip-form-grid" style="grid-template-columns:1fr 1fr 1fr 1fr;margin-bottom:10px">'
+      +'<div><div class="trip-lbl">เรทค่าส่งงาน (฿/บิล)</div>'
+      +'<select id="tf-rate-per-bill" class="trip-inp" oninput="calcTotalFare()">'
+      +'<option value="0"'+((!t.ratePerBill||t.ratePerBill===0)?" selected":"")+'>ไม่มี</option>'
+      +'<option value="2"'+(t.ratePerBill===2?" selected":"")+'>2 ฿/บิล</option>'
+      +'<option value="3"'+(t.ratePerBill===3?" selected":"")+'>3 ฿/บิล</option>'
+      +'<option value="4"'+(t.ratePerBill===4?" selected":"")+'>4 ฿/บิล</option>'
+      +'<option value="5"'+(t.ratePerBill===5?" selected":"")+'>5 ฿/บิล</option>'
+      +'</select></div>'
+      +'<div><div class="trip-lbl">จำนวนบิลในเที่ยว</div>'
+      +'<input id="tf-bill-count-disp" class="trip-inp" readonly value="'+(Object.keys(_tripState.selectedBills).length||t.summary&&t.summary.billCount||0)+' ใบ" style="background:#f5f5f5;font-weight:700"></div>'
+      +'<div><div class="trip-lbl">ค่าส่งงาน (฿)</div>'
+      +'<input id="tf-rate-total" class="trip-inp" readonly style="background:#f0faf5;color:#0F6E56;font-weight:700"></div>'
+      +'<div><div class="trip-lbl">รายได้รวม (฿)</div>'
+      +'<input id="tf-income-total" class="trip-inp" readonly style="background:#e8f5e9;color:#0F6E56;font-weight:800;font-size:14px"></div>'
+      +'</div>'
+    // หักเงินประกัน
+      +'<div style="background:#fff3e0;border:1px solid #ffe082;border-radius:8px;padding:10px;margin-bottom:10px">'
+      +'<div style="font-size:11px;font-weight:700;color:#b7950b;margin-bottom:6px">💰 เงินประกันและหัก</div>'
+      +'<div class="trip-form-grid cols3">'
+      +'<div><div class="trip-lbl">ยอดประกันยกมา (฿)</div>'
+      +'<input id="tf-insur-carry" type="number" class="trip-inp" placeholder="0" value="'+(t.insurCarry||"")+'" oninput="calcTotalFare()"></div>'
+      +'<div><div class="trip-lbl">หักเพิ่มเดือนนี้ (฿)</div>'
+      +'<input id="tf-insur-deduct" type="number" class="trip-inp" placeholder="0" value="'+(t.insurDeduct||"")+'" oninput="calcTotalFare()"></div>'
+      +'<div><div class="trip-lbl">เบิกจากประกัน (฿)</div>'
+      +'<input id="tf-insur-draw" type="number" class="trip-inp" placeholder="0" value="'+(t.insurDraw||"")+'" oninput="calcTotalFare()"></div>'
+      +'</div>'
+      +'<div class="trip-form-grid" style="grid-template-columns:1fr 1fr;margin-top:6px">'
+      +'<div><div class="trip-lbl">เบิกเงินหน้าร้าน (฿)</div>'
+      +'<input id="tf-draw-cash" type="number" class="trip-inp" placeholder="0" value="'+(t.drawCash||"")+'" oninput="calcTotalFare()"></div>'
+      +'<div><div class="trip-lbl">คงเหลือประกัน (฿)</div>'
+      +'<input id="tf-insur-balance" class="trip-inp" readonly style="background:#f0faf5;font-weight:700;color:#0F6E56"></div>'
+      +'</div>'
+      +'</div>'
+    :
+    // เสมียน: เห็น readonly เฉพาะค่าโรงแรม+โทร
+      '<div class="trip-form-grid cols3" style="margin-bottom:8px">'
+      +'<div><div class="trip-lbl">ค่าโรงแรม (฿)</div>'
+      +'<input class="trip-inp" readonly value="'+(t.hotelFare||"—")+'" style="background:#f5f5f5;color:#888"></div>'
+      +'<div><div class="trip-lbl">ค่าโทรศัพท์ (฿)</div>'
+      +'<input class="trip-inp" readonly value="'+(t.phoneFare||"—")+'" style="background:#f5f5f5;color:#888"></div>'
+      +'<div><div class="trip-lbl">เบี้ยขยัน (฿)</div>'
+      +'<input class="trip-inp" readonly value="'+(t.bonusFare||"—")+'" style="background:#f5f5f5;color:#888"></div>'
+      +'</div>')
     +'<div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:10px">'
-    +'<label style="font-size:12px;display:flex;align-items:center;gap:4px"><input type="checkbox" id="tf-x1" '+(t.extras&&t.extras.overweight?"checked":"")+'>น้ำหนักเกิน</label>'
-    +'<label style="font-size:12px;display:flex;align-items:center;gap:4px"><input type="checkbox" id="tf-x2" '+(t.extras&&t.extras.openTail?"checked":"")+'>เปิดท้าย</label>'
-    +'<label style="font-size:12px;display:flex;align-items:center;gap:4px"><input type="checkbox" id="tf-x3" '+(t.extras&&t.extras.longLoad?"checked":"")+'>ยื่นยาว</label>'
-    +'<label style="font-size:12px;display:flex;align-items:center;gap:4px"><input type="checkbox" id="tf-x4" '+(t.extras&&t.extras.overHeight?"checked":"")+'>สูงเกิน</label>'
+    +'<label style="font-size:12px;display:flex;align-items:center;gap:4px"><input type="checkbox" id="tf-x1" '+(t.extras&&t.extras.overweight?"checked":"")+' '+(isAdmin?'':'disabled')+'>น้ำหนักเกิน</label>'
+    +'<label style="font-size:12px;display:flex;align-items:center;gap:4px"><input type="checkbox" id="tf-x2" '+(t.extras&&t.extras.openTail?"checked":"")+' '+(isAdmin?'':'disabled')+'>เปิดท้าย</label>'
+    +'<label style="font-size:12px;display:flex;align-items:center;gap:4px"><input type="checkbox" id="tf-x3" '+(t.extras&&t.extras.longLoad?"checked":"")+' '+(isAdmin?'':'disabled')+'>ยื่นยาว</label>'
+    +'<label style="font-size:12px;display:flex;align-items:center;gap:4px"><input type="checkbox" id="tf-x4" '+(t.extras&&t.extras.overHeight?"checked":"")+' '+(isAdmin?'':'disabled')+'>สูงเกิน</label>'
     +'</div>'
 
     +'<div class="trip-section-title">⛽ ค่าน้ำมัน</div>'
@@ -1024,10 +1079,37 @@ function renderTripForm(existingTrip){
 }
 
 function calcTotalFare(){
-  var base = parseFloat(document.getElementById("tf-base").value||0);
-  var extra = parseFloat(document.getElementById("tf-extra").value||0);
-  var el = document.getElementById("tf-total-fare");
-  if(el) el.value = (base+extra).toLocaleString("th-TH")+" ฿";
+  var base  = parseFloat((document.getElementById("tf-base")||{}).value||0);
+  var extra = parseFloat((document.getElementById("tf-extra")||{}).value||0);
+  var hotel = parseFloat((document.getElementById("tf-hotel")||{}).value||0);
+  var phone = parseFloat((document.getElementById("tf-phone")||{}).value||0);
+  var bonus = parseFloat((document.getElementById("tf-bonus")||{}).value||0);
+  var ratePerBill = parseFloat((document.getElementById("tf-rate-per-bill")||{}).value||0);
+  var billCount = parseInt(((document.getElementById("tf-bill-count-disp")||{}).value||"0"))||0;
+  var rateTotal = ratePerBill * billCount;
+  var fareTotal = base + extra + hotel;
+  var incomeTotal = fareTotal + phone + bonus + rateTotal;
+
+  // ประกัน
+  var insurCarry  = parseFloat((document.getElementById("tf-insur-carry")||{}).value||0);
+  var insurDeduct = parseFloat((document.getElementById("tf-insur-deduct")||{}).value||0);
+  var insurDraw   = parseFloat((document.getElementById("tf-insur-draw")||{}).value||0);
+  var insurBalance = insurCarry + insurDeduct - insurDraw;
+
+  // update fields
+  var g = function(id, val){
+    var el = document.getElementById(id);
+    if(el) el.value = val;
+  };
+  g("tf-total-fare", fareTotal.toLocaleString("th-TH")+" ฿");
+  g("tf-rate-total", rateTotal>0 ? rateTotal.toLocaleString("th-TH")+" ฿" : "—");
+  g("tf-income-total", incomeTotal.toLocaleString("th-TH")+" ฿");
+  g("tf-insur-balance", insurBalance.toLocaleString("th-TH")+" ฿");
+
+  // show/hide hotel wrap ตาม days
+  var daysEl = document.getElementById("tf-days");
+  var hotelWrap = document.getElementById("tf-hotel-wrap");
+  if(hotelWrap && daysEl) hotelWrap.style.display = parseInt(daysEl.value||1)>=2 ? "" : "none";
 }
 
 function updateTripDriverLabel(){}
@@ -1204,6 +1286,14 @@ function saveTrip(){
     fuelAdvance: parseFloat((document.getElementById("tf-adv")||{}).value||0),
     odomStart: parseFloat((document.getElementById("tf-odo")||{}).value||0),
     note: (document.getElementById("tf-note")||{}).value||"",
+    hotelFare: parseFloat((document.getElementById("tf-hotel")||{}).value||0),
+    phoneFare: parseFloat((document.getElementById("tf-phone")||{}).value||0),
+    bonusFare: parseFloat((document.getElementById("tf-bonus")||{}).value||0),
+    ratePerBill: parseFloat((document.getElementById("tf-rate-per-bill")||{}).value||0),
+    insurCarry: parseFloat((document.getElementById("tf-insur-carry")||{}).value||0),
+    insurDeduct: parseFloat((document.getElementById("tf-insur-deduct")||{}).value||0),
+    insurDraw: parseFloat((document.getElementById("tf-insur-draw")||{}).value||0),
+    drawCash: parseFloat((document.getElementById("tf-draw-cash")||{}).value||0),
     extras: {
       overweight: !!(document.getElementById("tf-x1")||{}).checked,
       openTail:   !!(document.getElementById("tf-x2")||{}).checked,
