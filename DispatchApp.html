@@ -84,13 +84,7 @@ tr:hover td{background:#f8fffe}
 </style>
 </head>
 <body>
-<div class="topbar">
-  <span class="title">🚛 จัดการขนส่ง</span>
-  <span id="session-info" style="font-size:11px;opacity:.8"></span>
-  <a href="GolodApp.html">← หน้าหลัก</a>
-</div>
-<div class="container">
-  <div id="app"><div class="loading">⏳ กำลังโหลด...</div></div>
+
 </div>
 <div class="modal-bg" id="modal-dispatch">
   <div class="modal" style="max-width:540px;max-height:90vh;overflow-y:auto">
@@ -1335,13 +1329,10 @@ function loadDoneBills(){
              : (filterDateMode==="week") ? 300 : 500;
 
   // query done status โดยตรง ไม่ต้อง index createdAt
+  // ดึงแต่ละ status limit 200 ใบ ไม่ต้อง index
   var doneQueries = DONE_ST.map(function(st){
-    return db.collection("bills").where("status","==",st)
-      .orderBy("updatedAt","desc").limit(Math.ceil(limitN/DONE_ST.length)+10).get()
-      .catch(function(){
-        // fallback ถ้าไม่มี index updatedAt
-        return db.collection("bills").where("status","==",st).limit(50).get();
-      });
+    return db.collection("bills").where("status","==",st).limit(200).get()
+      .catch(function(){ return {forEach:function(){}}; });
   });
 
   Promise.all(doneQueries)
