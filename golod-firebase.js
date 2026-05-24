@@ -261,27 +261,25 @@ var GolodDB = (function() {
   }
 
   // getBillsDispatch — ใช้กับ DispatchApp เท่านั้น
-  // ดึงเฉพาะบิลที่ยัง active หรือ createdAt ภายใน N วัน → เร็วกว่ามาก
+  // ดึง: active ทุกวัน + createdAt ภายใน N วัน (รวม done status)
   function getBillsDispatch(opts) {
-    // opts: { days: 14 }  — กี่วันย้อนหลัง default 14
     opts = opts || {};
     var days = opts.days || 14;
     return new Promise(function(resolve, reject) {
       ready(function() {
-        // cutoff date สำหรับกรอง
         var cutoff = new Date();
         cutoff.setDate(cutoff.getDate() - days);
         var cutoffISO = cutoff.toISOString();
 
-        // Query 1: บิลที่ createdAt ภายใน N วัน (ต้องมี index: createdAt desc)
+        // Query 1: บิลทุกสถานะ ภายใน N วัน (รวม done)
         var q1 = db.collection("bills")
           .where("createdAt", ">=", cutoffISO)
           .orderBy("createdAt", "desc")
           .limit(500);
 
-        // Query 2: บิลที่ยัง active อยู่ (กำลังวิ่ง/รอจ่าย) ไม่ว่าวันไหน
-        var ACTIVE_STATUS = ["กำลังวิ่งส่งลูกค้า","ระหว่างนำส่งสาขา","ออกบิลรับของ","นำส่งใหม่"];
-        var activeQueries = ACTIVE_STATUS.map(function(st){
+        // Query 2: บิล active ทุกวัน (ไม่จำกัดช่วงเวลา)
+        var ACTIVE_ST = ["กำลังวิ่งส่งลูกค้า","ระหว่างนำส่งสาขา","ออกบิลรับของ","นำส่งใหม่"];
+        var activeQueries = ACTIVE_ST.map(function(st){
           return db.collection("bills").where("status","==",st).limit(200).get();
         });
 
@@ -300,9 +298,8 @@ var GolodDB = (function() {
             });
             resolve(_sortAndFilter(bills));
           }).catch(function(e){
-            // fallback: ถ้า index ยังไม่มี ดึงแบบปกติ จำกัด 300
             console.warn("[getBillsDispatch] fallback:", e.message);
-            db.collection("bills").limit(300).get()
+            db.collection("bills").limit(500).get()
               .then(function(snap){
                 var bills = [];
                 snap.forEach(function(doc){ bills.push(doc.data()); });
@@ -385,6 +382,75 @@ var GolodDB = (function() {
     });
   }
 
+  // ===== TRIPS =====
+  // collection: trips
+  // doc: { id, driverUsername, driverName, branch, route, departDate, days,
+  //         baseFare, fuelDist, fuelPrice, fuelRate, fuelAdvance, odomStart,
+  //         extras:{overweight,openTail,longLoad,overHeight},
+  //         note, billIds:[], status:"open"|"closed",
+  //         createdAt, createdBy,
+  //         summary:{billCount,destTotal,codTotal,pickupCount} }
+
+  function saveTrip(trip) {
+    return new Promise(function(resolve, reject) {
+      ready(function() {
+        var ref = trip.id
+          ? db.collection("trips").doc(trip.id)
+          : db.collection("trips").doc();
+        if(!trip.id) trip.id = ref.id;
+        trip.updatedAt = new Date().toISOString();
+        ref.set(trip, {merge:true})
+          .then(function(){ resolve(trip); })
+          .catch(reject);
+      });
+    });
+  }
+
+  function getTrips(opts) {
+    opts = opts || {};
+    return new Promise(function(resolve, reject) {
+      ready(function() {
+        var q = db.collection("trips").orderBy("createdAt","desc").limit(opts.limitN||200);
+        if(opts.driverUsername){
+          q = db.collection("trips")
+            .where("driverUsername","==",opts.driverUsername)
+            .orderBy("createdAt","desc").limit(opts.limitN||100);
+        }
+        q.get().then(function(snap){
+          var trips=[];
+          snap.forEach(function(doc){ trips.push(doc.data()); });
+          if(opts.dateFrom||opts.dateTo){
+            trips=trips.filter(function(t){
+              var d=t.departDate||t.createdAt&&t.createdAt.slice(0,10)||"";
+              if(opts.dateFrom&&d<opts.dateFrom) return false;
+              if(opts.dateTo&&d>opts.dateTo)   return false;
+              return true;
+            });
+          }
+          resolve(trips);
+        }).catch(reject);
+      });
+    });
+  }
+
+  function updateTrip(tripId, updates) {
+    return new Promise(function(resolve, reject) {
+      ready(function() {
+        updates.updatedAt = new Date().toISOString();
+        db.collection("trips").doc(tripId).update(updates)
+          .then(resolve).catch(reject);
+      });
+    });
+  }
+
+  // เพิ่ม tripId ลงในหลาย bills พร้อมกัน
+  function assignBillsToTrip(billNos, tripId) {
+    var promises = billNos.map(function(billNo){
+      return updateBill(billNo, {tripId: tripId});
+    });
+    return Promise.all(promises);
+  }
+
   return {
     init, ready,
     saveBill, getBills, updateBill,
@@ -393,6 +459,7 @@ var GolodDB = (function() {
     saveEditLog, getEditLogs,
     listenBills, getAllBills, getBillsNew,
     saveDispatchLog, getDispatchLogs,
-    getBillsDispatch
+    getBillsDispatch,
+    saveTrip, getTrips, updateTrip, assignBillsToTrip
   };
 })();
