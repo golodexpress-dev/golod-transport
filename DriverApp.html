@@ -449,11 +449,11 @@ function switchTrip(tripId){
 function renderBillListWithTrip(tripBillIds){
   var el = document.getElementById("bill-list");
   // summary เฉพาะบิลใน trip ล่าสุด (ถ้ามี)
-  // ถ้าไม่มี trip ไม่แสดง summary (ไม่รู้ว่าบิลไหนอยู่เที่ยวไหน)
+  // มี trip → แสดงเฉพาะบิลในเที่ยว, ไม่มี → แสดงทุกบิลของตัวเอง
   var hasTripData = tripBillIds && tripBillIds.length > 0;
   var summaryBills = hasTripData
     ? BILLS.filter(function(b){ return tripBillIds.indexOf(b.billNo)>=0; })
-    : [];
+    : BILLS;
   var destTotal=0, codTotal=0, pickupCount=0, destCount=0;
   summaryBills.forEach(function(b){
     var form=b.form||{};
@@ -486,11 +486,11 @@ function renderBillListWithTrip(tripBillIds){
       +'</div></div>'
     : "";
 
-  var summaryStrip = hasTripData && (destTotal>0||codTotal>0||pickupCount>0)
+  var summaryStrip = (destTotal>0||codTotal>0||pickupCount>0)
     ? '<div style="background:linear-gradient(135deg,#0F6E56,#085041);color:#fff;border-radius:10px;padding:12px 14px;margin-bottom:10px">'
-      +'<div style="font-size:10px;opacity:.8;margin-bottom:6px">📋 สรุปงานในเที่ยวนี้</div>'
+      +'<div style="font-size:10px;opacity:.8;margin-bottom:6px">'+(hasTripData?'📋 สรุปเที่ยวที่เลือก':'📋 สรุปงานทั้งหมด')+'</div>'
       +'<div style="display:grid;grid-template-columns:repeat(4,1fr);gap:5px;text-align:center;margin-bottom:8px">'
-      +'<div style="background:rgba(255,255,255,.15);border-radius:7px;padding:7px 4px"><div style="font-size:9px;opacity:.8">บิลทั้งหมด</div><div style="font-size:16px;font-weight:800">'+BILLS.length+'</div></div>'
+      +'<div style="background:rgba(255,255,255,.15);border-radius:7px;padding:7px 4px"><div style="font-size:9px;opacity:.8">'+(hasTripData?'บิลในเที่ยว':'บิลทั้งหมด')+'</div><div style="font-size:16px;font-weight:800">'+summaryBills.length+'</div></div>'
       +'<div style="background:rgba(255,255,255,.2);border-radius:7px;padding:7px 4px"><div style="font-size:9px;opacity:.8">ปลายทาง '+destCount+' ใบ</div><div style="font-size:13px;font-weight:800">'+fmt(destTotal)+'฿</div></div>'
       +'<div style="background:rgba(255,255,255,.2);border-radius:7px;padding:7px 4px"><div style="font-size:9px;opacity:.8">COD</div><div style="font-size:13px;font-weight:800">'+fmt(codTotal)+'฿</div></div>'
       +'<div style="background:'+(pickupCount>0?"rgba(239,159,39,.5)":"rgba(255,255,255,.15)")+'";border-radius:7px;padding:7px 4px"><div style="font-size:9px;opacity:.8">งานรับ</div><div style="font-size:16px;font-weight:800">'+pickupCount+'</div></div>'
