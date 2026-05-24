@@ -179,6 +179,17 @@ tr:hover td{background:#f8fffe}
       </div>
     </div>
 
+<!-- งานรับ (แสดงเฉพาะ mode=driver) -->
+    <div id="modal-pickup-wrap" style="display:none;margin-top:10px;background:#fff8e1;border:1px solid #ffe082;border-radius:8px;padding:12px">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px">
+        <div style="font-size:11px;font-weight:700;color:#b7950b">📦 งานรับระหว่างทาง (ถ้ามี)</div>
+        <button type="button" onclick="addPickupRow()" style="padding:3px 10px;background:#EF9F27;color:#fff;border:none;border-radius:6px;font-size:11px;cursor:pointer">+ เพิ่ม</button>
+      </div>
+      <div id="pickup-rows"></div>
+      <div id="pickup-total" style="font-size:11px;color:#b7950b;font-weight:600;margin-top:6px;text-align:right"></div>
+      <div style="font-size:10px;color:#aaa;margin-top:2px">ค่าจ้างรับ = 15% ของค่าขนส่งที่รับ</div>
+    </div>
+
 <div id="modal-note-wrap" style="display:none;margin-top:8px"><textarea id="modal-note" placeholder="หมายเหตุ (ถ้ามี)" rows="2"></textarea></div>
     <div class="btn-row" style="margin-top:12px">
       <button class="btn btn-gray" onclick="closeModal()">ยกเลิก</button>
@@ -776,7 +787,14 @@ function renderTripTab(){
 }
 
 function renderTripList(){
-  var trips = _tripState.openTrips;
+  // กรองเฉพาะ branch เดียวกับ user ที่ล็อกอิน
+  var ub = getUserBranch();
+  var userBranchName = {bkk:"กรุงเทพ",ptm:"กรุงเทพ",krt:"นครราชสีมา",ssk:"ศรีสะเกษ"}[ub]||"";
+  var trips = _tripState.openTrips.filter(function(t){
+    if(ub==="all") return true;
+    var tb = t.branch||"";
+    return tb===ub || tb===userBranchName;
+  });
   var fmt = function(n){ return (Math.round(n)||0).toLocaleString("th-TH"); };
   var fmtDT = function(iso){
     if(!iso) return "—";
@@ -905,6 +923,12 @@ function renderTripForm(existingTrip){
 
   var selCount = Object.keys(_tripState.selectedBills).length;
 
+  // สร้าง pickup rows HTML (จาก existing trip หรือว่างเปล่า)
+  var existPickups = (t.pickups && t.pickups.length>0) ? t.pickups : [{location:"",goods:"",freight:"",rate:15,paidOnPickup:false,commission:""}];
+  var pickupRowsHTML = existPickups.map(function(p,i){
+    return makeTfPickupRow(p);
+  }).join("");
+
   var today = new Date();
   var todayStr = today.getFullYear()+"-"+String(today.getMonth()+1).padStart(2,"0")+"-"+String(today.getDate()).padStart(2,"0");
 
@@ -971,6 +995,19 @@ function renderTripForm(existingTrip){
     +'<div class="bill-pick-list" id="tf-bill-list">'+(billRows||'<div style="padding:20px;text-align:center;color:#aaa">ไม่มีบิลที่พร้อมส่ง</div>')+'</div>'
     +'</div>'
 
+    // section งานรับ
+    +'<div class="trip-form" style="margin-top:10px">'
+    +'<div class="trip-section-title">📦 งานรับระหว่างทาง</div>'
+    +'<div style="font-size:11px;color:#888;margin-bottom:8px">รับสินค้าเพิ่มระหว่างเส้นทาง — ค่าจ้าง 15% ของค่าขนส่ง</div>'
+    +'<div id="tf-pickup-rows">'
+    +pickupRowsHTML
+    +'</div>'
+    +'<div style="display:flex;align-items:center;justify-content:space-between;margin-top:6px">'
+    +'<button type="button" class="btn btn-gray" onclick="addTfPickupRow()">+ เพิ่มงานรับ</button>'
+    +'<div id="tf-pickup-total" style="font-size:11px;font-weight:700;color:#b7950b"></div>'
+    +'</div>'
+    +'</div>'
+
     +'<div style="display:flex;gap:8px;justify-content:flex-end;margin-top:12px">'
     +'<button class="btn btn-gray" onclick="cancelTripForm()">ยกเลิก</button>'
     +'<button class="btn btn-green" onclick="saveTrip()">💾 '+(isEdit?"บันทึกการแก้ไข":"สร้างเที่ยว")+'</button>'
@@ -994,6 +1031,103 @@ function calcTotalFare(){
 }
 
 function updateTripDriverLabel(){}
+
+function makeTfPickupRow(p){
+  p = p||{};
+  var rate = p.rate||15;
+  var freight = p.freight||"";
+  var comm = p.commission||"";
+  var paid = p.paidOnPickup ? "checked" : "";
+  return '<div class="tf-pu-row" style="background:#fff;border:1px solid #ffe082;border-radius:7px;padding:10px;margin-bottom:8px">'
+    +'<div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-bottom:6px">'
+    +'<div><div style="font-size:10px;color:#888;margin-bottom:2px">รับที่ (สถานที่/ลูกค้า)</div>'
+    +'<input class="pu-loc trip-inp" value="'+(p.location||"")+'" placeholder="เช่น บ.แมททีเรียล"></div>'
+    +'<div><div style="font-size:10px;color:#888;margin-bottom:2px">สินค้า</div>'
+    +'<input class="pu-goods trip-inp" value="'+(p.goods||"")+'" placeholder="ประเภทสินค้า"></div>'
+    +'</div>'
+    +'<div style="display:grid;grid-template-columns:1fr 80px 1fr auto;gap:6px;align-items:flex-end;margin-bottom:6px">'
+    +'<div><div style="font-size:10px;color:#888;margin-bottom:2px">ค่าขนส่ง (฿) — แก้มือได้</div>'
+    +'<input class="pu-freight trip-inp" type="number" value="'+freight+'" placeholder="0" oninput="calcTfPickupTotal()"></div>'
+    +'<div><div style="font-size:10px;color:#888;margin-bottom:2px">เรท %</div>'
+    +'<select class="pu-rate trip-inp" onchange="calcTfPickupTotal()" style="padding:7px 6px">'
+    +'<option value="15"'+(rate===15?" selected":"")+'>15%</option>'
+    +'<option value="20"'+(rate===20?" selected":"")+'>20%</option>'
+    +'<option value="0"'+(rate===0?" selected":"")+'>ไม่มี</option>'
+    +'</select></div>'
+    +'<div><div style="font-size:10px;color:#0F6E56;margin-bottom:2px">ค่าจ้างรับ (฿)</div>'
+    +'<input class="pu-comm trip-inp" type="number" value="'+comm+'" placeholder="คำนวณอัตโนมัติ" oninput="calcTfPickupTotal()" style="color:#0F6E56;font-weight:700"></div>'
+    +'<button type="button" onclick="this.closest('.tf-pu-row').remove();calcTfPickupTotal()" style="padding:6px 10px;background:#fee;border:1px solid #fcc;border-radius:6px;font-size:13px;cursor:pointer;color:#c0392b;align-self:flex-end">✕</button>'
+    +'</div>'
+    +'<div style="display:flex;align-items:center;gap:8px">'
+    +'<label style="display:flex;align-items:center;gap:5px;font-size:12px;cursor:pointer">'
+    +'<input type="checkbox" class="pu-paid" '+paid+' style="accent-color:#0F6E56;width:14px;height:14px" onchange="calcTfPickupTotal()">'
+    +'เก็บค่าส่งตอนรับแล้ว (นำมาบวกยอดเคลียร์)</label>'
+    +'<div class="pu-paid-label" style="font-size:11px;color:#c0392b;font-weight:700"></div>'
+    +'</div>'
+    +'</div>';
+}
+
+function addTfPickupRow(){
+  var container = document.getElementById("tf-pickup-rows");
+  if(!container) return;
+  var div = document.createElement("div");
+  div.innerHTML = makeTfPickupRow({});
+  container.appendChild(div.firstChild);
+}
+
+function calcTfPickupTotal(){
+  var rows = document.querySelectorAll("#tf-pickup-rows .tf-pu-row");
+  var totalFreight=0, totalComm=0, totalPaid=0;
+  rows.forEach(function(row){
+    var f = parseFloat((row.querySelector(".pu-freight")||{}).value||0);
+    var rateEl = row.querySelector(".pu-rate");
+    var rate = rateEl ? parseFloat(rateEl.value||15) : 15;
+    var commEl = row.querySelector(".pu-comm");
+    // ถ้าเรท > 0 คำนวณอัตโนมัติ แต่ยังแก้มือได้
+    var autoComm = rate > 0 ? Math.round(f * rate/100) : 0;
+    // ใช้ค่าใน field ถ้า user แก้แล้ว ไม่ใช่ auto override
+    var comm = commEl && commEl.dataset.manual==="1"
+      ? parseFloat(commEl.value||0)
+      : autoComm;
+    if(commEl && commEl.dataset.manual!=="1") commEl.value = autoComm>0?autoComm:"";
+    // paid checkbox
+    var paidEl = row.querySelector(".pu-paid");
+    var paid = paidEl && paidEl.checked;
+    var paidLabel = row.querySelector(".pu-paid-label");
+    if(paidLabel) paidLabel.textContent = paid&&f>0 ? "+"+f.toLocaleString("th-TH")+"฿ บวกยอดเคลียร์":"";
+    totalFreight += f;
+    totalComm += comm||autoComm;
+    if(paid) totalPaid += f;
+  });
+  var tot = document.getElementById("tf-pickup-total");
+  if(tot){
+    var parts = [];
+    if(totalFreight>0) parts.push("รับค่าขนส่ง: "+totalFreight.toLocaleString("th-TH")+"฿");
+    if(totalComm>0) parts.push("ค่าจ้างรับ: "+totalComm.toLocaleString("th-TH")+"฿");
+    if(totalPaid>0) parts.push("⚠️ บวกยอดเคลียร์: +"+totalPaid.toLocaleString("th-TH")+"฿");
+    tot.textContent = parts.join(" | ");
+  }
+}
+
+function getTfPickupData(){
+  var rows = document.querySelectorAll("#tf-pickup-rows .tf-pu-row");
+  var pickups=[];
+  rows.forEach(function(row){
+    var loc=(row.querySelector(".pu-loc")||{}).value||"";
+    var goods=(row.querySelector(".pu-goods")||{}).value||"";
+    var freight=parseFloat((row.querySelector(".pu-freight")||{}).value||0);
+    var rateEl=row.querySelector(".pu-rate");
+    var rate=rateEl?parseFloat(rateEl.value||15):15;
+    var commEl=row.querySelector(".pu-comm");
+    var comm=commEl?parseFloat(commEl.value||0):Math.round(freight*rate/100);
+    var paidEl=row.querySelector(".pu-paid");
+    var paid=paidEl?paidEl.checked:false;
+    if(loc||goods||freight>0){
+      pickups.push({location:loc,goods:goods,freight:freight,rate:rate,commission:comm,paidOnPickup:paid});
+    }
+  });
+  return pickups;
+}
 
 function toggleTripBill(billNo){
   if(_tripState.selectedBills[billNo]){
@@ -1514,6 +1648,12 @@ function updateSelCount(){
 
 // ===== DISPATCH MODAL =====
 function calcModalFare(){}
+// mark manual edit ค่าจ้าง
+document.addEventListener("input", function(e){
+  if(e.target && e.target.classList.contains("pu-comm")){
+    e.target.dataset.manual = "1";
+  }
+});
 
 // คำนวณราคาน้ำมันจริง = ราคาฐาน (เสมียนกรอก) + addon ตาม branch + วัน
 function getFuelAddon(){
@@ -1569,9 +1709,15 @@ function openDispatch(mode){
   dispatchMode=mode;
   document.getElementById("modal-title").textContent = mode==="branch"?"📦 จ่ายให้สาขา":"🚛 จ่ายให้คนรถ";
   document.getElementById("modal-bill-count").textContent="เลือก "+ids.length+" บิล";
-  // แสดง/ซ่อน trip fields
+  // แสดง/ซ่อน trip fields + pickup
   var tripFields=document.getElementById("modal-trip-fields");
   if(tripFields) tripFields.style.display = mode==="driver" ? "block" : "none";
+  var pickupWrap=document.getElementById("modal-pickup-wrap");
+  if(pickupWrap) pickupWrap.style.display = mode==="driver" ? "block" : "none";
+  if(mode==="driver"){
+    document.getElementById("pickup-rows").innerHTML="";
+    addPickupRow(); // เพิ่มแถวแรกอัตโนมัติ
+  }
   if(mode==="driver"){
     // set default date
     var td=document.getElementById("md-depart");
@@ -1703,6 +1849,7 @@ function saveTripFromDispatch(bills, driverUsername, driverName){
       longLoad:  !!(document.getElementById("md-x3")||{}).checked,
       overHeight:!!(document.getElementById("md-x4")||{}).checked
     },
+    pickups:getTfPickupData(),
     billIds:bills.map(function(b){return b.billNo;}),
     status:"open",
     createdAt:new Date().toISOString(),
@@ -1785,6 +1932,76 @@ function copyDriverSummary(){
     document.body.removeChild(ta);
     alert("✅ คัดลอกแล้ว");
   }
+}
+
+// ====== งานรับ ======
+var _pickupRowId = 0;
+function addPickupRow(){
+  _pickupRowId++;
+  var id = _pickupRowId;
+  var container = document.getElementById("pickup-rows");
+  if(!container) return;
+  var row = document.createElement("div");
+  row.id = "pickup-row-"+id;
+  row.style.cssText = "background:#fff;border:1px solid #ffe082;border-radius:7px;padding:8px;margin-bottom:6px";
+  row.innerHTML =
+    '<div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-bottom:6px">'
+    +'<div><div style="font-size:10px;color:#888;margin-bottom:2px">รับที่ (สถานที่/ลูกค้า)</div>'
+    +'<input class="pu-location" style="width:100%;padding:6px 8px;border:1px solid #ddd;border-radius:6px;font-size:12px" placeholder="เช่น บ.แมททีเรียล / มาตีที่สาขา" oninput="calcPickupTotal()"></div>'
+    +'<div><div style="font-size:10px;color:#888;margin-bottom:2px">สินค้า</div>'
+    +'<input class="pu-goods" style="width:100%;padding:6px 8px;border:1px solid #ddd;border-radius:6px;font-size:12px" placeholder="ประเภทสินค้า"></div>'
+    +'</div>'
+    +'<div style="display:grid;grid-template-columns:1fr 1fr auto;gap:6px;align-items:flex-end">'
+    +'<div><div style="font-size:10px;color:#888;margin-bottom:2px">ค่าขนส่ง (฿)</div>'
+    +'<input class="pu-freight" type="number" style="width:100%;padding:6px 8px;border:1px solid #ddd;border-radius:6px;font-size:12px" placeholder="0" oninput="calcPickupTotal()"></div>'
+    +'<div><div style="font-size:10px;color:#0F6E56;margin-bottom:2px">ค่าจ้างรับ (15%)</div>'
+    +'<input class="pu-commission" readonly style="width:100%;padding:6px 8px;border:1px solid #d0ede5;border-radius:6px;font-size:12px;background:#f0faf5;font-weight:700;color:#0F6E56" value="0 ฿"></div>'
+    +'<button onclick="removePickupRow('+id+')" style="padding:6px 10px;background:#fee;border:1px solid #fcc;border-radius:6px;font-size:12px;cursor:pointer;color:#c0392b">✕</button>'
+    +'</div>';
+  container.appendChild(row);
+}
+
+function removePickupRow(id){
+  var row = document.getElementById("pickup-row-"+id);
+  if(row) row.remove();
+  calcPickupTotal();
+}
+
+function calcPickupTotal(){
+  var rows = document.querySelectorAll("#pickup-rows > div");
+  var totalFreight=0, totalComm=0;
+  rows.forEach(function(row){
+    var freightEl = row.querySelector(".pu-freight");
+    var commEl   = row.querySelector(".pu-commission");
+    var freight  = parseFloat((freightEl||{}).value||0);
+    var comm     = Math.round(freight*0.15);
+    totalFreight += freight;
+    totalComm    += comm;
+    if(commEl) commEl.value = comm.toLocaleString("th-TH")+" ฿";
+  });
+  var totEl = document.getElementById("pickup-total");
+  if(totEl){
+    if(totalFreight>0){
+      totEl.textContent = "รวมค่าขนส่งรับ: "+totalFreight.toLocaleString("th-TH")
+        +" ฿ | ค่าจ้างรับ: "+totalComm.toLocaleString("th-TH")+" ฿";
+    } else {
+      totEl.textContent = "";
+    }
+  }
+}
+
+function getPickupData(){
+  var rows = document.querySelectorAll("#pickup-rows > div");
+  var pickups = [];
+  rows.forEach(function(row){
+    var loc   = (row.querySelector(".pu-location")||{}).value||"";
+    var goods = (row.querySelector(".pu-goods")||{}).value||"";
+    var freight = parseFloat((row.querySelector(".pu-freight")||{}).value||0);
+    if(loc||goods||freight>0){
+      pickups.push({location:loc, goods:goods, freight:freight, commission:Math.round(freight*0.15)});
+    }
+  });
+  return pickups;
 }
 
 function saveDispatchLogNow(bills, targetId, targetName){
