@@ -412,6 +412,7 @@ function switchTrip(tripId){
 }
 
 function renderBillListWithTrip(tripBillIds){
+  var el = document.getElementById("bill-list");
   // summary เฉพาะบิลใน trip ล่าสุด (ถ้ามี)
   var summaryBills = (tripBillIds && tripBillIds.length>0)
     ? BILLS.filter(function(b){ return tripBillIds.indexOf(b.billNo)>=0; })
