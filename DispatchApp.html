@@ -779,9 +779,9 @@ function renderTripList(){
           +'<div style="font-size:10px;color:#aaa;margin-top:2px">วันที่ออก: '+(t.departDate||"—")+' | สร้างเมื่อ: '+fmtDT(t.createdAt)+'</div>'
         +'</div>'
         +'<div style="display:flex;flex-direction:column;gap:4px;align-items:flex-end">'
-          +'<button class="btn btn-gray" onclick="editTrip(''+t.id+'')">✏️ แก้ไข</button>'
-          +'<button class="btn btn-green" onclick="closeTrip(''+t.id+'')">✅ ปิดเที่ยว</button>'
-          +'<button class="btn btn-blue" onclick="printTripSummary(''+t.id+'')">🖨 พิมพ์</button>'
+          +'<button class="btn btn-gray" onclick="editTrip('\''+t.id+'\'')">✏️ แก้ไข</button>'
+          +'<button class="btn btn-green" onclick="closeTrip('\''+t.id+'\'')">✅ ปิดเที่ยว</button>'
+          +'<button class="btn btn-blue" onclick="printTripSummary('\''+t.id+'\'')">🖨 พิมพ์</button>'
         +'</div>'
       +'</div>'
       +'<div class="trip-stats">'
@@ -808,7 +808,7 @@ function renderTripList(){
       +'<td style="text-align:right;color:#E67E22">'+fmt(s.destTotal||0)+'</td>'
       +'<td style="text-align:right;color:#c0392b">'+fmt(s.codTotal||0)+'</td>'
       +'<td style="text-align:right;color:#0F6E56">'+fmt(t.baseFare||0)+'</td>'
-      +'<td><button class="btn btn-gray" onclick="printTripSummary(''+t.id+'')">🖨</button></td>'
+      +'<td><button class="btn btn-gray" onclick="printTripSummary('\''+t.id+'\'')">🖨</button></td>'
       +'</tr>';
   }).join("");
 
