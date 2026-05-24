@@ -625,10 +625,16 @@ function renderApp(){
 
   var tabHTML = tabs.map(function(t){
     var cnt;
-    if(t.k==="done"){cnt=BILLS.filter(function(b){return DONE_TAB_STATUS.indexOf(b.status||"")>=0;}).length;}
-    else{cnt=filterBills(t.k).length;}
-    return '<div class="tab'+(currentTab===t.k?" active":"")+'" onclick="switchTab(\''+t.k+'\')">'
-      +t.l+'<span class="count-badge">'+cnt+'</span></div>';
+    if(t.k==="done"){
+      cnt = DONE_BILLS_CACHE.length > 0 ? DONE_BILLS_CACHE.length
+          : BILLS.filter(function(b){return DONE_TAB_STATUS.indexOf(b.status||"")>=0;}).length;
+    } else if(t.k==="trip" || t.k==="history"){
+      cnt = "";
+    } else {
+      cnt = filterBills(t.k).length;
+    }
+    return '<div class="tab'+(currentTab===t.k?" active":"")+'" onclick="switchTab(''+t.k+'')">'
+      +t.l+(cnt!==""?'<span class="count-badge">'+cnt+'</span>':"")+'</div>';
   }).join("");
 
   // Date filter bar
@@ -1327,16 +1333,40 @@ function loadDoneBills(){
   var limitN = (filterDateMode==="today"||filterDateMode==="yesterday") ? 100
              : (filterDateMode==="week") ? 300 : 500;
 
-  db.collection("bills")
-    .where("createdAt",">=",fromISO)
-    .orderBy("createdAt","desc")
-    .limit(limitN).get()
-    .then(function(snap){
-      var bills=[];
-      snap.forEach(function(doc){
-        var d=doc.data();
-        if(DONE_ST.indexOf(d.status||"")>=0) bills.push(d);
+  // query done status โดยตรง ไม่ต้อง index createdAt
+  var doneQueries = DONE_ST.map(function(st){
+    return db.collection("bills").where("status","==",st)
+      .orderBy("updatedAt","desc").limit(Math.ceil(limitN/DONE_ST.length)+10).get()
+      .catch(function(){
+        // fallback ถ้าไม่มี index updatedAt
+        return db.collection("bills").where("status","==",st).limit(50).get();
       });
+  });
+
+  Promise.all(doneQueries)
+    .then(function(snaps){
+      var seen={}, bills=[];
+      snaps.forEach(function(snap){
+        snap.forEach(function(doc){
+          var d=doc.data();
+          if(!seen[d.billNo]){ seen[d.billNo]=true; bills.push(d); }
+        });
+      });
+      // normalize
+      DONE_BILLS_CACHE = bills.map(function(b){
+        if(b.form&&typeof b.form==="string"){try{b.form=JSON.parse(b.form);}catch(e){b.form={};}}
+        if(!b.form)b.form={};
+        return b;
+      });
+      // กรองวันที่ client-side
+      if(range.from || range.to){
+        bills = bills.filter(function(b){
+          var ds = billDateStr(b);
+          if(range.from && ds < range.from) return false;
+          if(range.to   && ds > range.to)   return false;
+          return true;
+        });
+      }
       // normalize
       DONE_BILLS_CACHE = bills.map(function(b){
         if(b.form&&typeof b.form==="string"){try{b.form=JSON.parse(b.form);}catch(e){b.form={};}}
@@ -1346,7 +1376,7 @@ function loadDoneBills(){
       DONE_BILLS_LOADED = true;
       renderDoneTab();
     }).catch(function(e){
-      document.getElementById("app").innerHTML='<div class="card"><div class="loading">❌ โหลดไม่สำเร็จ: '+e.message+'</div></div>';
+      document.getElementById("app").innerHTML='<div class="card"><div class="loading">❌ โหลดไม่สำเร็จ: '+e.message+'<br><small>ลอง reload หรือตรวจสอบ Firestore index</small></div></div>';
     });
 }
 
