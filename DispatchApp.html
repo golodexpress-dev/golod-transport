@@ -1095,15 +1095,19 @@ function renderTripList(){
     if(ub==="all") return true;
     // ตรวจ branch ของ trip
     var tb = t.branch||"";
-    var userBranchNames = {bkk:["bkk","ptm","กรุงเทพ","ปทุมธานี"],krt:["krt","นครราชสีมา"],ssk:["ssk","ศรีสะเกษ"]};
+    var userBranchNames = {
+      bkk:["bkk","ptm","กรุงเทพ","ปทุมธานี"],
+      krt:["krt","นครราชสีมา"],
+      ssk:["ssk","ศรีสะเกษ"]
+    };
     var allowed = userBranchNames[ub]||[ub];
-    if(allowed.indexOf(tb)>=0) return true;
-    // fallback: ตรวจ clerkCode ของ driver ใน trip
-    var driverName = t.driverName||"";
-    var codes = getClerkCodesForBranch();
-    if(!codes) return true; // BKK เห็นทุกเที่ยวที่ไม่ใช่ krt/ssk
-    // ถ้าไม่รู้ ให้เห็น (safe default)
-    return true;
+    // ถ้า branch ตรง → เห็น
+    if(tb && allowed.indexOf(tb)>=0) return true;
+    // ถ้า branch ไม่ตรง → ไม่เห็น (กรณี krt/ssk ชัดเจน)
+    var otherBranches = ["krt","สาขานครราชสีมา","นครราชสีมา","ssk","ศรีสะเกษ","สาขาศรีสะเกษ"];
+    if(otherBranches.indexOf(tb)>=0) return false;
+    // branch ว่างหรือ bkk → ให้ BKK เห็น
+    return ub==="bkk" || ub==="all";
   });
   var fmt = function(n){ return (Math.round(n)||0).toLocaleString("th-TH"); };
   var fmtDT = function(iso){
