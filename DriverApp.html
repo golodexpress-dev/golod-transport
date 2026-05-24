@@ -381,9 +381,43 @@ function renderBillList(){
     el.innerHTML = '<div class="empty-state"><div class="ico">✅</div><div class="msg">ไม่มีงานค้างในขณะนี้<br><br><button onclick="loadBills()" style="padding:8px 18px;background:#0F6E56;color:#fff;border:none;border-radius:8px;font-size:13px;cursor:pointer">🔄 รีเฟรช</button></div></div>';
     return;
   }
-  // สรุปด้านบน
+  // ดึง open trip ล่าสุดก่อน แล้วค่อย render
+  loadLatestTrip(function(tripBillIds){ renderBillListWithTrip(tripBillIds); });
+}
+
+var DRIVER_TRIPS = [];
+var SELECTED_TRIP_ID = null;
+
+function loadLatestTrip(callback){
+  var db; try{ db=firebase.firestore(); }catch(e){ callback(null); return; }
+  db.collection("trips")
+    .where("driverUsername","==",CU.username)
+    .where("status","==","open")
+    .orderBy("createdAt","desc").limit(10).get()
+    .then(function(snap){
+      DRIVER_TRIPS = [];
+      snap.forEach(function(doc){ DRIVER_TRIPS.push(doc.data()); });
+      if(DRIVER_TRIPS.length === 0){ callback(null); return; }
+      // ถ้ายังไม่ได้เลือก ใช้เที่ยวล่าสุด
+      if(!SELECTED_TRIP_ID) SELECTED_TRIP_ID = DRIVER_TRIPS[0].id;
+      var sel = DRIVER_TRIPS.find(function(t){ return t.id===SELECTED_TRIP_ID; });
+      callback(sel ? sel.billIds||null : null);
+    }).catch(function(){ callback(null); });
+}
+
+function switchTrip(tripId){
+  SELECTED_TRIP_ID = tripId;
+  var trip = DRIVER_TRIPS.find(function(t){ return t.id===tripId; });
+  renderBillListWithTrip(trip ? trip.billIds||null : null);
+}
+
+function renderBillListWithTrip(tripBillIds){
+  // summary เฉพาะบิลใน trip ล่าสุด (ถ้ามี)
+  var summaryBills = (tripBillIds && tripBillIds.length>0)
+    ? BILLS.filter(function(b){ return tripBillIds.indexOf(b.billNo)>=0; })
+    : BILLS;
   var destTotal=0, codTotal=0, pickupCount=0, destCount=0;
-  BILLS.forEach(function(b){
+  summaryBills.forEach(function(b){
     var form=b.form||{};
     var pay=b.freightPay||form.freightPay||"origin";
     var net=parseFloat(b.freightNet||0);
@@ -395,6 +429,25 @@ function renderBillList(){
   var fmt=function(n){return (Math.round(n)||0).toLocaleString("th-TH");};
 
   var totalCollect = destTotal + codTotal;
+
+  // dropdown เลือกเที่ยว (ถ้ามีหลายเที่ยว)
+  var fmtDate=function(iso){ if(!iso)return""; var d=new Date(iso); return d.getDate()+"/"+(d.getMonth()+1); };
+  var tripDropdown = DRIVER_TRIPS.length>0
+    ? '<div style="background:#f8fffe;border:1px solid #d0ede5;border-radius:10px;padding:10px;margin-bottom:8px">'
+      +'<div style="font-size:10px;color:#888;margin-bottom:5px">📋 เที่ยวที่แสดง</div>'
+      +'<div style="display:flex;gap:8px;align-items:center">'
+      +'<select onchange="switchTrip(this.value)" style="flex:1;padding:8px 10px;border:1px solid #d0ede5;border-radius:8px;font-size:12px;background:#fff">'
+      +DRIVER_TRIPS.map(function(t){
+        var sel = t.id===SELECTED_TRIP_ID ? " selected" : "";
+        var st = t.status==="cleared"?" ✅":"";
+        var label = (t.route||"ไม่ระบุเส้นทาง")+" ("+fmtDate(t.departDate||t.createdAt)+") — "+(t.summary?t.summary.billCount+"ใบ":(t.billIds||[]).length+"ใบ")+st;
+        return '<option value="'+t.id+'"'+sel+'>'+label+'</option>';
+      }).join("")
+      +'</select>'
+      +'<button data-tid="'+SELECTED_TRIP_ID+'" onclick="openDriverClearTrip(this.dataset.tid)" style="padding:8px 12px;background:#EF9F27;color:#fff;border:none;border-radius:8px;font-size:12px;font-weight:700;cursor:pointer;white-space:nowrap">💰 เคลียร์</button>'
+      +'</div></div>'
+    : "";
+
   var summaryStrip = (destTotal>0||codTotal>0||pickupCount>0)
     ? '<div style="background:linear-gradient(135deg,#0F6E56,#085041);color:#fff;border-radius:10px;padding:12px 14px;margin-bottom:10px">'
       +'<div style="font-size:10px;opacity:.8;margin-bottom:6px">📋 สรุปงานในเที่ยวนี้</div>'
@@ -411,7 +464,7 @@ function renderBillList(){
       +'</div>'
     : "";
 
-  var html = summaryStrip
+  var html = tripDropdown + summaryStrip
     +'<div style="display:flex;justify-content:space-between;align-items:center;padding:4px 2px 8px">'
     +'<span class="section-title" style="padding:0">งานรอส่ง '+BILLS.length+' รายการ</span>'
     +'<button onclick="loadBills()" style="padding:5px 12px;background:#e8f5f0;color:#0F6E56;border:1px solid #d0ede5;border-radius:8px;font-size:12px;cursor:pointer;font-weight:600">🔄 รีเฟรช</button>'
@@ -729,6 +782,145 @@ function startApp(){
   }
 }
 startApp();
+
+// ====== Driver Clear Trip ======
+var _driverClearTripId=null;
+function openDriverClearTrip(tripId){
+  var trip=DRIVER_TRIPS.find(function(t){return t.id===tripId;});
+  if(!trip){alert("ไม่พบข้อมูลเที่ยว");return;}
+  _driverClearTripId=tripId;
+  var s=trip.summary||{},cd=trip.clearData||{};
+  document.getElementById("dcm-info").textContent=(trip.route||"—")+" | "+(trip.departDate||"—")+" | "+(s.billCount||0)+" ใบ";
+  document.getElementById("dcm-odo-start").value=trip.odomStart||"";
+  document.getElementById("dcm-odo-end").value=cd.odomEnd||"";
+  document.getElementById("dcm-clr-cash").value=cd.clrCash||"";
+  document.getElementById("dcm-clr-trans").value=cd.clrTrans||"";
+  var dest=parseFloat(s.destTotal||0),cod=parseFloat(s.codTotal||0);
+  var fmt=function(n){return Math.round(n).toLocaleString("th-TH");};
+  document.getElementById("dcm-dest").textContent=fmt(dest)+" ฿";
+  document.getElementById("dcm-cod").textContent=fmt(cod)+" ฿";
+  document.getElementById("dcm-total").textContent=fmt(dest+cod)+" ฿";
+  document.getElementById("dcm-summary")._mustPay=dest+cod;
+  document.getElementById("dcm-summary")._trip=trip;
+  calcDriverClear();
+  document.getElementById("driver-clear-modal").style.display="flex";
+}
+function closeDriverClearTrip(){document.getElementById("driver-clear-modal").style.display="none";}
+function calcDriverClear(){
+  var t=document.getElementById("dcm-summary")._trip||{};
+  var odoS=parseFloat(t.odomStart||0),odoE=parseFloat((document.getElementById("dcm-odo-end")||{}).value||0);
+  var dist=odoE>odoS?odoE-odoS:0;
+  var fuelR=t.fuelRate>0?Math.round((dist/t.fuelRate)*t.fuelPrice):0;
+  document.getElementById("dcm-dist").value=dist>0?dist.toLocaleString("th-TH")+" กม.":"—";
+  document.getElementById("dcm-fuel").value=fuelR>0?fuelR.toLocaleString("th-TH")+" ฿":"—";
+  calcDriverDiff();
+}
+function calcDriverDiff(){
+  var mustPay=document.getElementById("dcm-summary")._mustPay||0;
+  var clrC=parseFloat((document.getElementById("dcm-clr-cash")||{}).value||0);
+  var clrT=parseFloat((document.getElementById("dcm-clr-trans")||{}).value||0);
+  var diff=(clrC+clrT)-mustPay,el=document.getElementById("dcm-diff");
+  if(!el||mustPay===0){if(el)el.style.display="none";return;}
+  el.style.display="block";
+  var fine=diff<0?(Math.abs(diff)>=2500?Math.round(Math.abs(diff)*0.05):Math.abs(diff)>=1200?Math.round(Math.abs(diff)*0.03):0):0;
+  el.textContent=diff>=0?"✅ เกิน "+diff.toLocaleString("th-TH")+" ฿":"❌ ขาด "+Math.abs(diff).toLocaleString("th-TH")+" ฿"+(fine>0?" | ค่าปรับ "+fine.toLocaleString("th-TH")+" ฿":"");
+  el.style.background=diff>=0?"#e8f5e9":"#ffebee";el.style.color=diff>=0?"#1B5E20":"#B71C1C";
+}
+function saveDriverClearTrip(){
+  if(!_driverClearTripId)return;
+  var t=document.getElementById("dcm-summary")._trip||{},s=t.summary||{};
+  var odoS=parseFloat(t.odomStart||0),odoE=parseFloat((document.getElementById("dcm-odo-end")||{}).value||0);
+  var dist=odoE>odoS?odoE-odoS:parseFloat(t.fuelDist||0);
+  var fuelR=t.fuelRate>0?Math.round((dist/t.fuelRate)*t.fuelPrice):0;
+  var dest=parseFloat(s.destTotal||0),cod=parseFloat(s.codTotal||0),mustPay=dest+cod;
+  var clrC=parseFloat((document.getElementById("dcm-clr-cash")||{}).value||0);
+  var clrT=parseFloat((document.getElementById("dcm-clr-trans")||{}).value||0);
+  var diff=(clrC+clrT)-mustPay;
+  var fine=diff<0?(Math.abs(diff)>=2500?Math.round(Math.abs(diff)*0.05):Math.abs(diff)>=1200?Math.round(Math.abs(diff)*0.03):0):0;
+  if(!GolodDB.updateTrip){alert("แจ้งเสมียนให้บันทึก");return;}
+  GolodDB.updateTrip(_driverClearTripId,{
+    clearData:{odomEnd:odoE,distReal:dist,fuelReal:fuelR,
+      mustPay:mustPay,clrCash:clrC,clrTrans:clrT,diff:diff,fine:fine,
+      clearedAt:new Date().toISOString(),clearedBy:CU?CU.username:""},
+    status:"cleared"
+  }).then(function(){
+    alert("✅ ส่งยอดเคลียร์แล้ว รอเสมียนยืนยัน");
+    closeDriverClearTrip();
+    DRIVER_TRIPS=[];SELECTED_TRIP_ID=null;
+    loadLatestTrip(function(ids){renderBillListWithTrip(ids);});
+  }).catch(function(e){alert("❌ "+e.message);});
+}
 </script>
+
+<!-- Modal เคลียร์เที่ยว -->
+<div id="driver-clear-modal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:9999;align-items:flex-end;justify-content:center">
+  <div style="background:#fff;border-radius:16px 16px 0 0;padding:20px;width:100%;max-width:480px;max-height:90vh;overflow-y:auto">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px">
+      <div style="font-size:15px;font-weight:800;color:#0F6E56">💰 เคลียร์เที่ยว</div>
+      <button onclick="closeDriverClearTrip()" style="background:none;border:none;font-size:20px;color:#aaa;cursor:pointer">✕</button>
+    </div>
+    <div id="dcm-info" style="font-size:11px;color:#888;margin-bottom:12px;padding:8px;background:#f8fffe;border-radius:8px"></div>
+
+    <!-- ไมล์ -->
+    <div style="background:#f8fffe;border:1px solid #d0ede5;border-radius:10px;padding:12px;margin-bottom:10px">
+      <div style="font-size:11px;font-weight:700;color:#0F6E56;margin-bottom:8px">🚗 ระยะทาง</div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:6px">
+        <div>
+          <div style="font-size:10px;color:#888;margin-bottom:3px">ไมล์เริ่ม</div>
+          <input id="dcm-odo-start" readonly style="width:100%;padding:8px 10px;border:1px solid #eee;border-radius:8px;font-size:13px;background:#f5f5f5;color:#888">
+        </div>
+        <div>
+          <div style="font-size:10px;color:#0F6E56;margin-bottom:3px;font-weight:700">ไมล์จบ (กรอก)</div>
+          <input id="dcm-odo-end" type="number" inputmode="numeric" style="width:100%;padding:8px 10px;border:2px solid #0F6E56;border-radius:8px;font-size:13px;font-weight:700" placeholder="เลขไมล์จบ" oninput="calcDriverClear()">
+        </div>
+      </div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">
+        <div>
+          <div style="font-size:10px;color:#888;margin-bottom:3px">ระยะทางจริง (กม.)</div>
+          <input id="dcm-dist" readonly style="width:100%;padding:8px 10px;border:1px solid #d0ede5;border-radius:8px;font-size:13px;background:#f0faf5;font-weight:700;color:#0F6E56">
+        </div>
+        <div>
+          <div style="font-size:10px;color:#b7950b;margin-bottom:3px">ค่าน้ำมันจริง (฿)</div>
+          <input id="dcm-fuel" readonly style="width:100%;padding:8px 10px;border:1px solid #ffe082;border-radius:8px;font-size:13px;background:#fff8e1;font-weight:700;color:#b7950b">
+        </div>
+      </div>
+    </div>
+
+    <!-- ยอดเคลียร์ -->
+    <div id="dcm-summary" style="background:#0F6E56;color:#fff;border-radius:10px;padding:12px;margin-bottom:10px">
+      <div style="font-size:10px;opacity:.8;margin-bottom:6px">📊 ยอดต้องเคลียร์</div>
+      <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;text-align:center">
+        <div style="background:rgba(255,255,255,.15);border-radius:7px;padding:8px">
+          <div style="font-size:9px;opacity:.8">ปลายทาง</div>
+          <div id="dcm-dest" style="font-size:15px;font-weight:800">—</div>
+        </div>
+        <div style="background:rgba(255,255,255,.15);border-radius:7px;padding:8px">
+          <div style="font-size:9px;opacity:.8">COD</div>
+          <div id="dcm-cod" style="font-size:15px;font-weight:800">—</div>
+        </div>
+        <div style="background:rgba(255,255,255,.2);border-radius:7px;padding:8px">
+          <div style="font-size:9px;opacity:.8">รวมต้องเคลียร์</div>
+          <div id="dcm-total" style="font-size:15px;font-weight:800">—</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- กรอกยอดเคลียร์ -->
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:10px">
+      <div>
+        <div style="font-size:10px;color:#888;margin-bottom:3px">เคลียร์เงินสด (฿)</div>
+        <input id="dcm-clr-cash" type="number" inputmode="numeric" style="width:100%;padding:10px;border:2px solid #0F6E56;border-radius:8px;font-size:14px;font-weight:700" placeholder="0" oninput="calcDriverDiff()">
+      </div>
+      <div>
+        <div style="font-size:10px;color:#888;margin-bottom:3px">เคลียร์โอน (฿)</div>
+        <input id="dcm-clr-trans" type="number" inputmode="numeric" style="width:100%;padding:10px;border:2px solid #0F6E56;border-radius:8px;font-size:14px;font-weight:700" placeholder="0" oninput="calcDriverDiff()">
+      </div>
+    </div>
+    <div id="dcm-diff" style="display:none;text-align:center;font-size:16px;font-weight:800;padding:10px;border-radius:10px;margin-bottom:10px"></div>
+
+    <button onclick="saveDriverClearTrip()" style="width:100%;padding:14px;background:#0F6E56;color:#fff;border:none;border-radius:10px;font-size:15px;font-weight:800;cursor:pointer">💾 ส่งยอดเคลียร์</button>
+  </div>
+</div>
+
 </body>
 </html>
