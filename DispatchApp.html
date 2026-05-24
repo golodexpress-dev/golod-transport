@@ -513,7 +513,9 @@ function renderApp(){
   ];
 
   var tabHTML = tabs.map(function(t){
-    var cnt = filterBills(t.k).length;
+    var cnt;
+    if(t.k==="done"){cnt=BILLS.filter(function(b){return DONE_TAB_STATUS.indexOf(b.status||"")>=0;}).length;}
+    else{cnt=filterBills(t.k).length;}
     return '<div class="tab'+(currentTab===t.k?" active":"")+'" onclick="switchTab(\''+t.k+'\')">'
       +t.l+'<span class="count-badge">'+cnt+'</span></div>';
   }).join("");

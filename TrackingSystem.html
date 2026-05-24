@@ -127,6 +127,10 @@ td{padding:8px 10px;border-bottom:0.5px solid rgba(0,0,0,.05)}
 tr:nth-child(even) td{background:#fafafa}
 .pill{display:inline-block;font-size:10px;padding:2px 8px;border-radius:20px;font-weight:500}
 </style>
+<script src="firebase-app-compat.js"></script>
+<script src="firebase-firestore-compat.js"></script>
+<script src="golod-firebase.js?v=1779235999"></script>
+<script>try{GolodDB.init();}catch(e){}</script>
 <script src="session.js"></script>
 <script>
 var _S = GolodSession.require("transport", null);
@@ -253,26 +257,84 @@ const STEPS=[
   {key:"delivered",label:"ส่งสำเร็จ",icon:"✅",step:4},
 ];
 
-let BILLS={
-  "A0503-12":{billNo:"A0503-12",destProv:"นครราชสีมา",destAmphoe:"เมืองนครราชสีมา",codTotal:0,timeline:[
-    {status:"issued",  dt:"2568-05-03 08:30",loc:"กรุงเทพมหานคร",note:"รับสินค้าจากผู้ส่ง",photo:false,sig:false},
-    {status:"hub",     dt:"2568-05-03 11:00",loc:"ศูนย์กระจาย กรุงเทพ",note:"เข้าศูนย์กระจาย",photo:false,sig:false},
-    {status:"transit", dt:"2568-05-03 13:30",loc:"กรุงเทพ → นครราชสีมา",note:"พนักงาน A ออกเดินทาง",photo:false,sig:false},
-  ]},
-  "B0503-08":{billNo:"B0503-08",destProv:"อยุธยา",destAmphoe:"พระนครศรีอยุธยา",codTotal:1500,timeline:[
-    {status:"issued",   dt:"2568-05-03 08:00",loc:"กรุงเทพมหานคร",note:"รับสินค้าจากผู้ส่ง",photo:false,sig:false},
-    {status:"hub",      dt:"2568-05-03 09:30",loc:"ศูนย์กระจาย กรุงเทพ",note:"เข้าศูนย์กระจาย",photo:false,sig:false},
-    {status:"transit",  dt:"2568-05-03 11:00",loc:"กรุงเทพ → อยุธยา",note:"พนักงาน B ออกเดินทาง",photo:false,sig:false},
-    {status:"delivered",dt:"2568-05-03 14:20",loc:"อยุธยา",note:"ส่งถึงมือผู้รับแล้ว",photo:true,sig:true},
-  ]},
-  "H0503-03":{billNo:"H0503-03",destProv:"ระยอง",destAmphoe:"ปลวกแดง",codTotal:8000,timeline:[
-    {status:"issued",    dt:"2568-05-03 09:00",loc:"กรุงเทพมหานคร",note:"รับสินค้าจากผู้ส่ง",photo:false,sig:false},
-    {status:"hub",       dt:"2568-05-03 10:30",loc:"ศูนย์กระจาย กรุงเทพ",note:"เข้าศูนย์กระจาย",photo:false,sig:false},
-    {status:"transit",   dt:"2568-05-03 12:00",loc:"กรุงเทพ → ระยอง",note:"พนักงาน H ออกเดินทาง",photo:false,sig:false},
-    {status:"nocontact", dt:"2568-05-03 15:30",loc:"ระยอง",note:"โทรหาผู้รับ 3 ครั้ง ไม่รับสาย",photo:false,sig:false},
-    {status:"reschedule",dt:"2568-05-03 15:35",loc:"ระยอง",note:"นัดส่งใหม่วันถัดไป",photo:false,sig:false},
-  ]},
-};
+// BILLS โหลดจาก Firestore — key = billNo
+let BILLS={};
+
+// แปลง Firestore bill → format ที่ TrackingSystem ใช้
+function firestoreBillToTracking(b){
+  var form = (b.form && typeof b.form==="object") ? b.form : {};
+  // map status Firestore → status TrackingSystem
+  var statusMap = {
+    "ออกบิลรับของ":  "issued",
+    "issued":         "issued",
+    "ระหว่างนำส่งสาขา":"transit",
+    "กำลังวิ่งส่งลูกค้า":"out",
+    "นำส่งใหม่":     "out",
+    "ส่งสำเร็จ":     "delivered",
+    "ส่งไม่สำเร็จ":  "nocontact",
+    "นำกลับสาขา":   "returned",
+    "ลูกค้ารับกลับ": "returned"
+  };
+  var st = statusMap[b.status] || "issued";
+  var fmtISO = function(iso){
+    if(!iso) return nowDT();
+    var d=new Date(iso);
+    return d.getFullYear()+"-"+String(d.getMonth()+1).padStart(2,"0")+"-"+String(d.getDate()).padStart(2,"0")
+      +" "+String(d.getHours()).padStart(2,"0")+":"+String(d.getMinutes()).padStart(2,"0");
+  };
+  // สร้าง timeline จากสถานะปัจจุบัน
+  var timeline=[{status:"issued", dt:fmtISO(b.createdAt), loc:"กรุงเทพมหานคร", note:"รับสินค้าจากผู้ส่ง", photo:false, sig:false}];
+  if(["transit","out","delivered","nocontact","returned"].includes(st)){
+    timeline.push({status:"transit", dt:fmtISO(b.updatedAt), loc:"ระหว่างนำส่ง", note:"กำลังนำส่ง", photo:false, sig:false});
+  }
+  if(["out","delivered","nocontact","returned"].includes(st)){
+    timeline.push({status:"out", dt:fmtISO(b.updatedAt), loc:(b.destAmphoe||form.destAmphoe||""), note:"กำลังวิ่งส่งลูกค้า", photo:false, sig:false});
+  }
+  if(st==="delivered"){
+    timeline.push({status:"delivered", dt:fmtISO(b.deliveredAt||b.updatedAt), loc:(b.destAmphoe||form.destAmphoe||""), note:"ส่งถึงมือผู้รับแล้ว", photo:!!b.photoUrl, sig:!!b.signatureUrl});
+  }
+  if(st==="nocontact"){
+    timeline.push({status:"nocontact", dt:fmtISO(b.updatedAt), loc:(b.destAmphoe||form.destAmphoe||""), note:b.failReason||"ส่งไม่สำเร็จ", photo:false, sig:false});
+  }
+  if(st==="returned"){
+    timeline.push({status:"returned", dt:fmtISO(b.updatedAt), loc:(b.destAmphoe||form.destAmphoe||""), note:"นำกลับสาขา", photo:false, sig:false});
+  }
+  return {
+    billNo: b.billNo,
+    destProv: b.destProv||form.destProv||"",
+    destAmphoe: b.destAmphoe||form.destAmphoe||"",
+    codTotal: parseFloat(b.codTotal||0),
+    senderName: b.senderName||form.senderName||"",
+    receiverName: b.receiverName||form.receiverName||"",
+    photoUrl: b.photoUrl||"",
+    signatureUrl: b.signatureUrl||"",
+    timeline: timeline
+  };
+}
+
+function loadBillFromFirestore(billNo, callback){
+  var db;
+  try{ db=firebase.firestore(); }catch(e){ callback(null); return; }
+  db.collection("bills").doc(billNo).get()
+    .then(function(doc){
+      if(!doc.exists){ callback(null); return; }
+      var b = firestoreBillToTracking(doc.data());
+      BILLS[billNo] = b;
+      callback(b);
+    }).catch(function(){ callback(null); });
+}
+
+function loadAllBillsFromFirestore(callback){
+  if(typeof GolodDB!=="undefined" && GolodDB.getBillsNew){
+    GolodDB.ready(function(){
+      GolodDB.getBillsNew(500).then(function(bills){
+        BILLS={};
+        bills.forEach(function(b){ BILLS[b.billNo]=firestoreBillToTracking(b); });
+        callback();
+      }).catch(function(){ callback(); });
+    });
+  } else { callback(); }
+}
 
 // ======= UTILS =======
 function dtDisplay(dt){
@@ -311,13 +373,15 @@ function doTrack(){
   const q=document.getElementById("track-input").value.trim().toUpperCase();
   const el=document.getElementById("track-result");
   if(!q){el.innerHTML="";return;}
-  const bill=BILLS[q];
-  if(!bill){
-    el.innerHTML=`<div class="not-found"><div style="font-size:40px;margin-bottom:12px">🔍</div>
-      <div style="font-size:16px;font-weight:600;color:#333;margin-bottom:8px">ไม่พบเลขบิล "${q}"</div>
-      <div style="font-size:13px;color:#888">กรุณาตรวจสอบเลขบิลอีกครั้ง<br>หรือติดต่อ Line: @golodtrans</div></div>`;
-    return;
-  }
+  // ดึงจาก Firestore ตรงๆ ทุกครั้ง (ข้อมูล real-time)
+  el.innerHTML='<div style="text-align:center;padding:30px;color:#888">⏳ กำลังค้นหา...</div>';
+  loadBillFromFirestore(q, function(bill){
+    if(!bill){
+      el.innerHTML=`<div class="not-found"><div style="font-size:40px;margin-bottom:12px">🔍</div>
+        <div style="font-size:16px;font-weight:600;color:#333;margin-bottom:8px">ไม่พบเลขบิล "${q}"</div>
+        <div style="font-size:13px;color:#888">กรุณาตรวจสอบเลขบิลอีกครั้ง<br>หรือติดต่อ Line: @glexpress</div></div>`;
+      return;
+    }
   const tl=bill.timeline;
   const last=tl[tl.length-1];
   const st=STATUSES[last.status]||STATUSES.issued;
@@ -386,6 +450,7 @@ function doTrack(){
     </div>
     <div class="card-footer">สอบถามเพิ่มเติม Line OA: @golodtrans · โทร 02-XXX-XXXX</div>
   </div>`;
+  }); // end loadBillFromFirestore
 }
 
 // ======= STAFF =======
@@ -526,8 +591,8 @@ function renderAdmin(){
   }).join("");
 }
 
-// init
-renderBillList();
+// init — โหลดบิลจาก Firestore แล้วค่อย render
+loadAllBillsFromFirestore(function(){ renderBillList(); });
 </script>
 </body>
 </html>
