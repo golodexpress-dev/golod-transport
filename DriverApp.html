@@ -381,8 +381,38 @@ function renderBillList(){
     el.innerHTML = '<div class="empty-state"><div class="ico">✅</div><div class="msg">ไม่มีงานค้างในขณะนี้<br><br><button onclick="loadBills()" style="padding:8px 18px;background:#0F6E56;color:#fff;border:none;border-radius:8px;font-size:13px;cursor:pointer">🔄 รีเฟรช</button></div></div>';
     return;
   }
+  // สรุปด้านบน
+  var destTotal=0, codTotal=0, pickupCount=0, destCount=0;
+  BILLS.forEach(function(b){
+    var form=b.form||{};
+    var pay=b.freightPay||form.freightPay||"origin";
+    var net=parseFloat(b.freightNet||0);
+    var cod=parseFloat(b.codTotal||0);
+    if(pay==="dest"){ destTotal+=net; destCount++; }
+    if(cod>0) codTotal+=cod;
+    if((b.status||"").indexOf("รับของ")>=0||(b.status||"")==="issued") pickupCount++;
+  });
+  var fmt=function(n){return (Math.round(n)||0).toLocaleString("th-TH");};
 
-  var html = '<div style="display:flex;justify-content:space-between;align-items:center;padding:4px 2px 8px">'
+  var totalCollect = destTotal + codTotal;
+  var summaryStrip = (destTotal>0||codTotal>0||pickupCount>0)
+    ? '<div style="background:linear-gradient(135deg,#0F6E56,#085041);color:#fff;border-radius:10px;padding:12px 14px;margin-bottom:10px">'
+      +'<div style="font-size:10px;opacity:.8;margin-bottom:6px">📋 สรุปงานในเที่ยวนี้</div>'
+      +'<div style="display:grid;grid-template-columns:repeat(4,1fr);gap:5px;text-align:center;margin-bottom:8px">'
+      +'<div style="background:rgba(255,255,255,.15);border-radius:7px;padding:7px 4px"><div style="font-size:9px;opacity:.8">บิลทั้งหมด</div><div style="font-size:16px;font-weight:800">'+BILLS.length+'</div></div>'
+      +'<div style="background:rgba(255,255,255,.2);border-radius:7px;padding:7px 4px"><div style="font-size:9px;opacity:.8">ปลายทาง '+destCount+' ใบ</div><div style="font-size:13px;font-weight:800">'+fmt(destTotal)+'฿</div></div>'
+      +'<div style="background:rgba(255,255,255,.2);border-radius:7px;padding:7px 4px"><div style="font-size:9px;opacity:.8">COD</div><div style="font-size:13px;font-weight:800">'+fmt(codTotal)+'฿</div></div>'
+      +'<div style="background:'+(pickupCount>0?"rgba(239,159,39,.5)":"rgba(255,255,255,.15)")+'";border-radius:7px;padding:7px 4px"><div style="font-size:9px;opacity:.8">งานรับ</div><div style="font-size:16px;font-weight:800">'+pickupCount+'</div></div>'
+      +'</div>'
+      +'<div style="background:rgba(255,255,255,.2);border-radius:8px;padding:8px;text-align:center">'
+      +'<div style="font-size:10px;opacity:.8">💰 รวมต้องเก็บ</div>'
+      +'<div style="font-size:20px;font-weight:800">'+fmt(totalCollect)+' ฿</div>'
+      +'</div>'
+      +'</div>'
+    : "";
+
+  var html = summaryStrip
+    +'<div style="display:flex;justify-content:space-between;align-items:center;padding:4px 2px 8px">'
     +'<span class="section-title" style="padding:0">งานรอส่ง '+BILLS.length+' รายการ</span>'
     +'<button onclick="loadBills()" style="padding:5px 12px;background:#e8f5f0;color:#0F6E56;border:1px solid #d0ede5;border-radius:8px;font-size:12px;cursor:pointer;font-weight:600">🔄 รีเฟรช</button>'
     +'</div>';
