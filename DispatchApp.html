@@ -857,6 +857,7 @@ function loadData(){
   document.getElementById("app").innerHTML='<div class="loading">⏳ กำลังดึงข้อมูล...</div>';
   GolodDB.ready(function(){
   loadClearAllowedUsers();
+  loadMonthlyAllowedUsers();
     Promise.all([
       GolodDB.getBillsDispatch({days:14}),
       GolodDB.getUsers()
@@ -941,7 +942,7 @@ function renderApp(){
     {k:"done",     l:"สำเร็จ/ไม่สำเร็จ"},
     {k:"all",      l:"ทั้งหมด"},
     {k:"trip",     l:"🚛 จัดการเที่ยว"},
-    {k:"monthly",  l:"📅 สรุปสิ้นเดือน"},
+    ...(canViewMonthly()?[{k:"monthly",l:"📅 สรุปสิ้นเดือน"}]:[]),
     {k:"history",  l:"📋 ประวัติจ่ายงาน"}
   ];
 
@@ -1165,7 +1166,8 @@ function renderTripList(){
     +'<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px">'
     +'<div class="card-title" style="margin:0">🚛 จัดการเที่ยว</div>'
     +'<div style="display:flex;gap:6px">'
-    +(isAdmin?'<button class="btn btn-gray" onclick="openClearPermSettings()" title="ตั้งค่าสิทธิ์เคลียร์เที่ยว">⚙️</button>':'')
+    +(isAdmin?'<button class="btn btn-gray" onclick="openClearPermSettings()" title="สิทธิ์เคลียร์เที่ยว">⚙️เที่ยว</button>':'')
+    +(isAdmin?'<button class="btn btn-gray" onclick="openMonthlyPermSettings()" title="สิทธิ์สรุปเดือน">⚙️เดือน</button>':'')
     +'<button class="btn btn-gray" onclick="renderTripTab()">🔄 รีเฟรช</button>'
     +'<button class="btn btn-green" onclick="openCreateTrip()">+ สร้างเที่ยวใหม่</button>'
     +'</div></div>'
@@ -1566,6 +1568,31 @@ function canClearTrip(){
   if(!CU) return false;
   if(CU.role==="admin") return true;
   return CLEAR_ALLOWED_USERS.indexOf(CU.username) >= 0;
+}
+
+// สิทธิ์ดูสรุปสิ้นเดือน
+var MONTHLY_ALLOWED_USERS = [];
+function loadMonthlyAllowedUsers(){
+  if(!GolodDB.getSetting) return;
+  GolodDB.getSetting("monthlyViewUsers").then(function(val){
+    if(val && Array.isArray(val)) MONTHLY_ALLOWED_USERS = val;
+  }).catch(function(){});
+}
+function canViewMonthly(){
+  if(!CU) return false;
+  if(CU.role==="admin") return true;
+  return MONTHLY_ALLOWED_USERS.indexOf(CU.username) >= 0;
+}
+function openMonthlyPermSettings(){
+  if(!CU || CU.role!=="admin"){ alert("เฉพาะ Admin เท่านั้น"); return; }
+  var current = MONTHLY_ALLOWED_USERS.join(", ");
+  var input = prompt("กรอก username ที่ให้ดูสรุปสิ้นเดือนได้ (คั่นด้วย ,)", current);
+  if(input === null) return;
+  var newList = input.split(",").map(function(s){ return s.trim(); }).filter(Boolean);
+  GolodDB.saveSetting("monthlyViewUsers", newList).then(function(){
+    MONTHLY_ALLOWED_USERS = newList;
+    alert("✅ บันทึกสิทธิ์แล้ว");
+  }).catch(function(e){ alert("❌ "+e.message); });
 }
 
 // admin จัดการสิทธิ์ผ่าน UI
@@ -2236,7 +2263,10 @@ function onDateModeChange(mode){
 
 function switchTab(t){
   currentTab=t; selectedBills={};
-  if(t==="monthly"){ renderMonthlyTab(); return; }
+  if(t==="monthly"){
+    if(!canViewMonthly()){ alert("ไม่มีสิทธิ์ดูรายงานนี้"); return; }
+    renderMonthlyTab(); return;
+  }
   if(t==="done" && typeof loadDoneBills==="function"){
     // default done tab = 7 วัน (บิลส่งสำเร็จมักไม่ใช่วันนี้)
     if(filterDateMode==="today") filterDateMode="week";

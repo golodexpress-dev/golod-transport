@@ -622,7 +622,103 @@ const BRANCH_ZONES = {
   ssk: SSK_ZONES,
   krt: KRT_ZONES
 };
-// ที่อยู่แต่ละสาขา
+// ===== ค่าส่งขั้นต่ำตามจังหวัด =====
+function getMinFreight(destProv, destAmphoe, isSpecialArea){
+  // พื้นที่พิเศษ auto-detect ขั้นต่ำ 500 บาท
+  var SP500 = [
+    // กาญจนบุรี
+    "ศรีสวัสดิ์","สังขละบุรี",
+    // ทองผาภูมิ กาญจนบุรี — ยกเว้น ต.ปิล็อก (1000)
+    // เลย
+    "ปากชม","ภูเรือ","ด่านซ้าย",
+    // อุตรดิตถ์
+    "น้ำปาด",
+    // พิษณุโลก
+    "นครไทย","ชาติตระการ",
+    // เพชรบูรณ์
+    "หล่มสัก","หล่มเก่า",
+    // สระแก้ว
+    "ตาพระยา","โคกสูง","คลองหาด",
+    // จันทบุรี
+    "สอยดาว","เขาสมิง",
+    // ตราด
+    "บ่อไร่",
+    // ระยอง
+    "เขาชะเมา",
+    // ชุมพร
+    "สวี","หลังสวน",
+    // อุทัยธานี
+    "บ้านไร่",
+    // ตาก
+    "สามเงา",
+    // ลำปาง
+    "เถิน","แม่พริก",
+    // หนองคาย
+    "สังคม",
+    // นครพนม
+    "บ้านแพง",
+    // บึงกาฬ
+    "บึงโขงโหลง",
+    // มุกดาหาร
+    "ดงหลวง","ภูพาน",
+    // สกลนคร
+    "เต่างอย","ภูพาน",
+    // กาฬสินธุ์
+    "สามชัย",
+    // ชัยภูมิ
+    "ภักดีชุมพล","เทพสถิต",
+    // อุบลราชธานี
+    "สิรินธร","ศรีเมืองใหม่","นาจะหลวย","น้ำยืน",
+    // ศรีสะเกษ
+    "ภูสิงห์",
+  ];
+  // ขั้นต่ำ 1000 บาท
+  var SP1000 = [
+    "น้ำหนาว",   // เพชรบูรณ์
+    "นาแห้ว",    // เลย
+    "ทองผาภูมิ", // กาญจนบุรี (ยกเว้น ต.ปิล็อก)
+  ];
+  // ต.ปิล็อก ของ ทองผาภูมิ = 1000
+  var amphoeStr = (destAmphoe||"");
+  if(amphoeStr.indexOf("ปิล็อก") >= 0) return 1000;
+  if(SP1000.some(function(a){ return amphoeStr.indexOf(a) >= 0; })) return 1000;
+  if(SP500.some(function(a){ return amphoeStr.indexOf(a) >= 0; })) return 500;
+
+  if(isSpecialArea) return null; // พื้นที่พิเศษอื่น ใช้เรทที่กรอก
+
+  // กรุงเทพ/ปริมณฑล — ขั้นต่ำ 100 ทุกที่
+  var BKK_GROUP = ["กรุงเทพมหานคร","ปทุมธานี","สมุทรปราการ","สมุทรสาคร","นนทบุรี"];
+  if(BKK_GROUP.includes(destProv)) return 100;
+
+  // กลุ่มใกล้ — เมือง 120, ต่างอำเภอ 150
+  var NEAR_120_150 = ["กาญจนบุรี","สระแก้ว","จันทบุรี","ชัยนาท",
+    "ประจวบคีรีขันธ์","นครราชสีมา","บุรีรัมย์","มหาสารคาม",
+    "ชัยภูมิ","ร้อยเอ็ด","ยโสธร","อุบลราชธานี","ศรีสะเกษ","สุรินทร์"];
+  if(NEAR_120_150.includes(destProv)){
+    var isCity = !destAmphoe || destAmphoe.startsWith("เมือง");
+    return isCity ? 120 : 150;
+  }
+
+  // กลุ่มใกล้ — ขั้นต่ำ 120 ทุกอำเภอ
+  var NEAR_120_ALL = ["พระนครศรีอยุธยา","นครปฐม","สมุทรสงคราม","เพชรบุรี",
+    "ราชบุรี","สุพรรณบุรี","สิงห์บุรี","อ่างทอง","ลพบุรี","สระบุรี",
+    "ปราจีนบุรี","นครนายก","ฉะเชิงเทรา","ชลบุรี","ระยอง"];
+  if(NEAR_120_ALL.includes(destProv)) return 120;
+
+  // กลุ่มไกล — เมือง 180, ต่างอำเภอ 200
+  var FAR_180_200 = ["อุตรดิตถ์","สุโขทัย","พิษณุโลก","พิจิตร","กำแพงเพชร",
+    "ตาก","อุทัยธานี","เพชรบูรณ์","ชุมพร","มุกดาหาร","นครพนม","บึงกาฬ",
+    "สกลนคร","หนองคาย","เลย","อุดรธานี","กาฬสินธุ์","ตราด",
+    "หนองบัวลำภู","อำนาจเจริญ","นครสวรรค์"];
+  if(FAR_180_200.includes(destProv)){
+    var isCity = !destAmphoe || destAmphoe.startsWith("เมือง");
+    return isCity ? 180 : 200;
+  }
+
+  return null; // จังหวัดอื่นไม่มีขั้นต่ำพิเศษ
+}
+
+// ===== ที่อยู่แต่ละสาขา =====
 function getBranchAddress(branchId){
   var map = {
     bkk: {
@@ -3101,7 +3197,10 @@ function ThermalBillingApp() {
     return s + (v > 0 ? Math.round(v * 0.005) : 0);
   }, 0);
   const freightNetRaw = Math.max(0, freightTotal - discountAmt);
-  const minFr = form.isSpecialArea ? (parseInt(form.minFreight) || 0) : 0;
+  // ค่าส่งขั้นต่ำ: พื้นที่พิเศษใช้ form.minFreight, จังหวัดอื่นใช้ตาราง
+  const specMin = form.isSpecialArea ? (parseInt(form.minFreight) || 0) : 0;
+  const tableMin = getMinFreight(form.destProv||"", form.receiverAmphoe||form.destAmphoe||"", form.isSpecialArea) || 0;
+  const minFr = Math.max(specMin, tableMin);
   const freightNet = Math.max(freightNetRaw, minFr);
   const isMinApplied = minFr > 0 && freightNetRaw < minFr;
   const codTotal = items.reduce((s, item) => s + (item.hasCOD ? parseFloat(item.codAmount) || 0 : 0), 0);
