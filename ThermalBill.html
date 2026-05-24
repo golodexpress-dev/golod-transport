@@ -10,7 +10,10 @@
 <script src="golod-sheets-sync.js"></script>
 <script>try{GolodDB.init();}catch(e){}</script>
 <script src="thailand-data.js"></script>
-<style>*{box-sizing:border-box;margin:0;padding:0}input[type=number]::-webkit-inner-spin-button,input[type=number]::-webkit-outer-spin-button{-webkit-appearance:none;margin:0}input[type=number]{-moz-appearance:textfield}body{font-family:Arial,sans-serif;background:#f5f5f2;min-height:100vh;padding:16px;font-size:15px}@media print{.no-print{display:none!important}body{background:#fff;padding:0}}.golod-bar{background:#0F6E56;padding:0 14px;display:flex;align-items:center;gap:10px;height:44px;position:sticky;top:0;z-index:200;margin:-16px -16px 16px}.golod-bar h1{color:#fff;font-size:14px;font-weight:700;flex:1}</style>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Sarabun:wght@400;600;700;800;900&family=Noto+Sans+Thai:wght@400;600;700;800;900&display=swap" rel="stylesheet">
+<style>*{box-sizing:border-box;margin:0;padding:0}input[type=number]::-webkit-inner-spin-button,input[type=number]::-webkit-outer-spin-button{-webkit-appearance:none;margin:0}input[type=number]{-moz-appearance:textfield}body{font-family:'Sarabun','Noto Sans Thai',Arial,sans-serif;background:#f5f5f2;min-height:100vh;padding:16px;font-size:15px}@media print{.no-print{display:none!important}body{background:#fff;padding:0}}.golod-bar{background:#0F6E56;padding:0 14px;display:flex;align-items:center;gap:10px;height:44px;position:sticky;top:0;z-index:200;margin:-16px -16px 16px}.golod-bar h1{color:#fff;font-size:14px;font-weight:700;flex:1}</style>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
 </head><body>
 <div class="golod-bar no-print">
@@ -619,6 +622,32 @@ const BRANCH_ZONES = {
   ssk: SSK_ZONES,
   krt: KRT_ZONES
 };
+// ที่อยู่แต่ละสาขา
+function getBranchAddress(branchId){
+  var map = {
+    bkk: {
+      name: "สาขากรุงเทพ",
+      addr: "527 ถ.ลัดนิ่มไสว แขวงทวีวัฒนา เขตทวีวัฒนา กรุงเทพฯ 10170",
+      tel:  "099-1875230, 098-4518141"
+    },
+    ptm: {
+      name: "สาขาปทุมธานี",
+      addr: "สาขาปทุมธานี จ.ปทุมธานี",
+      tel:  "099-1875230"
+    },
+    krt: {
+      name: "สาขานครราชสีมา",
+      addr: "สาขานครราชสีมา จ.นครราชสีมา",
+      tel:  "099-1875230"
+    },
+    ssk: {
+      name: "สาขาศรีสะเกษ",
+      addr: "สาขาศรีสะเกษ จ.ศรีสะเกษ",
+      tel:  "099-1875230"
+    }
+  };
+  return map[branchId] || map["bkk"];
+}
 const BRANCHES = [{
   id: "bkk",
   label: "สาขากรุงเทพ",
@@ -3262,7 +3291,7 @@ function ThermalBillingApp() {
     <style>
       *{box-sizing:border-box;margin:0;padding:0}
       @page{size:80mm auto;margin:${mv}mm 3mm ${mv}mm ${ml}mm}
-      body{font-family:'Courier New',Courier,monospace;background:#fff;width:${76 - ml}mm;font-weight:700;-webkit-print-color-adjust:exact;print-color-adjust:exact;}
+      body{font-family:'Sarabun','Noto Sans Thai',sans-serif;background:#fff;width:${76 - ml}mm;font-weight:700;-webkit-print-color-adjust:exact;print-color-adjust:exact;}
       div,span,td,th{font-weight:700!important}
     </style></head><body>`);
     w.document.write(el.innerHTML);
@@ -4244,14 +4273,14 @@ function ReceiptPrint({ receipt }) {
   const W = 298;
   const fmt = n => (n||0).toLocaleString("th-TH");
   return React.createElement("div", {
-    style:{ width:W, fontFamily:"'Sarabun',sans-serif", fontSize:12, fontWeight:700, background:"#fff", paddingTop:20, paddingBottom:8, paddingLeft:16, paddingRight:10, boxSizing:"border-box", lineHeight:1.8 }
+    style:{ width:W, fontFamily:"'Sarabun','Noto Sans Thai',sans-serif", fontSize:12, fontWeight:700, background:"#fff", paddingTop:20, paddingBottom:8, paddingLeft:16, paddingRight:10, boxSizing:"border-box", lineHeight:1.8 }
   },
     // Header
     React.createElement("div",{style:{textAlign:"center",marginBottom:6}},
       React.createElement("div",{style:{fontSize:12,fontWeight:800,color:"#000"}},"บริษัท โกโลด ทรานสปอร์ต จำกัด"),
       React.createElement("div",{style:{fontSize:14,fontWeight:900,letterSpacing:1.5,color:"#000"}},"GOLOD TRANSPORT Co.,Ltd."),
-      React.createElement("div",{style:{fontSize:10,fontWeight:700,color:"#000"}},"527 ถ.ลัดนิ่มไสว แขวงทวีวัฒนา เขตทวีวัฒนา กรุงเทพฯ 10170"),
-      React.createElement("div",{style:{fontSize:10,fontWeight:700,color:"#000"}},"เลขภาษี: 0105556152968 | โทร: 099-1015858, 098-4518141"),
+      React.createElement("div",{style:{fontSize:10,fontWeight:700,color:"#000"}},getBranchAddress(receipt.branch||"bkk").addr),
+      React.createElement("div",{style:{fontSize:10,fontWeight:700,color:"#000"}},"เลขภาษี: 0105556152968 | โทร: "+getBranchAddress(receipt.branch||"bkk").tel),
       React.createElement("div",{style:{fontSize:13,fontWeight:800,marginTop:4,borderTop:"1.5px solid #000",borderBottom:"1.5px solid #000",padding:"3px 0"}},"ใบเสร็จรับเงิน / RECEIPT")
     ),
     // เลขใบเสร็จ + วันที่
@@ -4604,7 +4633,8 @@ function ReceiptForm({ bills, staffCode, staffName }) {
       transferTime: form.transferTime||"",
       transferRef: form.transferRef||"",
       items: form.items,
-      total
+      total,
+      branch: sessionUser ? (sessionUser.branch==="ปทุมธานี"?"ptm":sessionUser.branch==="นครราชสีมา"?"krt":sessionUser.branch==="ศรีสะเกษ"?"ssk":"bkk") : "bkk"
     };
     const all = [...receipts, rcpt];
     setReceipts(all);
@@ -4615,7 +4645,7 @@ function ReceiptForm({ bills, staffCode, staffName }) {
   const doPrint = () => {
     if (!printRef.current) return;
     const w = window.open("","_blank","width=400,height=600");
-    w.document.write("<html><head><style>body{margin:0;padding:0;background:#fff;}@media print{@page{size:80mm auto;margin:0;}}</style><link rel='stylesheet' href='https://fonts.googleapis.com/css2?family=Sarabun:wght@400;700;800;900&display=swap'></head><body>");
+    w.document.write("<html><head><link rel='preconnect' href='https://fonts.googleapis.com'><link rel='preconnect' href='https://fonts.gstatic.com' crossorigin><link rel='stylesheet' href='https://fonts.googleapis.com/css2?family=Sarabun:wght@400;600;700;800;900&family=Noto+Sans+Thai:wght@400;600;700;800;900&display=swap'><style>*{box-sizing:border-box}body{margin:0;padding:0;background:#fff;font-family:'Sarabun','Noto Sans Thai',sans-serif;}@media print{@page{size:80mm auto;margin:0;}}</style></head><body>");
     w.document.write(printRef.current.innerHTML);
     w.document.write("</body></html>");
     w.document.close();

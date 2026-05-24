@@ -399,6 +399,12 @@ var GolodDB = (function() {
           : db.collection("trips").doc();
         if(!trip.id) trip.id = ref.id;
         trip.updatedAt = new Date().toISOString();
+        // ป้องกัน undefined fields ที่ Firestore ไม่รองรับ
+        if(!trip.createdAt) trip.createdAt = new Date().toISOString();
+        // ลบ fields ที่เป็น undefined ออก
+        Object.keys(trip).forEach(function(k){
+          if(trip[k]===undefined) delete trip[k];
+        });
         ref.set(trip, {merge:true})
           .then(function(){ resolve(trip); })
           .catch(reject);
@@ -451,6 +457,25 @@ var GolodDB = (function() {
     return Promise.all(promises);
   }
 
+  // ===== SETTINGS =====
+  function saveSetting(key, value){
+    return new Promise(function(resolve,reject){
+      ready(function(){
+        db.collection("settings").doc(key).set({value:value, updatedAt:new Date().toISOString()})
+          .then(resolve).catch(reject);
+      });
+    });
+  }
+  function getSetting(key){
+    return new Promise(function(resolve,reject){
+      ready(function(){
+        db.collection("settings").doc(key).get()
+          .then(function(doc){ resolve(doc.exists?doc.data().value:null); })
+          .catch(reject);
+      });
+    });
+  }
+
   return {
     init, ready,
     saveBill, getBills, updateBill,
@@ -460,6 +485,7 @@ var GolodDB = (function() {
     listenBills, getAllBills, getBillsNew,
     saveDispatchLog, getDispatchLogs,
     getBillsDispatch,
-    saveTrip, getTrips, updateTrip, assignBillsToTrip
+    saveTrip, getTrips, updateTrip, assignBillsToTrip,
+    saveSetting, getSetting
   };
 })();
