@@ -104,17 +104,17 @@ tr:hover td{background:#f8fffe}
       <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:8px">
         <div>
           <div style="font-size:10px;color:#888;margin-bottom:3px">เส้นทาง</div>
-          <input id="tf-route" style="width:100%;padding:7px 10px;border:1px solid #ddd;border-radius:7px;font-size:12px;font-family:inherit" placeholder="เช่น กทม.→โคราช">
+          <input id="md-route" style="width:100%;padding:7px 10px;border:1px solid #ddd;border-radius:7px;font-size:12px;font-family:inherit" placeholder="เช่น กทม.→โคราช">
         </div>
         <div>
           <div style="font-size:10px;color:#888;margin-bottom:3px">วันที่ออก</div>
-          <input id="tf-depart" type="date" style="width:100%;padding:7px 10px;border:1px solid #ddd;border-radius:7px;font-size:12px;font-family:inherit">
+          <input id="md-depart" type="date" style="width:100%;padding:7px 10px;border:1px solid #ddd;border-radius:7px;font-size:12px;font-family:inherit">
         </div>
       </div>
       <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;margin-bottom:8px">
         <div>
           <div style="font-size:10px;color:#888;margin-bottom:3px">จำนวนวัน</div>
-          <select id="tf-days" style="width:100%;padding:7px 10px;border:1px solid #ddd;border-radius:7px;font-size:12px;font-family:inherit">
+          <select id="md-days" style="width:100%;padding:7px 10px;border:1px solid #ddd;border-radius:7px;font-size:12px;font-family:inherit">
             <option value="1">1 วัน</option>
             <option value="2">2 วัน</option>
             <option value="0">🌙 ค้างคืน</option>
@@ -122,50 +122,50 @@ tr:hover td{background:#f8fffe}
         </div>
         <div>
           <div style="font-size:10px;color:#888;margin-bottom:3px">ค่าเที่ยวฐาน (฿)</div>
-          <input id="tf-base" type="number" style="width:100%;padding:7px 10px;border:1px solid #ddd;border-radius:7px;font-size:12px;font-family:inherit" placeholder="0" oninput="calcModalFare()">
+          <input id="md-base" type="number" style="width:100%;padding:7px 10px;border:1px solid #ddd;border-radius:7px;font-size:12px;font-family:inherit" placeholder="0" oninput="calcModalFare()">
         </div>
         <div>
           <div style="font-size:10px;color:#888;margin-bottom:3px">ค่าบวกเพิ่ม (฿)</div>
-          <input id="tf-extra" type="number" style="width:100%;padding:7px 10px;border:1px solid #ddd;border-radius:7px;font-size:12px;font-family:inherit" placeholder="0" oninput="calcModalFare()">
+          <input id="md-extra" type="number" style="width:100%;padding:7px 10px;border:1px solid #ddd;border-radius:7px;font-size:12px;font-family:inherit" placeholder="0" oninput="calcModalFare()">
         </div>
       </div>
       <div style="display:flex;gap:10px;flex-wrap:wrap;margin-bottom:8px;font-size:12px">
-        <label style="display:flex;align-items:center;gap:4px"><input type="checkbox" id="tf-x1" style="accent-color:#0F6E56">น้ำหนักเกิน</label>
-        <label style="display:flex;align-items:center;gap:4px"><input type="checkbox" id="tf-x2" style="accent-color:#0F6E56">เปิดท้าย</label>
-        <label style="display:flex;align-items:center;gap:4px"><input type="checkbox" id="tf-x3" style="accent-color:#0F6E56">ยื่นยาว</label>
-        <label style="display:flex;align-items:center;gap:4px"><input type="checkbox" id="tf-x4" style="accent-color:#0F6E56">สูงเกิน</label>
+        <label style="display:flex;align-items:center;gap:4px"><input type="checkbox" id="md-x1" style="accent-color:#0F6E56">น้ำหนักเกิน</label>
+        <label style="display:flex;align-items:center;gap:4px"><input type="checkbox" id="md-x2" style="accent-color:#0F6E56">เปิดท้าย</label>
+        <label style="display:flex;align-items:center;gap:4px"><input type="checkbox" id="md-x3" style="accent-color:#0F6E56">ยื่นยาว</label>
+        <label style="display:flex;align-items:center;gap:4px"><input type="checkbox" id="md-x4" style="accent-color:#0F6E56">สูงเกิน</label>
       </div>
       <div style="font-size:11px;font-weight:700;color:#0F6E56;margin-bottom:6px">⛽ ค่าน้ำมัน</div>
       <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;margin-bottom:8px">
         <div>
           <div style="font-size:10px;color:#888;margin-bottom:3px">ระยะทาง (กม.)</div>
-          <input id="tf-dist" type="number" style="width:100%;padding:7px 10px;border:1px solid #ddd;border-radius:7px;font-size:12px;font-family:inherit" placeholder="0" oninput="calcModalFuel()">
+          <input id="md-dist" type="number" style="width:100%;padding:7px 10px;border:1px solid #ddd;border-radius:7px;font-size:12px;font-family:inherit" placeholder="0" oninput="calcModalFuel()">
         </div>
         <div>
           <div style="font-size:10px;color:#888;margin-bottom:3px">ราคา (฿/ลิตร)</div>
           <div style="display:flex;gap:4px">
-            <input id="tf-price" type="number" style="flex:1;padding:7px 8px;border:1px solid #ddd;border-radius:7px;font-size:12px;font-family:inherit" value="40" oninput="calcModalFuel()">
-            <input id="tf-price-add" type="number" style="width:50px;padding:7px 6px;border:1px solid #ddd;border-radius:7px;font-size:11px;font-family:inherit" placeholder="สต." value="0" oninput="calcModalFuel()">
+            <input id="md-price" type="number" style="flex:1;padding:7px 8px;border:1px solid #ddd;border-radius:7px;font-size:12px;font-family:inherit" value="40" oninput="calcModalFuel()">
+            <input id="md-price-add" type="number" style="width:50px;padding:7px 6px;border:1px solid #ddd;border-radius:7px;font-size:11px;font-family:inherit" placeholder="สต." value="0" oninput="calcModalFuel()">
           </div>
-          <div id="tf-price-total" style="font-size:10px;color:#0F6E56;margin-top:2px">รวม 40.00 ฿/ล</div>
+          <div id="md-price-total" style="font-size:10px;color:#0F6E56;margin-top:2px">รวม 40.00 ฿/ล</div>
         </div>
         <div>
           <div style="font-size:10px;color:#888;margin-bottom:3px">อัตราสิ้นเปลือง (กม./ลิตร)</div>
-          <input id="tf-rate" type="number" style="width:100%;padding:7px 10px;border:1px solid #ddd;border-radius:7px;font-size:12px;font-family:inherit" value="8" oninput="calcModalFuel()">
+          <input id="md-rate" type="number" style="width:100%;padding:7px 10px;border:1px solid #ddd;border-radius:7px;font-size:12px;font-family:inherit" value="8" oninput="calcModalFuel()">
         </div>
       </div>
       <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;margin-bottom:4px">
         <div>
           <div style="font-size:10px;color:#888;margin-bottom:3px">เบิกล่วงหน้า (฿)</div>
-          <input id="tf-adv" type="number" style="width:100%;padding:7px 10px;border:1px solid #ddd;border-radius:7px;font-size:12px;font-family:inherit" placeholder="0">
+          <input id="md-adv" type="number" style="width:100%;padding:7px 10px;border:1px solid #ddd;border-radius:7px;font-size:12px;font-family:inherit" placeholder="0">
         </div>
         <div>
           <div style="font-size:10px;color:#888;margin-bottom:3px">ไมล์เริ่ม</div>
-          <input id="tf-odo" type="number" style="width:100%;padding:7px 10px;border:1px solid #ddd;border-radius:7px;font-size:12px;font-family:inherit" placeholder="เลขไมล์">
+          <input id="md-odo" type="number" style="width:100%;padding:7px 10px;border:1px solid #ddd;border-radius:7px;font-size:12px;font-family:inherit" placeholder="เลขไมล์">
         </div>
         <div>
           <div style="font-size:10px;color:#888;margin-bottom:3px">ค่าน้ำมัน (ประมาณ)</div>
-          <input id="tf-fuel-est" readonly style="width:100%;padding:7px 10px;border:1px solid #ddd;border-radius:7px;font-size:12px;background:#f0faf5;font-weight:700;color:#0F6E56" value="0 ฿">
+          <input id="md-fuel-est" readonly style="width:100%;padding:7px 10px;border:1px solid #ddd;border-radius:7px;font-size:12px;background:#f0faf5;font-weight:700;color:#0F6E56" value="0 ฿">
         </div>
       </div>
     </div>
@@ -1323,10 +1323,14 @@ function loadDoneBills(){
   // ถ้ามี dateFrom ใช้นั้น ถ้าไม่มีใช้ 14 วัน
   var fromISO = range.from ? new Date(range.from).toISOString() : cutoffISO;
 
+  // limit ตาม range — ถ้าวันเดียวดึงแค่ 100, สัปดาห์ 300
+  var limitN = (filterDateMode==="today"||filterDateMode==="yesterday") ? 100
+             : (filterDateMode==="week") ? 300 : 500;
+
   db.collection("bills")
     .where("createdAt",">=",fromISO)
     .orderBy("createdAt","desc")
-    .limit(300).get()
+    .limit(limitN).get()
     .then(function(snap){
       var bills=[];
       snap.forEach(function(doc){
@@ -1467,20 +1471,17 @@ function updateSelCount(){
 }
 
 // ===== DISPATCH MODAL =====
-function calcModalFare(){
-  var base=parseFloat((document.getElementById("tf-base")||{}).value||0);
-  var extra=parseFloat((document.getElementById("tf-extra")||{}).value||0);
-}
+function calcModalFare(){}
 function calcModalFuel(){
-  var dist=parseFloat((document.getElementById("tf-dist")||{}).value||0);
-  var price=parseFloat((document.getElementById("tf-price")||{}).value||40);
-  var add=parseFloat((document.getElementById("tf-price-add")||{}).value||0);
-  var rate=parseFloat((document.getElementById("tf-rate")||{}).value||8);
+  var dist=parseFloat((document.getElementById("md-dist")||{}).value||0);
+  var price=parseFloat((document.getElementById("md-price")||{}).value||40);
+  var add=parseFloat((document.getElementById("md-price-add")||{}).value||0);
+  var rate=parseFloat((document.getElementById("md-rate")||{}).value||8);
   var total = price + add/100;
-  var pt=document.getElementById("tf-price-total");
+  var pt=document.getElementById("md-price-total");
   if(pt) pt.textContent="รวม "+total.toFixed(2)+" ฿/ล";
   var est = rate>0 ? Math.round((dist/rate)*total) : 0;
-  var fe=document.getElementById("tf-fuel-est");
+  var fe=document.getElementById("md-fuel-est");
   if(fe) fe.value=est.toLocaleString("th-TH")+" ฿";
 }
 
@@ -1586,31 +1587,31 @@ function saveTripFromDispatch(bills, driverUsername, driverName){
     if(cod>0) codTotal+=cod;
     if(b.status==="ออกบิลรับของ"||b.status==="issued") pickupCount++;
   });
-  var g=function(id){ return (document.getElementById(id)||{}).value||""; };
-  var price=parseFloat(g("tf-price")||40);
-  var add=parseFloat(g("tf-price-add")||0);
-  var dist=parseFloat(g("tf-dist")||0);
-  var rate=parseFloat(g("tf-rate")||8);
+  var g=function(id){ return (document.getElementById("md-"+id)||{}).value||""; };
+  var price=parseFloat(g("price")||40);
+  var add=parseFloat(g("price-add")||0);
+  var dist=parseFloat(g("dist")||0);
+  var rate=parseFloat(g("rate")||8);
   var fuelPrice=price+add/100;
   var fuelEst=rate>0?Math.round((dist/rate)*fuelPrice):0;
   var trip={
     driverUsername:driverUsername,
     driverName:driverName,
     branch:getUserBranch(),
-    route:g("tf-route"),
-    departDate:g("tf-depart"),
-    days:parseInt(g("tf-days")||1),
-    baseFare:parseFloat(g("tf-base")||0),
-    extraFare:parseFloat(g("tf-extra")||0),
+    route:g("route"),
+    departDate:g("depart"),
+    days:parseInt(g("days")||1),
+    baseFare:parseFloat(g("base")||0),
+    extraFare:parseFloat(g("extra")||0),
     fuelDist:dist, fuelPrice:fuelPrice, fuelRate:rate,
-    fuelAdvance:parseFloat(g("tf-adv")||0),
+    fuelAdvance:parseFloat(g("adv")||0),
     fuelEst:fuelEst,
-    odomStart:parseFloat(g("tf-odo")||0),
+    odomStart:parseFloat(g("odo")||0),
     extras:{
-      overweight:!!(document.getElementById("tf-x1")||{}).checked,
-      openTail:  !!(document.getElementById("tf-x2")||{}).checked,
-      longLoad:  !!(document.getElementById("tf-x3")||{}).checked,
-      overHeight:!!(document.getElementById("tf-x4")||{}).checked
+      overweight:!!(document.getElementById("md-x1")||{}).checked,
+      openTail:  !!(document.getElementById("md-x2")||{}).checked,
+      longLoad:  !!(document.getElementById("md-x3")||{}).checked,
+      overHeight:!!(document.getElementById("md-x4")||{}).checked
     },
     billIds:bills.map(function(b){return b.billNo;}),
     status:"open",
