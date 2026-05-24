@@ -1056,7 +1056,7 @@ function makeTfPickupRow(p){
     +'</select></div>'
     +'<div><div style="font-size:10px;color:#0F6E56;margin-bottom:2px">ค่าจ้างรับ (฿)</div>'
     +'<input class="pu-comm trip-inp" type="number" value="'+comm+'" placeholder="คำนวณอัตโนมัติ" oninput="calcTfPickupTotal()" style="color:#0F6E56;font-weight:700"></div>'
-    +'<button type="button" onclick="this.closest('.tf-pu-row').remove();calcTfPickupTotal()" style="padding:6px 10px;background:#fee;border:1px solid #fcc;border-radius:6px;font-size:13px;cursor:pointer;color:#c0392b;align-self:flex-end">✕</button>'
+    +'<button type="button" data-row="tf-pu-row" onclick="this.closest(\'.tf-pu-row\').remove();calcTfPickupTotal()" style="padding:6px 10px;background:#fee;border:1px solid #fcc;border-radius:6px;font-size:13px;cursor:pointer;color:#c0392b;align-self:flex-end">✕</button>'
     +'</div>'
     +'<div style="display:flex;align-items:center;gap:8px">'
     +'<label style="display:flex;align-items:center;gap:5px;font-size:12px;cursor:pointer">'
