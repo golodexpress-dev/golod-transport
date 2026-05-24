@@ -807,7 +807,7 @@ function renderTripList(){
       +'<td style="text-align:right;color:#E67E22">'+fmt(s.destTotal||0)+'</td>'
       +'<td style="text-align:right;color:#c0392b">'+fmt(s.codTotal||0)+'</td>'
       +'<td style="text-align:right;color:#0F6E56">'+fmt(t.baseFare||0)+'</td>'
-      +'<td><button class="btn btn-gray" onclick="printTripSummary('\''+t.id+'\'')">🖨</button></td>'
+      +'<td><button class="btn btn-gray" data-tid="'+t.id+'" onclick="printTripSummary(this.dataset.tid)">🖨</button></td>'
       +'</tr>';
   }).join("");
 
