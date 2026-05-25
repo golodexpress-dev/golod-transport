@@ -4746,7 +4746,7 @@ function ReceiptForm({ bills, staffCode, staffName }) {
       transferRef: form.transferRef||"",
       items: form.items,
       total,
-      branch: sessionUser ? (sessionUser.branch==="ปทุมธานี"?"ptm":sessionUser.branch==="นครราชสีมา"?"krt":sessionUser.branch==="ศรีสะเกษ"?"ssk":"bkk") : "bkk"
+      branch: (function(){ var u=GolodSession&&GolodSession.get?GolodSession.get():null; if(!u)return"bkk"; return u.branch==="ปทุมธานี"?"ptm":u.branch==="นครราชสีมา"?"krt":u.branch==="ศรีสะเกษ"?"ssk":"bkk"; })()
     };
     const all = [...receipts, rcpt];
     setReceipts(all);
