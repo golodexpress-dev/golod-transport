@@ -873,8 +873,8 @@ function getClerkCodesForBranch(){
   var branchMap = {
     "นครราชสีมา": ["KD","KJ","KA"],
     "ศรีสะเกษ":   ["SR"],
-    "กรุงเทพ":    ["BP","BB","BA","BR","BG","PH"],  // กทม.+ปทุม รวมกัน
-    "ปทุมธานี":   ["BP","BB","BA","BR","BG","PH"],  // ปทุมเห็นเหมือนกทม.
+    "กรุงเทพ":    ["BP","BB","BA","BR","BG","BN","PH"],  // กทม.+ปทุม รวมกัน
+    "ปทุมธานี":   ["BP","BB","BA","BR","BG","BN","PH"],  // ปทุมเห็นเหมือนกทม.
   };
   return branchMap[CU.branch] || null;
 }
@@ -1127,7 +1127,7 @@ function renderApp(){
     +'<div style="overflow-x:auto"><table>'
     +'<tr><th></th><th>เลขบิล</th><th>วันที่</th><th>ผู้รับ</th><th>ปลายทาง</th>'
     +'<th>ค่าส่ง</th><th>สถานะ</th><th>ผู้ส่ง</th><th>Zone</th><th>คนรถ</th><th>จัดการ</th></tr>'
-    +rows
+    +'<tbody id="bill-tbody">'+rows+'</tbody>'
     +'</table></div>'
     +'<div style="font-size:11px;color:#888;margin-top:8px">แสดง '+filtered.length+' บิล</div>'
     +'</div>';
@@ -1142,7 +1142,8 @@ function renderApp(){
   }
 
   document.getElementById("app").innerHTML = html;
-  selectedBills = {};
+  if(!window._keepSelection) selectedBills = {};
+  window._keepSelection = false;
   updateSelCount();
 }
 
@@ -2429,7 +2430,48 @@ function switchTab(t){
 
 function filterTable(){
   _searchQuery = (document.getElementById("q-inp")||{}).value||"";
-  renderBillTable(currentTab);
+  // อัปเดตเฉพาะ tbody ไม่ re-render ทั้งหน้า (ไม่งั้น input หาย)
+  var tbody = document.getElementById("bill-tbody");
+  if(!tbody){ window._keepSelection=true; renderApp(); return; }
+  var filtered = filterBills(currentTab);
+  tbody.innerHTML = renderBillRows(filtered);
+}
+
+function renderBillRows(bills){
+  if(!bills || bills.length===0) return '<tr><td colspan="10" style="text-align:center;padding:20px;color:#aaa">ไม่พบข้อมูล</td></tr>';
+  var ZONE_COLOR={BKK:"#c0392b",West:"#d35400",South:"#27ae60",North:"#2471a3",East:"#8e44ad",Central:"#0f6e56",Korat:"#b7950b",LEsan:"#a93226",Esan:"#1a5276"};
+  return bills.map(function(b){
+    var stCls=stClass(b.status);
+    var destProv=b.destProv||(b.form&&b.form.destProv)||"";
+    var destAmphoe=b.destAmphoe||(b.form&&b.form.destAmphoe)||"";
+    var dest=destAmphoe?destAmphoe+"·"+destProv:destProv;
+    var receiver=b.receiverName||(b.form&&b.form.receiverName)||"";
+    var sender=b.senderName||(b.form&&b.form.senderName)||"";
+    var freight=parseFloat(b.freightNet||0);
+    var driver=b.driverName||b.driver||"—";
+    var zone=getZone(destProv,destAmphoe);
+    var zclr=ZONE_COLOR[zone]||"#888";
+    var zoneHTML=zone?'<span style="display:inline-block;padding:2px 7px;border-radius:10px;font-size:10px;font-weight:700;background:'+zclr+'22;color:'+zclr+'">'+zone+'</span>':"—";
+    var ds=billDateStr(b)||"—";
+    var ck=selectedBills[b.billNo]?'checked':'';
+    return '<tr>'
+      +'<td><input type="checkbox" '+ck+' onchange="toggleSelect(''+b.billNo+'')" style="accent-color:#0F6E56"></td>'
+      +'<td style="font-weight:600;white-space:nowrap">'+b.billNo+'</td>'
+      +'<td style="white-space:nowrap;color:#888;font-size:11px">'+ds+'</td>'
+      +'<td>'+receiver+'</td>'
+      +'<td style="white-space:nowrap">'+dest+'</td>'
+      +'<td style="text-align:right;font-weight:600">'+freight.toLocaleString("th-TH")+'</td>'
+      +'<td><span class="badge '+stCls+'">'+b.status+'</span></td>'
+      +'<td style="color:#555">'+sender+'</td>'
+      +'<td>'+zoneHTML+'</td>'
+      +'<td style="color:#666">'+driver+'</td>'
+      +'<td>'
+      +(canClearTrip()
+        ? '<button class="btn btn-gray" onclick="openStatusModal(''+b.billNo+'')">อัปเดต</button>'
+        : '')
+      +'</td>'
+      +'</tr>';
+  }).join("");
 }
 
 function toggleBill(id){
