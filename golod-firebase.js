@@ -270,13 +270,14 @@ var GolodDB = (function() {
         cutoff.setDate(cutoff.getDate() - days);
         var cutoffISO = cutoff.toISOString();
 
-        // Query 1: บิล active ทุกสถานะ (รวม ติดต่อไม่ได้/นัดส่งใหม่) — ไม่จำกัดวัน
+        // Query 1: บิล active ทุกสถานะ — ไม่จำกัดวัน ดึงทั้งหมด
         var ACTIVE_ST = [
           "กำลังวิ่งส่งลูกค้า","ระหว่างนำส่งสาขา","ออกบิลรับของ","นำส่งใหม่",
-          "issued","","ติดต่อลูกค้าไม่ได้","ติดต่อไม่ได้","nocontact","reschedule","นัดส่งใหม่"
+          "issued","ติดต่อลูกค้าไม่ได้","ติดต่อไม่ได้","nocontact","reschedule","นัดส่งใหม่",
+          "ส่งไม่สำเร็จ"
         ];
-        var activeQueries = ACTIVE_ST.filter(function(st){ return st !== ""; }).map(function(st){
-          return db.collection("bills").where("status","==",st).limit(100).get();
+        var activeQueries = ACTIVE_ST.map(function(st){
+          return db.collection("bills").where("status","==",st).limit(200).get();
         });
         // บิล status ว่าง (issued ใหม่)
         var emptyQ = db.collection("bills").where("status","==","").limit(50).get();
