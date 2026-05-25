@@ -8,6 +8,8 @@
 <script src="session.js"></script>
 <script src="firebase-app-compat.js"></script>
 <script src="firebase-firestore-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-storage-compat.js"></script>
+<script src="golod-storage.js"></script>
 <script src="golod-firebase.js?v=1779235999"></script>
 <script>try{GolodDB.init();}catch(e){}</script>
 <style>
@@ -881,18 +883,33 @@ function getClerkCodesForBranch(){
 function billBelongsToUserBranch(b){
   var ub = getUserBranch();
   if(ub==="all") return true;
+
+  // เช็ค targetBranch — บิลที่จ่ายให้สาขานี้ ต้องเห็นเสมอ (status ระหว่างนำส่งสาขา)
+  var tb = b.targetBranch||"";
+  if(tb){
+    // map targetBranch label → branch code
+    var tbMap = {
+      "ssk":"ssk","ศรีสะเกษ":"ssk","สาขาศรีสะเกษ":"ssk",
+      "krt":"krt","นครราชสีมา":"krt","สาขานครราชสีมา":"krt",
+      "bkk":"bkk","กรุงเทพ":"bkk","สาขากรุงเทพ":"bkk",
+      "ptm":"bkk","ปทุมธานี":"bkk","สาขาปทุมธานี":"bkk"
+    };
+    var tbCode = tbMap[tb] || tb;
+    if(tbCode === ub) return true;
+    // BKK/PTM เห็นเหมือนกัน
+    if((ub==="bkk"||ub==="ptm") && (tbCode==="bkk"||tbCode==="ptm")) return true;
+  }
+
+  // เช็ค clerkCode/prefix ปกติ
   var clerkCodes = getClerkCodesForBranch();
   if(clerkCodes){
-    // ตรวจจาก clerkCode field หรือ prefix ของ billNo
     var bc = b.clerkCode||(b.form&&b.form.clerkCode)||"";
     var bn = b.billNo||"";
-    // ตัด suffix ตัวเลขออก เหลือแค่ตัวอักษร เช่น "BP2305-01" → "BP"
     var prefix = bn.replace(/[0-9\/\-].*/g,"").toUpperCase();
     return clerkCodes.some(function(cc){
       return bc===cc || prefix===cc || bn.toUpperCase().indexOf(cc)===0;
     });
   }
-  // ไม่มี clerkCodes → เห็นทุกบิล
   return true;
 }
 
@@ -1087,7 +1104,11 @@ function renderApp(){
       +'<td>'+zoneHTML+'</td>'
       +'<td style="color:#666">'+driver+'</td>'
       +'<td>'
-      +'<button class="btn btn-gray" onclick="openStatusModal(\''+b.billNo+'\')">อัปเดต</button>'
+      +(canClearTrip()
+        ? '<button class="btn btn-gray" onclick="openStatusModal(\''+b.billNo+'\')">อัปเดต</button>'
+        : (isDoneStatus(b.status)
+          ? '<button class="btn btn-orange" style="font-size:11px" onclick="rescheduleReturn(\''+b.billNo+'\')">📋 รอจ่ายใหม่</button>'
+          : ''))
       +'</td>'
       +'</tr>';
   }).join("");
@@ -3183,6 +3204,29 @@ function printSummary(){
   pa.style.display = "block";
   window.print();
   setTimeout(function(){ pa.style.display = "none"; }, 500);
+}
+
+// ตรวจว่าบิล "ส่งไม่สำเร็จ"
+function isDoneStatus(st){
+  return ["ส่งไม่สำเร็จ","ติดต่อลูกค้าไม่ได้","ติดต่อไม่ได้","nocontact","reschedule","นัดส่งใหม่"].indexOf(st)>=0;
+}
+
+// เสมียนกดเปลี่ยนบิลส่งไม่สำเร็จ → รอจ่ายงานใหม่
+function rescheduleReturn(billNo){
+  if(!canClearTrip()){ alert("ไม่มีสิทธิ์"); return; }
+  var b = BILLS.find(function(x){ return x.billNo===billNo; });
+  if(!b){ alert("ไม่พบบิล"); return; }
+  var confirm_msg = "เปลี่ยนบิล "+billNo+" → รอจ่ายงานใหม่?
+(สถานะ: "+b.status+" → ออกบิลรับของ)";
+  if(!confirm(confirm_msg)) return;
+  GolodDB.updateBill(billNo, {status:"ออกบิลรับของ", updatedAt:new Date().toISOString()})
+    .then(function(){
+      // อัปเดต local
+      var idx = BILLS.findIndex(function(x){ return x.billNo===billNo; });
+      if(idx>=0) BILLS[idx].status = "ออกบิลรับของ";
+      renderBillTable(currentTab);
+      alert("✅ บิล "+billNo+" กลับมารอจ่ายงานแล้ว");
+    }).catch(function(e){ alert("❌ "+e.message); });
 }
 
 // ===== STATUS MODAL =====
