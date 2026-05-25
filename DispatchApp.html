@@ -1129,7 +1129,7 @@ function renderApp(){
     +'<th>ค่าส่ง</th><th>สถานะ</th><th>ผู้ส่ง</th><th>Zone</th><th>คนรถ</th><th>จัดการ</th></tr>'
     +'<tbody id="bill-tbody">'+rows+'</tbody>'
     +'</table></div>'
-    +'<div style="font-size:11px;color:#888;margin-top:8px">แสดง '+filtered.length+' บิล</div>'
+    +'<div style="font-size:11px;color:#888;margin-top:8px"><span id="bill-count-label">แสดง '+filtered.length+' บิล</span></div>'
     +'</div>';
 
   if(currentTab === "trip"){
@@ -2430,11 +2430,13 @@ function switchTab(t){
 
 function filterTable(){
   _searchQuery = (document.getElementById("q-inp")||{}).value||"";
-  // อัปเดตเฉพาะ tbody ไม่ re-render ทั้งหน้า (ไม่งั้น input หาย)
   var tbody = document.getElementById("bill-tbody");
   if(!tbody){ window._keepSelection=true; renderApp(); return; }
   var filtered = filterBills(currentTab);
   tbody.innerHTML = renderBillRows(filtered);
+  // อัปเดต count label
+  var countEl = document.getElementById("bill-count-label");
+  if(countEl) countEl.textContent = "แสดง "+filtered.length+" บิล";
 }
 
 function renderBillRows(bills){
