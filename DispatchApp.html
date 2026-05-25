@@ -2601,10 +2601,18 @@ function openDispatch(mode){
     });
   } else {
     var ub=getUserBranch();
+    var branchMap={bkk:"กรุงเทพ",ptm:"ปทุมธานี",krt:"นครราชสีมา",ssk:"ศรีสะเกษ"};
+    var seenD={};
     var drivers=DRIVERS.filter(function(d){
+      // deduplicate ด้วย username หรือ name+branch
+      var key = d.username||(d.name+"_"+d.branch);
+      if(seenD[key]) return false;
+      seenD[key]=true;
       if(ub==="all") return true;
-      var m={bkk:"กรุงเทพ",ptm:"ปทุมธานี",krt:"นครราชสีมา",ssk:"ศรีสะเกษ"};
-      return d.branch===m[ub];
+      var userBranch = branchMap[ub]||"";
+      // BKK และ PTM เห็นเหมือนกัน
+      if(ub==="bkk"||ub==="ptm") return d.branch==="กรุงเทพ"||d.branch==="ปทุมธานี";
+      return d.branch===userBranch;
     });
     if(drivers.length===0){ alert("ไม่พบคนรถในสาขานี้"); return; }
     drivers.forEach(function(d){
