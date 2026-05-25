@@ -2571,15 +2571,11 @@ function openDispatch(mode){
   dispatchMode=mode;
   document.getElementById("modal-title").textContent = mode==="branch"?"📦 จ่ายให้สาขา":"🚛 จ่ายให้คนรถ";
   document.getElementById("modal-bill-count").textContent="เลือก "+ids.length+" บิล";
-  // แสดง/ซ่อน trip fields + pickup
+  // ซ่อน trip fields ใน modal — ข้อมูลเที่ยวกรอกใน "จัดการเที่ยว" แทน
   var tripFields=document.getElementById("modal-trip-fields");
-  if(tripFields) tripFields.style.display = mode==="driver" ? "block" : "none";
+  if(tripFields) tripFields.style.display = "none";
   var pickupWrap=document.getElementById("modal-pickup-wrap");
-  if(pickupWrap) pickupWrap.style.display = mode==="driver" ? "block" : "none";
-  if(mode==="driver"){
-    document.getElementById("pickup-rows").innerHTML="";
-    addPickupRow(); // เพิ่มแถวแรกอัตโนมัติ
-  }
+  if(pickupWrap) pickupWrap.style.display = "none";
   if(mode==="driver"){
     // set default date
     var td=document.getElementById("md-depart");
