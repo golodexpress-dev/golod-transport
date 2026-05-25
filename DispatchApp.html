@@ -1035,8 +1035,18 @@ function renderApp(){
     if(t.k==="done"){
       cnt = DONE_BILLS_CACHE.length > 0 ? DONE_BILLS_CACHE.length
           : BILLS.filter(function(b){return DONE_TAB_STATUS.indexOf(b.status||"")>=0;}).length;
-    } else if(t.k==="trip" || t.k==="history"){
+    } else if(t.k==="trip" || t.k==="history" || t.k==="monthly"){
       cnt = "";
+    } else if(t.k==="all"){
+      // ทั้งหมด = BILLS + DONE_BILLS_CACHE รวมกัน (ไม่ซ้ำ)
+      var seen={};
+      var allCount=0;
+      BILLS.concat(DONE_BILLS_CACHE).forEach(function(b){
+        if(b.billNo&&!seen[b.billNo]&&billBelongsToUserBranch(b)){
+          seen[b.billNo]=true; allCount++;
+        }
+      });
+      cnt = allCount;
     } else {
       cnt = filterBills(t.k).length;
     }
