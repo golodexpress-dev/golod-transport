@@ -3322,17 +3322,23 @@ function isDoneStatus(st){
 // เสมียนกดเปลี่ยนบิลส่งไม่สำเร็จ → รอจ่ายงานใหม่
 function rescheduleReturn(billNo){
   if(!canClearTrip()){ alert("ไม่มีสิทธิ์"); return; }
-  var b = BILLS.find(function(x){ return x.billNo===billNo; });
-  if(!b){ alert("ไม่พบบิล"); return; }
-  var confirm_msg = "เปลี่ยนบิล "+billNo+" → รอจ่ายงานใหม่?\n(สถานะ: "+b.status+" → ออกบิลรับของ)";
+  // ค้นหาทั้งใน BILLS และ DONE_BILLS_CACHE
+  var b = BILLS.find(function(x){ return x.billNo===billNo; })
+       || DONE_BILLS_CACHE.find(function(x){ return x.billNo===billNo; });
+  var statusText = b ? b.status : "ไม่ทราบ";
+  var confirm_msg = "เปลี่ยนบิล "+billNo+" → รอจ่ายงานใหม่?\n(สถานะ: "+statusText+" → ออกบิลรับของ)";
   if(!confirm(confirm_msg)) return;
   GolodDB.updateBill(billNo, {status:"ออกบิลรับของ", updatedAt:new Date().toISOString()})
     .then(function(){
-      // อัปเดต local
-      var idx = BILLS.findIndex(function(x){ return x.billNo===billNo; });
-      if(idx>=0) BILLS[idx].status = "ออกบิลรับของ";
-      renderBillTable(currentTab);
+      // อัปเดต local ทั้งสอง cache
+      [BILLS, DONE_BILLS_CACHE].forEach(function(arr){
+        var idx = arr.findIndex(function(x){ return x.billNo===billNo; });
+        if(idx>=0) arr[idx].status = "ออกบิลรับของ";
+      });
       alert("✅ บิล "+billNo+" กลับมารอจ่ายงานแล้ว");
+      // reload หน้าปัจจุบัน
+      if(currentTab==="done") renderDoneTab();
+      else renderApp();
     }).catch(function(e){ alert("❌ "+e.message); });
 }
 
