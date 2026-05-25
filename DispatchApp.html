@@ -2482,6 +2482,16 @@ function toggleBill(id){
   updateSelCount();
 }
 
+function toggleSelect(billNo){
+  if(selectedBills[billNo]){
+    delete selectedBills[billNo];
+  } else {
+    var b = BILLS.find(function(x){ return x.billNo===billNo; });
+    if(b) selectedBills[billNo] = b;
+  }
+  updateSelCount();
+}
+
 function toggleSelectAll(){
   var rows=document.querySelectorAll("input[data-id]");
   var allChecked=Object.keys(selectedBills).length===rows.length;
@@ -3322,21 +3332,19 @@ function isDoneStatus(st){
 // เสมียนกดเปลี่ยนบิลส่งไม่สำเร็จ → รอจ่ายงานใหม่
 function rescheduleReturn(billNo){
   if(!canClearTrip()){ alert("ไม่มีสิทธิ์"); return; }
-  // ค้นหาทั้งใน BILLS และ DONE_BILLS_CACHE
-  var b = BILLS.find(function(x){ return x.billNo===billNo; })
-       || DONE_BILLS_CACHE.find(function(x){ return x.billNo===billNo; });
-  var statusText = b ? b.status : "ไม่ทราบ";
-  var confirm_msg = "เปลี่ยนบิล "+billNo+" → รอจ่ายงานใหม่?\n(สถานะ: "+statusText+" → ออกบิลรับของ)";
-  if(!confirm(confirm_msg)) return;
+  if(!confirm("เปลี่ยนบิล "+billNo+" → รอจ่ายงานใหม่?")) return;
+  if(!GolodDB.updateBill){ alert("กรุณา deploy golod-firebase.js ใหม่ก่อน"); return; }
   GolodDB.updateBill(billNo, {status:"ออกบิลรับของ", updatedAt:new Date().toISOString()})
     .then(function(){
-      // อัปเดต local ทั้งสอง cache
-      [BILLS, DONE_BILLS_CACHE].forEach(function(arr){
-        var idx = arr.findIndex(function(x){ return x.billNo===billNo; });
-        if(idx>=0) arr[idx].status = "ออกบิลรับของ";
-      });
+      // อัปเดต local cache ทั้งหมด
+      function updateArr(arr){
+        for(var i=0;i<arr.length;i++){
+          if(arr[i].billNo===billNo){ arr[i].status="ออกบิลรับของ"; break; }
+        }
+      }
+      updateArr(BILLS);
+      updateArr(DONE_BILLS_CACHE);
       alert("✅ บิล "+billNo+" กลับมารอจ่ายงานแล้ว");
-      // reload หน้าปัจจุบัน
       if(currentTab==="done") renderDoneTab();
       else renderApp();
     }).catch(function(e){ alert("❌ "+e.message); });
