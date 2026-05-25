@@ -2457,7 +2457,7 @@ function renderBillRows(bills){
     var ds=billDateStr(b)||"—";
     var ck=selectedBills[b.billNo]?'checked':'';
     return '<tr>'
-      +'<td><input type="checkbox" '+ck+' onchange="toggleSelect(''+b.billNo+'')" style="accent-color:#0F6E56"></td>'
+      +'<td><input type="checkbox" '+ck+' onchange="toggleSelect(\''+b.billNo+'\')" style="accent-color:#0F6E56"></td>'
       +'<td style="font-weight:600;white-space:nowrap">'+b.billNo+'</td>'
       +'<td style="white-space:nowrap;color:#888;font-size:11px">'+ds+'</td>'
       +'<td>'+receiver+'</td>'
