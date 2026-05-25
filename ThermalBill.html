@@ -3221,7 +3221,7 @@ function ThermalBillingApp() {
     insurance: 0,
     freightNet,
     codTotal,
-    minFreightApplied: isMinApplied ? minFr : 0,
+    minFreightApplied: minFr, // แสดง label เสมอถ้ามีขั้นต่ำ
     isMinApplied
   };
   const updItem = (idx, k, v) => setItems(p => p.map((it, i) => i === idx ? {
@@ -4415,7 +4415,7 @@ function ReceiptPrint({ receipt }) {
     ),
     React.createElement("hr",{style:{border:"none",borderTop:"1px dashed #333",margin:"4px 0"}}),
     // รายการ
-    React.createElement("table",{style:{width:"100%",borderCollapse:"collapse",fontSize:11}},
+    React.createElement("table",{style:{width:"100%",borderCollapse:"collapse",fontSize:13}},
       React.createElement("thead",null,
         React.createElement("tr",{style:{borderBottom:"1px solid #000"}},
           React.createElement("th",{style:{textAlign:"left",padding:"3px 3px",fontWeight:800}},"รายการ"),
@@ -4425,7 +4425,7 @@ function ReceiptPrint({ receipt }) {
       React.createElement("tbody",null,
         (receipt.items||[]).map((it,i)=>
           React.createElement("tr",{key:i},
-            React.createElement("td",{style:{padding:"4px 3px",lineHeight:1.8,fontWeight:700}},it.desc),
+            React.createElement("td",{style:{padding:"4px 3px",lineHeight:1.8,fontWeight:700,fontSize:13}},it.desc),
             React.createElement("td",{style:{textAlign:"right",padding:"4px 3px",lineHeight:1.8,fontWeight:800}},fmt(it.amount)," ฿")
           )
         )
