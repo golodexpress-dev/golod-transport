@@ -2267,6 +2267,62 @@ function loadDoneBills(){
     });
 }
 
+function onDoneSearch(val){
+  _searchQuery = val;
+  // อัปเดตเฉพาะ table body ไม่ re-render ทั้งหน้า
+  var tbody = document.getElementById("done-table-body");
+  if(!tbody){ renderDoneTab(); return; }
+  var range = getDateRange(filterDateMode);
+  var q = _searchQuery||"";
+  var bills = DONE_BILLS_CACHE.filter(function(b){
+    if(range.from||range.to){
+      var ds=billDateStr(b);
+      if(ds&&!((!range.from||ds>=range.from)&&(!range.to||ds<=range.to))) return false;
+    }
+    if(!billBelongsToUserBranch(b)) return false;
+    return billMatchSearch(b, q);
+  });
+  var ZONE_COLOR={BKK:"#c0392b",West:"#d35400",South:"#27ae60",North:"#2471a3",East:"#8e44ad",Central:"#0f6e56",Korat:"#b7950b",LEsan:"#a93226",Esan:"#1a5276"};
+  var rows = bills.map(function(b){
+    var stCls=stClass(b.status);
+    var destProv=b.destProv||(b.form&&b.form.destProv)||"";
+    var destAmphoe=b.destAmphoe||(b.form&&b.form.destAmphoe)||"";
+    var dest=destAmphoe+"·"+destProv;
+    var receiver=b.receiverName||(b.form&&b.form.receiverName)||"";
+    var sender=b.senderName||(b.form&&b.form.senderName)||"";
+    var freight=parseFloat(b.freightNet||0);
+    var driver=b.driverName||b.driver||"—";
+    var zone=getZone(destProv,destAmphoe);
+    var zclr=ZONE_COLOR[zone]||"#888";
+    var zoneHTML=zone?'<span style="display:inline-block;padding:2px 7px;border-radius:10px;font-size:10px;font-weight:700;background:'+zclr+'22;color:'+zclr+'">'+zone+'</span>':"—";
+    var ds=billDateStr(b)||"—";
+    var isNotSuccess=isDoneStatus(b.status);
+    var actionBtn=canClearTrip()
+      ? (isNotSuccess
+        ? '<button class="btn btn-orange" style="font-size:11px" onclick="rescheduleReturn(\''+b.billNo+'\')">📋 รอจ่ายใหม่</button>'
+        : '<button class="btn btn-gray" style="font-size:11px" onclick="openStatusModal(\''+b.billNo+'\')">อัปเดต</button>')
+      : "";
+    return '<tr>'
+      +'<td style="font-weight:600;white-space:nowrap">'+b.billNo+'</td>'
+      +'<td style="white-space:nowrap;color:#888;font-size:11px">'+ds+'</td>'
+      +'<td>'+receiver+'</td>'
+      +'<td style="white-space:nowrap">'+dest+'</td>'
+      +'<td style="text-align:right;font-weight:600">'+freight.toLocaleString("th-TH")+'</td>'
+      +'<td><span class="badge '+stCls+'">'+b.status+'</span></td>'
+      +'<td>'+sender+'</td>'
+      +'<td>'+zoneHTML+'</td>'
+      +'<td style="color:#666;font-size:11px">'+driver+'</td>'
+      +'<td>'+actionBtn+'</td>'
+      +'</tr>';
+  }).join("");
+  tbody.innerHTML='<div style="overflow-x:auto"><table>'
+    +'<tr><th>เลขบิล</th><th>วันที่</th><th>ผู้รับ</th><th>ปลายทาง</th><th>ค่าส่ง</th><th>สถานะ</th><th>ผู้ส่ง</th><th>Zone</th><th>คนรถ</th><th>จัดการ</th></tr>'
+    +rows+'</table></div>';
+  // อัปเดตจำนวน
+  var countEl=document.querySelector("#done-table-body")&&document.querySelector(".done-count");
+  // update count text ถ้ามี
+}
+
 function renderDoneTab(){
   var range = getDateRange(filterDateMode);
   var bills = DONE_BILLS_CACHE.filter(function(b){
@@ -2338,11 +2394,11 @@ function renderDoneTab(){
     +'</div>'
     +dateBar
     +'<div style="font-size:12px;color:#666;margin-bottom:8px">แสดง '+bills.length+' บิล</div>'
-    +'<div style="margin-bottom:8px"><input type="text" id="q-inp-done" placeholder="ค้นหา: บิล/ชื่อ/จังหวัด/สินค้า" style="width:100%;max-width:360px;padding:7px 10px;border:1px solid #ddd;border-radius:7px;font-size:12px" value="'+(_searchQuery||"")+'" oninput="_searchQuery=this.value;renderDoneTab()"></div>'
-    +'<div style="overflow-x:auto"><table>'
+    +'<div style="margin-bottom:8px"><input type="text" id="q-inp-done" placeholder="ค้นหา: บิล/ชื่อ/จังหวัด/สินค้า/สถานะ" style="width:100%;max-width:360px;padding:7px 10px;border:1px solid #ddd;border-radius:7px;font-size:12px" value="'+(_searchQuery||"")+'" oninput="onDoneSearch(this.value)"></div>'
+    +'<div id="done-table-body"><div style="overflow-x:auto"><table>'
     +'<tr><th>เลขบิล</th><th>วันที่</th><th>ผู้รับ</th><th>ปลายทาง</th><th>ค่าส่ง</th><th>สถานะ</th><th>ผู้ส่ง</th><th>Zone</th><th>คนรถ</th><th>จัดการ</th></tr>'
     +rows
-    +'</table></div></div>';
+    +'</table></div></div></div>';
   document.getElementById("app").innerHTML=html;
 }
 
