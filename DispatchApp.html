@@ -3216,8 +3216,7 @@ function rescheduleReturn(billNo){
   if(!canClearTrip()){ alert("ไม่มีสิทธิ์"); return; }
   var b = BILLS.find(function(x){ return x.billNo===billNo; });
   if(!b){ alert("ไม่พบบิล"); return; }
-  var confirm_msg = "เปลี่ยนบิล "+billNo+" → รอจ่ายงานใหม่?
-(สถานะ: "+b.status+" → ออกบิลรับของ)";
+  var confirm_msg = "เปลี่ยนบิล "+billNo+" → รอจ่ายงานใหม่?\n(สถานะ: "+b.status+" → ออกบิลรับของ)";
   if(!confirm(confirm_msg)) return;
   GolodDB.updateBill(billNo, {status:"ออกบิลรับของ", updatedAt:new Date().toISOString()})
     .then(function(){
