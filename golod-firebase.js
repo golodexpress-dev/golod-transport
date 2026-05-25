@@ -260,37 +260,41 @@ var GolodDB = (function() {
     });
   }
 
-  // getBillsDispatch — ใช้กับ DispatchApp เท่านั้น
-  // ดึง: active ทุกวัน + createdAt ภายใน N วัน (รวม done status)
+  // getBillsDispatch — optimized: active ก่อน แล้ว recent done แยก
   function getBillsDispatch(opts) {
     opts = opts || {};
-    var days = opts.days || 14;
+    var days = opts.days || 7; // ลดจาก 14 → 7 วัน
     return new Promise(function(resolve, reject) {
       ready(function() {
         var cutoff = new Date();
         cutoff.setDate(cutoff.getDate() - days);
         var cutoffISO = cutoff.toISOString();
 
-        // Query 1: บิลทุกสถานะ ภายใน N วัน (รวม done)
-        var q1 = db.collection("bills")
+        // Query 1: บิล active ทุกสถานะ (รวม ติดต่อไม่ได้/นัดส่งใหม่) — ไม่จำกัดวัน
+        var ACTIVE_ST = [
+          "กำลังวิ่งส่งลูกค้า","ระหว่างนำส่งสาขา","ออกบิลรับของ","นำส่งใหม่",
+          "issued","","ติดต่อลูกค้าไม่ได้","ติดต่อไม่ได้","nocontact","reschedule","นัดส่งใหม่"
+        ];
+        var activeQueries = ACTIVE_ST.filter(function(st){ return st !== ""; }).map(function(st){
+          return db.collection("bills").where("status","==",st).limit(100).get();
+        });
+        // บิล status ว่าง (issued ใหม่)
+        var emptyQ = db.collection("bills").where("status","==","").limit(50).get();
+
+        // Query 2: done ภายใน N วัน (limit เล็กลง)
+        var doneQ = db.collection("bills")
           .where("createdAt", ">=", cutoffISO)
           .orderBy("createdAt", "desc")
-          .limit(500);
+          .limit(200);
 
-        // Query 2: บิล active ทุกวัน (ไม่จำกัดช่วงเวลา)
-        var ACTIVE_ST = ["กำลังวิ่งส่งลูกค้า","ระหว่างนำส่งสาขา","ออกบิลรับของ","นำส่งใหม่"];
-        var activeQueries = ACTIVE_ST.map(function(st){
-          return db.collection("bills").where("status","==",st).limit(200).get();
-        });
-
-        Promise.all([q1.get()].concat(activeQueries))
+        Promise.all(activeQueries.concat([emptyQ, doneQ.get()]))
           .then(function(results) {
-            var seen = {};
-            var bills = [];
+            var seen = {}, bills = [];
             results.forEach(function(snap){
+              if(!snap || !snap.forEach) return;
               snap.forEach(function(doc){
                 var d = doc.data();
-                if(!seen[d.billNo]){
+                if(d.billNo && !seen[d.billNo]){
                   seen[d.billNo] = true;
                   bills.push(d);
                 }
@@ -299,12 +303,20 @@ var GolodDB = (function() {
             resolve(_sortAndFilter(bills));
           }).catch(function(e){
             console.warn("[getBillsDispatch] fallback:", e.message);
-            db.collection("bills").limit(500).get()
-              .then(function(snap){
-                var bills = [];
-                snap.forEach(function(doc){ bills.push(doc.data()); });
-                resolve(_sortAndFilter(bills));
-              }).catch(reject);
+            // fallback: ดึงแค่ active
+            var ACTIVE_ST2 = ["กำลังวิ่งส่งลูกค้า","ระหว่างนำส่งสาขา","ออกบิลรับของ"];
+            Promise.all(ACTIVE_ST2.map(function(st){
+              return db.collection("bills").where("status","==",st).limit(150).get();
+            })).then(function(snaps){
+              var seen={}, bills=[];
+              snaps.forEach(function(snap){
+                snap.forEach(function(doc){
+                  var d=doc.data();
+                  if(!seen[d.billNo]){seen[d.billNo]=true;bills.push(d);}
+                });
+              });
+              resolve(_sortAndFilter(bills));
+            }).catch(reject);
           });
       });
     });
