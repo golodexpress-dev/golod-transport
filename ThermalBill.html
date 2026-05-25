@@ -624,7 +624,16 @@ const BRANCH_ZONES = {
 };
 // ===== ค่าส่งขั้นต่ำตามจังหวัด =====
 function getMinFreight(destProv, destAmphoe, isSpecialArea){
-  // พื้นที่พิเศษ auto-detect ขั้นต่ำ 500 บาท
+  // เช็ค dynamic special areas จาก Firestore ก่อน (โหลดไว้ใน window._specialAreas)
+  var dynAreas = window._specialAreas || [];
+  for(var di=0; di<dynAreas.length; di++){
+    var da = dynAreas[di];
+    var matchAmphoe = (destAmphoe||"").indexOf(da.amphoe) >= 0;
+    var matchProv = !da.prov || (destProv||"").indexOf(da.prov) >= 0;
+    if(matchAmphoe && matchProv) return da.min;
+  }
+
+  // พื้นที่พิเศษ auto-detect ขั้นต่ำ 500 บาท (built-in)
   var SP500 = [
     // กาญจนบุรี
     "ศรีสวัสดิ์","สังขละบุรี",
@@ -1138,8 +1147,10 @@ function ThermalBill({
   printDate
 }) {
   // คำนวณ minFreight ภายใน
-  const _minFr = form.isSpecialArea ? (parseInt(form.minFreight)||0) : 0;
-  const _isMinApplied = _minFr > 0 && summary.freightNet >= _minFr && (summary.freightTotal||summary.freightNet) < _minFr;
+  const _minFr = summary.minFreightApplied ||
+    (form.isSpecialArea ? (parseInt(form.minFreight)||0) : 0) ||
+    (getMinFreight(form.destProv||"", form.receiverAmphoe||form.destAmphoe||"", form.isSpecialArea)||0);
+  const _isMinApplied = _minFr > 0;
   var _FREIGHT_PAY$find, _BRANCHES$find;
   const W = 298;
   const zone = getZone(form.branch, form.destProv, form.receiverAmphoe);
@@ -1411,7 +1422,7 @@ function ThermalBill({
     }, (summary&&summary.freightNet||0).toLocaleString("th-TH"), " \u0E3F"),
     _isMinApplied && /*#__PURE__*/React.createElement("div", {
       style: { fontSize: 9, color: "#E67E22", fontWeight: 700, marginTop: 1 }
-    }, "(ยอดขั้นต่ำพื้นที่พิเศษ)")
+    }, "(ยอดขั้นต่ำ "+(_minFr||0).toLocaleString("th-TH")+" ฿)")
   ), /*#__PURE__*/React.createElement(Div, {
     dashed: true
   }),
@@ -3209,7 +3220,9 @@ function ThermalBillingApp() {
     discount: discountAmt,
     insurance: 0,
     freightNet,
-    codTotal
+    codTotal,
+    minFreightApplied: isMinApplied ? minFr : 0,
+    isMinApplied
   };
   const updItem = (idx, k, v) => setItems(p => p.map((it, i) => i === idx ? {
     ...it,
@@ -4921,7 +4934,22 @@ function ReceiptForm({ bills, staffCode, staffName }) {
   );
 }
 </script>
-<script>(function(){var s=GolodSession.get();if(!s){window.location.href="GolodApp.html";return;}GolodSession.renderTopbar("golod-chip","ออกบิล","#1D9E75");
+<script>(function(){var s=GolodSession.get();if(!s){window.location.href="GolodApp.html";return;}// โหลด special areas จาก Firestore
+(function(){
+  function tryLoadSA(){
+    if(typeof GolodDB === "undefined" || !GolodDB.getSetting) {
+      setTimeout(tryLoadSA, 500); return;
+    }
+    GolodDB.ready(function(){
+      GolodDB.getSetting("specialAreas").then(function(val){
+        if(val && Array.isArray(val)) window._specialAreas = val;
+      }).catch(function(){});
+    });
+  }
+  tryLoadSA();
+})();
+
+GolodSession.renderTopbar("golod-chip","ออกบิล","#1D9E75");
 // sync บิลจาก Firestore → localStorage ก่อน render
 (function(){
   function doRender(){ ReactDOM.render(React.createElement(ThermalBillingApp),document.getElementById('root')); }
