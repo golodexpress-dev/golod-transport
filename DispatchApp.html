@@ -2743,29 +2743,15 @@ function saveTripFromDispatch(bills, driverUsername, driverName){
 }
 
 function _doSaveNewTrip(bills, driverUsername, driverName, billIds){
-  var g=function(id){ return (document.getElementById("md-"+id)||{}).value||""; };
-  var fuelBase=parseFloat(g("price")||40);
-  var rate=parseFloat(g("rate")||8);
-  var fuelAddon=getFuelAddon ? getFuelAddon() : 0;
-  var price=fuelBase+fuelAddon;
-  var daysEl=document.querySelector('input[name="md-days"]:checked');
-  var daysVal=daysEl?parseInt(daysEl.value):1;
+  // สร้าง trip เปล่าๆ — admin กรอกรายละเอียดใน "จัดการเที่ยว" ทีหลัง
   var trip={
     driverUsername:driverUsername, driverName:driverName,
     branch:getUserBranch(),
-    route:g("route"), departDate:g("depart")||new Date().toISOString().slice(0,10),
-    days:daysVal,
-    baseFare:parseFloat(g("base")||0), extraFare:parseFloat(g("extra")||0),
-    hotelFare:daysVal>=2?parseFloat(g("hotel")||0):0,
-    fuelPriceBase:fuelBase, fuelPriceAddon:fuelAddon, fuelPrice:price, fuelRate:rate,
-    fuelAdvance:parseFloat(g("adv")||0),
-    odomStart:parseFloat(g("odo")||0),
-    extras:{
-      overweight:!!(document.getElementById("md-x1")||{}).checked,
-      openTail:  !!(document.getElementById("md-x2")||{}).checked,
-      longLoad:  !!(document.getElementById("md-x3")||{}).checked,
-      overHeight:!!(document.getElementById("md-x4")||{}).checked
-    },
+    route:"", departDate:new Date().toISOString().slice(0,10),
+    days:1, baseFare:0, extraFare:0, hotelFare:0,
+    fuelPriceBase:0, fuelPriceAddon:0, fuelPrice:0, fuelRate:8,
+    fuelAdvance:0, odomStart:0,
+    extras:{overweight:false,openTail:false,longLoad:false,overHeight:false},
     billIds:billIds,
     status:"open",
     createdAt:new Date().toISOString(),
