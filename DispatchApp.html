@@ -2301,8 +2301,8 @@ function renderDoneTab(){
     var isNotSuccess = isDoneStatus(b.status);
     var actionBtn = canClearTrip()
       ? (isNotSuccess
-          ? '<button class="btn btn-orange" style="font-size:11px" onclick="rescheduleReturn(''+b.billNo+'')">📋 รอจ่ายใหม่</button>'
-          : '<button class="btn btn-gray" style="font-size:11px" onclick="openStatusModal(''+b.billNo+'')">อัปเดต</button>')
+          ? '<button class="btn btn-orange" style="font-size:11px" onclick="rescheduleReturn(\''+b.billNo+'\')">📋 รอจ่ายใหม่</button>'
+          : '<button class="btn btn-gray" style="font-size:11px" onclick="openStatusModal(\''+b.billNo+'\')">อัปเดต</button>')
       : "";
     return '<tr>'
       +'<td style="font-weight:600;white-space:nowrap">'+b.billNo+'</td>'
