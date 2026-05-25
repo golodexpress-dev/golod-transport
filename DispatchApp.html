@@ -326,6 +326,28 @@ tr:hover td{background:#f8fffe}
   </div>
 </div>
 
+<!-- Modal จัดการพื้นที่พิเศษ -->
+<div class="modal-bg" id="modal-special-areas" style="display:none">
+  <div class="modal" style="max-width:560px;max-height:92vh;overflow-y:auto">
+    <h3 style="color:#0F6E56;margin-bottom:4px">🗺️ จัดการพื้นที่พิเศษ</h3>
+    <div style="font-size:11px;color:#888;margin-bottom:12px">กำหนดค่าส่งขั้นต่ำรายอำเภอ — ระบบจะ auto คำนวณเมื่อออกบิล</div>
+
+    <div style="display:flex;gap:8px;margin-bottom:10px">
+      <input id="sa-amphoe" placeholder="ชื่ออำเภอ" style="flex:1;padding:8px 10px;border:1px solid #ddd;border-radius:7px;font-size:12px">
+      <input id="sa-prov" placeholder="จังหวัด (ไม่บังคับ)" style="flex:1;padding:8px 10px;border:1px solid #ddd;border-radius:7px;font-size:12px">
+      <input id="sa-min" type="number" placeholder="ขั้นต่ำ ฿" style="width:90px;padding:8px 10px;border:1px solid #ddd;border-radius:7px;font-size:12px">
+      <button class="btn btn-green" onclick="addSpecialArea()">+ เพิ่ม</button>
+    </div>
+
+    <div id="sa-list" style="max-height:400px;overflow-y:auto"></div>
+
+    <div class="btn-row" style="margin-top:12px">
+      <button class="btn btn-gray" onclick="closeSpecialAreas()">ปิด</button>
+      <button class="btn btn-green" onclick="saveSpecialAreas()">💾 บันทึกทั้งหมด</button>
+    </div>
+  </div>
+</div>
+
 <div class="modal-bg" id="modal-status">
   <div class="modal">
     <h3>อัปเดตสถานะ</h3>
@@ -647,6 +669,28 @@ tr:hover td{background:#f8fffe}
   </div>
 </div>
 
+<!-- Modal จัดการพื้นที่พิเศษ -->
+<div class="modal-bg" id="modal-special-areas" style="display:none">
+  <div class="modal" style="max-width:560px;max-height:92vh;overflow-y:auto">
+    <h3 style="color:#0F6E56;margin-bottom:4px">🗺️ จัดการพื้นที่พิเศษ</h3>
+    <div style="font-size:11px;color:#888;margin-bottom:12px">กำหนดค่าส่งขั้นต่ำรายอำเภอ — ระบบจะ auto คำนวณเมื่อออกบิล</div>
+
+    <div style="display:flex;gap:8px;margin-bottom:10px">
+      <input id="sa-amphoe" placeholder="ชื่ออำเภอ" style="flex:1;padding:8px 10px;border:1px solid #ddd;border-radius:7px;font-size:12px">
+      <input id="sa-prov" placeholder="จังหวัด (ไม่บังคับ)" style="flex:1;padding:8px 10px;border:1px solid #ddd;border-radius:7px;font-size:12px">
+      <input id="sa-min" type="number" placeholder="ขั้นต่ำ ฿" style="width:90px;padding:8px 10px;border:1px solid #ddd;border-radius:7px;font-size:12px">
+      <button class="btn btn-green" onclick="addSpecialArea()">+ เพิ่ม</button>
+    </div>
+
+    <div id="sa-list" style="max-height:400px;overflow-y:auto"></div>
+
+    <div class="btn-row" style="margin-top:12px">
+      <button class="btn btn-gray" onclick="closeSpecialAreas()">ปิด</button>
+      <button class="btn btn-green" onclick="saveSpecialAreas()">💾 บันทึกทั้งหมด</button>
+    </div>
+  </div>
+</div>
+
 <div class="modal-bg" id="modal-status">
   <div class="modal">
     <h3>อัปเดตสถานะ</h3>
@@ -858,6 +902,7 @@ function loadData(){
   GolodDB.ready(function(){
   loadClearAllowedUsers();
   loadMonthlyAllowedUsers();
+  loadSpecialAreas();
     Promise.all([
       GolodDB.getBillsDispatch({days:14}),
       GolodDB.getUsers()
@@ -895,8 +940,25 @@ function loadData(){
 // ============================================================
 // FIX 3: filterBills — รวม date range + tab + logic ค้างข้ามวัน
 // ============================================================
+function billMatchSearch(b, q){
+  if(!q) return true;
+  q = q.toLowerCase();
+  var form = b.form||{};
+  var fields = [
+    b.billNo, b.senderName, b.receiverName||form.receiverName,
+    b.destProv||form.destProv, b.destAmphoe||form.destAmphoe||form.receiverAmphoe,
+    b.status, b.driverName, b.clerkName,
+    (form.items||[]).map(function(i){return i.desc||"";}).join(" "),
+    b.zone||form.zone||""
+  ];
+  return fields.some(function(f){ return f && f.toString().toLowerCase().indexOf(q) >= 0; });
+}
+
+var _searchQuery = "";
+
 function filterBills(tab){
   var range = getDateRange(filterDateMode);
+  var q = _searchQuery || (document.getElementById("q-inp")||{}).value || "";
 
   return BILLS.filter(function(b){
     var st = b.status || "";
@@ -924,12 +986,15 @@ function filterBills(tab){
     }
 
     // --- กรองตาม tab ---
-    if(tab==="pending") return st==="ออกบิลรับของ" || st==="issued" || st===""
+    var tabMatch;
+    if(tab==="pending") tabMatch = st==="ออกบิลรับของ" || st==="issued" || st===""
       || st==="ติดต่อลูกค้าไม่ได้" || st==="ติดต่อไม่ได้" || st==="nocontact" || st==="reschedule" || st==="นัดส่งใหม่";
-    if(tab==="branch")  return st==="ระหว่างนำส่งสาขา";
-    if(tab==="driving") return st==="กำลังวิ่งส่งลูกค้า" || st==="นำส่งใหม่";
-    if(tab==="done")    return isDone;
-    return true; // all
+    else if(tab==="branch")  tabMatch = st==="ระหว่างนำส่งสาขา";
+    else if(tab==="driving") tabMatch = st==="กำลังวิ่งส่งลูกค้า" || st==="นำส่งใหม่";
+    else if(tab==="done")    tabMatch = isDone;
+    else tabMatch = true;
+    if(!tabMatch) return false;
+    return billMatchSearch(b, q);
   });
 }
 
@@ -1035,7 +1100,7 @@ function renderApp(){
     +dateBar
     +'<div class="tab-bar">'+tabHTML+'</div>'
     +'<div class="filters">'
-    +'<input type="text" id="q-inp" placeholder="ค้นหาเลขบิล / ชื่อ / จังหวัด" style="width:240px" oninput="filterTable()">'
+    +'<input type="text" id="q-inp" placeholder="ค้นหา: บิล/ชื่อ/จังหวัด/อำเภอ/สินค้า" style="flex:1;min-width:180px;max-width:360px" value="'+(_searchQuery||"")+'" oninput="filterTable()">'
     +'</div>'
     +actionBar
     +'<div style="overflow-x:auto"><table>'
@@ -1168,6 +1233,7 @@ function renderTripList(){
     +'<div style="display:flex;gap:6px">'
     +(isAdmin?'<button class="btn btn-gray" onclick="openClearPermSettings()" title="สิทธิ์เคลียร์เที่ยว">⚙️เที่ยว</button>':'')
     +(isAdmin?'<button class="btn btn-gray" onclick="openMonthlyPermSettings()" title="สิทธิ์สรุปเดือน">⚙️เดือน</button>':'')
+    +(isAdmin?'<button class="btn btn-gray" onclick="openSpecialAreaSettings()" title="จัดการพื้นที่พิเศษ">⚙️พื้นที่</button>':'')
     +'<button class="btn btn-gray" onclick="renderTripTab()">🔄 รีเฟรช</button>'
     +'<button class="btn btn-green" onclick="openCreateTrip()">+ สร้างเที่ยวใหม่</button>'
     +'</div></div>'
@@ -2277,14 +2343,8 @@ function switchTab(t){
 }
 
 function filterTable(){
-  var q=(document.getElementById("q-inp")||{}).value||"";
-  q=q.toLowerCase();
-  var rows=document.querySelectorAll("table tr");
-  rows.forEach(function(r,i){
-    if(i===0){r.style.display="";return;}
-    var txt=r.textContent.toLowerCase();
-    r.style.display=(!q||txt.includes(q))?"":"none";
-  });
+  _searchQuery = (document.getElementById("q-inp")||{}).value||"";
+  renderBillTable(currentTab);
 }
 
 function toggleBill(id){
@@ -2874,6 +2934,68 @@ function saveClearTrip(){
       closeClearTrip();
       renderTripTab();
     }).catch(function(e){ alert("❌ "+e.message); });
+}
+
+// ====== SPECIAL AREAS SETTINGS ======
+var _specialAreas = []; // [{amphoe, prov, min}]
+
+function loadSpecialAreas(){
+  if(!GolodDB.getSetting) return;
+  GolodDB.getSetting("specialAreas").then(function(val){
+    if(val && Array.isArray(val)) _specialAreas = val;
+  }).catch(function(){});
+}
+
+function openSpecialAreaSettings(){
+  if(!CU || CU.role!=="admin"){ alert("เฉพาะ Admin"); return; }
+  renderSpecialAreaList();
+  document.getElementById("modal-special-areas").style.display = "flex";
+}
+function closeSpecialAreas(){
+  document.getElementById("modal-special-areas").style.display = "none";
+}
+
+function renderSpecialAreaList(){
+  var html = _specialAreas.length === 0
+    ? '<div style="text-align:center;padding:20px;color:#aaa">ยังไม่มีพื้นที่พิเศษ</div>'
+    : '<table style="width:100%;border-collapse:collapse;font-size:12px">'
+      +'<tr style="background:#f0faf5"><th style="padding:6px;text-align:left">อำเภอ</th><th>จังหวัด</th><th>ขั้นต่ำ (฿)</th><th>ลบ</th></tr>'
+      +_specialAreas.map(function(sa, i){
+        return '<tr style="border-bottom:1px solid #f0f0f0">'
+          +'<td style="padding:6px">'+sa.amphoe+'</td>'
+          +'<td style="text-align:center;color:#888">'+( sa.prov||"ทุกจังหวัด")+'</td>'
+          +'<td style="text-align:center;font-weight:700;color:#0F6E56">'+sa.min.toLocaleString("th-TH")+'</td>'
+          +'<td style="text-align:center"><button onclick="removeSpecialArea('+i+')" style="background:#fee;border:1px solid #fcc;border-radius:5px;padding:2px 8px;cursor:pointer;font-size:11px;color:#c0392b">ลบ</button></td>'
+          +'</tr>';
+      }).join("")
+      +'</table>';
+  document.getElementById("sa-list").innerHTML = html;
+}
+
+function addSpecialArea(){
+  var amphoe = document.getElementById("sa-amphoe").value.trim();
+  var prov   = document.getElementById("sa-prov").value.trim();
+  var min    = parseInt(document.getElementById("sa-min").value)||0;
+  if(!amphoe){ alert("กรอกชื่ออำเภอด้วยครับ"); return; }
+  if(min <= 0){ alert("กรอกค่าขั้นต่ำด้วยครับ"); return; }
+  _specialAreas.push({amphoe:amphoe, prov:prov, min:min});
+  document.getElementById("sa-amphoe").value = "";
+  document.getElementById("sa-prov").value = "";
+  document.getElementById("sa-min").value = "";
+  renderSpecialAreaList();
+}
+
+function removeSpecialArea(idx){
+  _specialAreas.splice(idx, 1);
+  renderSpecialAreaList();
+}
+
+function saveSpecialAreas(){
+  if(!GolodDB.saveSetting){ alert("golod-firebase.js ยังไม่อัปเดต"); return; }
+  GolodDB.saveSetting("specialAreas", _specialAreas).then(function(){
+    alert("✅ บันทึกพื้นที่พิเศษแล้ว "+_specialAreas.length+" รายการ");
+    closeSpecialAreas();
+  }).catch(function(e){ alert("❌ "+e.message); });
 }
 
 function saveDispatchLogNow(bills, targetId, targetName){

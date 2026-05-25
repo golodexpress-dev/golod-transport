@@ -1317,16 +1317,16 @@ function ThermalBill({
     style: { textAlign: "left", padding: "1px 2px", fontWeight: 700, maxWidth: 90, borderRight:"0.5px solid #999", background:"#eee", fontSize:10 }
   }, "\u0E23\u0E32\u0E22\u0E01\u0E32\u0E23\u0E02\u0E2D\u0E07"),
   /*#__PURE__*/React.createElement("th", {
-    style: { textAlign: "center", padding: "1px 2px", fontWeight: 700, borderRight:"0.5px solid #999", background:"#eee" }
+    style: { textAlign: "center", padding: "1px 2px", fontWeight: 700, borderRight:"0.5px solid #999", borderLeft:"0.5px solid #999", background:"#eee" }
   }, "Kg."),
   /*#__PURE__*/React.createElement("th", {
-    style: { textAlign: "center", padding: "1px 2px", fontWeight: 700, borderRight:"0.5px solid #999", background:"#eee" }
+    style: { textAlign: "center", padding: "1px 2px", fontWeight: 700, borderRight:"0.5px solid #999", borderLeft:"0.5px solid #999", background:"#eee" }
   }, "S"),
   !form.hidePrice && /*#__PURE__*/React.createElement("th", {
-    style: { textAlign: "right", padding: "1px 8px 1px 2px", fontWeight: 700 }
+    style: { textAlign: "right", padding: "1px 8px 1px 2px", fontWeight: 700, borderRight:"0.5px solid #999", borderLeft:"0.5px solid #999", background:"#eee" }
   }, "P"),
   /*#__PURE__*/React.createElement("th", {
-    style: { textAlign: "center", padding: "1px 2px 1px 8px", fontWeight: 700 }
+    style: { textAlign: "center", padding: "1px 2px 1px 8px", fontWeight: 700, borderRight:"0.5px solid #999", borderLeft:"0.5px solid #999", background:"#eee" }
   }, "Q"),
   !form.hidePrice && /*#__PURE__*/React.createElement("th", {
     style: { textAlign: "right", padding: "1px 2px", fontWeight: 700 }
@@ -1357,6 +1357,7 @@ function ThermalBill({
         textAlign: "center",
         padding: "2px 2px",
         borderRight: "0.5px solid #ccc",
+        borderLeft: "0.5px solid #ccc",
         fontSize: 12
       }
     }, item.kg || "-"), /*#__PURE__*/React.createElement("td", {
@@ -1364,27 +1365,32 @@ function ThermalBill({
         textAlign: "center",
         padding: "2px 2px",
         borderRight: "0.5px solid #ccc",
+        borderLeft: "0.5px solid #ccc",
         fontSize: 12
       }
     }, sumCm > 0 ? sumCm : "-"), !form.hidePrice && /*#__PURE__*/React.createElement("td", {
       style: {
         textAlign: "right",
-        padding: "2px 2px",
-        fontSize: 12
+        padding: "2px 4px",
+        fontSize: 12,
+        borderRight: "0.5px solid #ccc",
+        borderLeft: "0.5px solid #ccc"
       }
     }, up > 0 ? up.toLocaleString("th-TH") : "-"), /*#__PURE__*/React.createElement("td", {
       style: {
         textAlign: "center",
         padding: "2px 2px",
         borderRight: "0.5px solid #ccc",
+        borderLeft: "0.5px solid #ccc",
         fontSize: 12
       }
     }, item.qty), !form.hidePrice && /*#__PURE__*/React.createElement("td", {
       style: {
         textAlign: "right",
-        padding: "2px 2px",
+        padding: "2px 4px",
         fontSize: 12,
-        fontWeight: 700
+        fontWeight: 700,
+        borderLeft: "0.5px solid #ccc"
       }
     }, lt > 0 ? lt.toLocaleString("th-TH") : "-")), (parseFloat(item.declaredValue) || 0) > 0 && /*#__PURE__*/React.createElement("tr", null, /*#__PURE__*/React.createElement("td", {
       colSpan: form.hidePrice ? 4 : 6,
