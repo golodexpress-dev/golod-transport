@@ -4415,18 +4415,18 @@ function ReceiptPrint({ receipt }) {
     ),
     React.createElement("hr",{style:{border:"none",borderTop:"1px dashed #333",margin:"4px 0"}}),
     // รายการ
-    React.createElement("table",{style:{width:"100%",borderCollapse:"collapse",fontSize:13}},
+    React.createElement("table",{style:{width:"100%",borderCollapse:"collapse",fontSize:16}}),
       React.createElement("thead",null,
         React.createElement("tr",{style:{borderBottom:"1px solid #000"}},
-          React.createElement("th",{style:{textAlign:"left",padding:"3px 3px",fontWeight:800}},"รายการ"),
-          React.createElement("th",{style:{textAlign:"right",padding:"3px 3px",fontWeight:800}},"จำนวนเงิน")
+          React.createElement("th",{style:{textAlign:"left",padding:"3px 3px",fontWeight:800,fontSize:16}},"รายการ"),
+          React.createElement("th",{style:{textAlign:"right",padding:"3px 3px",fontWeight:800,fontSize:16}},"จำนวนเงิน")
         )
       ),
       React.createElement("tbody",null,
         (receipt.items||[]).map((it,i)=>
           React.createElement("tr",{key:i},
             React.createElement("td",{style:{padding:"4px 3px",lineHeight:1.8,fontWeight:700,fontSize:13}},it.desc),
-            React.createElement("td",{style:{textAlign:"right",padding:"4px 3px",lineHeight:1.8,fontWeight:800}},fmt(it.amount)," ฿")
+            React.createElement("td",{style:{textAlign:"right",padding:"4px 3px",lineHeight:1.8,fontWeight:800,fontSize:16}},fmt(it.amount)," ฿")
           )
         )
       )
