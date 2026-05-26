@@ -506,6 +506,7 @@ function renderBillListWithTrip(tripBillIds){
     +'<div style="display:flex;justify-content:space-between;align-items:center;padding:4px 2px 8px">'
     +'<span class="section-title" style="padding:0">งานรอส่ง '+BILLS.length+' รายการ</span>'
     +'<button onclick="loadBills()" style="padding:5px 12px;background:#e8f5f0;color:#0F6E56;border:1px solid #d0ede5;border-radius:8px;font-size:12px;cursor:pointer;font-weight:600">🔄 รีเฟรช</button>'
+    +'<button onclick="openPickupBill()" style="padding:5px 12px;background:#EF9F27;color:#fff;border:none;border-radius:8px;font-size:12px;cursor:pointer;font-weight:600">📦 ออกบิลรับงาน</button>'
     +'</div>';
 
   BILLS.forEach(function(b){
@@ -888,6 +889,220 @@ function saveDriverClearTrip(){
     loadLatestTrip(function(ids){renderBillListWithTrip(ids);});
   }).catch(function(e){alert("❌ "+e.message);});
 }
+
+// ====== PICKUP BILL ======
+var _pbBillNo = null;
+
+function genPickupBillNo(){
+  var now = new Date();
+  var dd = String(now.getDate()).padStart(2,"0");
+  var mm = String(now.getMonth()+1).padStart(2,"0");
+  var yy = String(now.getFullYear()).slice(-2);
+  var ts = now.getTime().toString().slice(-4);
+  return "DR"+yy+mm+"-"+ts;
+}
+
+function openPickupBill(){
+  _pbBillNo = genPickupBillNo();
+  document.getElementById("pb-bill-no").textContent = "เลขบิล: "+_pbBillNo+" | คนรถ: "+(CU?CU.name:"");
+  ["pb-receiver-name","pb-dest-prov","pb-goods","pb-freight"]
+    .forEach(function(id){ var el=document.getElementById(id); if(el)el.value=""; });
+  document.getElementById("pb-pay").value="origin";
+  // reset รูป
+  ["pb-photo1","pb-photo2"].forEach(function(id){
+    var el=document.getElementById(id); if(el)el.value="";
+  });
+  ["pb-preview1","pb-preview2"].forEach(function(id){
+    var el=document.getElementById(id);
+    if(el)el.innerHTML='<div style="font-size:28px">📷</div><div style="font-size:10px;color:#aaa">กดถ่ายรูป</div>';
+  });
+  document.getElementById("pickup-bill-modal").style.display="flex";
+}
+
+function closePickupBill(){
+  document.getElementById("pickup-bill-modal").style.display="none";
+}
+
+function showPickupSuccess(billNo, receiverName, destProv){
+  // สร้าง tracking URL
+  var trackUrl = "https://golodexpress-dev.github.io/golod-transport/TrackingSystem.html?bill="+billNo;
+  var lineMsg = encodeURIComponent("📦 ใบรับสินค้า โกโลด ทรานสปอร์ต\nเลขที่บิล: "+billNo+"\nผู้รับ: "+receiverName+" ("+destProv+")\nติดตามสินค้า: "+trackUrl);
+
+  // สร้าง popup
+  var popup = document.createElement("div");
+  popup.id = "pickup-success-popup";
+  popup.style.cssText = "position:fixed;inset:0;background:rgba(0,0,0,.6);z-index:99999;display:flex;align-items:center;justify-content:center;padding:20px";
+  popup.innerHTML =
+    '<div style="background:#fff;border-radius:16px;padding:24px;max-width:340px;width:100%;text-align:center">'
+    +'<div style="font-size:40px;margin-bottom:8px">✅</div>'
+    +'<div style="font-size:16px;font-weight:800;color:#0F6E56;margin-bottom:4px">บันทึกสำเร็จ!</div>'
+    +'<div style="font-size:12px;color:#888;margin-bottom:16px">รอเสมียน approve</div>'
+    // เลขบิลตัวใหญ่
+    +'<div style="background:#f8fffe;border:2px solid #0F6E56;border-radius:12px;padding:14px;margin-bottom:16px">'
+    +'<div style="font-size:11px;color:#888;margin-bottom:4px">เลขที่บิล</div>'
+    +'<div style="font-size:24px;font-weight:900;color:#0F6E56;letter-spacing:1px">'+billNo+'</div>'
+    +'<div style="font-size:12px;color:#555;margin-top:4px">'+receiverName+' · '+destProv+'</div>'
+    +'</div>'
+    // QR code
+    +'<div style="margin-bottom:16px">'
+    +'<div style="font-size:11px;color:#888;margin-bottom:8px">QR ติดตามสินค้า</div>'
+    +'<div id="ps-qr" style="display:flex;justify-content:center"></div>'
+    +'</div>'
+    // ปุ่ม
+    +'<div style="display:flex;gap:10px">'
+    +'<button onclick="sharePickupLine(''+lineMsg+'')" style="flex:1;padding:12px;background:#06C755;color:#fff;border:none;border-radius:10px;font-size:13px;font-weight:700;cursor:pointer">📱 แชร์ Line</button>'
+    +'<button onclick="copyPickupBill(''+billNo+'',''+trackUrl+'')" style="flex:1;padding:12px;background:#0F6E56;color:#fff;border:none;border-radius:10px;font-size:13px;font-weight:700;cursor:pointer">📋 คัดลอก</button>'
+    +'</div>'
+    +'<button onclick="document.getElementById('pickup-success-popup').remove()" style="width:100%;margin-top:10px;padding:10px;background:#f5f5f5;border:none;border-radius:10px;font-size:13px;cursor:pointer">ปิด</button>'
+    +'</div>';
+
+  document.body.appendChild(popup);
+
+  // สร้าง QR code ด้วย QRServer API
+  var qrImg = document.createElement("img");
+  qrImg.src = "https://api.qrserver.com/v1/create-qr-code/?size=150x150&data="+encodeURIComponent(trackUrl);
+  qrImg.style.cssText = "width:150px;height:150px;border-radius:8px";
+  qrImg.alt = "QR Code";
+  document.getElementById("ps-qr").appendChild(qrImg);
+}
+
+function sharePickupLine(msg){
+  if(navigator.share){
+    navigator.share({text: decodeURIComponent(msg)}).catch(function(){});
+  } else {
+    window.open("https://line.me/R/msg/text/?"+msg,"_blank");
+  }
+}
+
+function copyPickupBill(billNo, url){
+  var text = "📦 ใบรับสินค้า โกโลด ทรานสปอร์ต\nเลขที่บิล: "+billNo+"\nติดตามสินค้า: "+url;
+  if(navigator.clipboard){
+    navigator.clipboard.writeText(text).then(function(){ alert("✅ คัดลอกแล้ว"); });
+  } else {
+    var ta=document.createElement("textarea");
+    ta.value=text;document.body.appendChild(ta);ta.select();document.execCommand("copy");document.body.removeChild(ta);
+    alert("✅ คัดลอกแล้ว");
+  }
+}
+
+function previewPhoto(input, previewId){
+  var file = input.files[0];
+  if(!file) return;
+  var reader = new FileReader();
+  reader.onload = function(e){
+    var prev = document.getElementById(previewId);
+    if(!prev) return;
+    prev.innerHTML = '<img src="'+e.target.result+'" style="width:100%;height:100%;object-fit:cover;border-radius:8px">';
+  };
+  reader.readAsDataURL(file);
+}
+
+function startVoice(fieldId, label){
+  var SR = window.SpeechRecognition||window.webkitSpeechRecognition;
+  if(!SR){ alert("กรุณาใช้ Chrome บน Android เพื่อใช้งาน Voice Input"); return; }
+  var statusEl = document.getElementById("pb-voice-status");
+  var labelEl  = document.getElementById("pb-voice-label");
+  var input    = document.getElementById(fieldId);
+  if(statusEl) statusEl.style.display="block";
+  if(labelEl)  labelEl.textContent = "กำลังฟัง: "+label+"...";
+  var rec = new SR();
+  rec.lang = "th-TH";
+  rec.interimResults = false;
+  rec.maxAlternatives = 1;
+  rec.onresult = function(e){
+    if(input) input.value = e.results[0][0].transcript;
+    if(statusEl) statusEl.style.display="none";
+  };
+  rec.onerror = rec.onend = function(){
+    if(statusEl) statusEl.style.display="none";
+  };
+  rec.start();
+}
+
+function submitPickupBill(){
+  var g = function(id){ return (document.getElementById(id)||{}).value||""; };
+  if(!g("pb-receiver-name")){ alert("กรุณากรอกชื่อผู้รับ"); return; }
+  if(!g("pb-dest-prov")){ alert("กรุณากรอกจังหวัดปลายทาง"); return; }
+  if(!parseFloat(g("pb-freight"))){ alert("กรุณากรอกค่าขนส่ง"); return; }
+
+  var bill = {
+    billNo: _pbBillNo,
+    status: "รออนุมัติ",
+    senderName: "",
+    senderPhone: "",
+    receiverName: g("pb-receiver-name"),
+    receiverPhone: "",
+    destProv: g("pb-dest-prov"),
+    destAmphoe: "",
+    freightNet: parseFloat(g("pb-freight"))||0,
+    freightPay: g("pb-pay"),
+    note: g("pb-goods"),
+    items: [{
+      desc: g("pb-goods")||"สินค้า",
+      kg: "0",
+      qty: 1,
+      sumCm: "0", hasCOD: false, codAmount: ""
+    }],
+    codTotal: 0,
+    driver: CU ? CU.username : "",
+    driverName: CU ? CU.name : "",
+    branch: CU ? (CU.branch==="นครราชสีมา"?"krt":CU.branch==="ศรีสะเกษ"?"ssk":"bkk") : "bkk",
+    clerkCode: "DR",
+    clerkName: CU ? CU.name : "",
+    createdAt: new Date().toISOString(),
+    updatedAt: new Date().toISOString(),
+    isDriverBill: true,
+    form: {
+      senderName: g("pb-sender-name"),
+      senderPhone: g("pb-sender-phone"),
+      receiverName: g("pb-receiver-name"),
+      receiverPhone: g("pb-receiver-phone"),
+      destProv: g("pb-dest-prov"),
+      destAmphoe: g("pb-dest-amphoe"),
+      freightPay: g("pb-pay"),
+      items: [{desc:g("pb-goods")||"สินค้า",kg:g("pb-weight")||"0",qty:parseInt(g("pb-qty"))||1,sumCm:"0",hasCOD:false,codAmount:""}],
+      note: g("pb-note"),
+      branch: CU?(CU.branch==="นครราชสีมา"?"krt":CU.branch==="ศรีสะเกษ"?"ssk":"bkk"):"bkk"
+    }
+  };
+
+  if(!GolodDB.saveBill){ alert("ระบบยังไม่พร้อม"); return; }
+  // อัปโหลดรูปก่อน (ถ้ามี)
+  var photos = [];
+  var p1 = document.getElementById("pb-photo1");
+  var p2 = document.getElementById("pb-photo2");
+  if(p1 && p1.files[0]) photos.push(p1.files[0]);
+  if(p2 && p2.files[0]) photos.push(p2.files[0]);
+
+  var btn = document.querySelector("#pickup-bill-modal button:last-of-type");
+  if(btn){ btn.disabled=true; btn.textContent="⏳ กำลังบันทึก..."; }
+
+  function doSaveBill(photoUrls){
+    if(photoUrls && photoUrls.length>0) bill.pickupPhotos = photoUrls;
+    GolodDB.saveBill(bill).then(function(){
+      closePickupBill();
+      showPickupSuccess(_pbBillNo, bill.receiverName, bill.destProv);
+    }).catch(function(e){
+      if(btn){ btn.disabled=false; btn.textContent="💾 บันทึกบิลรับงาน"; }
+      alert("❌ "+e.message);
+    });
+  }
+
+  if(photos.length > 0 && typeof GolodStorage !== "undefined" && GolodStorage.uploadFile){
+    var uploads = photos.map(function(file,i){
+      return GolodStorage.uploadFile(file,"pickups/"+_pbBillNo+"_"+(i+1))
+        .catch(function(){ return null; }); // ถ้าอัปโหลดรูปไม่ได้ ไม่ค้าง
+    });
+    Promise.all(uploads).then(function(urls){
+      doSaveBill(urls.filter(Boolean));
+    }).catch(function(){
+      doSaveBill([]);
+    });
+  } else {
+    // ไม่มีรูปหรือ Storage ไม่พร้อม → บันทึกบิลได้เลย
+    doSaveBill([]);
+  }
+}
 </script>
 
 <!-- Modal เคลียร์เที่ยว -->
@@ -957,6 +1172,94 @@ function saveDriverClearTrip(){
     <div id="dcm-diff" style="display:none;text-align:center;font-size:16px;font-weight:800;padding:10px;border-radius:10px;margin-bottom:10px"></div>
 
     <button onclick="saveDriverClearTrip()" style="width:100%;padding:14px;background:#0F6E56;color:#fff;border:none;border-radius:10px;font-size:15px;font-weight:800;cursor:pointer">💾 ส่งยอดเคลียร์</button>
+  </div>
+</div>
+
+<!-- Modal ออกบิลรับงาน (4 ช่อง + voice) -->
+<div id="pickup-bill-modal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:9999;align-items:flex-end;justify-content:center">
+  <div style="background:#fff;border-radius:16px 16px 0 0;padding:20px;width:100%;max-width:480px;max-height:92vh;overflow-y:auto">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px">
+      <div style="font-size:15px;font-weight:800;color:#0F6E56">📦 ออกบิลรับงาน</div>
+      <button onclick="closePickupBill()" style="background:none;border:none;font-size:20px;color:#aaa;cursor:pointer">✕</button>
+    </div>
+    <div id="pb-bill-no" style="font-size:12px;color:#0F6E56;margin-bottom:16px;padding:6px 12px;background:#f8fffe;border-radius:8px;font-weight:700"></div>
+
+    <!-- 1. ผู้รับ -->
+    <div style="margin-bottom:14px">
+      <div style="font-size:11px;color:#888;margin-bottom:5px;font-weight:700">ผู้รับ *</div>
+      <div style="display:flex;gap:8px;align-items:center">
+        <input id="pb-receiver-name" placeholder="ชื่อผู้รับ" style="flex:1;padding:10px 12px;border:1px solid #ddd;border-radius:8px;font-size:14px">
+        <button onclick="startVoice('pb-receiver-name','ผู้รับ')" style="width:42px;height:42px;border-radius:50%;background:#f0faf5;border:1px solid #d0ede5;cursor:pointer;display:flex;align-items:center;justify-content:center;flex-shrink:0">🎤</button>
+      </div>
+    </div>
+
+    <!-- 2. จังหวัด -->
+    <div style="margin-bottom:14px">
+      <div style="font-size:11px;color:#888;margin-bottom:5px;font-weight:700">จังหวัดปลายทาง *</div>
+      <div style="display:flex;gap:8px;align-items:center">
+        <input id="pb-dest-prov" placeholder="จังหวัด" style="flex:1;padding:10px 12px;border:1px solid #ddd;border-radius:8px;font-size:14px">
+        <button onclick="startVoice('pb-dest-prov','จังหวัด')" style="width:42px;height:42px;border-radius:50%;background:#f0faf5;border:1px solid #d0ede5;cursor:pointer;display:flex;align-items:center;justify-content:center;flex-shrink:0">🎤</button>
+      </div>
+    </div>
+
+    <!-- 3. สินค้า (รวมหลายชิ้นในช่องเดียว) -->
+    <div style="margin-bottom:14px">
+      <div style="font-size:11px;color:#888;margin-bottom:5px;font-weight:700">สินค้า <span style="font-weight:400;color:#aaa">(หลายชิ้น คั่นด้วย ,)</span></div>
+      <div style="display:flex;gap:8px;align-items:center">
+        <input id="pb-goods" placeholder="เช่น ท่อ PVC 5 ชิ้น, กาว 2 กระป๋อง" style="flex:1;padding:10px 12px;border:1px solid #ddd;border-radius:8px;font-size:13px">
+        <button onclick="startVoice('pb-goods','สินค้า')" style="width:42px;height:42px;border-radius:50%;background:#f0faf5;border:1px solid #d0ede5;cursor:pointer;display:flex;align-items:center;justify-content:center;flex-shrink:0">🎤</button>
+      </div>
+    </div>
+
+    <!-- 4. ค่าขนส่ง + ชำระ -->
+    <div style="margin-bottom:20px">
+      <div style="font-size:11px;color:#888;margin-bottom:5px;font-weight:700">ค่าขนส่ง (฿) *</div>
+      <div style="display:flex;gap:8px;align-items:center">
+        <input id="pb-freight" type="number" inputmode="numeric" placeholder="0" style="flex:1;padding:10px 12px;border:2px solid #0F6E56;border-radius:8px;font-size:16px;font-weight:700">
+        <select id="pb-pay" style="width:110px;padding:10px 8px;border:1px solid #ddd;border-radius:8px;font-size:13px">
+          <option value="origin">สด</option>
+          <option value="transfer">โอน</option>
+          <option value="dest">ปลายทาง</option>
+        </select>
+      </div>
+    </div>
+
+    <!-- voice status -->
+    <div id="pb-voice-status" style="display:none;text-align:center;padding:10px;margin-bottom:12px;background:#fff8e1;border-radius:8px;font-size:13px;color:#b7950b">
+      🎤 <span id="pb-voice-label">กำลังฟัง...</span>
+    </div>
+
+    <!-- รูปของ -->
+    <div style="margin-bottom:16px">
+      <div style="font-size:11px;color:#888;margin-bottom:8px;font-weight:700">📷 รูปสินค้า (ไม่บังคับ)</div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
+        <div>
+          <div style="font-size:10px;color:#888;margin-bottom:5px">รูปที่ 1</div>
+          <label style="display:block;width:100%;aspect-ratio:1;border:2px dashed #d0ede5;border-radius:10px;cursor:pointer;position:relative;overflow:hidden;background:#f8fffe">
+            <input type="file" id="pb-photo1" accept="image/*" capture="environment" style="display:none" onchange="previewPhoto(this,'pb-preview1')">
+            <div id="pb-preview1" style="width:100%;height:100%;display:flex;align-items:center;justify-content:center;flex-direction:column;gap:4px">
+              <div style="font-size:28px">📷</div>
+              <div style="font-size:10px;color:#aaa">กดถ่ายรูป</div>
+            </div>
+          </label>
+          <button onclick="document.getElementById('pb-photo1').click()" style="width:100%;margin-top:6px;padding:8px;background:#f0faf5;border:1px solid #d0ede5;border-radius:8px;font-size:12px;color:#0F6E56;cursor:pointer;font-weight:600">📷 ถ่าย/เลือกรูป</button>
+        </div>
+        <div>
+          <div style="font-size:10px;color:#888;margin-bottom:5px">รูปที่ 2</div>
+          <label style="display:block;width:100%;aspect-ratio:1;border:2px dashed #d0ede5;border-radius:10px;cursor:pointer;position:relative;overflow:hidden;background:#f8fffe">
+            <input type="file" id="pb-photo2" accept="image/*" capture="environment" style="display:none" onchange="previewPhoto(this,'pb-preview2')">
+            <div id="pb-preview2" style="width:100%;height:100%;display:flex;align-items:center;justify-content:center;flex-direction:column;gap:4px">
+              <div style="font-size:28px">📷</div>
+              <div style="font-size:10px;color:#aaa">กดถ่ายรูป</div>
+            </div>
+          </label>
+          <button onclick="document.getElementById('pb-photo2').click()" style="width:100%;margin-top:6px;padding:8px;background:#f0faf5;border:1px solid #d0ede5;border-radius:8px;font-size:12px;color:#0F6E56;cursor:pointer;font-weight:600">📷 ถ่าย/เลือกรูป</button>
+        </div>
+      </div>
+    </div>
+
+    <button onclick="submitPickupBill()" style="width:100%;padding:14px;background:#0F6E56;color:#fff;border:none;border-radius:10px;font-size:15px;font-weight:800;cursor:pointer">💾 บันทึกบิลรับงาน</button>
+    <div style="margin-top:8px;text-align:center;font-size:11px;color:#aaa">เสมียนเติมข้อมูลที่เหลือให้ตอน approve</div>
   </div>
 </div>
 

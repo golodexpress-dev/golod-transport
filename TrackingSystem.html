@@ -277,7 +277,7 @@ function firestoreBillToTracking(b){
   var statusMap = {
     "ออกบิลรับของ":  "issued",
     "issued":         "issued",
-    "ระหว่างนำส่งสาขา":"transit",
+    "ระหว่างนำส่งสาขา":"hub",
     "กำลังวิ่งส่งลูกค้า":"out",
     "นำส่งใหม่":     "out",
     "ส่งสำเร็จ":     "delivered",
@@ -294,7 +294,10 @@ function firestoreBillToTracking(b){
   };
   // สร้าง timeline จากสถานะปัจจุบัน
   var timeline=[{status:"issued", dt:fmtISO(b.createdAt), loc:"กรุงเทพมหานคร", note:"รับสินค้าจากผู้ส่ง", photo:false, sig:false}];
-  if(["transit","out","delivered","nocontact","returned"].includes(st)){
+  if(st==="hub"){
+    // ระหว่างนำส่งสาขา — หยุดแค่นี้
+    timeline.push({status:"hub", dt:fmtISO(b.updatedAt), loc:"ระหว่างนำส่ง", note:"กำลังนำส่งสาขา", photo:false, sig:false});
+  } else if(["transit","out","delivered","nocontact","returned"].includes(st)){
     timeline.push({status:"transit", dt:fmtISO(b.updatedAt), loc:"ระหว่างนำส่ง", note:"กำลังนำส่ง", photo:false, sig:false});
   }
   if(["out","delivered","nocontact","returned"].includes(st)){
