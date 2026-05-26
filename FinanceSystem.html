@@ -667,7 +667,7 @@ function loadFirebaseBills() {
 async function loadAllData() {
   // 1. โหลดข้อมูลที่กรอกเองจาก storage ก่อน (รายจ่าย, BeM, BBL, เครดิต)
   try {
-    const result = await window.storage.get(STORE_KEY);
+    const result = (window.storage && window.storage.get ? await window.storage.get(STORE_KEY) : {value: localStorage.getItem(STORE_KEY)});
     if (result && result.value) {
       const saved = JSON.parse(result.value);
       // รายรับ/สลิปจาก Firebase ไม่ต้องโหลดจาก storage (จะ sync ใหม่เสมอ)
@@ -688,12 +688,16 @@ async function loadAllData() {
 
 async function saveAllData() {
   try {
-    // บันทึกเฉพาะข้อมูลที่กรอกเอง — INCOMES/SLIPS จาก Firebase ไม่ต้องบันทึก
-    await window.storage.set(STORE_KEY, JSON.stringify({
+    const data = JSON.stringify({
       CREDITS, EXPENSES, BBL_ENTRIES, BEM_ENTRIES,
-      // บิลสลิปที่กรอกเองเท่านั้น
       MANUAL_SLIPS: SLIPS.filter(x => !x._fromFirebase),
-    }));
+    });
+    // ใช้ localStorage (window.storage ไม่รองรับใน browser ปกติ)
+    if(window.storage && window.storage.set){
+      await window.storage.set(STORE_KEY, data);
+    } else {
+      localStorage.setItem(STORE_KEY, data);
+    }
   } catch(e) {
     console.error("บันทึกข้อมูลไม่สำเร็จ:", e);
   }
@@ -944,20 +948,22 @@ function renderSlip(){
           onclick="if(window._slipUrlMap['${s.id}'])openSlipLightbox(window._slipUrlMap['${s.id}'],'${safeLabel}')">
           ⏳ กำลังโหลด...</span>
       </div>`;
-      setTimeout(()=>{
-        const img = document.getElementById(imgId);
-        const badge = document.getElementById(imgId+"_badge");
-        if(!img) return;
-        resolveSlipUrl("${s.billNo}", "${s.resolveSlot||'slip1'}", function(url){
-          if(url){
-            window._slipUrlMap["${s.id}"] = url;
-            img.src = url; img.style.display="inline-block";
-            if(badge){ badge.textContent="📎 ดูสลิป"; badge.style.cursor="pointer"; }
-          } else {
-            if(badge){ badge.textContent="📎 อัปแล้ว"; badge.style.cursor="default"; }
-          }
-        });
-      }, 200);
+      (function(billNo, resolveSlot, imgId, slipId, safeLabel_){
+        setTimeout(()=>{
+          const img = document.getElementById(imgId);
+          const badge = document.getElementById(imgId+"_badge");
+          if(!img) return;
+          resolveSlipUrl(billNo, resolveSlot||"slip1", function(url){
+            if(url){
+              window._slipUrlMap[slipId] = url;
+              img.src = url; img.style.display="inline-block";
+              if(badge){ badge.textContent="📎 ดูสลิป"; badge.style.cursor="pointer"; }
+            } else {
+              if(badge){ badge.textContent="📎 อัปแล้ว"; badge.style.cursor="default"; }
+            }
+          });
+        }, 200);
+      })(s.billNo, s.resolveSlot, imgId, s.id, safeLabel);
     } else if(s.hasFormSlip){
       slipCell = `<span class="slip-badge" style="cursor:default">📎 อัปแล้ว</span>`;
     } else if(s.isDelivered){
