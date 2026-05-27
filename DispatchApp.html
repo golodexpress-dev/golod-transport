@@ -902,11 +902,20 @@ function billBelongsToUserBranch(b){
     if((ub==="bkk"||ub==="ptm") && (tbCode==="bkk"||tbCode==="ptm")) return true;
   }
 
+  // บิลคนรถออกเอง (DR-) ให้เห็นทุกสาขา (filter ตาม branch ที่บันทึกไว้แทน)
+  var bc = b.clerkCode||(b.form&&b.form.clerkCode)||"";
+  var bn = b.billNo||"";
+  if(bc==="DR" || bn.toUpperCase().indexOf("DR")=== 0){
+    // DR บิล ดูจาก branch ที่บันทึก
+    var drBranch = b.branch||(b.form&&b.form.branch)||"bkk";
+    var ubNames = {bkk:["bkk","ptm"],krt:["krt"],ssk:["ssk"]};
+    var allowed = ubNames[ub]||[ub];
+    return allowed.indexOf(drBranch) >= 0 || ub==="all";
+  }
+
   // เช็ค clerkCode/prefix ปกติ
   var clerkCodes = getClerkCodesForBranch();
   if(clerkCodes){
-    var bc = b.clerkCode||(b.form&&b.form.clerkCode)||"";
-    var bn = b.billNo||"";
     var prefix = bn.replace(/[0-9\/\-].*/g,"").toUpperCase();
     return clerkCodes.some(function(cc){
       return bc===cc || prefix===cc || bn.toUpperCase().indexOf(cc)===0;
