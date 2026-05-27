@@ -775,6 +775,7 @@ var STATUS_LIST = [
   {v:"ส่งสำเร็จ",          l:"ส่งสำเร็จ",           cls:"st-done"},
   {v:"ส่งไม่สำเร็จ",       l:"ส่งไม่สำเร็จ",        cls:"st-fail"},
   {v:"นำกลับสาขา",         l:"นำกลับสาขา",          cls:"st-return"},
+  {v:"คืนต้นทาง",          l:"คืนต้นทาง",           cls:"st-return"},
   {v:"ลูกค้ารับกลับ",      l:"ลูกค้ารับกลับ",       cls:"st-new"},
   {v:"นำส่งใหม่",          l:"นำส่งใหม่",           cls:"st-new"},
   {v:"ติดต่อลูกค้าไม่ได้", l:"ติดต่อไม่ได้",        cls:"st-warn"},
@@ -1140,7 +1141,7 @@ function renderApp(){
     +actionBar
     +'<div style="overflow-x:auto"><table>'
     +'<tr><th></th><th>เลขบิล</th><th>วันที่</th><th>ผู้รับ</th><th>ปลายทาง</th>'
-    +'<th>ค่าส่ง</th><th>สถานะ</th><th>ผู้ส่ง</th><th>Zone</th><th>คนรถ</th><th>จัดการ</th></tr>'
+    +'<th>ค่าส่ง</th><th>สถานะ</th><th>ผู้ส่ง</th><th>Zone</th><th>คนรถ</th><th>สลิป</th><th>จัดการ</th></tr>'
     +'<tbody id="bill-tbody">'+rows+'</tbody>'
     +'</table></div>'
     +'<div style="font-size:11px;color:#888;margin-top:8px"><span id="bill-count-label">แสดง '+filtered.length+' บิล</span></div>'
@@ -2331,7 +2332,7 @@ function onDoneSearch(val){
       +'</tr>';
   }).join("");
   tbody.innerHTML='<div style="overflow-x:auto"><table>'
-    +'<tr><th>เลขบิล</th><th>วันที่</th><th>ผู้รับ</th><th>ปลายทาง</th><th>ค่าส่ง</th><th>สถานะ</th><th>ผู้ส่ง</th><th>Zone</th><th>คนรถ</th><th>จัดการ</th></tr>'
+    +'<tr><th>เลขบิล</th><th>วันที่</th><th>ผู้รับ</th><th>ปลายทาง</th><th>ค่าส่ง</th><th>สถานะ</th><th>ผู้ส่ง</th><th>Zone</th><th>คนรถ</th><th>สลิป</th><th>จัดการ</th></tr>'
     +rows+'</table></div>';
   // อัปเดตจำนวน
   var countEl=document.querySelector("#done-table-body")&&document.querySelector(".done-count");
@@ -2411,7 +2412,7 @@ function renderDoneTab(){
     +'<div style="font-size:12px;color:#666;margin-bottom:8px">แสดง '+bills.length+' บิล</div>'
     +'<div style="margin-bottom:8px"><input type="text" id="q-inp-done" placeholder="ค้นหา: บิล/ชื่อ/จังหวัด/สินค้า/สถานะ" style="width:100%;max-width:360px;padding:7px 10px;border:1px solid #ddd;border-radius:7px;font-size:12px" value="'+(_searchQuery||"")+'" oninput="onDoneSearch(this.value)"></div>'
     +'<div id="done-table-body"><div style="overflow-x:auto"><table>'
-    +'<tr><th>เลขบิล</th><th>วันที่</th><th>ผู้รับ</th><th>ปลายทาง</th><th>ค่าส่ง</th><th>สถานะ</th><th>ผู้ส่ง</th><th>Zone</th><th>คนรถ</th><th>จัดการ</th></tr>'
+    +'<tr><th>เลขบิล</th><th>วันที่</th><th>ผู้รับ</th><th>ปลายทาง</th><th>ค่าส่ง</th><th>สถานะ</th><th>ผู้ส่ง</th><th>Zone</th><th>คนรถ</th><th>สลิป</th><th>จัดการ</th></tr>'
     +rows
     +'</table></div></div></div>';
   document.getElementById("app").innerHTML=html;
@@ -2475,7 +2476,7 @@ function filterTable(){
 }
 
 function renderBillRows(bills){
-  if(!bills || bills.length===0) return '<tr><td colspan="10" style="text-align:center;padding:20px;color:#aaa">ไม่พบข้อมูล</td></tr>';
+  if(!bills || bills.length===0) return '<tr><td colspan="11" style="text-align:center;padding:20px;color:#aaa">ไม่พบข้อมูล</td></tr>';
   var ZONE_COLOR={BKK:"#c0392b",West:"#d35400",South:"#27ae60",North:"#2471a3",East:"#8e44ad",Central:"#0f6e56",Korat:"#b7950b",LEsan:"#a93226",Esan:"#1a5276"};
   return bills.map(function(b){
     var stCls=stClass(b.status);
@@ -2491,6 +2492,16 @@ function renderBillRows(bills){
     var zoneHTML=zone?'<span style="display:inline-block;padding:2px 7px;border-radius:10px;font-size:10px;font-weight:700;background:'+zclr+'22;color:'+zclr+'">'+zone+'</span>':"—";
     var ds=billDateStr(b)||"—";
     var ck=selectedBills[b.billNo]?'checked':'';
+    // สลิปโอน
+    var slipUrl=b.slipUrl||(b.form&&b.form.slipUrl)||"";
+    var slip1=b.slip1||(b.form&&b.form.slip1)||(b.form&&b.form.slipName?b.slipUrl:"")||"";
+    var slipSrc=slipUrl||slip1||"";
+    var isPay=b.freightPay==="transfer"||(b.form&&b.form.freightPay==="transfer");
+    var slipCell=slipSrc
+      ?'<a href="'+slipSrc+'" target="_blank">'
+        +'<img src="'+slipSrc+'" style="width:36px;height:36px;object-fit:cover;border-radius:5px;border:1px solid #ddd;cursor:pointer" onerror="this.parentNode.innerHTML=\'📎\'">'
+        +'</a>'
+      :(isPay?'<span style="font-size:10px;color:#e67e22">รอสลิป</span>':'—');
     return '<tr>'
       +'<td><input type="checkbox" '+ck+' onchange="toggleSelect(\''+b.billNo+'\')" style="accent-color:#0F6E56"></td>'
       +'<td style="font-weight:600;white-space:nowrap">'+b.billNo+'</td>'
@@ -2502,6 +2513,7 @@ function renderBillRows(bills){
       +'<td style="color:#555">'+sender+'</td>'
       +'<td>'+zoneHTML+'</td>'
       +'<td style="color:#666">'+driver+'</td>'
+      +'<td style="text-align:center">'+slipCell+'</td>'
       +'<td>'
       +(canClearTrip()
         ? (st==="รออนุมัติ"
