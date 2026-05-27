@@ -328,6 +328,52 @@ tr:hover td{background:#f8fffe}
   </div>
 </div>
 
+<!-- Modal Approve บิล DR- -->
+<div class="modal-bg" id="modal-approve" style="display:none">
+  <div class="modal" style="max-width:500px;max-height:92vh;overflow-y:auto">
+    <h3 style="color:#0F6E56;margin-bottom:4px">✅ Approve บิลรับงาน</h3>
+    <div id="ap-bill-no" style="font-size:12px;color:#888;margin-bottom:12px"></div>
+
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:10px">
+      <div><label style="font-size:11px;color:#888">ชื่อผู้ส่ง</label>
+        <input id="ap-sender-name" class="inp" placeholder="ชื่อผู้ส่ง"></div>
+      <div><label style="font-size:11px;color:#888">เบอร์ผู้ส่ง</label>
+        <input id="ap-sender-phone" class="inp" placeholder="08x-xxxxxxx" type="tel"></div>
+    </div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:10px">
+      <div><label style="font-size:11px;color:#888">ชื่อผู้รับ *</label>
+        <input id="ap-receiver-name" class="inp" placeholder="ชื่อผู้รับ"></div>
+      <div><label style="font-size:11px;color:#888">เบอร์ผู้รับ</label>
+        <input id="ap-receiver-phone" class="inp" placeholder="08x-xxxxxxx" type="tel"></div>
+    </div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:10px">
+      <div><label style="font-size:11px;color:#888">จังหวัด *</label>
+        <input id="ap-dest-prov" class="inp" placeholder="จังหวัด"></div>
+      <div><label style="font-size:11px;color:#888">อำเภอ</label>
+        <input id="ap-dest-amphoe" class="inp" placeholder="อำเภอ"></div>
+    </div>
+    <div style="margin-bottom:10px">
+      <label style="font-size:11px;color:#888">สินค้า</label>
+      <input id="ap-goods" class="inp" placeholder="ชื่อสินค้า">
+    </div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:14px">
+      <div><label style="font-size:11px;color:#888">ค่าขนส่ง (฿)</label>
+        <input id="ap-freight" class="inp" type="number" placeholder="0"></div>
+      <div><label style="font-size:11px;color:#888">วิธีชำระ</label>
+        <select id="ap-pay" class="inp">
+          <option value="origin">ต้นทาง</option>
+          <option value="transfer">โอน</option>
+          <option value="dest">ปลายทาง</option>
+          <option value="credit">เครดิต</option>
+        </select></div>
+    </div>
+    <div class="btn-row">
+      <button class="btn btn-gray" onclick="document.getElementById('modal-approve').style.display='none'">ยกเลิก</button>
+      <button class="btn btn-green" onclick="confirmApprove()">✅ Approve</button>
+    </div>
+  </div>
+</div>
+
 <!-- Modal จัดการพื้นที่พิเศษ -->
 <div class="modal-bg" id="modal-special-areas" style="display:none">
   <div class="modal" style="max-width:560px;max-height:92vh;overflow-y:auto">
@@ -667,6 +713,52 @@ tr:hover td{background:#f8fffe}
     <div class="btn-row">
       <button class="btn btn-gray" onclick="closeClearTrip()">ยกเลิก</button>
       <button class="btn btn-orange" onclick="saveClearTrip()">💾 บันทึกเคลียร์</button>
+    </div>
+  </div>
+</div>
+
+<!-- Modal Approve บิล DR- -->
+<div class="modal-bg" id="modal-approve" style="display:none">
+  <div class="modal" style="max-width:500px;max-height:92vh;overflow-y:auto">
+    <h3 style="color:#0F6E56;margin-bottom:4px">✅ Approve บิลรับงาน</h3>
+    <div id="ap-bill-no" style="font-size:12px;color:#888;margin-bottom:12px"></div>
+
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:10px">
+      <div><label style="font-size:11px;color:#888">ชื่อผู้ส่ง</label>
+        <input id="ap-sender-name" class="inp" placeholder="ชื่อผู้ส่ง"></div>
+      <div><label style="font-size:11px;color:#888">เบอร์ผู้ส่ง</label>
+        <input id="ap-sender-phone" class="inp" placeholder="08x-xxxxxxx" type="tel"></div>
+    </div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:10px">
+      <div><label style="font-size:11px;color:#888">ชื่อผู้รับ *</label>
+        <input id="ap-receiver-name" class="inp" placeholder="ชื่อผู้รับ"></div>
+      <div><label style="font-size:11px;color:#888">เบอร์ผู้รับ</label>
+        <input id="ap-receiver-phone" class="inp" placeholder="08x-xxxxxxx" type="tel"></div>
+    </div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:10px">
+      <div><label style="font-size:11px;color:#888">จังหวัด *</label>
+        <input id="ap-dest-prov" class="inp" placeholder="จังหวัด"></div>
+      <div><label style="font-size:11px;color:#888">อำเภอ</label>
+        <input id="ap-dest-amphoe" class="inp" placeholder="อำเภอ"></div>
+    </div>
+    <div style="margin-bottom:10px">
+      <label style="font-size:11px;color:#888">สินค้า</label>
+      <input id="ap-goods" class="inp" placeholder="ชื่อสินค้า">
+    </div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:14px">
+      <div><label style="font-size:11px;color:#888">ค่าขนส่ง (฿)</label>
+        <input id="ap-freight" class="inp" type="number" placeholder="0"></div>
+      <div><label style="font-size:11px;color:#888">วิธีชำระ</label>
+        <select id="ap-pay" class="inp">
+          <option value="origin">ต้นทาง</option>
+          <option value="transfer">โอน</option>
+          <option value="dest">ปลายทาง</option>
+          <option value="credit">เครดิต</option>
+        </select></div>
+    </div>
+    <div class="btn-row">
+      <button class="btn btn-gray" onclick="document.getElementById('modal-approve').style.display='none'">ยกเลิก</button>
+      <button class="btn btn-green" onclick="confirmApprove()">✅ Approve</button>
     </div>
   </div>
 </div>
@@ -3388,13 +3480,45 @@ function isDoneStatus(st){
 
 // เสมียนกดเปลี่ยนบิลส่งไม่สำเร็จ → รอจ่ายงานใหม่
 function approveBill(billNo){
-  if(!confirm("Approve บิล "+billNo+"? จะเปลี่ยนสถานะเป็น ออกบิลรับของ")) return;
-  GolodDB.updateBill(billNo,{status:"ออกบิลรับของ",approvedBy:CU?CU.username:"",approvedAt:new Date().toISOString(),updatedAt:new Date().toISOString()})
-    .then(function(){
-      updateLocalBillStatus(billNo,"ออกบิลรับของ");
-      alert("✅ Approve แล้ว บิล "+billNo+" พร้อมจ่ายงาน");
-      renderApp();
-    }).catch(function(e){alert("❌ "+e.message);});
+  var b = BILLS.find(function(x){ return x.billNo===billNo; });
+  if(!b){ alert("ไม่พบบิล"); return; }
+  var form = b.form||{};
+  document.getElementById("ap-bill-no").textContent = "บิล: "+billNo;
+  document.getElementById("ap-sender-name").value   = b.senderName||form.senderName||"";
+  document.getElementById("ap-sender-phone").value  = b.senderPhone||form.senderPhone||"";
+  document.getElementById("ap-receiver-name").value = b.receiverName||form.receiverName||"";
+  document.getElementById("ap-receiver-phone").value= b.receiverPhone||form.receiverPhone||"";
+  document.getElementById("ap-dest-prov").value     = b.destProv||form.destProv||"";
+  document.getElementById("ap-dest-amphoe").value   = b.destAmphoe||form.destAmphoe||form.receiverAmphoe||"";
+  document.getElementById("ap-goods").value         = (b.items&&b.items[0]&&b.items[0].desc)||(form.items&&form.items[0]&&form.items[0].desc)||b.note||"";
+  document.getElementById("ap-freight").value       = b.freightNet||0;
+  document.getElementById("ap-pay").value           = b.freightPay||form.freightPay||"origin";
+  document.getElementById("modal-approve").dataset.billNo = billNo;
+  document.getElementById("modal-approve").style.display = "flex";
+}
+
+function confirmApprove(){
+  var billNo = document.getElementById("modal-approve").dataset.billNo;
+  var g = function(id){ return document.getElementById(id).value.trim(); };
+  if(!g("ap-receiver-name")){ alert("กรุณากรอกชื่อผู้รับ"); return; }
+  if(!g("ap-dest-prov")){ alert("กรุณากรอกจังหวัดปลายทาง"); return; }
+  var goods = g("ap-goods");
+  var upd = {
+    status:"ออกบิลรับของ",
+    senderName: g("ap-sender-name"), senderPhone: g("ap-sender-phone"),
+    receiverName: g("ap-receiver-name"), receiverPhone: g("ap-receiver-phone"),
+    destProv: g("ap-dest-prov"), destAmphoe: g("ap-dest-amphoe"),
+    freightNet: parseFloat(g("ap-freight"))||0, freightPay: g("ap-pay"),
+    approvedBy: CU?CU.username:"", approvedAt: new Date().toISOString(),
+    updatedAt: new Date().toISOString()
+  };
+  if(goods) upd.items = [{desc:goods,kg:"0",qty:1,sumCm:"0",hasCOD:false,codAmount:""}];
+  GolodDB.updateBill(billNo, upd).then(function(){
+    updateLocalBillStatus(billNo,"ออกบิลรับของ");
+    document.getElementById("modal-approve").style.display="none";
+    alert("✅ Approve แล้ว บิล "+billNo+" พร้อมจ่ายงาน");
+    renderApp();
+  }).catch(function(e){ alert("❌ "+e.message); });
 }
 
 function rejectBill(billNo){
