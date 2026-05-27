@@ -277,7 +277,8 @@ var GolodDB = (function() {
           "ส่งไม่สำเร็จ","รออนุมัติ"
         ];
         var activeQueries = ACTIVE_ST.map(function(st){
-          return db.collection("bills").where("status","==",st).limit(500).get();
+          return db.collection("bills").where("status","==",st).limit(500).get()
+            .catch(function(e){ console.warn("[getBillsDispatch] query fail:", st, e.message); return {forEach:function(){}}; });
         });
         // บิล status ว่าง (issued ใหม่)
         var emptyQ = db.collection("bills").where("status","==","").limit(50).get();
