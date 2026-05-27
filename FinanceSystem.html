@@ -822,13 +822,20 @@ function buildSlipUrl(billNo, slotName, ext){
   return FB_STORAGE_BASE + encodeURIComponent(path) + "?alt=media";
 }
 
-// ลอง fetch URL ด้วย HEAD request — คืน URL แรกที่ใช้ได้
+// ลอง fetch URL ด้วย HEAD request — ลองทั้ง slot names และ extensions
 function trySlipUrls(billNo, slotName, callback){
   const exts = ["jpg","jpeg","png","pdf"];
+  // ลองทุก slot name ที่เป็นไปได้
+  const slots = [slotName||"slip1", "slip", "slip1", "slip2", "extra", "transfer"];
+  // deduplicate
+  const uniqueSlots = [...new Set(slots)];
+  const combos = [];
+  uniqueSlots.forEach(s => exts.forEach(e => combos.push({s,e})));
   let i = 0;
   function next(){
-    if(i >= exts.length){ callback(null); return; }
-    const url = buildSlipUrl(billNo, slotName, exts[i++]);
+    if(i >= combos.length){ callback(null); return; }
+    const {s, e} = combos[i++];
+    const url = buildSlipUrl(billNo, s, e);
     fetch(url, {method:"HEAD"}).then(r=>{
       if(r.ok) callback(url); else next();
     }).catch(()=>next());
