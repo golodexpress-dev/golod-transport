@@ -239,8 +239,11 @@ var GolodDB = (function() {
       var tB = b.createdAt ? new Date(b.createdAt).getTime() : parseDate(b.date);
       return tB - tA;
     });
-    // FIX: senderName อาจอยู่ใน root หรือใน form เท่านั้น
+    // filter เฉพาะบิลที่มี billNo (DR- บิลไม่มี senderName แต่ต้องผ่าน)
     return bills.filter(function(b){
+      if(!b.billNo) return false;
+      // บิลคนรถออกเอง (DR-) ไม่มี senderName ให้ผ่านได้
+      if(b.clerkCode==="DR" || (b.billNo||"").indexOf("DR")===0) return true;
       var sn = b.senderName || (b.form && b.form.senderName) || "";
       return sn.trim() !== "";
     });
