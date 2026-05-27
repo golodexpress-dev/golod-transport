@@ -274,7 +274,7 @@ var GolodDB = (function() {
         var ACTIVE_ST = [
           "กำลังวิ่งส่งลูกค้า","ระหว่างนำส่งสาขา","ออกบิลรับของ","นำส่งใหม่",
           "issued","ติดต่อลูกค้าไม่ได้","ติดต่อไม่ได้","nocontact","reschedule","นัดส่งใหม่",
-          "ส่งไม่สำเร็จ"
+          "ส่งไม่สำเร็จ","รออนุมัติ"
         ];
         var activeQueries = ACTIVE_ST.map(function(st){
           return db.collection("bills").where("status","==",st).limit(500).get();
