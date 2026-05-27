@@ -4440,7 +4440,7 @@ function ReceiptPrint({ receipt }) {
         (receipt.items||[]).map((it,i)=>
           React.createElement("tr",{key:i},
             React.createElement("td",{style:{padding:"4px 3px",lineHeight:1.8,fontWeight:700,fontSize:13}},it.desc),
-            React.createElement("td",{style:{textAlign:"right",padding:"4px 3px",lineHeight:1.8,fontWeight:800,fontSize:16}},fmt(it.amount)," ฿")
+            React.createElement("td",{style:{textAlign:"right",padding:"4px 3px",lineHeight:1.8,fontWeight:800,fontSize:16}},fmt(it.amount),".-")
           )
         )
       )
@@ -4448,10 +4448,10 @@ function ReceiptPrint({ receipt }) {
     React.createElement("hr",{style:{border:"none",borderTop:"1.5px solid #000",margin:"4px 0"}}),
     React.createElement("div",{style:{display:"flex",justifyContent:"space-between",fontWeight:900,fontSize:13}},
       React.createElement("div",null,"รวมทั้งสิ้น"),
-      React.createElement("div",null,fmt(receipt.total)," ฿")
+      React.createElement("div",null,fmt(receipt.total),".-")
     ),
-    React.createElement("div",{style:{fontSize:14,fontWeight:700,textAlign:"center",color:"#000",marginTop:2,marginBottom:2}},
-      "(",bahtText(receipt.total),")"
+    React.createElement("div",{style:{fontSize:13,fontWeight:700,textAlign:"center",color:"#000",marginTop:2,marginBottom:2}},
+      "("+bahtText(receipt.total)+")"
     ),
     React.createElement("hr",{style:{border:"none",borderTop:"1px dashed #333",margin:"4px 0"}}),
     React.createElement("div",{style:{fontSize:13,fontWeight:700,marginBottom:4}},
@@ -4854,7 +4854,59 @@ function ReceiptForm({ bills, staffCode, staffName }) {
     !search || (b.billNo&&b.billNo.toLowerCase().includes(search.toLowerCase())) ||
     (b.form&&b.form.senderName&&b.form.senderName.includes(search))
   );
+  // ตรวจว่าแก้ได้ไหม (ภายใน 1 ชม.)
+  const rcptCanEdit = previewRcpt && (()=>{
+    try{
+      const created = new Date(previewRcpt.createdAt).getTime();
+      return (Date.now()-created) < 60*60*1000;
+    }catch(e){ return false; }
+  })();
+  const [rcptEditMode, setRcptEditMode] = React.useState(false);
+  const [rcptEditPayer, setRcptEditPayer] = React.useState("");
+  const [rcptEditAddr, setRcptEditAddr]   = React.useState("");
+  const [rcptEditTax,  setRcptEditTax]    = React.useState("");
+
   if (mode==="preview" && previewRcpt) return React.createElement("div",null,
+    // Edit payer modal (inline)
+    rcptEditMode && React.createElement("div",{style:{background:"#f8fffe",border:"1px solid #d0ede5",borderRadius:8,padding:"12px",marginBottom:10}},
+      React.createElement("div",{style:{fontWeight:700,fontSize:12,color:"#0F6E56",marginBottom:8}},"✏️ แก้ไขข้อมูลผู้จ่าย"),
+      React.createElement("div",{style:{marginBottom:6}},
+        React.createElement("div",{style:{fontSize:11,color:"#888",marginBottom:3}},"ชื่อ/บริษัท"),
+        React.createElement("input",{value:rcptEditPayer,onChange:e=>setRcptEditPayer(e.target.value),
+          style:{width:"100%",padding:"6px 10px",border:"1px solid #ddd",borderRadius:7,fontSize:13,boxSizing:"border-box"}})
+      ),
+      React.createElement("div",{style:{marginBottom:6}},
+        React.createElement("div",{style:{fontSize:11,color:"#888",marginBottom:3}},"ที่อยู่"),
+        React.createElement("textarea",{value:rcptEditAddr,onChange:e=>setRcptEditAddr(e.target.value),rows:2,
+          style:{width:"100%",padding:"6px 10px",border:"1px solid #ddd",borderRadius:7,fontSize:13,boxSizing:"border-box"}})
+      ),
+      React.createElement("div",{style:{marginBottom:10}},
+        React.createElement("div",{style:{fontSize:11,color:"#888",marginBottom:3}},"เลขภาษี"),
+        React.createElement("input",{value:rcptEditTax,onChange:e=>setRcptEditTax(e.target.value),
+          style:{width:"100%",padding:"6px 10px",border:"1px solid #ddd",borderRadius:7,fontSize:13,boxSizing:"border-box"}})
+      ),
+      React.createElement("div",{style:{display:"flex",gap:8}},
+        React.createElement("button",{
+          onClick:()=>{
+            const updated = {...previewRcpt,
+              payerName: rcptEditPayer||previewRcpt.payerName,
+              payerAddr: rcptEditAddr||previewRcpt.payerAddr,
+              payerTax:  rcptEditTax||previewRcpt.payerTax
+            };
+            // อัปเดต localStorage
+            const all = JSON.parse(localStorage.getItem("golod_receipts")||"[]");
+            const idx = all.findIndex(r=>r.receiptNo===previewRcpt.receiptNo);
+            if(idx>=0){ all[idx]=updated; localStorage.setItem("golod_receipts",JSON.stringify(all)); }
+            setReceipts(all);
+            setPreviewRcpt(updated);
+            setRcptEditMode(false);
+          },
+          style:{flex:1,padding:"8px",background:"#0F6E56",color:"#fff",border:"none",borderRadius:8,fontWeight:700,cursor:"pointer"}
+        },"💾 บันทึก"),
+        React.createElement("button",{onClick:()=>setRcptEditMode(false),
+          style:{padding:"8px 14px",background:"#eee",border:"none",borderRadius:8,cursor:"pointer"}},"ยกเลิก")
+      )
+    ),
     React.createElement("div",{style:{background:"#f8fffe",border:"0.5px solid #d0ede5",borderRadius:8,padding:"8px 12px",marginBottom:8}},
       React.createElement("div",{style:{fontSize:11,fontWeight:700,color:"#0F6E56",marginBottom:6}},"⚙️ ตั้งค่าการพิมพ์"),
       React.createElement("div",{style:{display:"flex",alignItems:"center",gap:8,marginBottom:4}},
@@ -4875,6 +4927,15 @@ function ReceiptForm({ bills, staffCode, staffName }) {
     ),
     React.createElement("div",{style:{display:"flex",gap:8,marginBottom:10,flexWrap:"wrap"}},
       React.createElement("button",{onClick:doPrint,style:{padding:"7px 16px",background:"#1D9E75",color:"#fff",border:"none",borderRadius:8,fontWeight:700,cursor:"pointer"}},"🖨 พิมพ์ใบเสร็จ"),
+      rcptCanEdit && React.createElement("button",{
+        onClick:()=>{
+          setRcptEditPayer(previewRcpt.payerName||"");
+          setRcptEditAddr(previewRcpt.payerAddr||"");
+          setRcptEditTax(previewRcpt.payerTax||"");
+          setRcptEditMode(true);
+        },
+        style:{padding:"7px 16px",background:"#EF9F27",color:"#fff",border:"none",borderRadius:8,fontWeight:700,cursor:"pointer"}
+      },"✏️ แก้ไข"),
       React.createElement("button",{onClick:()=>{ setMode("form"); setForm(emptyForm()); setSelBill(null); },style:{padding:"7px 16px",background:"#eee",border:"none",borderRadius:8,cursor:"pointer"}},"+ ใบเสร็จใหม่"),
       React.createElement("button",{onClick:()=>setMode("list"),style:{padding:"7px 14px",background:"#eee",border:"none",borderRadius:8,cursor:"pointer"}},"← รายการ")
     ),
@@ -4993,7 +5054,7 @@ function ReceiptForm({ bills, staffCode, staffName }) {
       },"+ เพิ่มรายการ"),
       React.createElement("div",{style:{borderTop:"1px solid #eee",marginTop:8,paddingTop:8,display:"flex",justifyContent:"space-between",fontWeight:700}},
         React.createElement("span",null,"รวม"),
-        React.createElement("span",null,fmt(total)," ฿")
+        React.createElement("span",null,fmt(total),".-")
       )
     ),
     React.createElement("button",{
@@ -5027,7 +5088,7 @@ function ReceiptForm({ bills, staffCode, staffName }) {
                 React.createElement("td",{style:{padding:"6px 8px",color:"#666"}},r.date),
                 React.createElement("td",{style:{padding:"6px 8px"}},r.payerName||"—"),
                 React.createElement("td",{style:{padding:"6px 8px",color:"#888"}},r.refBillNo||"—"),
-                React.createElement("td",{style:{padding:"6px 8px",fontWeight:600}},fmt(r.total)," ฿"),
+                React.createElement("td",{style:{padding:"6px 8px",fontWeight:600}},fmt(r.total),".-"),
                 React.createElement("td",{style:{padding:"6px 8px"}},
                   React.createElement("button",{
                     onClick:()=>{ setPreviewRcpt(r); setMode("preview"); },
