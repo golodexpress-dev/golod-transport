@@ -4448,10 +4448,7 @@ function ReceiptPrint({ receipt }) {
     React.createElement("hr",{style:{border:"none",borderTop:"1.5px solid #000",margin:"4px 0"}}),
     React.createElement("div",{style:{display:"flex",justifyContent:"space-between",fontWeight:900,fontSize:13}},
       React.createElement("div",null,"รวมทั้งสิ้น"),
-      React.createElement("div",null,fmt(receipt.total),".-")
-    ),
-    React.createElement("div",{style:{fontSize:13,fontWeight:700,textAlign:"center",color:"#000",marginTop:2,marginBottom:2}},
-      "("+bahtText(receipt.total)+")"
+      React.createElement("div",null,fmt(receipt.total),".- (",bahtText(receipt.total),")")
     ),
     React.createElement("hr",{style:{border:"none",borderTop:"1px dashed #333",margin:"4px 0"}}),
     React.createElement("div",{style:{fontSize:13,fontWeight:700,marginBottom:4}},
