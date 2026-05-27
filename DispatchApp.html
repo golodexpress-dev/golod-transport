@@ -2502,6 +2502,7 @@ function renderBillRows(bills){
     var ds=billDateStr(b)||"—";
     var ck=selectedBills[b.billNo]?'checked':'';
     // สลิปโอน
+    var st=b.status||"";
     var slipUrl=b.slipUrl||(b.form&&b.form.slipUrl)||"";
     var slip1=b.slip1||(b.form&&b.form.slip1)||(b.form&&b.form.slipName?b.slipUrl:"")||"";
     var slipSrc=slipUrl||slip1||"";
