@@ -3396,11 +3396,13 @@ function ThermalBillingApp() {
   };
   const [printMarginV, setPrintMarginV] = useState(4); // mm บน-ล่าง
   const [printMarginL, setPrintMarginL] = useState(4); // mm ซ้าย
+  const [printMarginR, setPrintMarginR] = useState(6); // mm ขวา (default 6mm)
   const handlePrint = () => {
     const el = printRef.current;
     if (!el) return;
     const mv = printMarginV,
-      ml = printMarginL;
+      ml = printMarginL,
+      mr = printMarginR;
     const w = window.open("", "_blank", "width=440,height=800");
     w.document.write(`<html><head><meta charset="UTF-8">
   <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
@@ -3408,7 +3410,7 @@ function ThermalBillingApp() {
   <meta http-equiv="Expires" content="0"><title>บิล ${(viewBill === null || viewBill === void 0 ? void 0 : viewBill.billNo) || ""}</title>
     <style>
       *{box-sizing:border-box;margin:0;padding:0}
-      @page{size:80mm auto;margin:${mv}mm 3mm ${mv}mm ${ml}mm}
+      @page{size:80mm auto;margin:${mv}mm ${mr}mm ${mv}mm ${ml}mm}
       body{font-family:'Sarabun','Noto Sans Thai',sans-serif;background:#fff;width:${76 - ml}mm;font-weight:700;-webkit-print-color-adjust:exact;print-color-adjust:exact;}
       div,span,td,th{font-weight:700!important}
     </style></head><body>`);
@@ -4220,7 +4222,13 @@ function ThermalBillingApp() {
       minWidth: 30,
       color: "#0F6E56"
     }
-  }, printMarginL, "mm")), /*#__PURE__*/React.createElement("div", {
+  }, printMarginL, "mm")),
+  /*#__PURE__*/React.createElement("div",{style:{display:"flex",alignItems:"center",gap:6,marginTop:4}},
+    /*#__PURE__*/React.createElement("span",{style:{fontSize:10,color:"#555",minWidth:60}},"กั้นขวา"),
+    /*#__PURE__*/React.createElement("input",{type:"range",min:0,max:15,step:1,value:printMarginR,onChange:e=>setPrintMarginR(Number(e.target.value)),style:{width:100,accentColor:"#0F6E56"}}),
+    /*#__PURE__*/React.createElement("span",{style:{fontWeight:700,minWidth:30,color:"#0F6E56"}},printMarginR,"mm")
+  )),
+  /*#__PURE__*/React.createElement("div", {
     style: {
       fontSize: 10,
       color: "#888"
@@ -4746,18 +4754,32 @@ function ReceiptForm({ bills, staffCode, staffName }) {
   const addBillToGroup = (b) => {
     setSelBills(prev => {
       const already = prev.find(x=>x.billNo===b.billNo);
-      if(already) return prev.filter(x=>x.billNo!==b.billNo); // toggle ออก
-      return [...prev, b];
+      const next = already ? prev.filter(x=>x.billNo!==b.billNo) : [...prev, b];
+      // auto-fill จากบิลแรกเมื่อเพิ่มบิลแรก
+      if(!already && prev.length===0){
+        setSelBill(b);
+        const addrParts=[b.senderAddr,b.senderTambon,b.senderAmphoe,b.senderProv,b.senderZip].filter(Boolean);
+        setF("payerName",b.senderName||(b.form&&b.form.senderName)||"");
+        setF("payerPhone",b.senderPhone||(b.form&&b.form.senderPhone)||"");
+        setF("payerAddr",addrParts.join(" "));
+        setF("refBillNo",b.billNo);
+        // เพิ่ม item แรก
+        setF("items",[{desc:"ค่าขนส่ง "+b.billNo,amount:parseFloat(b.freightNet)||0}]);
+      } else if(!already){
+        // เพิ่ม item ใหม่เข้าไป ไม่ replace
+        setForm(f=>({...f,
+          items:[...(f.items||[]),{desc:"ค่าขนส่ง "+b.billNo,amount:parseFloat(b.freightNet)||0}],
+          refBillNo:(f.refBillNo?f.refBillNo+", ":"")+b.billNo
+        }));
+      } else {
+        // ลบ item ที่ตรงกับบิลนี้ออก
+        setForm(f=>({...f,
+          items:(f.items||[]).filter(it=>!it.desc.includes(b.billNo)),
+          refBillNo:(f.refBillNo||"").split(", ").filter(n=>n!==b.billNo).join(", ")
+        }));
+      }
+      return next;
     });
-    // auto-fill จากบิลแรก
-    if(selBills.length===0){
-      setSelBill(b);
-      const addrParts=[b.senderAddr,b.senderTambon,b.senderAmphoe,b.senderProv,b.senderZip].filter(Boolean);
-      setF("payerName",b.senderName||(b.form&&b.form.senderName)||"");
-      setF("payerPhone",b.senderPhone||(b.form&&b.form.senderPhone)||"");
-      setF("payerAddr",addrParts.join(" "));
-      setF("refBillNo",b.billNo);
-    }
   };
   const useGroupBills = () => {
     if(selBills.length < 2) return;
@@ -4812,11 +4834,12 @@ function ReceiptForm({ bills, staffCode, staffName }) {
   };
   const [rcptMarginV, setRcptMarginV] = React.useState(4); // mm บน-ล่าง
   const [rcptMarginL, setRcptMarginL] = React.useState(4); // mm ซ้าย
+  const [rcptMarginR, setRcptMarginR] = React.useState(6); // mm ขวา
   const doPrint = () => {
     if (!printRef.current) return;
     const mv = rcptMarginV, ml = rcptMarginL;
     const w = window.open("","_blank","width=400,height=600");
-    w.document.write("<html><head><link rel='preconnect' href='https://fonts.googleapis.com'><link rel='preconnect' href='https://fonts.gstatic.com' crossorigin><link rel='stylesheet' href='https://fonts.googleapis.com/css2?family=Sarabun:wght@400;600;700;800;900&family=Noto+Sans+Thai:wght@400;600;700;800;900&display=swap'><style>*{box-sizing:border-box}body{margin:0;padding:0;background:#fff;font-family:'Sarabun','Noto Sans Thai',sans-serif;}@media print{@page{size:80mm auto;margin:"+mv+"mm "+(ml+3)+"mm "+mv+"mm "+ml+"mm}}</style></head><body>");
+    w.document.write("<html><head><link rel='preconnect' href='https://fonts.googleapis.com'><link rel='preconnect' href='https://fonts.gstatic.com' crossorigin><link rel='stylesheet' href='https://fonts.googleapis.com/css2?family=Sarabun:wght@400;600;700;800;900&family=Noto+Sans+Thai:wght@400;600;700;800;900&display=swap'><style>*{box-sizing:border-box}body{margin:0;padding:0;background:#fff;font-family:'Sarabun','Noto Sans Thai',sans-serif;}@media print{@page{size:80mm auto;margin:"+mv+"mm "+rcptMarginR+"mm "+mv+"mm "+ml+"mm}}</style></head><body>");
     w.document.write(printRef.current.innerHTML);
     w.document.write("</body></html>");
     w.document.close();
@@ -4843,6 +4866,11 @@ function ReceiptForm({ bills, staffCode, staffName }) {
         React.createElement("span",{style:{fontSize:11,minWidth:70}},"กั้นซ้าย"),
         React.createElement("input",{type:"range",min:0,max:15,value:rcptMarginL,onChange:e=>setRcptMarginL(Number(e.target.value)),style:{flex:1}}),
         React.createElement("span",{style:{fontSize:11,minWidth:30}},rcptMarginL+"mm")
+      ),
+      React.createElement("div",{style:{display:"flex",alignItems:"center",gap:8}},
+        React.createElement("span",{style:{fontSize:11,minWidth:70}},"กั้นขวา"),
+        React.createElement("input",{type:"range",min:0,max:15,value:rcptMarginR,onChange:e=>setRcptMarginR(Number(e.target.value)),style:{flex:1}}),
+        React.createElement("span",{style:{fontSize:11,minWidth:30}},rcptMarginR+"mm")
       )
     ),
     React.createElement("div",{style:{display:"flex",gap:8,marginBottom:10,flexWrap:"wrap"}},
