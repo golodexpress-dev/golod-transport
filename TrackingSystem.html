@@ -151,8 +151,10 @@ var _canStaff = ["admin","branch","driver"].includes(_role);
 <script>
 GolodSession.renderTopbar("golod-user-chip", "ระบบติดตาม", "#EF9F27");
 // แสดง tab ตาม role
-if(_canStaff) document.getElementById("tab-staff").style.display="";
-if(_canAdmin) document.getElementById("tab-admin").style.display="";
+var _ts = document.getElementById("tab-staff");
+var _ta = document.getElementById("tab-admin");
+if(_canStaff && _ts) _ts.style.display="";
+if(_canAdmin && _ta) _ta.style.display="";
 </script>
 
 
