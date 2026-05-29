@@ -287,6 +287,12 @@ function loadRealBills(){
       var payKey=PAY_MAP[payRaw]||payRaw;
       var prov=b.destProv||b.form&&b.form.destProv||"";
       var amphoe=b.destAmphoe||b.form&&b.form.receiverAmphoe||"";
+      // goodsDesc จากรายการแรก
+      var goodsDesc="—";
+      if(Array.isArray(b.items)&&b.items[0]){
+        var gi=b.items[0];
+        goodsDesc=(gi.desc||b.note||"—").slice(0,20)+(gi.desc&&gi.desc.length>20?"…":"");
+      } else if(b.note){ goodsDesc=b.note.slice(0,20); }
       return {
         billNo:b.billNo,
         date:dateISO,
@@ -301,6 +307,7 @@ function loadRealBills(){
         senderName:b.senderName||"",
         receiverName:b.receiverName||b.form&&b.form.receiverName||"",
         items:itemCount,
+        goodsDesc:goodsDesc,
         freightNet:b.freightNet||b.summary&&b.summary.freightNet||0,
         codTotal:b.codTotal||b.summary&&b.summary.codTotal||0,
         freightPay:payKey,
@@ -309,6 +316,8 @@ function loadRealBills(){
         bizType:b.bizType||"",
         note:b.note||"",
         weight:totalKg,
+        slipUrl:b.slipUrl||"",
+        slip1:b.slip1||"",
       };
     }).sort(function(a,b){
       var da=a.date||"",db=b.date||"";
@@ -776,7 +785,7 @@ function billTable(data, opts){
   if (isAdmin) h+='<th>เสมียน</th>';
   h+='<th>ปลายทาง</th>';
   if (isAdmin) { h+='<th>ภาค</th><th>Zone</th>'; }
-  h+='<th>ชิ้น</th><th>ค่าส่ง</th><th>ชำระ</th><th>สถานะ</th><th>สลิปโอน</th>';
+  h+='<th>สินค้า</th><th>ชิ้น</th><th>ค่าส่ง</th><th>ชำระ</th><th>สถานะ</th><th>สลิปโอน</th>';
   h+='</tr></thead><tbody>';
 
   data.forEach(function(b){
@@ -791,6 +800,7 @@ function billTable(data, opts){
       h+="<td><span class='pill "+regionClass+"'>"+(b.region||"")+"</span></td>";
       h+="<td><span class='pill "+zoneClass+"'>"+(b.zone||"-")+"</span></td>";
     }
+    h+="<td style='font-size:11px;color:#555;max-width:100px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap' title='"+(b.goodsDesc||"")+"'>"+(b.goodsDesc||"—")+"</td>";
     h+="<td style='text-align:center'>"+(b.items||1)+"</td>";
     h+="<td style='text-align:right;font-weight:600'>"+fmt(b.freightNet||0)+"฿</td>";
     h+="<td><span class='pill px' style='font-size:9px'>"+(b.freightPayLabel||MPAYLAB[b.freightPay]||b.freightPay||"")+"</span></td>";
