@@ -542,7 +542,7 @@ function renderBillList(){
       const st=STATUSES[last&&last.status]||STATUSES.issued;
       const sel=b.billNo===selectedBillNo;
       const dt=last&&last.dt?last.dt.split(" ")[0].split("-").reverse().join("/"):"";
-      return'<div class="bill-item '+(sel?"sel":"")+'" onclick="selectBill(''+b.billNo+'')">'
+      return'<div class="bill-item '+(sel?"sel":"")+'" onclick="selectBill(\''+b.billNo+'\')">'
         +'<span class="bill-no-sm">'+b.billNo+'</span>'
         +'<span class="bill-dest">'+b.destAmphoe+'·'+b.destProv+'<br><span style="font-size:10px;color:#aaa">'+dt+'</span></span>'
         +'<span class="pill" style="background:'+st.bg+';color:'+st.color+';border:0.5px solid '+st.border+'">'+st.icon+' '+st.label+'</span>'
