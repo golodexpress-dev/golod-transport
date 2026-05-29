@@ -10,10 +10,7 @@
 <script src="golod-sheets-sync.js"></script>
 <script>try{GolodDB.init();}catch(e){}</script>
 <script src="thailand-data.js"></script>
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Sarabun:wght@400;600;700;800;900&family=Noto+Sans+Thai:wght@400;600;700;800;900&display=swap" rel="stylesheet">
-<style>*{box-sizing:border-box;margin:0;padding:0}input[type=number]::-webkit-inner-spin-button,input[type=number]::-webkit-outer-spin-button{-webkit-appearance:none;margin:0}input[type=number]{-moz-appearance:textfield}body{font-family:'Sarabun','Noto Sans Thai',Arial,sans-serif;background:#f5f5f2;min-height:100vh;padding:16px;font-size:15px}@media print{.no-print{display:none!important}body{background:#fff;padding:0}}.golod-bar{background:#0F6E56;padding:0 14px;display:flex;align-items:center;gap:10px;height:44px;position:sticky;top:0;z-index:200;margin:-16px -16px 16px}.golod-bar h1{color:#fff;font-size:14px;font-weight:700;flex:1}</style>
+<style>*{box-sizing:border-box;margin:0;padding:0}input[type=number]::-webkit-inner-spin-button,input[type=number]::-webkit-outer-spin-button{-webkit-appearance:none;margin:0}input[type=number]{-moz-appearance:textfield}body{font-family:Arial,sans-serif;background:#f5f5f2;min-height:100vh;padding:16px;font-size:15px}@media print{.no-print{display:none!important}body{background:#fff;padding:0}}.golod-bar{background:#0F6E56;padding:0 14px;display:flex;align-items:center;gap:10px;height:44px;position:sticky;top:0;z-index:200;margin:-16px -16px 16px}.golod-bar h1{color:#fff;font-size:14px;font-weight:700;flex:1}</style>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
 </head><body>
 <div class="golod-bar no-print">
@@ -622,137 +619,6 @@ const BRANCH_ZONES = {
   ssk: SSK_ZONES,
   krt: KRT_ZONES
 };
-// ===== ค่าส่งขั้นต่ำตามจังหวัด =====
-function getMinFreight(destProv, destAmphoe, isSpecialArea){
-  // เช็ค dynamic special areas จาก Firestore ก่อน (โหลดไว้ใน window._specialAreas)
-  var dynAreas = window._specialAreas || [];
-  for(var di=0; di<dynAreas.length; di++){
-    var da = dynAreas[di];
-    var matchAmphoe = (destAmphoe||"").indexOf(da.amphoe) >= 0;
-    var matchProv = !da.prov || (destProv||"").indexOf(da.prov) >= 0;
-    if(matchAmphoe && matchProv) return da.min;
-  }
-
-  // พื้นที่พิเศษ auto-detect ขั้นต่ำ 500 บาท (built-in)
-  var SP500 = [
-    // กาญจนบุรี
-    "ศรีสวัสดิ์","สังขละบุรี",
-    // ทองผาภูมิ กาญจนบุรี — ยกเว้น ต.ปิล็อก (1000)
-    // เลย
-    "ปากชม","ภูเรือ","ด่านซ้าย",
-    // อุตรดิตถ์
-    "น้ำปาด",
-    // พิษณุโลก
-    "นครไทย","ชาติตระการ",
-    // เพชรบูรณ์
-    "หล่มสัก","หล่มเก่า",
-    // สระแก้ว
-    "ตาพระยา","โคกสูง","คลองหาด",
-    // จันทบุรี
-    "สอยดาว","เขาสมิง",
-    // ตราด
-    "บ่อไร่",
-    // ระยอง
-    "เขาชะเมา",
-    // ชุมพร
-    "สวี","หลังสวน",
-    // อุทัยธานี
-    "บ้านไร่",
-    // ตาก
-    "สามเงา",
-    // ลำปาง
-    "เถิน","แม่พริก",
-    // หนองคาย
-    "สังคม",
-    // นครพนม
-    "บ้านแพง",
-    // บึงกาฬ
-    "บึงโขงโหลง",
-    // มุกดาหาร
-    "ดงหลวง","ภูพาน",
-    // สกลนคร
-    "เต่างอย","ภูพาน",
-    // กาฬสินธุ์
-    "สามชัย",
-    // ชัยภูมิ
-    "ภักดีชุมพล","เทพสถิต",
-    // อุบลราชธานี
-    "สิรินธร","ศรีเมืองใหม่","นาจะหลวย","น้ำยืน",
-    // ศรีสะเกษ
-    "ภูสิงห์",
-  ];
-  // ขั้นต่ำ 1000 บาท
-  var SP1000 = [
-    "น้ำหนาว",   // เพชรบูรณ์
-    "นาแห้ว",    // เลย
-    "ทองผาภูมิ", // กาญจนบุรี (ยกเว้น ต.ปิล็อก)
-  ];
-  // ต.ปิล็อก ของ ทองผาภูมิ = 1000
-  var amphoeStr = (destAmphoe||"");
-  if(amphoeStr.indexOf("ปิล็อก") >= 0) return 1000;
-  if(SP1000.some(function(a){ return amphoeStr.indexOf(a) >= 0; })) return 1000;
-  if(SP500.some(function(a){ return amphoeStr.indexOf(a) >= 0; })) return 500;
-
-  if(isSpecialArea) return null; // พื้นที่พิเศษอื่น ใช้เรทที่กรอก
-
-  // กรุงเทพ/ปริมณฑล — ขั้นต่ำ 100 ทุกที่
-  var BKK_GROUP = ["กรุงเทพมหานคร","ปทุมธานี","สมุทรปราการ","สมุทรสาคร","นนทบุรี"];
-  if(BKK_GROUP.includes(destProv)) return 100;
-
-  // กลุ่มใกล้ — เมือง 120, ต่างอำเภอ 150
-  var NEAR_120_150 = ["กาญจนบุรี","สระแก้ว","จันทบุรี","ชัยนาท",
-    "ประจวบคีรีขันธ์","นครราชสีมา","บุรีรัมย์","มหาสารคาม",
-    "ชัยภูมิ","ร้อยเอ็ด","ยโสธร","อุบลราชธานี","ศรีสะเกษ","สุรินทร์"];
-  if(NEAR_120_150.includes(destProv)){
-    var isCity = !destAmphoe || destAmphoe.startsWith("เมือง");
-    return isCity ? 120 : 150;
-  }
-
-  // กลุ่มใกล้ — ขั้นต่ำ 120 ทุกอำเภอ
-  var NEAR_120_ALL = ["พระนครศรีอยุธยา","นครปฐม","สมุทรสงคราม","เพชรบุรี",
-    "ราชบุรี","สุพรรณบุรี","สิงห์บุรี","อ่างทอง","ลพบุรี","สระบุรี",
-    "ปราจีนบุรี","นครนายก","ฉะเชิงเทรา","ชลบุรี","ระยอง"];
-  if(NEAR_120_ALL.includes(destProv)) return 120;
-
-  // กลุ่มไกล — เมือง 180, ต่างอำเภอ 200
-  var FAR_180_200 = ["อุตรดิตถ์","สุโขทัย","พิษณุโลก","พิจิตร","กำแพงเพชร",
-    "ตาก","อุทัยธานี","เพชรบูรณ์","ชุมพร","มุกดาหาร","นครพนม","บึงกาฬ",
-    "สกลนคร","หนองคาย","เลย","อุดรธานี","กาฬสินธุ์","ตราด",
-    "หนองบัวลำภู","อำนาจเจริญ","นครสวรรค์"];
-  if(FAR_180_200.includes(destProv)){
-    var isCity = !destAmphoe || destAmphoe.startsWith("เมือง");
-    return isCity ? 180 : 200;
-  }
-
-  return null; // จังหวัดอื่นไม่มีขั้นต่ำพิเศษ
-}
-
-// ===== ที่อยู่แต่ละสาขา =====
-function getBranchAddress(branchId){
-  var map = {
-    bkk: {
-      name: "สาขากรุงเทพ",
-      addr: "527 ถ.ลัดนิ่มไสว แขวงทวีวัฒนา เขตทวีวัฒนา กรุงเทพฯ 10170",
-      tel:  "099-1875230, 098-4518141"
-    },
-    ptm: {
-      name: "สาขาปทุมธานี",
-      addr: "สาขาปทุมธานี จ.ปทุมธานี",
-      tel:  "099-1875230"
-    },
-    krt: {
-      name: "สาขานครราชสีมา",
-      addr: "สาขานครราชสีมา จ.นครราชสีมา",
-      tel:  "099-1875230"
-    },
-    ssk: {
-      name: "สาขาศรีสะเกษ",
-      addr: "สาขาศรีสะเกษ จ.ศรีสะเกษ",
-      tel:  "099-1875230"
-    }
-  };
-  return map[branchId] || map["bkk"];
-}
 const BRANCHES = [{
   id: "bkk",
   label: "สาขากรุงเทพ",
@@ -1147,10 +1013,8 @@ function ThermalBill({
   printDate
 }) {
   // คำนวณ minFreight ภายใน
-  const _minFr = summary.minFreightApplied ||
-    (form.isSpecialArea ? (parseInt(form.minFreight)||0) : 0) ||
-    (getMinFreight(form.destProv||"", form.receiverAmphoe||form.destAmphoe||"", form.isSpecialArea)||0);
-  const _isMinApplied = _minFr > 0;
+  const _minFr = form.isSpecialArea ? (parseInt(form.minFreight)||0) : 0;
+  const _isMinApplied = _minFr > 0 && summary.freightNet >= _minFr && (summary.freightTotal||summary.freightNet) < _minFr;
   var _FREIGHT_PAY$find, _BRANCHES$find;
   const W = 298;
   const zone = getZone(form.branch, form.destProv, form.receiverAmphoe);
@@ -1249,7 +1113,7 @@ function ThermalBill({
     style: { fontSize: 12, fontWeight: 800 }
   }, "094-4721796, 098-4518141"), /*#__PURE__*/React.createElement("div", {
     style: { fontSize: 12, fontWeight: 900 }
-  }, "\u0E40\u0E0A\u0E47\u0E04\u0E2A\u0E16\u0E32\u0E19\u0E30\u0E44\u0E14\u0E49\u0E17\u0E35\u0E48 @glexpress"), /*#__PURE__*/React.createElement("div", {
+  }, "\u0E40\u0E0A\u0E47\u0E04\u0E2A\u0E16\u0E32\u0E19\u0E17\u0E35\u0E48 @glexpress"), /*#__PURE__*/React.createElement("div", {
     style: { fontSize: 12, fontWeight: 900 }
   }, "\u0E15\u0E35\u0E23\u0E32\u0E04\u0E32\u0E23\u0E31\u0E1A\u0E07\u0E32\u0E19 @golod")), /*#__PURE__*/React.createElement(Div, null), /*#__PURE__*/React.createElement("div", {
     style: {
@@ -1271,7 +1135,7 @@ function ThermalBill({
   }, /*#__PURE__*/React.createElement("div", {
     style: { display:"flex", alignItems:"baseline", flexWrap:"wrap", gap:4, marginBottom:0 }
   },
-    /*#__PURE__*/React.createElement("span", { style:{ fontSize:10, fontWeight:800, whiteSpace:"nowrap", flexShrink:0, marginRight:2 }}, "\u0E1C\u0E39\u0E49\u0E2A\u0E48\u0E07:"),
+    /*#__PURE__*/React.createElement("span", { style:{ fontSize:10, fontWeight:800, whiteSpace:"nowrap", flexShrink:0, marginRight:2 }}, "[ \u0E1C\u0E39\u0E49\u0E2A\u0E48\u0E07 ]"),
     /*#__PURE__*/React.createElement("span", { style:{ fontSize:14, fontWeight:800, wordBreak:"break-word" }}, form.senderName || "—")
   ), /*#__PURE__*/React.createElement("div", { style:{ fontSize:12, fontWeight:900 }},
     "\u0E42\u0E17\u0E23: ", form.senderPhone || "—"),
@@ -1288,7 +1152,7 @@ function ThermalBill({
   }, /*#__PURE__*/React.createElement("div", {
     style: { display:"flex", alignItems:"baseline", flexWrap:"wrap", gap:4, marginBottom:0 }
   },
-    /*#__PURE__*/React.createElement("span", { style:{ fontSize:10, fontWeight:800, whiteSpace:"nowrap", flexShrink:0, marginRight:2 }}, "\u0E1C\u0E39\u0E49\u0E23\u0E31\u0E1A:"),
+    /*#__PURE__*/React.createElement("span", { style:{ fontSize:10, fontWeight:800, whiteSpace:"nowrap", flexShrink:0, marginRight:2 }}, "[ \u0E1C\u0E39\u0E49\u0E23\u0E31\u0E1A ]"),
     /*#__PURE__*/React.createElement("span", { style:{ fontSize:14, fontWeight:800, wordBreak:"break-word" }}, form.receiverName || "—")
   ), /*#__PURE__*/React.createElement("div", { style:{ fontSize:12, fontWeight:900 }},
     "\u0E42\u0E17\u0E23: ", form.receiverPhone || "—"),
@@ -1301,7 +1165,7 @@ function ThermalBill({
 ), /*#__PURE__*/React.createElement(Div, null), /*#__PURE__*/React.createElement("div", {
     style: { marginBottom: 4 }
   }, /*#__PURE__*/React.createElement("div", {
-    style: { fontSize:9, color:"#000", marginBottom:2, fontWeight:400 }
+    style: { fontSize:9, color:"#555", marginBottom:2, fontWeight:700 }
   }, "Kg.=น้ำหนักต่อชิ้น  S=ผลรวม ก+ย+ส"), /*#__PURE__*/React.createElement("table", {
     style: {
       width: "100%",
@@ -1317,16 +1181,16 @@ function ThermalBill({
     style: { textAlign: "left", padding: "1px 2px", fontWeight: 700, maxWidth: 90, borderRight:"0.5px solid #999", background:"#eee", fontSize:10 }
   }, "\u0E23\u0E32\u0E22\u0E01\u0E32\u0E23\u0E02\u0E2D\u0E07"),
   /*#__PURE__*/React.createElement("th", {
-    style: { textAlign: "center", padding: "1px 2px", fontWeight: 700, borderRight:"0.5px solid #999", borderLeft:"0.5px solid #999", background:"#eee" }
+    style: { textAlign: "center", padding: "1px 2px", fontWeight: 700, borderRight:"0.5px solid #999", background:"#eee" }
   }, "Kg."),
   /*#__PURE__*/React.createElement("th", {
-    style: { textAlign: "center", padding: "1px 2px", fontWeight: 700, borderRight:"0.5px solid #999", borderLeft:"0.5px solid #999", background:"#eee" }
+    style: { textAlign: "center", padding: "1px 2px", fontWeight: 700, borderRight:"0.5px solid #999", background:"#eee" }
   }, "S"),
   !form.hidePrice && /*#__PURE__*/React.createElement("th", {
-    style: { textAlign: "right", padding: "1px 8px 1px 2px", fontWeight: 700, borderRight:"0.5px solid #999", borderLeft:"0.5px solid #999", background:"#eee" }
+    style: { textAlign: "right", padding: "1px 8px 1px 2px", fontWeight: 700 }
   }, "P"),
   /*#__PURE__*/React.createElement("th", {
-    style: { textAlign: "center", padding: "1px 2px 1px 8px", fontWeight: 700, borderRight:"0.5px solid #999", borderLeft:"0.5px solid #999", background:"#eee" }
+    style: { textAlign: "center", padding: "1px 2px 1px 8px", fontWeight: 700 }
   }, "Q"),
   !form.hidePrice && /*#__PURE__*/React.createElement("th", {
     style: { textAlign: "right", padding: "1px 2px", fontWeight: 700 }
@@ -1357,7 +1221,6 @@ function ThermalBill({
         textAlign: "center",
         padding: "2px 2px",
         borderRight: "0.5px solid #ccc",
-        borderLeft: "0.5px solid #ccc",
         fontSize: 12
       }
     }, item.kg || "-"), /*#__PURE__*/React.createElement("td", {
@@ -1365,32 +1228,27 @@ function ThermalBill({
         textAlign: "center",
         padding: "2px 2px",
         borderRight: "0.5px solid #ccc",
-        borderLeft: "0.5px solid #ccc",
         fontSize: 12
       }
     }, sumCm > 0 ? sumCm : "-"), !form.hidePrice && /*#__PURE__*/React.createElement("td", {
       style: {
         textAlign: "right",
-        padding: "2px 4px",
-        fontSize: 12,
-        borderRight: "0.5px solid #ccc",
-        borderLeft: "0.5px solid #ccc"
+        padding: "2px 2px",
+        fontSize: 9
       }
     }, up > 0 ? up.toLocaleString("th-TH") : "-"), /*#__PURE__*/React.createElement("td", {
       style: {
         textAlign: "center",
         padding: "2px 2px",
         borderRight: "0.5px solid #ccc",
-        borderLeft: "0.5px solid #ccc",
         fontSize: 12
       }
     }, item.qty), !form.hidePrice && /*#__PURE__*/React.createElement("td", {
       style: {
         textAlign: "right",
-        padding: "2px 4px",
-        fontSize: 12,
-        fontWeight: 700,
-        borderLeft: "0.5px solid #ccc"
+        padding: "2px 2px",
+        fontSize: 9,
+        fontWeight: 700
       }
     }, lt > 0 ? lt.toLocaleString("th-TH") : "-")), (parseFloat(item.declaredValue) || 0) > 0 && /*#__PURE__*/React.createElement("tr", null, /*#__PURE__*/React.createElement("td", {
       colSpan: form.hidePrice ? 4 : 6,
@@ -1427,8 +1285,8 @@ function ThermalBill({
       style: { fontSize: 16, fontWeight: 700, minWidth: 60, textAlign: "right" }
     }, (summary&&summary.freightNet||0).toLocaleString("th-TH"), " \u0E3F"),
     _isMinApplied && /*#__PURE__*/React.createElement("div", {
-      style: { fontSize: 9, color: "#000", fontWeight: 400, marginTop: 1 }
-    }, "(ยอดขั้นต่ำ "+(_minFr||0).toLocaleString("th-TH")+" ฿)")
+      style: { fontSize: 9, color: "#E67E22", fontWeight: 700, marginTop: 1 }
+    }, "(ยอดขั้นต่ำพื้นที่พิเศษ)")
   ), /*#__PURE__*/React.createElement(Div, {
     dashed: true
   }),
@@ -1843,7 +1701,7 @@ function BillList({
 }) {
   const [q, setQ] = useState("");
   // normalize form field — ถ้าเป็น string ให้ parse เป็น object
-  const normalizedBills = bills.map(function(b) {
+  const normalizedBills = bills.filter(function(b){ return b && b.billNo; }).map(function(b) {
     if (b.form && typeof b.form === "string") {
       try { return Object.assign({}, b, {form: JSON.parse(b.form)}); } catch(e) {}
     }
@@ -1974,10 +1832,10 @@ function BillList({
       style: {
         padding: "7px 9px",
         color: "#854F0B",
-        fontWeight: b.summary.codTotal > 0 ? 800 : 400,
+        fontWeight: (b.summary&&b.summary.codTotal) > 0 ? 800 : 400,
         whiteSpace: "nowrap"
       }
-    }, b.summary.codTotal > 0 ? ((b.summary&&b.summary.codTotal)||b.codTotal||0).toLocaleString("th-TH") + " ฿" : "—"), /*#__PURE__*/React.createElement("td", {
+    }, (b.summary&&b.summary.codTotal) > 0 ? ((b.summary&&b.summary.codTotal)||b.codTotal||0).toLocaleString("th-TH") + " ฿" : "—"), /*#__PURE__*/React.createElement("td", {
       style: {
         padding: "7px 9px"
       }
@@ -2024,7 +1882,7 @@ function BillList({
     style: {
       color: "#854F0B"
     }
-  }, fil.reduce((s, b) => s + b.summary.codTotal, 0).toLocaleString("th-TH"), " \u0E3F")))));
+  }, fil.reduce((s, b) => s + ((b.summary&&b.summary.codTotal)||b.codTotal||0), 0).toLocaleString("th-TH"), " \u0E3F")))));
 }
 // =================== MAIN ===================
 // ===== ContactInput: input พร้อม autocomplete จากประวัติ =====
@@ -2407,7 +2265,7 @@ function exportAllBillsCSV(dateFrom, dateTo) {
   }
 }
 // ===== ระบบแก้ไขบิล =====
-const EDIT_WINDOW_MS = 1 * 60 * 60 * 1000; // 1 ชั่วโมง
+const EDIT_WINDOW_MS = 3 * 60 * 60 * 1000; // 3 ชั่วโมง
 function canEditBill(bill, sessionUser) {
   if (!bill) return {
     allowed: false,
@@ -3214,10 +3072,7 @@ function ThermalBillingApp() {
     return s + (v > 0 ? Math.round(v * 0.005) : 0);
   }, 0);
   const freightNetRaw = Math.max(0, freightTotal - discountAmt);
-  // ค่าส่งขั้นต่ำ: พื้นที่พิเศษใช้ form.minFreight, จังหวัดอื่นใช้ตาราง
-  const specMin = form.isSpecialArea ? (parseInt(form.minFreight) || 0) : 0;
-  const tableMin = getMinFreight(form.destProv||"", form.receiverAmphoe||form.destAmphoe||"", form.isSpecialArea) || 0;
-  const minFr = Math.max(specMin, tableMin);
+  const minFr = form.isSpecialArea ? (parseInt(form.minFreight) || 0) : 0;
   const freightNet = Math.max(freightNetRaw, minFr);
   const isMinApplied = minFr > 0 && freightNetRaw < minFr;
   const codTotal = items.reduce((s, item) => s + (item.hasCOD ? parseFloat(item.codAmount) || 0 : 0), 0);
@@ -3226,9 +3081,7 @@ function ThermalBillingApp() {
     discount: discountAmt,
     insurance: 0,
     freightNet,
-    codTotal,
-    minFreightApplied: minFr, // แสดง label เสมอถ้ามีขั้นต่ำ
-    isMinApplied
+    codTotal
   };
   const updItem = (idx, k, v) => setItems(p => p.map((it, i) => i === idx ? {
     ...it,
@@ -3396,13 +3249,11 @@ function ThermalBillingApp() {
   };
   const [printMarginV, setPrintMarginV] = useState(4); // mm บน-ล่าง
   const [printMarginL, setPrintMarginL] = useState(4); // mm ซ้าย
-  const [printMarginR, setPrintMarginR] = useState(6); // mm ขวา (default 6mm)
   const handlePrint = () => {
     const el = printRef.current;
     if (!el) return;
     const mv = printMarginV,
-      ml = printMarginL,
-      mr = printMarginR;
+      ml = printMarginL;
     const w = window.open("", "_blank", "width=440,height=800");
     w.document.write(`<html><head><meta charset="UTF-8">
   <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
@@ -3410,8 +3261,8 @@ function ThermalBillingApp() {
   <meta http-equiv="Expires" content="0"><title>บิล ${(viewBill === null || viewBill === void 0 ? void 0 : viewBill.billNo) || ""}</title>
     <style>
       *{box-sizing:border-box;margin:0;padding:0}
-      @page{size:80mm auto;margin:${mv}mm ${mr}mm ${mv}mm ${ml}mm}
-      body{font-family:'Sarabun','Noto Sans Thai',sans-serif;background:#fff;width:${76 - ml}mm;font-weight:700;-webkit-print-color-adjust:exact;print-color-adjust:exact;}
+      @page{size:80mm auto;margin:${mv}mm 3mm ${mv}mm ${ml}mm}
+      body{font-family:'Courier New',Courier,monospace;background:#fff;width:${76 - ml}mm;font-weight:700;-webkit-print-color-adjust:exact;print-color-adjust:exact;}
       div,span,td,th{font-weight:700!important}
     </style></head><body>`);
     w.document.write(el.innerHTML);
@@ -4222,13 +4073,7 @@ function ThermalBillingApp() {
       minWidth: 30,
       color: "#0F6E56"
     }
-  }, printMarginL, "mm")),
-  /*#__PURE__*/React.createElement("div",{style:{display:"flex",alignItems:"center",gap:6,marginTop:4}},
-    /*#__PURE__*/React.createElement("span",{style:{fontSize:10,color:"#555",minWidth:60}},"กั้นขวา"),
-    /*#__PURE__*/React.createElement("input",{type:"range",min:0,max:15,step:1,value:printMarginR,onChange:e=>setPrintMarginR(Number(e.target.value)),style:{width:100,accentColor:"#0F6E56"}}),
-    /*#__PURE__*/React.createElement("span",{style:{fontWeight:700,minWidth:30,color:"#0F6E56"}},printMarginR,"mm")
-  ),
-  /*#__PURE__*/React.createElement("div", {
+  }, printMarginL, "mm")), /*#__PURE__*/React.createElement("div", {
     style: {
       fontSize: 10,
       color: "#888"
@@ -4399,48 +4244,48 @@ function ReceiptPrint({ receipt }) {
   const W = 298;
   const fmt = n => (n||0).toLocaleString("th-TH");
   return React.createElement("div", {
-    style:{ width:W, fontFamily:"'Sarabun','Noto Sans Thai',sans-serif", fontSize:14, fontWeight:700, background:"#fff", paddingTop:20, paddingBottom:8, paddingLeft:16, paddingRight:10, boxSizing:"border-box", lineHeight:1.8 }
+    style:{ width:W, fontFamily:"'Sarabun',sans-serif", fontSize:12, fontWeight:700, background:"#fff", paddingTop:20, paddingBottom:8, paddingLeft:16, paddingRight:10, boxSizing:"border-box", lineHeight:1.8 }
   },
     // Header
     React.createElement("div",{style:{textAlign:"center",marginBottom:6}},
-      React.createElement("div",{style:{fontSize:14,fontWeight:800,color:"#000"}},"บริษัท โกโลด ทรานสปอร์ต จำกัด"),
+      React.createElement("div",{style:{fontSize:12,fontWeight:800,color:"#000"}},"บริษัท โกโลด ทรานสปอร์ต จำกัด"),
       React.createElement("div",{style:{fontSize:14,fontWeight:900,letterSpacing:1.5,color:"#000"}},"GOLOD TRANSPORT Co.,Ltd."),
-      React.createElement("div",{style:{fontSize:14,fontWeight:700,color:"#000"}},getBranchAddress(receipt.branch||"bkk").addr),
-      React.createElement("div",{style:{fontSize:14,fontWeight:700,color:"#000"}},"เลขภาษี: 0105556152968 | โทร: "+getBranchAddress(receipt.branch||"bkk").tel),
+      React.createElement("div",{style:{fontSize:10,fontWeight:700,color:"#000"}},"527 ถ.ลัดนิ่มไสว แขวงทวีวัฒนา เขตทวีวัฒนา กรุงเทพฯ 10170"),
+      React.createElement("div",{style:{fontSize:10,fontWeight:700,color:"#000"}},"เลขภาษี: 0105556152968 | โทร: 099-1015858, 098-4518141"),
       React.createElement("div",{style:{fontSize:13,fontWeight:800,marginTop:4,borderTop:"1.5px solid #000",borderBottom:"1.5px solid #000",padding:"3px 0"}},"ใบเสร็จรับเงิน / RECEIPT")
     ),
     // เลขใบเสร็จ + วันที่
-    React.createElement("div",{style:{display:"flex",justifyContent:"space-between",marginBottom:4,fontSize:13,fontWeight:800}},
+    React.createElement("div",{style:{display:"flex",justifyContent:"space-between",marginBottom:4,fontSize:11,fontWeight:800}},
       React.createElement("div",null,"เลขที่: ",React.createElement("strong",null,receipt.receiptNo)),
       React.createElement("div",null,"วันที่: ",receipt.date)
     ),
     // อ้างอิงบิล
-    receipt.refBillNo && React.createElement("div",{style:{fontSize:13,fontWeight:700,marginBottom:4}},
+    receipt.refBillNo && React.createElement("div",{style:{fontSize:11,fontWeight:700,marginBottom:4}},
       "อ้างอิงบิลขนส่ง: ",React.createElement("strong",null,receipt.refBillNo)
     ),
     React.createElement("hr",{style:{border:"none",borderTop:"1px dashed #333",margin:"4px 0"}}),
     // ผู้จ่าย
     React.createElement("div",{style:{marginBottom:4}},
-      React.createElement("div",{style:{fontWeight:800,fontSize:13,marginBottom:2}},"ผู้จ่ายเงิน (Payer):"),
-      React.createElement("div",{style:{fontSize:13,fontWeight:700}},receipt.payerName||"—"),
-      receipt.payerPhone && React.createElement("div",{style:{fontSize:14,fontWeight:700}},"โทร: ",receipt.payerPhone),
-      receipt.payerAddr && React.createElement("div",{style:{fontSize:14,fontWeight:700}},receipt.payerAddr),
-      receipt.payerTax && React.createElement("div",{style:{fontSize:14,fontWeight:700}},"เลขภาษี: ",receipt.payerTax)
+      React.createElement("div",{style:{fontWeight:800,fontSize:11,marginBottom:2}},"ผู้จ่ายเงิน (Payer):"),
+      React.createElement("div",{style:{fontSize:11,fontWeight:700}},receipt.payerName||"—"),
+      receipt.payerPhone && React.createElement("div",{style:{fontSize:10,fontWeight:700}},"โทร: ",receipt.payerPhone),
+      receipt.payerAddr && React.createElement("div",{style:{fontSize:10,fontWeight:700}},receipt.payerAddr),
+      receipt.payerTax && React.createElement("div",{style:{fontSize:10,fontWeight:700}},"เลขภาษี: ",receipt.payerTax)
     ),
     React.createElement("hr",{style:{border:"none",borderTop:"1px dashed #333",margin:"4px 0"}}),
     // รายการ
-    React.createElement("table",{style:{width:"100%",borderCollapse:"collapse",fontSize:16}},
+    React.createElement("table",{style:{width:"100%",borderCollapse:"collapse",fontSize:11}},
       React.createElement("thead",null,
         React.createElement("tr",{style:{borderBottom:"1px solid #000"}},
-          React.createElement("th",{style:{textAlign:"left",padding:"3px 3px",fontWeight:800,fontSize:16}},"รายการ"),
-          React.createElement("th",{style:{textAlign:"right",padding:"3px 3px",fontWeight:800,fontSize:16}},"จำนวนเงิน")
+          React.createElement("th",{style:{textAlign:"left",padding:"3px 3px",fontWeight:800}},"รายการ"),
+          React.createElement("th",{style:{textAlign:"right",padding:"3px 3px",fontWeight:800}},"จำนวนเงิน")
         )
       ),
       React.createElement("tbody",null,
         (receipt.items||[]).map((it,i)=>
           React.createElement("tr",{key:i},
-            React.createElement("td",{style:{padding:"4px 3px",lineHeight:1.8,fontWeight:700,fontSize:13}},it.desc),
-            React.createElement("td",{style:{textAlign:"right",padding:"4px 3px",lineHeight:1.8,fontWeight:800,fontSize:16}},fmt(it.amount),".-")
+            React.createElement("td",{style:{padding:"4px 3px",lineHeight:1.8,fontWeight:700}},it.desc),
+            React.createElement("td",{style:{textAlign:"right",padding:"4px 3px",lineHeight:1.8,fontWeight:800}},fmt(it.amount)," ฿")
           )
         )
       )
@@ -4448,10 +4293,13 @@ function ReceiptPrint({ receipt }) {
     React.createElement("hr",{style:{border:"none",borderTop:"1.5px solid #000",margin:"4px 0"}}),
     React.createElement("div",{style:{display:"flex",justifyContent:"space-between",fontWeight:900,fontSize:13}},
       React.createElement("div",null,"รวมทั้งสิ้น"),
-      React.createElement("div",null,fmt(receipt.total),".- (",bahtText(receipt.total),")")
+      React.createElement("div",null,fmt(receipt.total)," ฿")
+    ),
+    React.createElement("div",{style:{fontSize:10,fontWeight:700,textAlign:"center",color:"#000",marginTop:2,marginBottom:2}},
+      "(",bahtText(receipt.total),")"
     ),
     React.createElement("hr",{style:{border:"none",borderTop:"1px dashed #333",margin:"4px 0"}}),
-    React.createElement("div",{style:{fontSize:13,fontWeight:700,marginBottom:4}},
+    React.createElement("div",{style:{fontSize:11,fontWeight:700,marginBottom:4}},
       "ชำระโดย: ",
       React.createElement("strong",{style:{fontWeight:900}}, receipt.paymentType==="transfer"?"โอนเงิน":"เงินสด"),
       receipt.paymentType==="transfer" && receipt.transferTime && React.createElement("span",{style:{fontWeight:700,marginLeft:6}},
@@ -4462,7 +4310,7 @@ function ReceiptPrint({ receipt }) {
       )
     ),
     React.createElement("hr",{style:{border:"none",borderTop:"1px dashed #333",margin:"4px 0"}}),
-    React.createElement("div",{style:{fontSize:13,fontWeight:700,textAlign:"center",marginTop:16}},
+    React.createElement("div",{style:{fontSize:11,fontWeight:700,textAlign:"center",marginTop:16}},
       "ลงชื่อผู้รับเงิน ................................",
       React.createElement("br",null),
       React.createElement("div",{style:{marginTop:10,fontWeight:700}},
@@ -4494,9 +4342,9 @@ function ManualBillForm({ staffCode, staffName, onSave }) {
   const autoZip=(prov,amph,tamb,setZip)=>{
     if(typeof getZipCode==="function"){ const z=getZipCode(prov,amph,tamb); if(z) setZip(z); }
   };
-  const INP2={border:"0.5px solid #ccc",borderRadius:7,padding:"5px 9px",fontSize:14,width:"100%",boxSizing:"border-box"};
+  const INP2={border:"0.5px solid #ccc",borderRadius:7,padding:"5px 9px",fontSize:12,width:"100%",boxSizing:"border-box"};
   const SEL2={...INP2,background:"#fff"};
-  const LBL={fontSize:13,color:"#666",marginBottom:2};
+  const LBL={fontSize:11,color:"#666",marginBottom:2};
   const CARD={background:"#fff",border:"0.5px solid #ddd",borderRadius:8,padding:"10px 12px",marginBottom:10};
   const totalFreight = items.reduce((s,it)=>s+(parseFloat(it.price)||0)*(parseInt(it.qty)||1),0);
   const handleSave=()=>{
@@ -4650,10 +4498,7 @@ function SlipUploadBtn({ bill, onUploaded, isDriver }) {
     if (!f) return;
     setLoading(true); setErr("");
     if (typeof GolodStorage === "undefined") {
-      setErr("กรุณารอสักครู่แล้วลองใหม่ (Storage กำลังโหลด)"); setLoading(false); return;
-    }
-    if (typeof firebase === "undefined" || !firebase.apps || !firebase.apps.length) {
-      setErr("กรุณารีเฟรชหน้าแล้วลองใหม่"); setLoading(false); return;
+      setErr("Storage ไม่พร้อม"); setLoading(false); return;
     }
     GolodStorage.uploadAndSave(bill.billNo, f, "slip1")
       .then(function(downloadUrl) {
@@ -4713,28 +4558,8 @@ function ReceiptForm({ bills, staffCode, staffName }) {
   const [receipts, setReceipts] = React.useState(()=>{
     try{ return JSON.parse(localStorage.getItem("golod_receipts")||"[]"); }catch(e){ return []; }
   });
-  const [allReceipts, setAllReceipts] = React.useState([]);
-  const isAdminRole = GolodSession&&GolodSession.get&&GolodSession.get()&&(GolodSession.get().role==="admin"||GolodSession.get().role==="branch");
-  React.useEffect(()=>{
-    if(!isAdminRole) return;
-    // Admin โหลดใบเสร็จทุกใบจาก Firestore
-    if(typeof firebase!=="undefined"){
-      firebase.firestore().collection("receipts").orderBy("createdAt","desc").limit(500).get()
-        .then(snap=>{
-          const rs=[];
-          snap.forEach(d=>rs.push(d.data()));
-          // รวมกับ localStorage
-          const local = JSON.parse(localStorage.getItem("golod_receipts")||"[]");
-          const seen={};
-          [...rs,...local].forEach(r=>{if(r.receiptNo&&!seen[r.receiptNo]){seen[r.receiptNo]=true;}});
-          setAllReceipts(rs);
-        }).catch(()=>{});
-    }
-  },[]);
-  const displayReceipts = isAdminRole && allReceipts.length > 0 ? allReceipts : receipts;
   const [mode, setMode] = React.useState("list"); // list | form | preview
   const [selBill, setSelBill] = React.useState(null);
-  const [selBills, setSelBills] = React.useState([]); // หลายบิล
   const [search, setSearch] = React.useState("");
   const today = (()=>{ const d=new Date(); return String(d.getDate()).padStart(2,"0")+"/"+String(d.getMonth()+1).padStart(2,"0")+"/"+(d.getFullYear()+543); })();
   const emptyForm = ()=>({
@@ -4748,49 +4573,8 @@ function ReceiptForm({ bills, staffCode, staffName }) {
   const setF = (k,v) => setForm(f=>({...f,[k]:v}));
   const total = (form.items||[]).reduce((s,it)=>s+(parseFloat(it.amount)||0),0);
   // เลือกบิลอ้างอิง → auto-fill
-  const addBillToGroup = (b) => {
-    setSelBills(prev => {
-      const already = prev.find(x=>x.billNo===b.billNo);
-      const next = already ? prev.filter(x=>x.billNo!==b.billNo) : [...prev, b];
-      // auto-fill จากบิลแรกเมื่อเพิ่มบิลแรก
-      if(!already && prev.length===0){
-        setSelBill(b);
-        const addrParts=[b.senderAddr,b.senderTambon,b.senderAmphoe,b.senderProv,b.senderZip].filter(Boolean);
-        setF("payerName",b.senderName||(b.form&&b.form.senderName)||"");
-        setF("payerPhone",b.senderPhone||(b.form&&b.form.senderPhone)||"");
-        setF("payerAddr",addrParts.join(" "));
-        setF("refBillNo",b.billNo);
-        // เพิ่ม item แรก
-        setF("items",[{desc:"ค่าขนส่ง "+b.billNo,amount:parseFloat(b.freightNet)||0}]);
-      } else if(!already){
-        // เพิ่ม item ใหม่เข้าไป ไม่ replace
-        setForm(f=>({...f,
-          items:[...(f.items||[]),{desc:"ค่าขนส่ง "+b.billNo,amount:parseFloat(b.freightNet)||0}],
-          refBillNo:(f.refBillNo?f.refBillNo+", ":"")+b.billNo
-        }));
-      } else {
-        // ลบ item ที่ตรงกับบิลนี้ออก
-        setForm(f=>({...f,
-          items:(f.items||[]).filter(it=>!it.desc.includes(b.billNo)),
-          refBillNo:(f.refBillNo||"").split(", ").filter(n=>n!==b.billNo).join(", ")
-        }));
-      }
-      return next;
-    });
-  };
-  const useGroupBills = () => {
-    if(selBills.length < 2) return;
-    const totalFreight = selBills.reduce((s,b)=>s+(parseFloat(b.freightNet)||0),0);
-    const billNos = selBills.map(b=>b.billNo).join(", ");
-    setF("refBillNo", billNos);
-    setF("desc","ค่าขนส่ง ("+selBills.length+" บิล)");
-    setF("items",[{desc:"ค่าขนส่งรวม "+selBills.length+" บิล ("+billNos+")",amount:totalFreight}]);
-    setSelBill(selBills[0]);
-  };
-
   const pickBill = (b) => {
     setSelBill(b);
-    setSelBills([b]);
     // ข้อมูลผู้ส่งอยู่ที่ root level ของ bill
     const addrParts = [b.senderAddr, b.senderTambon, b.senderAmphoe, b.senderProv, b.senderZip].filter(Boolean);
     const payerAddr = addrParts.join(" ");
@@ -4820,8 +4604,7 @@ function ReceiptForm({ bills, staffCode, staffName }) {
       transferTime: form.transferTime||"",
       transferRef: form.transferRef||"",
       items: form.items,
-      total,
-      branch: (function(){ var u=GolodSession&&GolodSession.get?GolodSession.get():null; if(!u)return"bkk"; return u.branch==="ปทุมธานี"?"ptm":u.branch==="นครราชสีมา"?"krt":u.branch==="ศรีสะเกษ"?"ssk":"bkk"; })()
+      total
     };
     const all = [...receipts, rcpt];
     setReceipts(all);
@@ -4829,14 +4612,10 @@ function ReceiptForm({ bills, staffCode, staffName }) {
     setPreviewRcpt(rcpt);
     setMode("preview");
   };
-  const [rcptMarginV, setRcptMarginV] = React.useState(4); // mm บน-ล่าง
-  const [rcptMarginL, setRcptMarginL] = React.useState(4); // mm ซ้าย
-  const [rcptMarginR, setRcptMarginR] = React.useState(6); // mm ขวา
   const doPrint = () => {
     if (!printRef.current) return;
-    const mv = rcptMarginV, ml = rcptMarginL;
     const w = window.open("","_blank","width=400,height=600");
-    w.document.write("<html><head><link rel='preconnect' href='https://fonts.googleapis.com'><link rel='preconnect' href='https://fonts.gstatic.com' crossorigin><link rel='stylesheet' href='https://fonts.googleapis.com/css2?family=Sarabun:wght@400;600;700;800;900&family=Noto+Sans+Thai:wght@400;600;700;800;900&display=swap'><style>*{box-sizing:border-box}body{margin:0;padding:0;background:#fff;font-family:'Sarabun','Noto Sans Thai',sans-serif;}@media print{@page{size:80mm auto;margin:"+mv+"mm "+rcptMarginR+"mm "+mv+"mm "+ml+"mm}}</style></head><body>");
+    w.document.write("<html><head><style>body{margin:0;padding:0;background:#fff;}@media print{@page{size:80mm auto;margin:0;}}</style><link rel='stylesheet' href='https://fonts.googleapis.com/css2?family=Sarabun:wght@400;700;800;900&display=swap'></head><body>");
     w.document.write(printRef.current.innerHTML);
     w.document.write("</body></html>");
     w.document.close();
@@ -4851,88 +4630,9 @@ function ReceiptForm({ bills, staffCode, staffName }) {
     !search || (b.billNo&&b.billNo.toLowerCase().includes(search.toLowerCase())) ||
     (b.form&&b.form.senderName&&b.form.senderName.includes(search))
   );
-  // ตรวจว่าแก้ได้ไหม (ภายใน 1 ชม.)
-  const rcptCanEdit = previewRcpt && (()=>{
-    try{
-      const created = new Date(previewRcpt.createdAt).getTime();
-      return (Date.now()-created) < 60*60*1000;
-    }catch(e){ return false; }
-  })();
-  const [rcptEditMode, setRcptEditMode] = React.useState(false);
-  const [rcptEditPayer, setRcptEditPayer] = React.useState("");
-  const [rcptEditAddr, setRcptEditAddr]   = React.useState("");
-  const [rcptEditTax,  setRcptEditTax]    = React.useState("");
-
   if (mode==="preview" && previewRcpt) return React.createElement("div",null,
-    // Edit payer modal (inline)
-    rcptEditMode && React.createElement("div",{style:{background:"#f8fffe",border:"1px solid #d0ede5",borderRadius:8,padding:"12px",marginBottom:10}},
-      React.createElement("div",{style:{fontWeight:700,fontSize:12,color:"#0F6E56",marginBottom:8}},"✏️ แก้ไขข้อมูลผู้จ่าย"),
-      React.createElement("div",{style:{marginBottom:6}},
-        React.createElement("div",{style:{fontSize:11,color:"#888",marginBottom:3}},"ชื่อ/บริษัท"),
-        React.createElement("input",{value:rcptEditPayer,onChange:e=>setRcptEditPayer(e.target.value),
-          style:{width:"100%",padding:"6px 10px",border:"1px solid #ddd",borderRadius:7,fontSize:13,boxSizing:"border-box"}})
-      ),
-      React.createElement("div",{style:{marginBottom:6}},
-        React.createElement("div",{style:{fontSize:11,color:"#888",marginBottom:3}},"ที่อยู่"),
-        React.createElement("textarea",{value:rcptEditAddr,onChange:e=>setRcptEditAddr(e.target.value),rows:2,
-          style:{width:"100%",padding:"6px 10px",border:"1px solid #ddd",borderRadius:7,fontSize:13,boxSizing:"border-box"}})
-      ),
-      React.createElement("div",{style:{marginBottom:10}},
-        React.createElement("div",{style:{fontSize:11,color:"#888",marginBottom:3}},"เลขภาษี"),
-        React.createElement("input",{value:rcptEditTax,onChange:e=>setRcptEditTax(e.target.value),
-          style:{width:"100%",padding:"6px 10px",border:"1px solid #ddd",borderRadius:7,fontSize:13,boxSizing:"border-box"}})
-      ),
-      React.createElement("div",{style:{display:"flex",gap:8}},
-        React.createElement("button",{
-          onClick:()=>{
-            const updated = {...previewRcpt,
-              payerName: rcptEditPayer||previewRcpt.payerName,
-              payerAddr: rcptEditAddr||previewRcpt.payerAddr,
-              payerTax:  rcptEditTax||previewRcpt.payerTax
-            };
-            // อัปเดต localStorage
-            const all = JSON.parse(localStorage.getItem("golod_receipts")||"[]");
-            const idx = all.findIndex(r=>r.receiptNo===previewRcpt.receiptNo);
-            if(idx>=0){ all[idx]=updated; localStorage.setItem("golod_receipts",JSON.stringify(all)); }
-            setReceipts(all);
-            setPreviewRcpt(updated);
-            setRcptEditMode(false);
-          },
-          style:{flex:1,padding:"8px",background:"#0F6E56",color:"#fff",border:"none",borderRadius:8,fontWeight:700,cursor:"pointer"}
-        },"💾 บันทึก"),
-        React.createElement("button",{onClick:()=>setRcptEditMode(false),
-          style:{padding:"8px 14px",background:"#eee",border:"none",borderRadius:8,cursor:"pointer"}},"ยกเลิก")
-      )
-    ),
-    React.createElement("div",{style:{background:"#f8fffe",border:"0.5px solid #d0ede5",borderRadius:8,padding:"8px 12px",marginBottom:8}},
-      React.createElement("div",{style:{fontSize:11,fontWeight:700,color:"#0F6E56",marginBottom:6}},"⚙️ ตั้งค่าการพิมพ์"),
-      React.createElement("div",{style:{display:"flex",alignItems:"center",gap:8,marginBottom:4}},
-        React.createElement("span",{style:{fontSize:11,minWidth:70}},"กั้นบน-ล่าง"),
-        React.createElement("input",{type:"range",min:0,max:15,value:rcptMarginV,onChange:e=>setRcptMarginV(Number(e.target.value)),style:{flex:1}}),
-        React.createElement("span",{style:{fontSize:11,minWidth:30}},rcptMarginV+"mm")
-      ),
-      React.createElement("div",{style:{display:"flex",alignItems:"center",gap:8}},
-        React.createElement("span",{style:{fontSize:11,minWidth:70}},"กั้นซ้าย"),
-        React.createElement("input",{type:"range",min:0,max:15,value:rcptMarginL,onChange:e=>setRcptMarginL(Number(e.target.value)),style:{flex:1}}),
-        React.createElement("span",{style:{fontSize:11,minWidth:30}},rcptMarginL+"mm")
-      ),
-      React.createElement("div",{style:{display:"flex",alignItems:"center",gap:8}},
-        React.createElement("span",{style:{fontSize:11,minWidth:70}},"กั้นขวา"),
-        React.createElement("input",{type:"range",min:0,max:15,value:rcptMarginR,onChange:e=>setRcptMarginR(Number(e.target.value)),style:{flex:1}}),
-        React.createElement("span",{style:{fontSize:11,minWidth:30}},rcptMarginR+"mm")
-      )
-    ),
     React.createElement("div",{style:{display:"flex",gap:8,marginBottom:10,flexWrap:"wrap"}},
       React.createElement("button",{onClick:doPrint,style:{padding:"7px 16px",background:"#1D9E75",color:"#fff",border:"none",borderRadius:8,fontWeight:700,cursor:"pointer"}},"🖨 พิมพ์ใบเสร็จ"),
-      rcptCanEdit && React.createElement("button",{
-        onClick:()=>{
-          setRcptEditPayer(previewRcpt.payerName||"");
-          setRcptEditAddr(previewRcpt.payerAddr||"");
-          setRcptEditTax(previewRcpt.payerTax||"");
-          setRcptEditMode(true);
-        },
-        style:{padding:"7px 16px",background:"#EF9F27",color:"#fff",border:"none",borderRadius:8,fontWeight:700,cursor:"pointer"}
-      },"✏️ แก้ไข"),
       React.createElement("button",{onClick:()=>{ setMode("form"); setForm(emptyForm()); setSelBill(null); },style:{padding:"7px 16px",background:"#eee",border:"none",borderRadius:8,cursor:"pointer"}},"+ ใบเสร็จใหม่"),
       React.createElement("button",{onClick:()=>setMode("list"),style:{padding:"7px 14px",background:"#eee",border:"none",borderRadius:8,cursor:"pointer"}},"← รายการ")
     ),
@@ -4953,18 +4653,11 @@ function ReceiptForm({ bills, staffCode, staffName }) {
         placeholder:"ค้นหาเลขบิล / ชื่อผู้ส่ง...",
         style:{...{border:"0.5px solid #ccc",borderRadius:7,padding:"5px 9px",fontSize:12,width:"100%",boxSizing:"border-box"}}
       }),
-      React.createElement("div",{style:{fontSize:11,color:"#e67e22",marginBottom:4}},
-        selBills.length>0?"เลือกแล้ว "+selBills.length+" บิล: "+selBills.map(b=>b.billNo).join(", "):"",
-        selBills.length>1?React.createElement("button",{
-          onClick:useGroupBills,
-          style:{marginLeft:8,padding:"2px 8px",background:"#EF9F27",color:"#fff",border:"none",borderRadius:5,cursor:"pointer",fontSize:10}
-        },"รวมยอดทุกบิล"):null
-      ),
       React.createElement("div",{style:{maxHeight:150,overflowY:"auto",marginTop:6}},
         filteredBills.slice(0,20).map(b=>
           React.createElement("div",{
             key:b.billNo,
-            onClick:()=>addBillToGroup(b),
+            onClick:()=>pickBill(b),
             style:{
               padding:"5px 8px",fontSize:11,cursor:"pointer",borderRadius:6,marginBottom:2,
               background: selBill&&selBill.billNo===b.billNo?"#BEE9D8":"#fff",
@@ -5051,7 +4744,7 @@ function ReceiptForm({ bills, staffCode, staffName }) {
       },"+ เพิ่มรายการ"),
       React.createElement("div",{style:{borderTop:"1px solid #eee",marginTop:8,paddingTop:8,display:"flex",justifyContent:"space-between",fontWeight:700}},
         React.createElement("span",null,"รวม"),
-        React.createElement("span",null,fmt(total),".-")
+        React.createElement("span",null,fmt(total)," ฿")
       )
     ),
     React.createElement("button",{
@@ -5062,13 +4755,13 @@ function ReceiptForm({ bills, staffCode, staffName }) {
   // mode === list
   return React.createElement("div",null,
     React.createElement("div",{style:{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:10}},
-      React.createElement("div",{style:{fontWeight:700,fontSize:13}},"ใบเสร็จทั้งหมด (",(isAdminRole&&allReceipts.length>0?allReceipts:receipts).length,")",isAdminRole?React.createElement("span",{style:{fontSize:10,color:"#0F6E56",marginLeft:4}}," (ทุกเสมียน)"):null),
+      React.createElement("div",{style:{fontWeight:700,fontSize:13}},"ใบเสร็จทั้งหมด (",receipts.length,")"),
       React.createElement("button",{
         onClick:()=>{ setMode("form"); setForm(emptyForm()); setSelBill(null); setSearch(""); },
         style:{padding:"6px 14px",background:"#1D9E75",color:"#fff",border:"none",borderRadius:8,fontWeight:700,cursor:"pointer"}
       },"+ ออกใบเสร็จใหม่")
     ),
-    (isAdminRole&&allReceipts.length>0?allReceipts:receipts).length===0
+    receipts.length===0
       ? React.createElement("div",{style:{color:"#aaa",textAlign:"center",padding:30}},"ยังไม่มีใบเสร็จ")
       : React.createElement("table",{style:{width:"100%",borderCollapse:"collapse",fontSize:12}},
           React.createElement("thead",null,
@@ -5079,13 +4772,13 @@ function ReceiptForm({ bills, staffCode, staffName }) {
             )
           ),
           React.createElement("tbody",null,
-            [...(isAdminRole&&allReceipts.length>0?allReceipts:receipts)].reverse().map((r,i)=>
+            [...receipts].reverse().map((r,i)=>
               React.createElement("tr",{key:i,style:{borderBottom:"0.5px solid #eee"}},
                 React.createElement("td",{style:{padding:"6px 8px",fontWeight:600,color:"#0F6E56"}},r.receiptNo),
                 React.createElement("td",{style:{padding:"6px 8px",color:"#666"}},r.date),
                 React.createElement("td",{style:{padding:"6px 8px"}},r.payerName||"—"),
                 React.createElement("td",{style:{padding:"6px 8px",color:"#888"}},r.refBillNo||"—"),
-                React.createElement("td",{style:{padding:"6px 8px",fontWeight:600}},fmt(r.total),".-"),
+                React.createElement("td",{style:{padding:"6px 8px",fontWeight:600}},fmt(r.total)," ฿"),
                 React.createElement("td",{style:{padding:"6px 8px"}},
                   React.createElement("button",{
                     onClick:()=>{ setPreviewRcpt(r); setMode("preview"); },
@@ -5099,22 +4792,7 @@ function ReceiptForm({ bills, staffCode, staffName }) {
   );
 }
 </script>
-<script>(function(){var s=GolodSession.get();if(!s){window.location.href="GolodApp.html";return;}// โหลด special areas จาก Firestore
-(function(){
-  function tryLoadSA(){
-    if(typeof GolodDB === "undefined" || !GolodDB.getSetting) {
-      setTimeout(tryLoadSA, 500); return;
-    }
-    GolodDB.ready(function(){
-      GolodDB.getSetting("specialAreas").then(function(val){
-        if(val && Array.isArray(val)) window._specialAreas = val;
-      }).catch(function(){});
-    });
-  }
-  tryLoadSA();
-})();
-
-GolodSession.renderTopbar("golod-chip","ออกบิล","#1D9E75");
+<script>(function(){var s=GolodSession.get();if(!s){window.location.href="GolodApp.html";return;}GolodSession.renderTopbar("golod-chip","ออกบิล","#1D9E75");
 // sync บิลจาก Firestore → localStorage ก่อน render
 (function(){
   function doRender(){ ReactDOM.render(React.createElement(ThermalBillingApp),document.getElementById('root')); }

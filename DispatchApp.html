@@ -1242,7 +1242,7 @@ function renderApp(){
     +actionBar
     +'<div style="overflow-x:auto"><table>'
     +'<tr><th></th><th>เลขบิล</th><th>วันที่</th><th>ผู้รับ</th><th>ปลายทาง</th>'
-    +'<th>ค่าส่ง</th><th>สถานะ</th><th>ผู้ส่ง</th><th>Zone</th><th>คนรถ</th><th>สลิป</th><th>จัดการ</th></tr>'
+    +'<th>ค่าส่ง</th><th>สถานะ</th><th>ผู้ส่ง</th><th>สินค้า</th><th>Zone</th><th>คนรถ</th><th>สลิป</th><th>จัดการ</th></tr>'
     +'<tbody id="bill-tbody">'+rows+'</tbody>'
     +'</table></div>'
     +'<div style="font-size:11px;color:#888;margin-top:8px"><span id="bill-count-label">แสดง '+filtered.length+' บิล</span></div>'
@@ -2433,7 +2433,7 @@ function onDoneSearch(val){
       +'</tr>';
   }).join("");
   tbody.innerHTML='<div style="overflow-x:auto"><table>'
-    +'<tr><th>เลขบิล</th><th>วันที่</th><th>ผู้รับ</th><th>ปลายทาง</th><th>ค่าส่ง</th><th>สถานะ</th><th>ผู้ส่ง</th><th>Zone</th><th>คนรถ</th><th>สลิป</th><th>จัดการ</th></tr>'
+    +'<tr><th>เลขบิล</th><th>วันที่</th><th>ผู้รับ</th><th>ปลายทาง</th><th>ค่าส่ง</th><th>สถานะ</th><th>ผู้ส่ง</th><th>สินค้า</th><th>Zone</th><th>คนรถ</th><th>สลิป</th><th>จัดการ</th></tr>'
     +rows+'</table></div>';
   // อัปเดตจำนวน
   var countEl=document.querySelector("#done-table-body")&&document.querySelector(".done-count");
@@ -2513,7 +2513,7 @@ function renderDoneTab(){
     +'<div style="font-size:12px;color:#666;margin-bottom:8px">แสดง '+bills.length+' บิล</div>'
     +'<div style="margin-bottom:8px"><input type="text" id="q-inp-done" placeholder="ค้นหา: บิล/ชื่อ/จังหวัด/สินค้า/สถานะ" style="width:100%;max-width:360px;padding:7px 10px;border:1px solid #ddd;border-radius:7px;font-size:12px" value="'+(_searchQuery||"")+'" oninput="onDoneSearch(this.value)"></div>'
     +'<div id="done-table-body"><div style="overflow-x:auto"><table>'
-    +'<tr><th>เลขบิล</th><th>วันที่</th><th>ผู้รับ</th><th>ปลายทาง</th><th>ค่าส่ง</th><th>สถานะ</th><th>ผู้ส่ง</th><th>Zone</th><th>คนรถ</th><th>สลิป</th><th>จัดการ</th></tr>'
+    +'<tr><th>เลขบิล</th><th>วันที่</th><th>ผู้รับ</th><th>ปลายทาง</th><th>ค่าส่ง</th><th>สถานะ</th><th>ผู้ส่ง</th><th>สินค้า</th><th>Zone</th><th>คนรถ</th><th>สลิป</th><th>จัดการ</th></tr>'
     +rows
     +'</table></div></div></div>';
   document.getElementById("app").innerHTML=html;
@@ -2595,6 +2595,13 @@ function renderBillRows(bills){
     var ck=selectedBills[b.billNo]?'checked':'';
     // สลิปโอน
     var st=b.status||"";
+    // สินค้ารายการแรก
+    var goodsItems = Array.isArray(b.items)?b.items:(b.form&&Array.isArray(b.form.items)?b.form.items:[]);
+    var firstItem = goodsItems[0]||{};
+    var goodsText = (firstItem.desc||b.note||"—").slice(0,20)+(firstItem.desc&&firstItem.desc.length>20?"…":"");
+    var goodsKg = firstItem.kg?(" "+firstItem.kg+"kg"):"";
+    var goodsQty = firstItem.qty&&firstItem.qty>1?(" x"+firstItem.qty):"";
+    var goodsTitle = (firstItem.desc||"")+goodsKg+goodsQty;
     var slipUrl=b.slipUrl||(b.form&&b.form.slipUrl)||"";
     var slip1=b.slip1||(b.form&&b.form.slip1)||(b.form&&b.form.slipName?b.slipUrl:"")||"";
     var slipSrc=slipUrl||slip1||"";
@@ -2615,6 +2622,7 @@ function renderBillRows(bills){
       +'<td style="color:#555">'+sender+'</td>'
       +'<td>'+zoneHTML+'</td>'
       +'<td style="color:#666">'+driver+'</td>'
+      +'<td style="font-size:11px;color:#555;max-width:100px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="'+goodsTitle+'">'+goodsText+'</td>'
       +'<td style="text-align:center">'+slipCell+'</td>'
       +'<td>'
       +(canClearTrip()
