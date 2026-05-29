@@ -532,6 +532,7 @@ function renderBillListWithTrip(tripBillIds){
       +'<div class="bill-card-body">'
         +'<div class="bill-field"><span class="lbl">ผู้รับ</span><span class="val">'+receiver+'</span></div>'
         +'<div class="bill-field"><span class="lbl">อำเภอ · จังหวัด</span><span class="val">'+(amphoe?amphoe+"·":"")+prov+'</span></div>'
+        +(function(){var gi=Array.isArray(b.items)?b.items:(b.form&&Array.isArray(b.form.items)?b.form.items:[]);var gf=gi[0]||{};var gd=(gf.desc||b.note||"—").slice(0,20);var gq=gi.reduce(function(s,i){return s+(parseInt(i.qty)||1);},0)||1;return '<div class="bill-field" style="grid-column:1/-1"><span class="lbl">สินค้า</span><span class="val" style="color:#0F6E56">'+gd+' ('+gq+' ชิ้น)</span></div>';})()
         +'<div class="bill-field"><span class="lbl">ค่าขนส่ง ('+pay+')</span><span class="val bill-freight">'+(freight>0?freight.toLocaleString("th-TH")+" ฿":"—")+'</span></div>'
         +'<div class="bill-field"><span class="lbl">COD</span><span class="val bill-cod">'+(cod>0?cod.toLocaleString("th-TH")+" ฿":"—")+'</span></div>'
       +'</div>'
@@ -905,7 +906,7 @@ function genPickupBillNo(){
 function openPickupBill(){
   _pbBillNo = genPickupBillNo();
   document.getElementById("pb-bill-no").textContent = "เลขบิล: "+_pbBillNo+" | คนรถ: "+(CU?CU.name:"");
-  ["pb-receiver-name","pb-dest-prov","pb-goods","pb-freight"]
+  ["pb-sender-name","pb-receiver-name","pb-receiver-phone","pb-dest-prov","pb-goods","pb-freight"]
     .forEach(function(id){ var el=document.getElementById(id); if(el)el.value=""; });
   document.getElementById("pb-pay").value="origin";
   // reset รูป
@@ -1028,10 +1029,10 @@ function submitPickupBill(){
   var bill = {
     billNo: _pbBillNo,
     status: "รออนุมัติ",
-    senderName: "",
+    senderName: g("pb-sender-name"),
     senderPhone: "",
     receiverName: g("pb-receiver-name"),
-    receiverPhone: "",
+    receiverPhone: g("pb-receiver-phone"),
     destProv: g("pb-dest-prov"),
     destAmphoe: "",
     freightNet: parseFloat(g("pb-freight"))||0,
@@ -1184,6 +1185,15 @@ function submitPickupBill(){
     </div>
     <div id="pb-bill-no" style="font-size:12px;color:#0F6E56;margin-bottom:16px;padding:6px 12px;background:#f8fffe;border-radius:8px;font-weight:700"></div>
 
+    <!-- 0. ผู้ส่ง -->
+    <div style="margin-bottom:14px">
+      <div style="font-size:11px;color:#888;margin-bottom:5px;font-weight:700">ผู้ส่ง</div>
+      <div style="display:flex;gap:8px;align-items:center">
+        <input id="pb-sender-name" placeholder="ชื่อผู้ส่ง/บริษัท" style="flex:1;padding:10px 12px;border:1px solid #ddd;border-radius:8px;font-size:14px">
+        <button onclick="startVoice('pb-sender-name','ผู้ส่ง')" style="width:42px;height:42px;border-radius:50%;background:#f0faf5;border:1px solid #d0ede5;cursor:pointer;display:flex;align-items:center;justify-content:center;flex-shrink:0">🎤</button>
+      </div>
+    </div>
+
     <!-- 1. ผู้รับ -->
     <div style="margin-bottom:14px">
       <div style="font-size:11px;color:#888;margin-bottom:5px;font-weight:700">ผู้รับ *</div>
@@ -1191,6 +1201,12 @@ function submitPickupBill(){
         <input id="pb-receiver-name" placeholder="ชื่อผู้รับ" style="flex:1;padding:10px 12px;border:1px solid #ddd;border-radius:8px;font-size:14px">
         <button onclick="startVoice('pb-receiver-name','ผู้รับ')" style="width:42px;height:42px;border-radius:50%;background:#f0faf5;border:1px solid #d0ede5;cursor:pointer;display:flex;align-items:center;justify-content:center;flex-shrink:0">🎤</button>
       </div>
+    </div>
+
+    <!-- 1.5 เบอร์ผู้รับ -->
+    <div style="margin-bottom:14px">
+      <div style="font-size:11px;color:#888;margin-bottom:5px;font-weight:700">เบอร์ผู้รับ</div>
+      <input id="pb-receiver-phone" type="tel" placeholder="08x-xxxxxxx" style="width:100%;padding:10px 12px;border:1px solid #ddd;border-radius:8px;font-size:14px">
     </div>
 
     <!-- 2. จังหวัด -->
