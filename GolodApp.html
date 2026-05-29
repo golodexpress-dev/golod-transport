@@ -797,7 +797,6 @@ function billTable(data, opts){
   h+='<th>เลขบิล</th><th>วันที่</th>';
   if (isAdmin) h+='<th>เสมียน</th>';
   h+='<th>ปลายทาง</th>';
-  if (isAdmin) { h+='<th>ภาค</th>'; }
   h+='<th>สินค้า</th><th>ชิ้น</th>';
   if (isAdmin) { h+='<th>Zone</th>'; }
   h+='<th>ค่าส่ง</th><th>ชำระ</th><th>สถานะ</th><th>สลิปโอน</th>';
@@ -811,9 +810,7 @@ function billTable(data, opts){
     h+="<td style='font-size:10px;color:#888'>"+(b.dateDisplay||thDate(b.date))+"</td>";
     if (isAdmin) h+="<td style='font-size:11px'>"+(b.clerkName||"")+"</td>";
     h+="<td>"+(b.destAmphoe||"")+"·"+(b.destProv||"")+"</td>";
-    if (isAdmin) {
-      h+="<td><span class='pill "+regionClass+"'>"+(b.region||"")+"</span></td>";
-    }
+
     h+="<td style='font-size:11px;color:#555;max-width:100px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap' title='"+(b.goodsDesc||"")+"'>"+(b.goodsDesc||"—")+"</td>";
     h+="<td style='text-align:center'>"+(b.items||1)+"</td>";
     if (isAdmin) {
