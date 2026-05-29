@@ -1772,7 +1772,7 @@ function BillList({
     style: {
       background: "#f9f9f7"
     }
-  }, ["เลขบิล", "ผู้ส่ง→ผู้รับ", "ปลายทาง", "รายการ", "ค่าส่ง", "COD", "ชำระ", ""].map(h => /*#__PURE__*/React.createElement("th", {
+  }, ["เลขบิล", "ผู้ส่ง→ผู้รับ", "ปลายทาง", "สินค้า", "ชิ้น", "ค่าส่ง", "COD", "ชำระ", ""].map(h => /*#__PURE__*/React.createElement("th", {
     key: h,
     style: {
       padding: "7px 9px",
@@ -1825,9 +1825,20 @@ function BillList({
     }, b.form.destProv), /*#__PURE__*/React.createElement("td", {
       style: {
         padding: "7px 9px",
+        fontSize: 11,
+        color: "#555",
+        maxWidth: 110,
+        overflow: "hidden",
+        textOverflow: "ellipsis",
+        whiteSpace: "nowrap"
+      },
+      title: (Array.isArray(b.items)&&b.items[0]?b.items[0].desc+(b.items[0].kg?" "+b.items[0].kg+"kg":""):"")
+    }, Array.isArray(b.items)&&b.items[0]?(b.items[0].desc||"—").slice(0,18):"—"), /*#__PURE__*/React.createElement("td", {
+      style: {
+        padding: "7px 9px",
         textAlign: "center"
       }
-    }, b.items.length), /*#__PURE__*/React.createElement("td", {
+    }, Array.isArray(b.items)?b.items.reduce(function(s,i){return s+(parseInt(i.qty)||1);},0):1), /*#__PURE__*/React.createElement("td", {
       style: {
         padding: "7px 9px",
         fontWeight: 500,
@@ -4429,7 +4440,7 @@ function ManualBillForm({ staffCode, staffName, onSave }) {
       React.createElement("table",{style:{width:"100%",borderCollapse:"collapse",fontSize:12}},
         React.createElement("thead",null,
           React.createElement("tr",{style:{background:"#f0faf5"}},
-            ["รายการ","จำนวน","น้ำหนัก(กก.)","ขนาด","ค่าส่ง/ชิ้น",""].map(h=>
+            ["สินค้า","ชิ้น","น้ำหนัก(กก.)","ขนาด","ค่าส่ง/ชิ้น",""].map(h=>
               React.createElement("th",{key:h,style:{padding:"4px 6px",textAlign:"left",fontSize:11,fontWeight:600}},h)
             )
           )
@@ -4730,7 +4741,7 @@ function ReceiptForm({ bills, staffCode, staffName }) {
         React.createElement("div",{key:i,style:{display:"flex",gap:6,marginBottom:6,alignItems:"center"}},
           React.createElement("input",{
             value:it.desc, onChange:e=>setForm(f=>{const items=[...f.items];items[i]={...items[i],desc:e.target.value};return {...f,items};}),
-            placeholder:"รายการ", style:{border:"0.5px solid #ccc",borderRadius:7,padding:"5px 9px",fontSize:12,flex:2}
+            placeholder:"ชื่อสินค้า", style:{border:"0.5px solid #ccc",borderRadius:7,padding:"5px 9px",fontSize:12,flex:2}
           }),
           React.createElement("input",{
             type:"number", value:it.amount||"", onChange:e=>setForm(f=>{const items=[...f.items];items[i]={...items[i],amount:parseFloat(e.target.value)||0};return {...f,items};}),
