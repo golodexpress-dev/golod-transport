@@ -17,6 +17,8 @@ var GolodDB = (function() {
     try {
       if (!firebase.apps.length) firebase.initializeApp(FIREBASE_CONFIG);
       db = firebase.firestore();
+      // ใช้ long polling แทน WebSocket เพื่อรองรับ network ที่ block WebSocket
+      try { db.settings({ experimentalForceLongPolling: true, merge: true }); } catch(e) {}
       initialized = true;
       console.log("[GolodDB] Firestore connected");
       pending.forEach(function(fn) { fn(); });
