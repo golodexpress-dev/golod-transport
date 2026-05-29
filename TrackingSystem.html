@@ -293,15 +293,19 @@ function firestoreBillToTracking(b){
       +" "+String(d.getHours()).padStart(2,"0")+":"+String(d.getMinutes()).padStart(2,"0");
   };
   // สร้าง timeline จากสถานะปัจจุบัน
-  var timeline=[{status:"issued", dt:fmtISO(b.createdAt), loc:"กรุงเทพมหานคร", note:"รับสินค้าจากผู้ส่ง", photo:false, sig:false}];
+  var createdDt = fmtISO(b.createdAt);
+  var updatedDt = fmtISO(b.updatedAt);
+  // ถ้า updatedAt เท่ากับ createdAt = ยังไม่มีการอัปเดตจริง
+  var sameTime = !b.updatedAt || createdDt === updatedDt;
+  var timeline=[{status:"issued", dt:createdDt, loc:(b.senderProv||"กรุงเทพมหานคร"), note:"รับสินค้าจากผู้ส่ง", photo:false, sig:false}];
   if(st==="hub"){
-    // ระหว่างนำส่งสาขา — หยุดแค่นี้
-    timeline.push({status:"hub", dt:fmtISO(b.updatedAt), loc:"ระหว่างนำส่ง", note:"กำลังนำส่งสาขา", photo:false, sig:false});
+    if(!sameTime) timeline.push({status:"hub", dt:updatedDt, loc:"ระหว่างนำส่ง", note:"กำลังนำส่งสาขา", photo:false, sig:false});
   } else if(["transit","out","delivered","nocontact","returned"].includes(st)){
-    timeline.push({status:"transit", dt:fmtISO(b.updatedAt), loc:"ระหว่างนำส่ง", note:"กำลังนำส่ง", photo:false, sig:false});
+    // แสดง transit เฉพาะเมื่อมีการอัปเดตจริง (updatedAt ต่างจาก createdAt)
+    if(!sameTime) timeline.push({status:"transit", dt:updatedDt, loc:"ระหว่างนำส่ง", note:"กำลังนำส่ง", photo:false, sig:false});
   }
   if(["out","delivered","nocontact","returned"].includes(st)){
-    timeline.push({status:"out", dt:fmtISO(b.updatedAt), loc:(b.destAmphoe||form.destAmphoe||""), note:"กำลังวิ่งส่งลูกค้า", photo:false, sig:false});
+    if(!sameTime) timeline.push({status:"out", dt:updatedDt, loc:(b.destAmphoe||form.destAmphoe||""), note:"กำลังวิ่งส่งลูกค้า", photo:false, sig:false});
   }
   if(st==="delivered"){
     timeline.push({status:"delivered", dt:fmtISO(b.deliveredAt||b.updatedAt), loc:(b.destAmphoe||form.destAmphoe||""), note:"ส่งถึงมือผู้รับแล้ว", photo:!!b.photoUrl, sig:!!b.signatureUrl});
