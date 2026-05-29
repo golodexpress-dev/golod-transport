@@ -449,7 +449,7 @@ function doTrack(){
   // ค้นจาก BILLS ก่อน (สินค้า/จังหวัด/อำเภอ/ชื่อ)
   var ql=q.toLowerCase();
   var localMatches=Object.values(BILLS).filter(function(b){
-    var goods=(b.items||[]).map(function(i){return i.desc||"";}).join(" ");
+    var goods=(Array.isArray(b.items)?b.items:[]).map(function(i){return i&&i.desc||"";}).join(" ");
     var fields=[b.billNo,b.senderName,b.receiverName,b.destProv,b.destAmphoe,goods];
     return fields.some(function(f){return f&&f.toString().toLowerCase().includes(ql);});
   });
@@ -568,7 +568,7 @@ function renderBillList(){
   bills.sort(function(a,b){ return (b.updatedAt||b.createdAt||"").localeCompare(a.updatedAt||a.createdAt||""); });
   var filtered=bills.filter(function(b){
     if(!q) return true;
-    var goods=(b.items||[]).map(function(i){return i.desc||"";}).join(" ");
+    var goods=(Array.isArray(b.items)?b.items:[]).map(function(i){return i&&i.desc||"";}).join(" ");
     var fields=[b.billNo,b.senderName,b.receiverName,b.destProv,b.destAmphoe,b.status,b.driverName,goods];
     return fields.some(function(f){return f&&f.toString().toLowerCase().includes(q);});
   }).slice(0,100); // แสดงสูงสุด 100 ใบ
