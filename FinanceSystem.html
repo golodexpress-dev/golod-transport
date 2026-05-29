@@ -516,7 +516,7 @@ function billToSlip(b) {
   // บิลเก่าที่ไม่มี URL → ต้อง resolve จาก Storage ด้วย trySlipUrls
   const needsResolve  = !slipUrlReal && !!(b.form?.slipUploaded || b.form?.slipName);
   const hasFormSlip   = needsResolve;
-  const resolveSlot   = "slip1"; // ThermalBill ใช้ slot "slip1"
+  const resolveSlot   = "slip1"; // ThermalBill ใช้ slot "slip1" (trySlipUrls จะลองหลาย slots)
   const hasPrepaidSlip = hasSlipImg || needsResolve;
   const isDelivered = b.status === "ส่งสำเร็จ" || b.status === "delivered" || b.status === "ส่งแล้ว";
   const isApproved  = b.slipRequest === "approved";
@@ -572,13 +572,13 @@ function syncBillsToFinance(bills) {
   SLIPS   = SLIPS.filter(x => !x._fromFirebase);
 
   bills.forEach(b => {
-    if (!b.billNo || !b.freightNet) return;
+    if (!b.billNo) return;
+    const rawPay = b.freightPay || "";
+    const isTransferBill = rawPay === "transfer" || rawPay === "dest_transfer";
+    // ถ้าไม่ใช่ transfer และ freightNet=0 ให้ข้าม
+    if (!b.freightNet && !isTransferBill) return;
     const inc = billToIncome(b);
     if (inc.amount > 0) INCOMES.unshift(inc);
-    // สลิปค้าง: transfer ที่ยังไม่ส่งสลิป (ตรวจจาก slip1 URL จริงใน Firebase)
-    const rawPay = b.freightPay || "";
-    const isTransferBill = rawPay === "transfer" || rawPay === "dest_transfer"
-                        || inc.method === "transfer" || inc.method === "dest_transfer";
     const isClosedStatus = b.status === "ส่งสำเร็จ" || b.status === "delivered"
                         || b.status === "ส่งแล้ว" || b.status === "returned";
     // โอนล่วงหน้าแล้ว (slip1/form) = ชำระแล้ว ไม่ต้องรอสลิปอีก
