@@ -1207,6 +1207,10 @@ function renderApp(){
     var zoneClr = ZONE_COLOR[zone]||"#888";
     var zoneHTML= zone ? '<span style="display:inline-block;padding:2px 7px;border-radius:10px;font-size:10px;font-weight:700;background:'+zoneClr+'22;color:'+zoneClr+'">'+zone+'</span>' : '—';
     var ds      = billDateStr(b)||"—";
+    var goodsItems2 = Array.isArray(b.items)?b.items:(b.form&&Array.isArray(b.form.items)?b.form.items:[]);
+    var firstItem2 = goodsItems2[0]||{};
+    var goodsText = (firstItem2.desc||b.note||"—").slice(0,18)+(firstItem2.desc&&firstItem2.desc.length>18?"…":"");
+    var goodsTitle = (firstItem2.desc||"")+(firstItem2.kg?" "+firstItem2.kg+"kg":"")+(firstItem2.qty>1?" x"+firstItem2.qty:"");
     return '<tr>'
       +'<td><input type="checkbox" class="chk" '+(checked?"checked":"")
       +' onchange="toggleBill(\''+b.billNo+'\')" data-id="'+b.billNo+'"></td>'
