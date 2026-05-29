@@ -773,32 +773,37 @@ function getSizePrice(size, zone, cpN, cpF) {
   if (zone === "special") return (size.near || 0) + SPECIAL_SURCHARGE;
   return zone === "near" ? size.near : size.far;
 }
-function genBillNo(staff) {
+// genBillNo — ดึง max billNo จาก Firestore เพื่อป้องกันเลขซ้ำ/ข้าม
+async function genBillNo(staff) {
   const d = new Date();
   const dd = String(d.getDate()).padStart(2, "0");
   const mm = String(d.getMonth() + 1).padStart(2, "0");
   const today = `${dd}${mm}`;
-  const KEY = `golod_seq_${staff}_${today}`;
+  const prefix = staff + today + "-";
   let seq = 1;
   try {
-    const savedSeq = parseInt(localStorage.getItem(KEY) || "0");
-    if (savedSeq > 0) {
-      // มี counter แล้ว — ใช้ต่อทันที ไม่นับจาก bills
-      seq = savedSeq + 1;
-    } else {
-      // ครั้งแรกของวัน — นับเฉพาะบิลที่ออกโดย staff นี้จริงๆ
-      const bills = JSON.parse(localStorage.getItem("golod_bills") || "[]");
-      const prefix = staff + today + "-";
-      const maxFromBills = bills
-        .filter(b => (b.billNo||"").startsWith(prefix) && b.clerkCode === staff)
-        .map(b => parseInt((b.billNo||"").slice(prefix.length))||0)
-        .reduce((m,n) => Math.max(m,n), 0);
-      seq = maxFromBills + 1;
-    }
+    // ดึงบิลของ staff วันนี้จาก Firestore
+    const db = firebase.firestore();
+    const snap = await db.collection("bills")
+      .where("clerkCode","==",staff)
+      .where("date","==",todayStr())
+      .get();
+    const maxSeq = snap.docs
+      .map(d => parseInt((d.data().billNo||"").slice(prefix.length))||0)
+      .reduce((m,n) => Math.max(m,n), 0);
+    seq = maxSeq + 1;
+    // เก็บ localStorage เป็น backup เผื่อ offline
+    const KEY = `golod_seq_${staff}_${today}`;
+    const localSeq = parseInt(localStorage.getItem(KEY)||"0");
+    if(localSeq >= seq) seq = localSeq + 1;
     localStorage.setItem(KEY, String(seq));
-    // ล้าง key เก่า (วันอื่น)
-    Object.keys(localStorage).filter(k => k.startsWith("golod_seq_"+staff+"_") && k !== KEY).forEach(k => localStorage.removeItem(k));
-  } catch(e) {}
+  } catch(e) {
+    // fallback localStorage ถ้า Firestore ไม่ได้
+    const KEY = `golod_seq_${staff}_${today}`;
+    const savedSeq = parseInt(localStorage.getItem(KEY)||"0");
+    seq = savedSeq + 1;
+    localStorage.setItem(KEY, String(seq));
+  }
   return `${staff}${today}-${String(seq).padStart(2, "0")}`;
 }
 function todayStr() {
@@ -1767,7 +1772,7 @@ function BillList({
     style: {
       background: "#f9f9f7"
     }
-  }, ["เลขบิล", "ผู้ส่ง→ผู้รับ", "ปลายทาง", "สินค้า", "รายการ", "ค่าส่ง", "COD", "ชำระ", ""].map(h => /*#__PURE__*/React.createElement("th", {
+  }, ["เลขบิล", "ผู้ส่ง→ผู้รับ", "ปลายทาง", "รายการ", "ค่าส่ง", "COD", "ชำระ", ""].map(h => /*#__PURE__*/React.createElement("th", {
     key: h,
     style: {
       padding: "7px 9px",
@@ -1818,17 +1823,6 @@ function BillList({
         color: "#555"
       }
     }, b.form.destProv), /*#__PURE__*/React.createElement("td", {
-      style: {
-        padding: "7px 9px",
-        fontSize: 11,
-        color: "#555",
-        maxWidth: 100,
-        overflow: "hidden",
-        textOverflow: "ellipsis",
-        whiteSpace: "nowrap"
-      },
-      title: (Array.isArray(b.items)&&b.items[0]?b.items[0].desc+(b.items[0].kg?" "+b.items[0].kg+"kg":"")+(b.items[0].qty>1?" x"+b.items[0].qty:""):"")
-    }, Array.isArray(b.items)&&b.items[0] ? (b.items[0].desc||"—").slice(0,18) : "—"), /*#__PURE__*/React.createElement("td", {
       style: {
         padding: "7px 9px",
         textAlign: "center"
@@ -2852,13 +2846,12 @@ function ThermalBillingApp() {
               localStorage.setItem("golod_bills", JSON.stringify(bills));
             } catch (e) {}
           }
-          billNo.current = genBillNo(code);
-          setF("_billNoReady", Date.now()); // trigger re-render
+          genBillNo(code).then(no=>{ billNo.current = no; setF("_billNoReady", Date.now()); });
         }).catch(function () {
-          billNo.current = genBillNo(code);
+          genBillNo(code).then(no=>{ billNo.current = no; setF("_billNoReady", Date.now()); });
         });
       } else {
-        billNo.current = genBillNo(code);
+        genBillNo(code).then(no=>{ billNo.current = no; setF("_billNoReady", Date.now()); });
       }
     }
   }, []);
@@ -3255,7 +3248,7 @@ function ThermalBillingApp() {
       staff: code
     });
     setItems([blankItem()]);
-    billNo.current = genBillNo(code);
+    genBillNo(code).then(no=>{ billNo.current = no; setF("_billNoReady", Date.now()); });
     setView("form");
   };
   const [printMarginV, setPrintMarginV] = useState(4); // mm บน-ล่าง
