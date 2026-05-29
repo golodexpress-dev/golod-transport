@@ -1767,7 +1767,7 @@ function BillList({
     style: {
       background: "#f9f9f7"
     }
-  }, ["เลขบิล", "ผู้ส่ง→ผู้รับ", "ปลายทาง", "รายการ", "ค่าส่ง", "COD", "ชำระ", ""].map(h => /*#__PURE__*/React.createElement("th", {
+  }, ["เลขบิล", "ผู้ส่ง→ผู้รับ", "ปลายทาง", "สินค้า", "รายการ", "ค่าส่ง", "COD", "ชำระ", ""].map(h => /*#__PURE__*/React.createElement("th", {
     key: h,
     style: {
       padding: "7px 9px",
@@ -1818,6 +1818,17 @@ function BillList({
         color: "#555"
       }
     }, b.form.destProv), /*#__PURE__*/React.createElement("td", {
+      style: {
+        padding: "7px 9px",
+        fontSize: 11,
+        color: "#555",
+        maxWidth: 100,
+        overflow: "hidden",
+        textOverflow: "ellipsis",
+        whiteSpace: "nowrap"
+      },
+      title: (Array.isArray(b.items)&&b.items[0]?b.items[0].desc+(b.items[0].kg?" "+b.items[0].kg+"kg":"")+(b.items[0].qty>1?" x"+b.items[0].qty:""):"")
+    }, Array.isArray(b.items)&&b.items[0] ? (b.items[0].desc||"—").slice(0,18) : "—"), /*#__PURE__*/React.createElement("td", {
       style: {
         padding: "7px 9px",
         textAlign: "center"
