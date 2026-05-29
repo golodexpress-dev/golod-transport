@@ -310,7 +310,7 @@ function firestoreBillToTracking(b){
     if(!sameTime) timeline.push({status:"out", dt:updatedDt, loc:(b.destAmphoe||form.destAmphoe||""), note:"กำลังวิ่งส่งลูกค้า", photo:false, sig:false});
   }
   if(st==="delivered"){
-    timeline.push({status:"delivered", dt:fmtISO(b.deliveredAt||b.updatedAt), loc:(b.destAmphoe||form.destAmphoe||""), note:"ส่งถึงมือผู้รับแล้ว", photo:!!b.photoUrl, sig:!!b.signatureUrl});
+    timeline.push({status:"delivered", dt:fmtISO(b.deliveredAt||b.updatedAt), loc:(b.destAmphoe||form.destAmphoe||""), note:"ส่งถึงมือผู้รับแล้ว", photo:!!b.photoUrl, sig:!!b.signatureUrl, photoUrl:b.photoUrl||"", signatureUrl:b.signatureUrl||""});
   }
   if(st==="nocontact"){
     timeline.push({status:"nocontact", dt:fmtISO(b.updatedAt), loc:(b.destAmphoe||form.destAmphoe||""), note:b.failReason||"ส่งไม่สำเร็จ", photo:false, sig:false});
@@ -327,6 +327,11 @@ function firestoreBillToTracking(b){
     receiverName: b.receiverName||form.receiverName||"",
     photoUrl: b.photoUrl||"",
     signatureUrl: b.signatureUrl||"",
+    items: b.items||(form.items)||[],
+    driverName: b.driverName||"",
+    status: b.status||"",
+    createdAt: b.createdAt||"",
+    updatedAt: b.updatedAt||"",
     timeline: timeline
   };
 }
@@ -346,11 +351,27 @@ function loadBillFromFirestore(billNo, callback){
 function loadAllBillsFromFirestore(callback){
   if(typeof GolodDB!=="undefined" && GolodDB.getBillsNew){
     GolodDB.ready(function(){
-      GolodDB.getBillsNew(500).then(function(bills){
-        BILLS={};
-        bills.forEach(function(b){ BILLS[b.billNo]=firestoreBillToTracking(b); });
-        callback();
-      }).catch(function(){ callback(); });
+      // ดึง active bills + บิลล่าสุด 7 วัน รวมสูงสุด 300 ใบ
+      var db;
+      try{ db=firebase.firestore(); }catch(e){ callback(); return; }
+      var activeStatus=["ออกบิลรับของ","issued","กำลังวิ่งส่งลูกค้า","ระหว่างนำส่งสาขา","นำส่งใหม่","ติดต่อลูกค้าไม่ได้","ส่งไม่สำเร็จ"];
+      var cutoff=new Date(Date.now()-7*24*60*60*1000).toISOString();
+      var queries=activeStatus.map(function(st){
+        return db.collection("bills").where("status","==",st).limit(100).get();
+      });
+      // + บิลล่าสุด 7 วัน
+      queries.push(db.collection("bills").where("createdAt",">=",cutoff).orderBy("createdAt","desc").limit(100).get());
+      Promise.all(queries.map(function(q){ return q.catch(function(){return{forEach:function(){}};}); }))
+        .then(function(snaps){
+          BILLS={};
+          snaps.forEach(function(snap){
+            snap.forEach && snap.forEach(function(doc){
+              var b=doc.data();
+              if(b.billNo && !BILLS[b.billNo]) BILLS[b.billNo]=firestoreBillToTracking(b);
+            });
+          });
+          callback();
+        }).catch(function(){ callback(); });
     });
   } else { callback(); }
 }
@@ -455,8 +476,10 @@ function doTrack(){
         </div>
         <div class="tl-note">${ev.note||""}</div>
         ${ev.loc?`<div class="tl-loc">📍 ${ev.loc}</div>`:""}
-        ${ev.photo?`<div class="photo-box">📷 รูปภาพการส่งสินค้า</div>`:""}
-        ${ev.sig?`<div class="sig-box">✍️ ลายเซ็นผู้รับ<div class="sig-line">— ลายเซ็น —</div></div>`:""}
+        ${ev.photo&&ev.photoUrl?`<div style="margin-top:6px"><img src="${ev.photoUrl}" style="max-width:100%;border-radius:8px;border:0.5px solid #ddd" loading="lazy"/></div>`
+          :ev.photo?`<div class="photo-box">📷 รูปภาพการส่งสินค้า</div>`:""}
+        ${ev.sig&&ev.signatureUrl?`<div class="sig-box">✍️ ลายเซ็นผู้รับ<img src="${ev.signatureUrl}" style="max-width:100%;margin-top:4px;border-radius:6px;border:0.5px solid #ccc" loading="lazy"/></div>`
+          :ev.sig?`<div class="sig-box">✍️ ลายเซ็นผู้รับ<div class="sig-line">— ลายเซ็น —</div></div>`:""}
       </div>
     </div>`;
   }).join("");
@@ -503,23 +526,29 @@ let selectedNewStatus="";
 function renderBillList(){
   const q=(document.getElementById("staff-search").value||"").toLowerCase();
   const el=document.getElementById("staff-bill-list");
-  el.innerHTML=Object.values(BILLS).filter(b=>{
+  var bills=Object.values(BILLS);
+  // sort ล่าสุดก่อน
+  bills.sort(function(a,b){ return (b.updatedAt||b.createdAt||"").localeCompare(a.updatedAt||a.createdAt||""); });
+  var filtered=bills.filter(function(b){
     if(!q) return true;
-    const form=b.form||{};
-    const fields=[b.billNo,b.senderName||form.senderName,b.receiverName||form.receiverName,
-      b.destProv||form.destProv,b.destAmphoe||form.destAmphoe||form.receiverAmphoe,
-      b.status,b.driverName,(form.items||[]).map(i=>i.desc||"").join(" ")];
-    return fields.some(f=>f&&f.toString().toLowerCase().includes(q));
-  }).map(b=>{
-    const last=b.timeline[b.timeline.length-1];
-    const st=STATUSES[last?.status]||STATUSES.issued;
-    const sel=b.billNo===selectedBillNo;
-    return`<div class="bill-item ${sel?"sel":""}" onclick="selectBill('${b.billNo}')">
-      <span class="bill-no-sm">${b.billNo}</span>
-      <span class="bill-dest">${b.destAmphoe}·${b.destProv}</span>
-      <span class="pill" style="background:${st.bg};color:${st.color};border:0.5px solid ${st.border}">${st.icon} ${st.label}</span>
-    </div>`;
-  }).join("");
+    var goods=(b.items||[]).map(function(i){return i.desc||"";}).join(" ");
+    var fields=[b.billNo,b.senderName,b.receiverName,b.destProv,b.destAmphoe,b.status,b.driverName,goods];
+    return fields.some(function(f){return f&&f.toString().toLowerCase().includes(q);});
+  }).slice(0,100); // แสดงสูงสุด 100 ใบ
+  el.innerHTML=(filtered.length===0
+    ?'<div style="text-align:center;color:#aaa;padding:16px;font-size:12px">'+(q?"ไม่พบบิล":"⏳ กำลังโหลด...")+"</div>"
+    :filtered.map(function(b){
+      const last=b.timeline[b.timeline.length-1];
+      const st=STATUSES[last&&last.status]||STATUSES.issued;
+      const sel=b.billNo===selectedBillNo;
+      const dt=last&&last.dt?last.dt.split(" ")[0].split("-").reverse().join("/"):"";
+      return'<div class="bill-item '+(sel?"sel":"")+'" onclick="selectBill(''+b.billNo+'')">'
+        +'<span class="bill-no-sm">'+b.billNo+'</span>'
+        +'<span class="bill-dest">'+b.destAmphoe+'·'+b.destProv+'<br><span style="font-size:10px;color:#aaa">'+dt+'</span></span>'
+        +'<span class="pill" style="background:'+st.bg+';color:'+st.color+';border:0.5px solid '+st.border+'">'+st.icon+' '+st.label+'</span>'
+        +'</div>';
+    }).join("")
+  )+'<div style="font-size:10px;color:#aaa;text-align:center;padding:4px">แสดง '+filtered.length+' จาก '+bills.length+' บิล</div>';
 }
 
 function selectBill(no){
