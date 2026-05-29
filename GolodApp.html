@@ -256,10 +256,23 @@ function loadRealBills(){
     // zone ตาม destProv+destAmphoe
     var KANCHAN_FAR=["สังขละบุรี","ทองผาภูมิ","ศรีสวัสดิ์","ไทรโยค","หนองปรือ"];
     function getZone(prov,amphoe){
-      var far=["นครราชสีมา","บุรีรัมย์","สุรินทร์","ศรีสะเกษ","อุบลราชธานี","ยโสธร","อำนาจเจริญ","ขอนแก่น","อุดรธานี","หนองคาย","นครพนม","สกลนคร","กาฬสินธุ์","มหาสารคาม","ร้อยเอ็ด","เลย","หนองบัวลำภู","บึงกาฬ","มุกดาหาร","ชัยภูมิ","เชียงใหม่","เชียงราย","ลำปาง","ลำพูน","แม่ฮ่องสอน","น่าน","พะเยา","แพร่","ตาก","อุตรดิตถ์","สุราษฎร์ธานี","นครศรีธรรมราช","กระบี่","พังงา","ภูเก็ต","ตรัง","พัทลุง","สตูล","สงขลา","ปัตตานี","ยะลา","นราธิวาส"];
-      if(prov==="กาญจนบุรี"&&KANCHAN_FAR.indexOf(amphoe)>=0) return "ไกล";
-      if(far.indexOf(prov)>=0) return "ไกล";
-      return "ใกล้";
+      var bkk=["กรุงเทพมหานคร","นนทบุรี","ปทุมธานี","สมุทรปราการ","สมุทรสาคร","นครปฐม","สมุทรสงคราม"];
+      var east=["ชลบุรี","ระยอง","จันทบุรี","ตราด","ฉะเชิงเทรา","สระแก้ว","ปราจีนบุรี","นครนายก"];
+      var north=["เชียงใหม่","เชียงราย","ลำปาง","ลำพูน","แม่ฮ่องสอน","น่าน","พะเยา","แพร่","ตาก","อุตรดิตถ์","พิษณุโลก","เพชรบูรณ์","สุโขทัย","กำแพงเพชร","พิจิตร","นครสวรรค์","อุทัยธานี","สิงห์บุรี","อ่างทอง","พระนครศรีอยุธยา","ลพบุรี","สระบุรี","ชัยนาท"];
+      var west=["กาญจนบุรี","ราชบุรี","เพชรบุรี","ประจวบคีรีขันธ์","สุพรรณบุรี"];
+      var south=["สุราษฎร์ธานี","นครศรีธรรมราช","กระบี่","พังงา","ภูเก็ต","ตรัง","พัทลุง","สตูล","ชุมพร","ระนอง","สงขลา","ปัตตานี","ยะลา","นราธิวาส"];
+      var lesan=["ศรีสะเกษ","อุบลราชธานี","ยโสธร","อำนาจเจริญ","สุรินทร์","บุรีรัมย์"];
+      var korat=["นครราชสีมา","ชัยภูมิ"];
+      var esan=["ขอนแก่น","อุดรธานี","หนองคาย","นครพนม","สกลนคร","กาฬสินธุ์","มหาสารคาม","ร้อยเอ็ด","เลย","หนองบัวลำภู","บึงกาฬ","มุกดาหาร"];
+      if(bkk.indexOf(prov)>=0) return "BKK";
+      if(east.indexOf(prov)>=0) return "East";
+      if(north.indexOf(prov)>=0) return "North";
+      if(west.indexOf(prov)>=0) return "West";
+      if(south.indexOf(prov)>=0) return "South";
+      if(lesan.indexOf(prov)>=0) return "LEsan";
+      if(korat.indexOf(prov)>=0) return "Korat";
+      if(esan.indexOf(prov)>=0) return "Esan";
+      return "Central";
     }
     return arr.filter(function(b){return b.billNo&&b.billNo.length>3;}).map(function(b){
       var clerkCode=b.clerkCode||(b.billNo?b.billNo.charAt(0):"");
@@ -784,8 +797,10 @@ function billTable(data, opts){
   h+='<th>เลขบิล</th><th>วันที่</th>';
   if (isAdmin) h+='<th>เสมียน</th>';
   h+='<th>ปลายทาง</th>';
-  if (isAdmin) { h+='<th>ภาค</th><th>Zone</th>'; }
-  h+='<th>สินค้า</th><th>ชิ้น</th><th>ค่าส่ง</th><th>ชำระ</th><th>สถานะ</th><th>สลิปโอน</th>';
+  if (isAdmin) { h+='<th>ภาค</th>'; }
+  h+='<th>สินค้า</th><th>ชิ้น</th>';
+  if (isAdmin) { h+='<th>Zone</th>'; }
+  h+='<th>ค่าส่ง</th><th>ชำระ</th><th>สถานะ</th><th>สลิปโอน</th>';
   h+='</tr></thead><tbody>';
 
   data.forEach(function(b){
@@ -798,10 +813,14 @@ function billTable(data, opts){
     h+="<td>"+(b.destAmphoe||"")+"·"+(b.destProv||"")+"</td>";
     if (isAdmin) {
       h+="<td><span class='pill "+regionClass+"'>"+(b.region||"")+"</span></td>";
-      h+="<td><span class='pill "+zoneClass+"'>"+(b.zone||"-")+"</span></td>";
     }
     h+="<td style='font-size:11px;color:#555;max-width:100px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap' title='"+(b.goodsDesc||"")+"'>"+(b.goodsDesc||"—")+"</td>";
     h+="<td style='text-align:center'>"+(b.items||1)+"</td>";
+    if (isAdmin) {
+      var ZONE_CL={"BKK":"pg","East":"pb","North":"pp","West":"px","Central":"px","South":"pa","Esan":"pa","LEsan":"pa","Korat":"pa"};
+      var zCls=ZONE_CL[b.zone]||"px";
+      h+="<td><span class='pill "+zCls+"' style='font-size:9px'>"+(b.zone||"-")+"</span></td>";
+    }
     h+="<td style='text-align:right;font-weight:600'>"+fmt(b.freightNet||0)+"฿</td>";
     h+="<td><span class='pill px' style='font-size:9px'>"+(b.freightPayLabel||MPAYLAB[b.freightPay]||b.freightPay||"")+"</span></td>";
     h+="<td><span class='pill "+(STCLS[b.status]||"px")+"'>"+(STLAB[b.status]||b.status)+"</span></td>";
