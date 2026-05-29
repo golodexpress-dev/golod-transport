@@ -1206,6 +1206,10 @@ function renderApp(){
     var zone    = getZone(destProv, destAmphoe);
     var zoneClr = ZONE_COLOR[zone]||"#888";
     var zoneHTML= zone ? '<span style="display:inline-block;padding:2px 7px;border-radius:10px;font-size:10px;font-weight:700;background:'+zoneClr+'22;color:'+zoneClr+'">'+zone+'</span>' : '—';
+    var sItems=Array.isArray(b.items)?b.items:(b.form&&Array.isArray(b.form.items)?b.form.items:[]);
+    var sFirst=sItems[0]||{};
+    var sText=(sFirst.desc||b.note||"—").slice(0,16)+(sFirst.desc&&sFirst.desc.length>16?"…":"");
+    var sQty=sItems.reduce(function(s,i){return s+(parseInt(i.qty)||1);},0)||1;
     var ds      = billDateStr(b)||"—";
     return '<tr>'
       +'<td><input type="checkbox" class="chk" '+(checked?"checked":"")
@@ -1213,11 +1217,12 @@ function renderApp(){
       +'<td style="font-weight:600;white-space:nowrap">'+b.billNo+'</td>'
       +'<td style="white-space:nowrap;color:#888;font-size:11px">'+ds+'</td>'
       +'<td>'+receiver+'</td>'
+      +'<td style="font-size:11px;color:#555;max-width:90px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="'+sText+'">'+sText+'</td>'
+      +'<td style="text-align:center;font-size:12px">'+sQty+'</td>'
       +'<td style="white-space:nowrap">'+dest+'</td>'
       +'<td style="text-align:right;font-weight:600">'+freight.toLocaleString("th-TH")+'</td>'
       +'<td><span class="badge '+stCls+'">'+b.status+'</span></td>'
       +'<td style="color:#555">'+sender+'</td>'
-      +'<td>'+zoneHTML+'</td>'
       +'<td style="color:#666">'+driver+'</td>'
       +'<td>'
       +(canClearTrip()
@@ -1242,7 +1247,7 @@ function renderApp(){
     +actionBar
     +'<div style="overflow-x:auto"><table>'
     +'<tr><th></th><th>เลขบิล</th><th>วันที่</th><th>ผู้รับ</th><th>ปลายทาง</th>'
-    +'<th>ค่าส่ง</th><th>สถานะ</th><th>ผู้ส่ง</th><th>Zone</th><th>คนรถ</th><th>สลิป</th><th>จัดการ</th></tr>'
+    +'<th>ค่าส่ง</th><th>สถานะ</th><th>ผู้ส่ง</th><th>คนรถ</th><th>สินค้า</th><th>ชิ้น</th><th>สลิป</th><th>จัดการ</th></tr>'
     +'<tbody id="bill-tbody">'+rows+'</tbody>'
     +'</table></div>'
     +'<div style="font-size:11px;color:#888;margin-top:8px"><span id="bill-count-label">แสดง '+filtered.length+' บิล</span></div>'
@@ -2434,7 +2439,7 @@ function onDoneSearch(val){
       +'</tr>';
   }).join("");
   tbody.innerHTML='<div style="overflow-x:auto"><table>'
-    +'<tr><th>เลขบิล</th><th>วันที่</th><th>ผู้รับ</th><th>ปลายทาง</th><th>ค่าส่ง</th><th>สถานะ</th><th>ผู้ส่ง</th><th>Zone</th><th>คนรถ</th><th>สลิป</th><th>จัดการ</th></tr>'
+    +'<tr><th>เลขบิล</th><th>วันที่</th><th>ผู้รับ</th><th>ปลายทาง</th><th>ค่าส่ง</th><th>สถานะ</th><th>ผู้ส่ง</th><th>คนรถ</th><th>สินค้า</th><th>ชิ้น</th><th>สลิป</th><th>จัดการ</th></tr>'
     +rows+'</table></div>';
   // อัปเดตจำนวน
   var countEl=document.querySelector("#done-table-body")&&document.querySelector(".done-count");
@@ -2515,7 +2520,7 @@ function renderDoneTab(){
     +'<div style="font-size:12px;color:#666;margin-bottom:8px">แสดง '+bills.length+' บิล</div>'
     +'<div style="margin-bottom:8px"><input type="text" id="q-inp-done" placeholder="ค้นหา: บิล/ชื่อ/จังหวัด/สินค้า/สถานะ" style="width:100%;max-width:360px;padding:7px 10px;border:1px solid #ddd;border-radius:7px;font-size:12px" value="'+(_searchQuery||"")+'" oninput="onDoneSearch(this.value)"></div>'
     +'<div id="done-table-body"><div style="overflow-x:auto"><table>'
-    +'<tr><th>เลขบิล</th><th>วันที่</th><th>ผู้รับ</th><th>ปลายทาง</th><th>ค่าส่ง</th><th>สถานะ</th><th>ผู้ส่ง</th><th>Zone</th><th>คนรถ</th><th>สลิป</th><th>จัดการ</th></tr>'
+    +'<tr><th>เลขบิล</th><th>วันที่</th><th>ผู้รับ</th><th>ปลายทาง</th><th>ค่าส่ง</th><th>สถานะ</th><th>ผู้ส่ง</th><th>คนรถ</th><th>สินค้า</th><th>ชิ้น</th><th>สลิป</th><th>จัดการ</th></tr>'
     +rows
     +'</table></div></div></div>';
   document.getElementById("app").innerHTML=html;
@@ -2620,8 +2625,9 @@ function renderBillRows(bills){
       +'<td style="text-align:right;font-weight:600">'+freight.toLocaleString("th-TH")+'</td>'
       +'<td><span class="badge '+stCls+'">'+b.status+'</span></td>'
       +'<td style="color:#555">'+sender+'</td>'
-      +'<td>'+zoneHTML+'</td>'
       +'<td style="color:#666">'+driver+'</td>'
+      +'<td style="font-size:11px;color:#555;max-width:100px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="'+gTitle+'">'+gText+'</td>'
+      +'<td style="text-align:center;font-size:12px">'+gQty+'</td>'
       +'<td style="text-align:center">'+slipCell+'</td>'
       +'<td>'
       +(canClearTrip()
