@@ -351,27 +351,37 @@ function loadBillFromFirestore(billNo, callback){
 function loadAllBillsFromFirestore(callback){
   if(typeof GolodDB!=="undefined" && GolodDB.getBillsNew){
     GolodDB.ready(function(){
-      // ดึง active bills + บิลล่าสุด 7 วัน รวมสูงสุด 300 ใบ
       var db;
       try{ db=firebase.firestore(); }catch(e){ callback(); return; }
-      var activeStatus=["ออกบิลรับของ","issued","กำลังวิ่งส่งลูกค้า","ระหว่างนำส่งสาขา","นำส่งใหม่","ติดต่อลูกค้าไม่ได้","ส่งไม่สำเร็จ"];
-      var cutoff=new Date(Date.now()-7*24*60*60*1000).toISOString();
-      var queries=activeStatus.map(function(st){
-        return db.collection("bills").where("status","==",st).limit(100).get();
+      // ดึง active status ทั้งหมด (ไม่ต้องการ index พิเศษ)
+      var activeStatus=[
+        "ออกบิลรับของ","issued","กำลังวิ่งส่งลูกค้า","ระหว่างนำส่งสาขา",
+        "นำส่งใหม่","ติดต่อลูกค้าไม่ได้","ส่งไม่สำเร็จ","รออนุมัติ","นำกลับสาขา"
+      ];
+      var queries = activeStatus.map(function(st){
+        return db.collection("bills").where("status","==",st).limit(200)
+          .get().catch(function(){ return {forEach:function(){}}; });
       });
-      // + บิลล่าสุด 7 วัน
-      queries.push(db.collection("bills").where("createdAt",">=",cutoff).orderBy("createdAt","desc").limit(100).get());
-      Promise.all(queries.map(function(q){ return q.catch(function(){return{forEach:function(){}};}); }))
-        .then(function(snaps){
-          BILLS={};
-          snaps.forEach(function(snap){
-            snap.forEach && snap.forEach(function(doc){
-              var b=doc.data();
-              if(b.billNo && !BILLS[b.billNo]) BILLS[b.billNo]=firestoreBillToTracking(b);
-            });
+      // ดึงบิลส่งสำเร็จล่าสุด 100 ใบแยก (ไม่ใช้ orderBy เพื่อหลีก index)
+      var doneQ = db.collection("bills").where("status","==","ส่งสำเร็จ").limit(100)
+        .get().catch(function(){ return {forEach:function(){}}; });
+      queries.push(doneQ);
+
+      Promise.all(queries).then(function(snaps){
+        BILLS={};
+        snaps.forEach(function(snap){
+          if(!snap||!snap.forEach) return;
+          snap.forEach(function(doc){
+            var b=doc.data();
+            if(b.billNo && !BILLS[b.billNo]) BILLS[b.billNo]=firestoreBillToTracking(b);
           });
-          callback();
-        }).catch(function(){ callback(); });
+        });
+        console.log("[TrackingSystem] BILLS loaded:", Object.keys(BILLS).length);
+        callback();
+      }).catch(function(e){
+        console.error("[TrackingSystem] load error:", e);
+        callback();
+      });
     });
   } else { callback(); }
 }
@@ -435,10 +445,37 @@ function doTrack(){
   const el=document.getElementById("track-result");
   if(!q){el.innerHTML="";return;}
   el.innerHTML='<div style="text-align:center;padding:30px;color:#888">⏳ กำลังค้นหา...</div>';
+
+  // ค้นจาก BILLS ก่อน (สินค้า/จังหวัด/อำเภอ/ชื่อ)
+  var ql=q.toLowerCase();
+  var localMatches=Object.values(BILLS).filter(function(b){
+    var goods=(b.items||[]).map(function(i){return i.desc||"";}).join(" ");
+    var fields=[b.billNo,b.senderName,b.receiverName,b.destProv,b.destAmphoe,goods];
+    return fields.some(function(f){return f&&f.toString().toLowerCase().includes(ql);});
+  });
+  if(localMatches.length>1){
+    // ค้นเจอหลายบิล — แสดง list
+    el.innerHTML='<div style="background:#fff;border-radius:12px;padding:12px;margin-top:12px">'
+      +'<div style="font-size:13px;font-weight:600;color:#0F6E56;margin-bottom:8px">พบ '+localMatches.length+' บิล</div>'
+      +localMatches.slice(0,20).map(function(b){
+        const last=b.timeline[b.timeline.length-1];
+        const st=STATUSES[last&&last.status]||STATUSES.issued;
+        return'<div style="padding:8px 10px;border-radius:8px;border:0.5px solid #eee;margin-bottom:6px;cursor:pointer;background:#fafafa" onclick="quickTrack(''+b.billNo+'')">'
+          +'<div style="font-weight:700;color:#0F6E56">'+b.billNo+'</div>'
+          +'<div style="font-size:11px;color:#555">'+b.destAmphoe+'·'+b.destProv+' &nbsp;|&nbsp; '
+          +'<span style="color:'+st.color+'">'+st.icon+' '+st.label+'</span></div>'
+          +(b.items&&b.items[0]?'<div style="font-size:10px;color:#888">'+b.items[0].desc+'</div>':'')
+          +'</div>';
+      }).join("")
+      +'</div>';
+    return;
+  }
+
   loadBillFromFirestore(q, function(bill){
+    if(!bill && localMatches.length===1) bill=localMatches[0];
     if(!bill){
       el.innerHTML=`<div class="not-found"><div style="font-size:40px;margin-bottom:12px">🔍</div>
-        <div style="font-size:16px;font-weight:600;color:#333;margin-bottom:8px">ไม่พบเลขบิล "${q}"</div>
+        <div style="font-size:16px;font-weight:600;color:#333;margin-bottom:8px">ไม่พบบิล "${q}"</div>
         <div style="font-size:13px;color:#888">กรุณาตรวจสอบเลขบิลอีกครั้ง<br>หรือติดต่อ Line: @glexpress</div></div>`;
       return;
     }
