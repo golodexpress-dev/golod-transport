@@ -17,6 +17,7 @@ var GolodDB = (function() {
     try {
       if (!firebase.apps.length) firebase.initializeApp(FIREBASE_CONFIG);
       db = firebase.firestore();
+      try { db.settings({ experimentalAutoDetectLongPolling: true, merge: true }); } catch(e) {}
       initialized = true;
       console.log("[GolodDB] Firestore connected");
       pending.forEach(function(fn) { fn(); });
