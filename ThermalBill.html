@@ -780,10 +780,9 @@ async function genBillNo(staff) {
   const mm = String(d.getMonth() + 1).padStart(2, "0");
   const today = `${dd}${mm}`;
   const prefix = staff + today + "-";
-  const KEY = `golod_seq_${staff}_${today}`;
   let seq = 1;
   try {
-    // Firestore เป็น source of truth เสมอ
+    // ดึงบิลของ staff วันนี้จาก Firestore
     const db = firebase.firestore();
     const snap = await db.collection("bills")
       .where("clerkCode","==",staff)
@@ -793,10 +792,14 @@ async function genBillNo(staff) {
       .map(d => parseInt((d.data().billNo||"").slice(prefix.length))||0)
       .reduce((m,n) => Math.max(m,n), 0);
     seq = maxSeq + 1;
-    // อัปเดต localStorage ให้ตรงกับ Firestore เสมอ
+    // เก็บ localStorage เป็น backup เผื่อ offline
+    const KEY = `golod_seq_${staff}_${today}`;
+    const localSeq = parseInt(localStorage.getItem(KEY)||"0");
+    if(localSeq >= seq) seq = localSeq + 1;
     localStorage.setItem(KEY, String(seq));
   } catch(e) {
-    // fallback localStorage เฉพาะเมื่อ Firestore ไม่ได้
+    // fallback localStorage ถ้า Firestore ไม่ได้
+    const KEY = `golod_seq_${staff}_${today}`;
     const savedSeq = parseInt(localStorage.getItem(KEY)||"0");
     seq = savedSeq + 1;
     localStorage.setItem(KEY, String(seq));
@@ -1015,7 +1018,39 @@ function ThermalBill({
   printDate
 }) {
   // คำนวณ minFreight ภายใน
-  const _minFr = form.isSpecialArea ? (parseInt(form.minFreight)||0) : 0;
+
+// ค่าส่งขั้นต่ำอัตโนมัติ
+function getMinFreight(prov, amphoe) {
+  if(!prov) return 0;
+  var min1000 = ["น้ำหนาว","นาแห้ว","ทองผาภูมิ","ปิล็อก"];
+  var min500 = ["ศรีสวัสดิ์","สังขละบุรี","ปากชม","นาด้วง","ตาพระยา","โคกสูง","คลองหาด",
+    "สอยดาว","เขาสมิง","บ่อไร่","เขาชะเมา","สวี","หลังสวน","บ้านไร่","สามเงา",
+    "เถิน","แม่พริก","น้ำปาด","นครไทย","ชาติตระการ","หล่มสัก","หล่มเก่า",
+    "ภูเรือ","ด่านซ้าย","ศรีสัชนาลัย","สังคม","บ้านแพง","บึงโขงหลง",
+    "ดงหลวง","ภูพาน","เต่างอย","สามชัย","ภักดีชุมพล","เทพสถิต",
+    "สิรินธร","ศรีเมืองใหม่","นาจะหลวย","น้ำยืน","ภูสิงห์","แม่สอด","พบพระ"];
+  var amp = amphoe||"";
+  if(min1000.indexOf(amp) >= 0) return 1000;
+  if(min500.indexOf(amp) >= 0) return 500;
+  var bkk = ["กรุงเทพมหานคร","ปทุมธานี","สมุทรปราการ","สมุทรสาคร","นนทบุรี"];
+  if(bkk.indexOf(prov) >= 0) return 100;
+  var g120all = ["พระนครศรีอยุธยา","นครปฐม","สมุทรสงคราม","เพชรบุรี","ราชบุรี",
+    "สุพรรณบุรี","สิงห์บุรี","อ่างทอง","ลพบุรี","สระบุรี","ปราจีนบุรี",
+    "นครนายก","ฉะเชิงเทรา","ชลบุรี","ระยอง"];
+  if(g120all.indexOf(prov) >= 0) return 120;
+  var g120city = ["กาญจนบุรี","สระแก้ว","จันทบุรี","ชัยนาท","ประจวบคีรีขันธ์",
+    "นครราชสีมา","บุรีรัมย์","มหาสารคาม","ชัยภูมิ","ร้อยเอ็ด","ยโสธร",
+    "อุบลราชธานี","ศรีสะเกษ","สุรินทร์"];
+  if(g120city.indexOf(prov) >= 0) return amp.startsWith("เมือง") ? 120 : 150;
+  var g180city = ["อุตรดิตถ์","สุโขทัย","พิษณุโลก","พิจิตร","กำแพงเพชร","ตาก",
+    "อุทัยธานี","เพชรบูรณ์","ชุมพร","มุกดาหาร","นครพนม","บึงกาฬ",
+    "สกลนคร","หนองคาย","เลย","อุดรธานี","กาฬสินธุ์","ตราด",
+    "หนองบัวลำภู","อำนาจเจริญ","นครสวรรค์"];
+  if(g180city.indexOf(prov) >= 0) return amp.startsWith("เมือง") ? 180 : 200;
+  return 0;
+}
+  const _autoMin = getMinFreight(form.destProv||"", form.receiverAmphoe||"");
+  const _minFr = form.isSpecialArea ? (parseInt(form.minFreight)||0) : _autoMin;
   const _isMinApplied = _minFr > 0 && (summary.freightTotal||summary.freightNet||0) < _minFr;
   var _FREIGHT_PAY$find, _BRANCHES$find;
   const W = 298;
@@ -1137,7 +1172,7 @@ function ThermalBill({
   }, /*#__PURE__*/React.createElement("div", {
     style: { display:"flex", alignItems:"baseline", flexWrap:"wrap", gap:4, marginBottom:0 }
   },
-    /*#__PURE__*/React.createElement("span", { style:{ fontSize:10, fontWeight:800, whiteSpace:"nowrap", flexShrink:0, marginRight:2 }}, "\u0E1C\u0E39\u0E49\u0E2A\u0E48\u0E07 :"),
+    /*#__PURE__*/React.createElement("span", { style:{ fontSize:10, fontWeight:800, whiteSpace:"nowrap", flexShrink:0, marginRight:2 }}, "[ \u0E1C\u0E39\u0E49\u0E2A\u0E48\u0E07 ]"),
     /*#__PURE__*/React.createElement("span", { style:{ fontSize:14, fontWeight:800, wordBreak:"break-word" }}, form.senderName || "—")
   ), /*#__PURE__*/React.createElement("div", { style:{ fontSize:12, fontWeight:900 }},
     "\u0E42\u0E17\u0E23: ", form.senderPhone || "—"),
@@ -1154,7 +1189,7 @@ function ThermalBill({
   }, /*#__PURE__*/React.createElement("div", {
     style: { display:"flex", alignItems:"baseline", flexWrap:"wrap", gap:4, marginBottom:0 }
   },
-    /*#__PURE__*/React.createElement("span", { style:{ fontSize:10, fontWeight:800, whiteSpace:"nowrap", flexShrink:0, marginRight:2 }}, "\u0E1C\u0E39\u0E49\u0E23\u0E31\u0E1A :"),
+    /*#__PURE__*/React.createElement("span", { style:{ fontSize:10, fontWeight:800, whiteSpace:"nowrap", flexShrink:0, marginRight:2 }}, "[ \u0E1C\u0E39\u0E49\u0E23\u0E31\u0E1A ]"),
     /*#__PURE__*/React.createElement("span", { style:{ fontSize:14, fontWeight:800, wordBreak:"break-word" }}, form.receiverName || "—")
   ), /*#__PURE__*/React.createElement("div", { style:{ fontSize:12, fontWeight:900 }},
     "\u0E42\u0E17\u0E23: ", form.receiverPhone || "—"),
@@ -1172,14 +1207,12 @@ function ThermalBill({
     style: {
       width: "100%",
       borderCollapse: "collapse",
-      border: "0.5px solid #555",
       fontSize: 9,
       marginBottom: 4
     }
   }, /*#__PURE__*/React.createElement("thead", null, /*#__PURE__*/React.createElement("tr", {
     style: {
-      borderBottom: "1px solid #555",
-      borderTop: "0.5px solid #555"
+      borderBottom: "0.5px solid #333"
     }
   }, /*#__PURE__*/React.createElement("th", {
     style: { textAlign: "left", padding: "1px 2px", fontWeight: 700, maxWidth: 90, borderRight:"0.5px solid #999", background:"#eee", fontSize:10 }
@@ -1238,8 +1271,7 @@ function ThermalBill({
       style: {
         textAlign: "right",
         padding: "2px 2px",
-        fontSize: 9,
-        borderRight: "0.5px solid #ccc"
+        fontSize: 9
       }
     }, up > 0 ? up.toLocaleString("th-TH") : "-"), /*#__PURE__*/React.createElement("td", {
       style: {
@@ -1253,8 +1285,7 @@ function ThermalBill({
         textAlign: "right",
         padding: "2px 2px",
         fontSize: 9,
-        fontWeight: 700,
-        borderLeft: "0.5px solid #ccc"
+        fontWeight: 700
       }
     }, lt > 0 ? lt.toLocaleString("th-TH") : "-")), (parseFloat(item.declaredValue) || 0) > 0 && /*#__PURE__*/React.createElement("tr", null, /*#__PURE__*/React.createElement("td", {
       colSpan: form.hidePrice ? 4 : 6,
@@ -1291,7 +1322,7 @@ function ThermalBill({
       style: { fontSize: 16, fontWeight: 700, minWidth: 60, textAlign: "right" }
     }, (summary&&summary.freightNet||0).toLocaleString("th-TH"), " \u0E3F"),
     _isMinApplied && /*#__PURE__*/React.createElement("div", {
-      style: { fontSize: 9, color: "#000", fontWeight: 400, marginTop: 1 }
+      style: { fontSize: 9, color: "#E67E22", fontWeight: 700, marginTop: 1 }
     }, "(ยอดขั้นต่ำพื้นที่พิเศษ)")
   ), /*#__PURE__*/React.createElement(Div, {
     dashed: true
@@ -3088,7 +3119,8 @@ function ThermalBillingApp() {
     return s + (v > 0 ? Math.round(v * 0.005) : 0);
   }, 0);
   const freightNetRaw = Math.max(0, freightTotal - discountAmt);
-  const minFr = form.isSpecialArea ? (parseInt(form.minFreight) || 0) : 0;
+  const autoMin = getMinFreight(form.destProv||"", form.receiverAmphoe||"");
+  const minFr = form.isSpecialArea ? (parseInt(form.minFreight) || 0) : autoMin;
   const freightNet = Math.max(freightNetRaw, minFr);
   const isMinApplied = minFr > 0 && freightNetRaw < minFr;
   const codTotal = items.reduce((s, item) => s + (item.hasCOD ? parseFloat(item.codAmount) || 0 : 0), 0);
