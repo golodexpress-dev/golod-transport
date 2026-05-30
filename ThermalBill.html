@@ -3233,23 +3233,34 @@ function ThermalBillingApp() {
       items: [...items],
       summary
     };
-    // ถ้าเป็นการแก้ไขบิล
-    if (form._editBillNo) {
-      saveEditLog(form._editBillNo, form._editOld, nb, sessionUser);
-      setBills(p => p.map(b => b.billNo === form._editBillNo ? nb : b));
-      // sync Firestore
-      if (typeof GolodDB !== "undefined") GolodDB.saveBill(nb).catch(function () {});
-      // sync Google Sheets (ระบบเดิม)
+    // บันทึกก่อน แล้วค่อยแสดง preview
+    const doSave = () => {
+      if (form._editBillNo) {
+        saveEditLog(form._editBillNo, form._editOld, nb, sessionUser);
+        setBills(p => p.map(b => b.billNo === form._editBillNo ? nb : b));
+      } else {
+        setBills(p => [nb, ...p]);
+      }
       if (typeof SHEETS_SYNC !== "undefined") SHEETS_SYNC.appendToSheet(nb).catch(function () {});
+      setViewBill(nb);
+      setView("preview");
+    };
+
+    // บันทึกลง Firestore ก่อน แล้วค่อยไป preview
+    if (typeof GolodDB !== "undefined" && GolodDB.saveBill) {
+      // แสดง loading
+      const btn = document.querySelector("[data-main-save-btn]");
+      if(btn){ btn.disabled=true; btn.textContent="⏳ กำลังบันทึก..."; }
+      GolodDB.saveBill(nb).then(function(){
+        doSave();
+      }).catch(function(e){
+        // ถ้า Firestore ล้มเหลว บันทึก localStorage ไว้ก่อน
+        console.warn("Firestore save failed:", e.message);
+        doSave();
+      });
     } else {
-      setBills(p => [nb, ...p]);
-      // sync Firestore
-      if (typeof GolodDB !== "undefined") GolodDB.saveBill(nb).catch(function () {});
-      // sync Google Sheets (ระบบเดิม)
-      if (typeof SHEETS_SYNC !== "undefined") SHEETS_SYNC.appendToSheet(nb).catch(function () {});
+      doSave();
     }
-    setViewBill(nb);
-    setView("preview");
   };
   const resetForm = () => {
     window._editBillData = null;
@@ -3992,6 +4003,7 @@ function ThermalBillingApp() {
     }
   }, "\u0E22\u0E01\u0E40\u0E25\u0E34\u0E01"), /*#__PURE__*/React.createElement("button", {
     onClick: handleSubmit,
+    "data-main-save-btn": true,
     style: {
       padding: "7px 22px",
       border: "none",
@@ -4489,6 +4501,7 @@ function ManualBillForm({ staffCode, staffName, onSave }) {
     Field("หมายเหตุ","note",{placeholder:"หมายเหตุเพิ่มเติม"}),
     React.createElement("button",{
       onClick:handleSave,
+      "data-save-btn":true,
       style:{width:"100%",padding:"11px",background:"#1D9E75",color:"#fff",border:"none",borderRadius:9,fontWeight:700,fontSize:14,cursor:"pointer",marginTop:8}
     },"💾 บันทึกบิลมือเข้าระบบ")
   );
