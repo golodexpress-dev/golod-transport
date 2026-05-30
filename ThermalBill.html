@@ -368,7 +368,27 @@ overrideHookState:null,overrideHookStateDeletePath:null,overrideHookStateRenameP
 }a=Vf(b);a=null===a?null:a.stateNode;return a};M.flushSync=function(a,b){var c=n;if(0!==(c&48))return a(b);n|=1;try{if(a)return Za(99,a.bind(null,b))}finally{n=c,ja()}};M.hydrate=function(a,b,c){if(!wc(b))throw Error(m(200));return zd(null,a,b,!0,c)};M.render=function(a,b,c){if(!wc(b))throw Error(m(200));return zd(null,a,b,!1,c)};M.unmountComponentAtNode=function(a){if(!wc(a))throw Error(m(40));return a._reactRootContainer?(bi(function(){zd(null,null,a,!1,function(){a._reactRootContainer=null;a[rb]=
 null})}),!0):!1};M.unstable_batchedUpdates=ai;M.unstable_createPortal=function(a,b){return hi(a,b,2<arguments.length&&void 0!==arguments[2]?arguments[2]:null)};M.unstable_renderSubtreeIntoContainer=function(a,b,c,d){if(!wc(c))throw Error(m(200));if(null==a||void 0===a._reactInternals)throw Error(m(38));return zd(a,b,c,!1,d)};M.version="17.0.2"});
 })();
-</script><script>var useState=React.useState,useRef=React.useRef,useEffect=React.useEffect,useCallback=React.useCallback,useMemo=React.useMemo,useContext=React.useContext,useReducer=React.useReducer;
+</script><script>
+function getMinFreight(prov, amphoe) {
+  if(!prov) return 0;
+  var min1000 = ["น้ำหนาว","นาแห้ว","ทองผาภูมิ","ปิล็อก"];
+  var min500 = ["ศรีสวัสดิ์","สังขละบุรี","ปากชม","นาด้วง","ตาพระยา","โคกสูง","คลองหาด",
+    "สอยดาว","เขาสมิง","บ่อไร่","เขาชะเมา","สวี","หลังสวน","บ้านไร่","สามเงา",
+    "เถิน","แม่พริก","น้ำปาด","นครไทย","ชาติตระการ","หล่มสัก","หล่มเก่า",
+    "ภูเรือ","ด่านซ้าย","ศรีสัชนาลัย","สังคม","บ้านแพง","บึงโขงหลง",
+    "ดงหลวง","ภูพาน","เต่างอย","สามชัย","ภักดีชุมพล","เทพสถิต",
+    "สิรินธร","ศรีเมืองใหม่","นาจะหลวย","น้ำยืน","ภูสิงห์","แม่สอด","พบพระ"];
+  var amp = amphoe||"";
+  if(min1000.indexOf(amp)>=0) return 1000;
+  if(min500.indexOf(amp)>=0) return 500;
+  if(["กรุงเทพมหานคร","ปทุมธานี","สมุทรปราการ","สมุทรสาคร","นนทบุรี"].indexOf(prov)>=0) return 100;
+  if(["พระนครศรีอยุธยา","นครปฐม","สมุทรสงคราม","เพชรบุรี","ราชบุรี","สุพรรณบุรี","สิงห์บุรี","อ่างทอง","ลพบุรี","สระบุรี","ปราจีนบุรี","นครนายก","ฉะเชิงเทรา","ชลบุรี","ระยอง"].indexOf(prov)>=0) return 120;
+  if(["กาญจนบุรี","สระแก้ว","จันทบุรี","ชัยนาท","ประจวบคีรีขันธ์","นครราชสีมา","บุรีรัมย์","มหาสารคาม","ชัยภูมิ","ร้อยเอ็ด","ยโสธร","อุบลราชธานี","ศรีสะเกษ","สุรินทร์"].indexOf(prov)>=0) return amp.startsWith("เมือง")?120:150;
+  if(["อุตรดิตถ์","สุโขทัย","พิษณุโลก","พิจิตร","กำแพงเพชร","ตาก","อุทัยธานี","เพชรบูรณ์","ชุมพร","มุกดาหาร","นครพนม","บึงกาฬ","สกลนคร","หนองคาย","เลย","อุดรธานี","กาฬสินธุ์","ตราด","หนองบัวลำภู","อำนาจเจริญ","นครสวรรค์"].indexOf(prov)>=0) return amp.startsWith("เมือง")?180:200;
+  return 0;
+}
+</script>
+<script>var useState=React.useState,useRef=React.useRef,useEffect=React.useEffect,useCallback=React.useCallback,useMemo=React.useMemo,useContext=React.useContext,useReducer=React.useReducer;
 // ===== SearchSelect — พิมพ์ค้นหาในช่องเลือกจังหวัด/อำเภอ =====
 function SearchSelect({
   value,
@@ -1019,36 +1039,6 @@ function ThermalBill({
 }) {
   // คำนวณ minFreight ภายใน
 
-// ค่าส่งขั้นต่ำอัตโนมัติ
-function getMinFreight(prov, amphoe) {
-  if(!prov) return 0;
-  var min1000 = ["น้ำหนาว","นาแห้ว","ทองผาภูมิ","ปิล็อก"];
-  var min500 = ["ศรีสวัสดิ์","สังขละบุรี","ปากชม","นาด้วง","ตาพระยา","โคกสูง","คลองหาด",
-    "สอยดาว","เขาสมิง","บ่อไร่","เขาชะเมา","สวี","หลังสวน","บ้านไร่","สามเงา",
-    "เถิน","แม่พริก","น้ำปาด","นครไทย","ชาติตระการ","หล่มสัก","หล่มเก่า",
-    "ภูเรือ","ด่านซ้าย","ศรีสัชนาลัย","สังคม","บ้านแพง","บึงโขงหลง",
-    "ดงหลวง","ภูพาน","เต่างอย","สามชัย","ภักดีชุมพล","เทพสถิต",
-    "สิรินธร","ศรีเมืองใหม่","นาจะหลวย","น้ำยืน","ภูสิงห์","แม่สอด","พบพระ"];
-  var amp = amphoe||"";
-  if(min1000.indexOf(amp) >= 0) return 1000;
-  if(min500.indexOf(amp) >= 0) return 500;
-  var bkk = ["กรุงเทพมหานคร","ปทุมธานี","สมุทรปราการ","สมุทรสาคร","นนทบุรี"];
-  if(bkk.indexOf(prov) >= 0) return 100;
-  var g120all = ["พระนครศรีอยุธยา","นครปฐม","สมุทรสงคราม","เพชรบุรี","ราชบุรี",
-    "สุพรรณบุรี","สิงห์บุรี","อ่างทอง","ลพบุรี","สระบุรี","ปราจีนบุรี",
-    "นครนายก","ฉะเชิงเทรา","ชลบุรี","ระยอง"];
-  if(g120all.indexOf(prov) >= 0) return 120;
-  var g120city = ["กาญจนบุรี","สระแก้ว","จันทบุรี","ชัยนาท","ประจวบคีรีขันธ์",
-    "นครราชสีมา","บุรีรัมย์","มหาสารคาม","ชัยภูมิ","ร้อยเอ็ด","ยโสธร",
-    "อุบลราชธานี","ศรีสะเกษ","สุรินทร์"];
-  if(g120city.indexOf(prov) >= 0) return amp.startsWith("เมือง") ? 120 : 150;
-  var g180city = ["อุตรดิตถ์","สุโขทัย","พิษณุโลก","พิจิตร","กำแพงเพชร","ตาก",
-    "อุทัยธานี","เพชรบูรณ์","ชุมพร","มุกดาหาร","นครพนม","บึงกาฬ",
-    "สกลนคร","หนองคาย","เลย","อุดรธานี","กาฬสินธุ์","ตราด",
-    "หนองบัวลำภู","อำนาจเจริญ","นครสวรรค์"];
-  if(g180city.indexOf(prov) >= 0) return amp.startsWith("เมือง") ? 180 : 200;
-  return 0;
-}
   const _autoMin = getMinFreight(form.destProv||"", form.receiverAmphoe||"");
   const _minFr = form.isSpecialArea ? (parseInt(form.minFreight)||0) : _autoMin;
   const _isMinApplied = _minFr > 0 && (summary.freightTotal||summary.freightNet||0) < _minFr;
