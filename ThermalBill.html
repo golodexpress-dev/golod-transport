@@ -1140,7 +1140,7 @@ function ThermalBill({
   }, /*#__PURE__*/React.createElement("div", {
     style: { display:"flex", alignItems:"baseline", flexWrap:"wrap", gap:4, marginBottom:0 }
   },
-    /*#__PURE__*/React.createElement("span", { style:{ fontSize:10, fontWeight:800, whiteSpace:"nowrap", flexShrink:0, marginRight:2 }}, "[ \u0E1C\u0E39\u0E49\u0E2A\u0E48\u0E07 ]"),
+    /*#__PURE__*/React.createElement("span", { style:{ fontSize:10, fontWeight:800, whiteSpace:"nowrap", flexShrink:0, marginRight:2 }}, "\u0E1C\u0E39\u0E49\u0E2A\u0E48\u0E07 :"),
     /*#__PURE__*/React.createElement("span", { style:{ fontSize:14, fontWeight:800, wordBreak:"break-word" }}, form.senderName || "—")
   ), /*#__PURE__*/React.createElement("div", { style:{ fontSize:12, fontWeight:900 }},
     "\u0E42\u0E17\u0E23: ", form.senderPhone || "—"),
@@ -1157,7 +1157,7 @@ function ThermalBill({
   }, /*#__PURE__*/React.createElement("div", {
     style: { display:"flex", alignItems:"baseline", flexWrap:"wrap", gap:4, marginBottom:0 }
   },
-    /*#__PURE__*/React.createElement("span", { style:{ fontSize:10, fontWeight:800, whiteSpace:"nowrap", flexShrink:0, marginRight:2 }}, "[ \u0E1C\u0E39\u0E49\u0E23\u0E31\u0E1A ]"),
+    /*#__PURE__*/React.createElement("span", { style:{ fontSize:10, fontWeight:800, whiteSpace:"nowrap", flexShrink:0, marginRight:2 }}, "\u0E1C\u0E39\u0E49\u0E23\u0E31\u0E1A :"),
     /*#__PURE__*/React.createElement("span", { style:{ fontSize:14, fontWeight:800, wordBreak:"break-word" }}, form.receiverName || "—")
   ), /*#__PURE__*/React.createElement("div", { style:{ fontSize:12, fontWeight:900 }},
     "\u0E42\u0E17\u0E23: ", form.receiverPhone || "—"),
@@ -1175,12 +1175,14 @@ function ThermalBill({
     style: {
       width: "100%",
       borderCollapse: "collapse",
+      border: "0.5px solid #555",
       fontSize: 9,
       marginBottom: 4
     }
   }, /*#__PURE__*/React.createElement("thead", null, /*#__PURE__*/React.createElement("tr", {
     style: {
-      borderBottom: "0.5px solid #333"
+      borderBottom: "1px solid #555",
+      borderTop: "0.5px solid #555": "0.5px solid #333"
     }
   }, /*#__PURE__*/React.createElement("th", {
     style: { textAlign: "left", padding: "1px 2px", fontWeight: 700, maxWidth: 90, borderRight:"0.5px solid #999", background:"#eee", fontSize:10 }
@@ -1239,7 +1241,8 @@ function ThermalBill({
       style: {
         textAlign: "right",
         padding: "2px 2px",
-        fontSize: 9
+        fontSize: 9,
+        borderRight: "0.5px solid #ccc"
       }
     }, up > 0 ? up.toLocaleString("th-TH") : "-"), /*#__PURE__*/React.createElement("td", {
       style: {
@@ -1253,7 +1256,8 @@ function ThermalBill({
         textAlign: "right",
         padding: "2px 2px",
         fontSize: 9,
-        fontWeight: 700
+        fontWeight: 700,
+        borderLeft: "0.5px solid #ccc"
       }
     }, lt > 0 ? lt.toLocaleString("th-TH") : "-")), (parseFloat(item.declaredValue) || 0) > 0 && /*#__PURE__*/React.createElement("tr", null, /*#__PURE__*/React.createElement("td", {
       colSpan: form.hidePrice ? 4 : 6,
@@ -1290,7 +1294,7 @@ function ThermalBill({
       style: { fontSize: 16, fontWeight: 700, minWidth: 60, textAlign: "right" }
     }, (summary&&summary.freightNet||0).toLocaleString("th-TH"), " \u0E3F"),
     _isMinApplied && /*#__PURE__*/React.createElement("div", {
-      style: { fontSize: 9, color: "#E67E22", fontWeight: 700, marginTop: 1 }
+      style: { fontSize: 9, color: "#000", fontWeight: 400, marginTop: 1 }
     }, "(ยอดขั้นต่ำพื้นที่พิเศษ)")
   ), /*#__PURE__*/React.createElement(Div, {
     dashed: true
@@ -3233,39 +3237,23 @@ function ThermalBillingApp() {
       items: [...items],
       summary
     };
-    // บันทึก Firestore ก่อน แล้วค่อย preview — ป้องกันพิมพ์ก่อนบันทึก
-    const saveBtn = document.querySelector("[data-main-save-btn]");
-    const setBtnLoading = (loading) => {
-      if(!saveBtn) return;
-      saveBtn.disabled = loading;
-      saveBtn.textContent = loading ? "⏳ กำลังบันทึก..." : "ออกบิล ✓";
-      saveBtn.style.background = loading ? "#aaa" : "#1D9E75";
-    };
-    setBtnLoading(true);
-
-    const doSave = () => {
-      setBtnLoading(false);
-      if (form._editBillNo) {
-        setBills(p => p.map(b => b.billNo === form._editBillNo ? nb : b));
-      } else {
-        setBills(p => [nb, ...p]);
-      }
+    // ถ้าเป็นการแก้ไขบิล
+    if (form._editBillNo) {
+      saveEditLog(form._editBillNo, form._editOld, nb, sessionUser);
+      setBills(p => p.map(b => b.billNo === form._editBillNo ? nb : b));
+      // sync Firestore
+      if (typeof GolodDB !== "undefined") GolodDB.saveBill(nb).catch(function () {});
+      // sync Google Sheets (ระบบเดิม)
       if (typeof SHEETS_SYNC !== "undefined") SHEETS_SYNC.appendToSheet(nb).catch(function () {});
-      setViewBill(nb);
-      setView("preview");
-    };
-
-    if (typeof GolodDB !== "undefined" && GolodDB.saveBill) {
-      GolodDB.saveBill(nb).then(function(){
-        doSave(); // บันทึกสำเร็จ ค่อยไป preview
-      }).catch(function(e){
-        setBtnLoading(false);
-        if(!confirm("⚠️ บันทึกไม่สำเร็จ: " + e.message + "\n\nต้องการดำเนินการต่อไหม? (บิลจะถูกบันทึกเฉพาะในเครื่อง)")) return;
-        doSave();
-      });
     } else {
-      doSave();
+      setBills(p => [nb, ...p]);
+      // sync Firestore
+      if (typeof GolodDB !== "undefined") GolodDB.saveBill(nb).catch(function () {});
+      // sync Google Sheets (ระบบเดิม)
+      if (typeof SHEETS_SYNC !== "undefined") SHEETS_SYNC.appendToSheet(nb).catch(function () {});
     }
+    setViewBill(nb);
+    setView("preview");
   };
   const resetForm = () => {
     window._editBillData = null;
@@ -4008,7 +3996,6 @@ function ThermalBillingApp() {
     }
   }, "\u0E22\u0E01\u0E40\u0E25\u0E34\u0E01"), /*#__PURE__*/React.createElement("button", {
     onClick: handleSubmit,
-    "data-main-save-btn": true,
     style: {
       padding: "7px 22px",
       border: "none",
@@ -4506,7 +4493,6 @@ function ManualBillForm({ staffCode, staffName, onSave }) {
     Field("หมายเหตุ","note",{placeholder:"หมายเหตุเพิ่มเติม"}),
     React.createElement("button",{
       onClick:handleSave,
-      "data-save-btn":true,
       style:{width:"100%",padding:"11px",background:"#1D9E75",color:"#fff",border:"none",borderRadius:9,fontWeight:700,fontSize:14,cursor:"pointer",marginTop:8}
     },"💾 บันทึกบิลมือเข้าระบบ")
   );
