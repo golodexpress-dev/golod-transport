@@ -1019,7 +1019,7 @@ function ThermalBill({
 }) {
   // คำนวณ minFreight ภายใน
   const _minFr = form.isSpecialArea ? (parseInt(form.minFreight)||0) : 0;
-  const _isMinApplied = _minFr > 0 && summary.freightNet >= _minFr && (summary.freightTotal||summary.freightNet) < _minFr;
+  const _isMinApplied = _minFr > 0 && (summary.freightTotal||summary.freightNet||0) < _minFr;
   var _FREIGHT_PAY$find, _BRANCHES$find;
   const W = 298;
   const zone = getZone(form.branch, form.destProv, form.receiverAmphoe);
