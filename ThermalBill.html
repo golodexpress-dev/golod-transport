@@ -3233,10 +3233,19 @@ function ThermalBillingApp() {
       items: [...items],
       summary
     };
-    // บันทึกก่อน แล้วค่อยแสดง preview
+    // บันทึก Firestore ก่อน แล้วค่อย preview — ป้องกันพิมพ์ก่อนบันทึก
+    const saveBtn = document.querySelector("[data-main-save-btn]");
+    const setBtnLoading = (loading) => {
+      if(!saveBtn) return;
+      saveBtn.disabled = loading;
+      saveBtn.textContent = loading ? "⏳ กำลังบันทึก..." : "ออกบิล ✓";
+      saveBtn.style.background = loading ? "#aaa" : "#1D9E75";
+    };
+    setBtnLoading(true);
+
     const doSave = () => {
+      setBtnLoading(false);
       if (form._editBillNo) {
-        saveEditLog(form._editBillNo, form._editOld, nb, sessionUser);
         setBills(p => p.map(b => b.billNo === form._editBillNo ? nb : b));
       } else {
         setBills(p => [nb, ...p]);
@@ -3246,23 +3255,17 @@ function ThermalBillingApp() {
       setView("preview");
     };
 
-    // บันทึกลง Firestore ก่อน แล้วค่อยไป preview
     if (typeof GolodDB !== "undefined" && GolodDB.saveBill) {
-      // แสดง loading
-      const btn = document.querySelector("[data-main-save-btn]");
-      if(btn){ btn.disabled=true; btn.textContent="⏳ กำลังบันทึก..."; }
       GolodDB.saveBill(nb).then(function(){
-        doSave();
+        doSave(); // บันทึกสำเร็จ ค่อยไป preview
       }).catch(function(e){
-        // ถ้า Firestore ล้มเหลว บันทึก localStorage ไว้ก่อน
-        console.warn("Firestore save failed:", e.message);
+        setBtnLoading(false);
+        if(!confirm("⚠️ บันทึกไม่สำเร็จ: " + e.message + "\n\nต้องการดำเนินการต่อไหม? (บิลจะถูกบันทึกเฉพาะในเครื่อง)")) return;
         doSave();
       });
     } else {
       doSave();
     }
-  };
-  const resetForm = () => {
     window._editBillData = null;
     var code = staffCode;
     setForm({
