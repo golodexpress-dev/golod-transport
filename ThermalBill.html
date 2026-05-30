@@ -4398,10 +4398,16 @@ function ManualBillForm({ staffCode, staffName, onSave }) {
       receiverName:form.receiverName, receiverPhone:form.receiverPhone,
       destProv:form.destProv, destAmphoe:form.receiverAmphoe,
       receiverTambon:form.receiverTambon, receiverZip:form.receiverZip, receiverAddr:form.receiverAddr,
-      freightNet:form.freightNet||totalFreight, freightPay:form.freightPay,
+      freightNet:parseFloat(form.freightNet)>0?parseFloat(form.freightNet):totalFreight,
+      freightPay:form.freightPay,
       codTotal:parseFloat(form.codTotal)||0,
       status:"issued", isManual:true, note:form.note, branch:"bkk",
-      items, summary:{freightNet:form.freightNet||totalFreight,codTotal:parseFloat(form.codTotal)||0},
+      items, summary:{
+        freightNet:parseFloat(form.freightNet)>0?parseFloat(form.freightNet):totalFreight,
+        freightTotal:parseFloat(form.freightNet)>0?parseFloat(form.freightNet):totalFreight,
+        codTotal:parseFloat(form.codTotal)||0,
+        discount:0, insurance:0
+      },
       form:{...form,staff:staffCode,branch:"bkk"}
     };
     onSave(nb);
