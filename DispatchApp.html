@@ -1340,6 +1340,7 @@ function renderTripList(){
         +'</div>'
         +'<div style="display:flex;flex-direction:column;gap:4px;align-items:flex-end">'
           +'<button class="btn btn-gray" data-tid="'+t.id+'" onclick="editTrip(this.dataset.tid)">✏️ แก้ไข</button>'
+          +'<button class="btn" data-tid="'+t.id+'" onclick="openTripVehiclePhoto(this.dataset.tid)" style="background:#34495e;color:#fff">📷 รูปรถ ('+((t.vehiclePhotos||[]).length)+')</button>'
           +(canClearTrip()?'<button class="btn btn-orange" data-tid="'+t.id+'" onclick="openClearTrip(this.dataset.tid)">💰 เคลียร์เที่ยว</button>':'')
           +(canClearTrip()?'<button class="btn btn-green" data-tid="'+t.id+'" onclick="closeTrip(this.dataset.tid)">✅ ปิดเที่ยว</button>':'')
           +'<button class="btn btn-blue" data-tid="'+t.id+'" onclick="printTripSummary(this.dataset.tid)">🖨 พิมพ์</button>'
@@ -1397,6 +1398,65 @@ function openCreateTrip(){
   _tripState.editId = null;
   _tripState.selectedBills = {};
   renderTripForm();
+}
+
+var _tvpTripId=null, _tvpPhotos=[];
+function openTripVehiclePhoto(tripId){
+  _tvpTripId=tripId; _tvpPhotos=[];
+  var t = _tripState.openTrips.find(function(x){return x.id===tripId;});
+  var existing = (t&&t.vehiclePhotos)?t.vehiclePhotos:[];
+  var ex=(t&&t.extras)||{};
+  var conds=[];
+  if(ex.openTail)conds.push("เปิดท้าย");
+  if(ex.longLoad)conds.push("ยื่นยาว");
+  if(ex.overHeight)conds.push("สูงเกิน");
+  if(ex.overweight)conds.push("น้ำหนักเกิน");
+  var condText=conds.length>0?'<div style="font-size:12px;color:#c0392b;background:#fef0f0;border-radius:7px;padding:8px;margin-bottom:10px">⚠️ เที่ยวนี้: '+conds.join(", ")+' — ควรมีรูปยืนยัน</div>':'<div style="font-size:12px;color:#888;margin-bottom:10px">รูปรถตอนขึ้นของที่บริษัท</div>';
+  var existHtml=existing.length>0?'<div style="font-size:12px;color:#0F6E56;margin-bottom:10px">มีรูปแล้ว '+existing.length+' รูป: '+existing.map(function(u,i){return '<a href="'+u+'" target="_blank">รูป'+(i+1)+'</a>';}).join(", ")+'</div>':'';
+  var bg=document.createElement("div");
+  bg.id="tvp-modal";
+  bg.style.cssText="position:fixed;inset:0;background:rgba(0,0,0,.6);z-index:99999;display:flex;align-items:center;justify-content:center;padding:16px";
+  bg.innerHTML='<div style="background:#fff;border-radius:14px;padding:22px;max-width:400px;width:100%">'
+    +'<h3 style="color:#34495e;margin-bottom:10px">📷 รูปรถตอนขึ้นของ</h3>'
+    +condText+existHtml
+    +'<div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:14px">'
+    +'<div><input type="file" accept="image/*" id="tvp-f1" onchange="prevTvp(this,1)" style="display:none"><label for="tvp-f1" id="tvp-p1" style="display:flex;flex-direction:column;align-items:center;justify-content:center;height:120px;border:2px dashed #ccc;border-radius:10px;cursor:pointer"><div style="font-size:30px">📷</div><div style="font-size:11px;color:#aaa">รูปที่ 1</div></label></div>'
+    +'<div><input type="file" accept="image/*" id="tvp-f2" onchange="prevTvp(this,2)" style="display:none"><label for="tvp-f2" id="tvp-p2" style="display:flex;flex-direction:column;align-items:center;justify-content:center;height:120px;border:2px dashed #ccc;border-radius:10px;cursor:pointer"><div style="font-size:30px">📷</div><div style="font-size:11px;color:#aaa">รูปที่ 2</div></label></div>'
+    +'</div>'
+    +'<div style="display:flex;gap:10px;justify-content:flex-end">'
+    +'<button onclick="document.getElementById(\'tvp-modal\').remove()" class="btn btn-gray">ยกเลิก</button>'
+    +'<button onclick="submitTvp()" id="tvp-btn" class="btn btn-green">💾 บันทึกรูป</button>'
+    +'</div></div>';
+  document.body.appendChild(bg);
+}
+function prevTvp(input,slot){
+  if(!input.files||!input.files[0])return;
+  _tvpPhotos[slot-1]=input.files[0];
+  var r=new FileReader();
+  r.onload=function(e){ document.getElementById("tvp-p"+slot).innerHTML='<img src="'+e.target.result+'" style="width:100%;height:120px;object-fit:cover;border-radius:8px">'; };
+  r.readAsDataURL(input.files[0]);
+}
+function submitTvp(){
+  var files=_tvpPhotos.filter(Boolean);
+  if(files.length===0){ alert("กรุณาเลือกรูปอย่างน้อย 1 รูป"); return; }
+  if(typeof GolodStorage==="undefined"||!GolodStorage.uploadFile){ alert("ระบบ Storage ไม่พร้อม"); return; }
+  var btn=document.getElementById("tvp-btn");
+  btn.disabled=true; btn.textContent="⏳ อัปโหลด...";
+  var uploads=files.map(function(f,i){ return GolodStorage.uploadFile(f,"vehicle/"+_tvpTripId+"_"+Date.now()+"_"+i); });
+  Promise.all(uploads).then(function(urls){
+    var t=_tripState.openTrips.find(function(x){return x.id===_tvpTripId;});
+    var existing=(t&&t.vehiclePhotos)?t.vehiclePhotos:[];
+    var all=existing.concat(urls);
+    if(t) t.vehiclePhotos=all;
+    return firebase.firestore().collection("trips").doc(_tvpTripId).update({vehiclePhotos:all});
+  }).then(function(){
+    alert("บันทึกรูปสำเร็จ");
+    document.getElementById("tvp-modal").remove();
+    renderTripList();
+  }).catch(function(e){
+    btn.disabled=false; btn.textContent="💾 บันทึกรูป";
+    alert("อัปโหลดไม่สำเร็จ: "+(e.message||""));
+  });
 }
 
 function editTrip(tripId){
@@ -1652,6 +1712,20 @@ function makeTfPickupRow(p){
     +'<div><div style="font-size:10px;color:#888;margin-bottom:2px">สินค้า</div>'
     +'<input class="pu-goods trip-inp" value="'+(p.goods||"")+'" placeholder="ประเภทสินค้า"></div>'
     +'</div>'
+    +'<div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-bottom:6px">'
+    +'<div><div style="font-size:10px;color:#888;margin-bottom:2px">ผู้รับปลายทาง</div>'
+    +'<input class="pu-recv trip-inp" value="'+(p.receiverName||"")+'" placeholder="ชื่อผู้รับ"></div>'
+    +'<div><div style="font-size:10px;color:#888;margin-bottom:2px">เบอร์ผู้รับ</div>'
+    +'<input class="pu-recv-phone trip-inp" value="'+(p.receiverPhone||"")+'" placeholder="08x-xxxxxxx"></div>'
+    +'</div>'
+    +'<div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:6px;margin-bottom:6px">'
+    +'<div><div style="font-size:10px;color:#888;margin-bottom:2px">จังหวัดปลายทาง</div>'
+    +'<input class="pu-prov trip-inp" value="'+(p.destProv||"")+'" placeholder="จังหวัด"></div>'
+    +'<div><div style="font-size:10px;color:#888;margin-bottom:2px">อำเภอ</div>'
+    +'<input class="pu-amphoe trip-inp" value="'+(p.destAmphoe||"")+'" placeholder="อำเภอ"></div>'
+    +'<div><div style="font-size:10px;color:#888;margin-bottom:2px">ตำบล</div>'
+    +'<input class="pu-tambon trip-inp" value="'+(p.destTambon||"")+'" placeholder="ตำบล"></div>'
+    +'</div>'
     +'<div style="display:grid;grid-template-columns:1fr 80px 1fr auto;gap:6px;align-items:flex-end;margin-bottom:6px">'
     +'<div><div style="font-size:10px;color:#888;margin-bottom:2px">ค่าขนส่ง (฿) — แก้มือได้</div>'
     +'<input class="pu-freight trip-inp" type="number" value="'+freight+'" placeholder="0" oninput="calcTfPickupTotal()"></div>'
@@ -1729,8 +1803,14 @@ function getTfPickupData(){
     var comm=commEl?parseFloat(commEl.value||0):Math.round(freight*rate/100);
     var paidEl=row.querySelector(".pu-paid");
     var paid=paidEl?paidEl.checked:false;
-    if(loc||goods||freight>0){
-      pickups.push({location:loc,goods:goods,freight:freight,rate:rate,commission:comm,paidOnPickup:paid});
+    var recv=(row.querySelector(".pu-recv")||{}).value||"";
+    var recvPhone=(row.querySelector(".pu-recv-phone")||{}).value||"";
+    var prov=(row.querySelector(".pu-prov")||{}).value||"";
+    var amphoe=(row.querySelector(".pu-amphoe")||{}).value||"";
+    var tambon=(row.querySelector(".pu-tambon")||{}).value||"";
+    if(loc||goods||freight>0||recv||prov){
+      pickups.push({location:loc,goods:goods,freight:freight,rate:rate,commission:comm,paidOnPickup:paid,
+        receiverName:recv,receiverPhone:recvPhone,destProv:prov,destAmphoe:amphoe,destTambon:tambon});
     }
   });
   return pickups;

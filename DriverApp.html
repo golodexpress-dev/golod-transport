@@ -483,7 +483,19 @@ function renderBillListWithTrip(tripBillIds){
       }).join("")
       +'</select>'
       +'<button data-tid="'+SELECTED_TRIP_ID+'" onclick="openDriverClearTrip(this.dataset.tid)" style="padding:8px 12px;background:#EF9F27;color:#fff;border:none;border-radius:8px;font-size:12px;font-weight:700;cursor:pointer;white-space:nowrap">💰 เคลียร์</button>'
-      +'</div></div>'
+      +'</div>'
+      +(function(){
+        var t=DRIVER_TRIPS.find(function(x){return x.id===SELECTED_TRIP_ID;});
+        if(!t) return "";
+        var ex=t.extras||{};
+        var needPhoto = ex.openTail||ex.longLoad||ex.overHeight||ex.overweight;
+        var nPhotos = (t.vehiclePhotos||[]).length;
+        var warn = needPhoto && nPhotos<2
+          ? '<div style="font-size:10px;color:#c0392b;margin-top:6px">⚠️ เที่ยวนี้เข้าเงื่อนไขพิเศษ ต้องมีรูปรถยืนยันอย่างน้อย 2 รูป</div>'
+          : (nPhotos>0?'<div style="font-size:10px;color:#0F6E56;margin-top:6px">✅ มีรูปรถแล้ว '+nPhotos+' รูป</div>':'');
+        return '<button data-tid="'+SELECTED_TRIP_ID+'" onclick="openVehiclePhoto(this.dataset.tid)" style="width:100%;margin-top:8px;padding:9px;background:#34495e;color:#fff;border:none;border-radius:8px;font-size:12px;font-weight:700;cursor:pointer">📷 ส่งรูปรถตอนขึ้นของ ('+nPhotos+'/2)</button>'+warn;
+      })()
+      +'</div>'
     : "";
 
   var summaryStrip = (destTotal>0||codTotal>0||pickupCount>0)
@@ -502,7 +514,23 @@ function renderBillListWithTrip(tripBillIds){
       +'</div>'
     : "";
 
-  var html = tripDropdown + summaryStrip
+  // งานรับจากเที่ยวที่เลือก (เสมียนกรอกไว้)
+  var selTrip = DRIVER_TRIPS.find(function(t){ return t.id===SELECTED_TRIP_ID; });
+  var pickupsHtml = "";
+  if(selTrip && Array.isArray(selTrip.pickups) && selTrip.pickups.length>0){
+    pickupsHtml = '<div style="background:#fffbe6;border:1px solid #ffe082;border-radius:10px;padding:12px;margin-bottom:10px">'
+      +'<div style="font-size:12px;font-weight:800;color:#b7950b;margin-bottom:8px">📦 งานต้องไปรับ ('+selTrip.pickups.length+')</div>';
+    selTrip.pickups.forEach(function(p,i){
+      pickupsHtml += '<div style="background:#fff;border:1px solid #ffe6a0;border-radius:8px;padding:10px;margin-bottom:6px">'
+        +'<div style="font-size:13px;font-weight:700;color:#333">'+(p.location||"ไม่ระบุสถานที่")+'</div>'
+        +'<div style="font-size:12px;color:#666;margin:2px 0">'+(p.goods||"-")+(p.freight>0?' · ฿'+p.freight.toLocaleString("th-TH"):"")+'</div>'
+        +'<button onclick="openPickupFromTrip('+i+')" style="margin-top:4px;padding:6px 14px;background:#EF9F27;color:#fff;border:none;border-radius:7px;font-size:12px;font-weight:700;cursor:pointer">📝 ออกบิลงานนี้</button>'
+        +'</div>';
+    });
+    pickupsHtml += '</div>';
+  }
+
+  var html = tripDropdown + summaryStrip + pickupsHtml
     +'<div style="display:flex;justify-content:space-between;align-items:center;padding:4px 2px 8px">'
     +'<span class="section-title" style="padding:0">งานรอส่ง '+BILLS.length+' รายการ</span>'
     +'<button onclick="loadBills()" style="padding:5px 12px;background:#e8f5f0;color:#0F6E56;border:1px solid #d0ede5;border-radius:8px;font-size:12px;cursor:pointer;font-weight:600">🔄 รีเฟรช</button>'
@@ -826,6 +854,78 @@ startApp();
 
 // ====== Driver Clear Trip ======
 var _driverClearTripId=null;
+var _vpTripId = null;
+var _vpPhotos = [];
+function openVehiclePhoto(tripId){
+  _vpTripId = tripId;
+  _vpPhotos = [];
+  var t = DRIVER_TRIPS.find(function(x){return x.id===tripId;});
+  var existing = (t && t.vehiclePhotos) ? t.vehiclePhotos : [];
+  var ex = (t&&t.extras)||{};
+  var conds = [];
+  if(ex.openTail) conds.push("เปิดท้าย");
+  if(ex.longLoad) conds.push("ยื่นยาว");
+  if(ex.overHeight) conds.push("สูงเกิน");
+  if(ex.overweight) conds.push("น้ำหนักเกิน");
+  var condText = conds.length>0
+    ? '<div style="font-size:11px;color:#c0392b;background:#fef0f0;border-radius:7px;padding:8px;margin-bottom:10px">⚠️ เที่ยวนี้: '+conds.join(", ")+' — ควรมีรูปยืนยัน</div>'
+    : '<div style="font-size:11px;color:#888;margin-bottom:10px">ถ่ายรูปรถตอนขึ้นของเสร็จที่บริษัท</div>';
+  var existHtml = existing.length>0
+    ? '<div style="font-size:11px;color:#0F6E56;margin-bottom:8px">มีรูปแล้ว '+existing.length+' รูป — '+existing.map(function(u,i){return '<a href="'+u+'" target="_blank">รูป'+(i+1)+'</a>';}).join(", ")+'</div>'
+    : "";
+
+  var popup = document.createElement("div");
+  popup.id = "vehicle-photo-modal";
+  popup.style.cssText = "position:fixed;inset:0;background:rgba(0,0,0,.7);z-index:99999;display:flex;align-items:flex-start;justify-content:center;padding:16px;overflow-y:auto";
+  popup.innerHTML =
+    '<div style="background:#fff;border-radius:16px;padding:20px;max-width:360px;width:100%;margin:auto">'
+    +'<div style="font-size:15px;font-weight:800;color:#34495e;margin-bottom:10px">📷 รูปรถตอนขึ้นของ</div>'
+    +condText
+    +existHtml
+    +'<div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:14px">'
+    +'<div><input type="file" accept="image/*" capture="environment" id="vp-file1" onchange="previewVp(this,1)" style="display:none"><label for="vp-file1" id="vp-prev1" style="display:flex;flex-direction:column;align-items:center;justify-content:center;height:110px;border:2px dashed #ccc;border-radius:10px;cursor:pointer"><div style="font-size:28px">📷</div><div style="font-size:10px;color:#aaa">รูปที่ 1</div></label></div>'
+    +'<div><input type="file" accept="image/*" capture="environment" id="vp-file2" onchange="previewVp(this,2)" style="display:none"><label for="vp-file2" id="vp-prev2" style="display:flex;flex-direction:column;align-items:center;justify-content:center;height:110px;border:2px dashed #ccc;border-radius:10px;cursor:pointer"><div style="font-size:28px">📷</div><div style="font-size:10px;color:#aaa">รูปที่ 2</div></label></div>'
+    +'</div>'
+    +'<button onclick="submitVehiclePhoto()" id="vp-submit-btn" style="width:100%;padding:12px;background:#0F6E56;color:#fff;border:none;border-radius:10px;font-size:14px;font-weight:800;cursor:pointer;margin-bottom:8px">💾 บันทึกรูป</button>'
+    +'<button onclick="document.getElementById(\'vehicle-photo-modal\').remove()" style="width:100%;padding:10px;background:#f5f5f5;border:none;border-radius:9px;font-size:12px;cursor:pointer">ปิด</button>'
+    +'</div>';
+  document.body.appendChild(popup);
+}
+function previewVp(input, slot){
+  if(!input.files||!input.files[0]) return;
+  _vpPhotos[slot-1] = input.files[0];
+  var reader = new FileReader();
+  reader.onload = function(e){
+    var prev = document.getElementById("vp-prev"+slot);
+    prev.innerHTML = '<img src="'+e.target.result+'" style="width:100%;height:110px;object-fit:cover;border-radius:8px">';
+  };
+  reader.readAsDataURL(input.files[0]);
+}
+function submitVehiclePhoto(){
+  var files = _vpPhotos.filter(Boolean);
+  if(files.length===0){ alert("กรุณาเลือกรูปอย่างน้อย 1 รูป"); return; }
+  if(typeof GolodStorage==="undefined"||!GolodStorage.uploadFile){ alert("ระบบ Storage ไม่พร้อม"); return; }
+  var btn = document.getElementById("vp-submit-btn");
+  btn.disabled=true; btn.textContent="⏳ กำลังอัปโหลด...";
+  var uploads = files.map(function(f,i){
+    return GolodStorage.uploadFile(f, "vehicle/"+_vpTripId+"_"+Date.now()+"_"+i);
+  });
+  Promise.all(uploads).then(function(urls){
+    var t = DRIVER_TRIPS.find(function(x){return x.id===_vpTripId;});
+    var existing = (t&&t.vehiclePhotos)?t.vehiclePhotos:[];
+    var allUrls = existing.concat(urls);
+    var db = firebase.firestore();
+    return db.collection("trips").doc(_vpTripId).update({vehiclePhotos:allUrls});
+  }).then(function(){
+    alert("บันทึกรูปสำเร็จ");
+    document.getElementById("vehicle-photo-modal").remove();
+    loadBills();
+  }).catch(function(e){
+    btn.disabled=false; btn.textContent="💾 บันทึกรูป";
+    alert("อัปโหลดไม่สำเร็จ: "+(e.message||""));
+  });
+}
+
 function openDriverClearTrip(tripId){
   var trip=DRIVER_TRIPS.find(function(t){return t.id===tripId;});
   if(!trip){alert("ไม่พบข้อมูลเที่ยว");return;}
@@ -904,10 +1004,40 @@ function genPickupBillNo(){
   return "DR"+yy+mm+"-"+ts;
 }
 
+function openPickupFromTrip(idx){
+  var selTrip = DRIVER_TRIPS.find(function(t){ return t.id===SELECTED_TRIP_ID; });
+  if(!selTrip || !selTrip.pickups || !selTrip.pickups[idx]){ openPickupBill(); return; }
+  var p = selTrip.pickups[idx];
+  openPickupBill();
+  // เติมข้อมูลจากงานรับ
+  setTimeout(function(){
+    var senderEl = document.getElementById("pb-sender-name");
+    if(senderEl && p.location) senderEl.value = p.location;
+    var freightEl = document.getElementById("pb-freight");
+    if(freightEl && p.freight>0) freightEl.value = p.freight;
+    var recvEl = document.getElementById("pb-receiver-name");
+    if(recvEl && p.receiverName) recvEl.value = p.receiverName;
+    var phoneEl = document.getElementById("pb-receiver-phone");
+    if(phoneEl && p.receiverPhone) phoneEl.value = p.receiverPhone;
+    var provEl = document.getElementById("pb-dest-prov");
+    if(provEl && p.destProv) provEl.value = p.destProv;
+    var ampEl = document.getElementById("pb-dest-amphoe");
+    if(ampEl && p.destAmphoe) ampEl.value = p.destAmphoe;
+    var tambonEl = document.getElementById("pb-dest-tambon");
+    if(tambonEl && p.destTambon) tambonEl.value = p.destTambon;
+    // เติมสินค้าช่องแรก
+    var goodsInp = document.querySelector(".pb-goods-inp");
+    if(goodsInp && p.goods) goodsInp.value = p.goods;
+    // ชำระปลายทางเป็น default งานรับ
+    var payEl = document.getElementById("pb-pay");
+    if(payEl) payEl.value = "dest";
+  }, 100);
+}
+
 function openPickupBill(){
   _pbBillNo = genPickupBillNo();
   document.getElementById("pb-bill-no").textContent = "เลขบิล: "+_pbBillNo+" | คนรถ: "+(CU?CU.name:"");
-  ["pb-sender-name","pb-receiver-name","pb-receiver-phone","pb-dest-prov","pb-freight"]
+  ["pb-sender-name","pb-receiver-name","pb-receiver-phone","pb-dest-prov","pb-dest-amphoe","pb-dest-tambon","pb-freight"]
     .forEach(function(id){ var el=document.getElementById(id); if(el)el.value=""; });
   // reset goods rows เหลือแค่ช่องแรก
   var list=document.getElementById("pb-goods-list");
@@ -1116,6 +1246,9 @@ function submitPickupBill(){
     senderPhone: "",
     receiverName: g("pb-receiver-name"),
     receiverPhone: g("pb-receiver-phone"),
+    destAmphoe: g("pb-dest-amphoe"),
+    receiverAmphoe: g("pb-dest-amphoe"),
+    receiverTambon: g("pb-dest-tambon"),
     destProv: g("pb-dest-prov"),
     destAmphoe: "",
     freightNet: parseFloat(g("pb-freight"))||0,
@@ -1303,6 +1436,10 @@ function submitPickupBill(){
       <div style="display:flex;gap:8px;align-items:center">
         <input id="pb-dest-prov" placeholder="จังหวัด" style="flex:1;padding:10px 12px;border:1px solid #ddd;border-radius:8px;font-size:14px">
         <button onclick="startVoice('pb-dest-prov','จังหวัด')" style="width:42px;height:42px;border-radius:50%;background:#f0faf5;border:1px solid #d0ede5;cursor:pointer;display:flex;align-items:center;justify-content:center;flex-shrink:0">🎤</button>
+      </div>
+      <div style="display:flex;gap:8px;margin-top:8px">
+        <input id="pb-dest-amphoe" placeholder="อำเภอ" style="flex:1;padding:10px 12px;border:1px solid #ddd;border-radius:8px;font-size:14px">
+        <input id="pb-dest-tambon" placeholder="ตำบล" style="flex:1;padding:10px 12px;border:1px solid #ddd;border-radius:8px;font-size:14px">
       </div>
     </div>
 
