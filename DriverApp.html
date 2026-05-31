@@ -930,47 +930,93 @@ function closePickupBill(){
   document.getElementById("pickup-bill-modal").style.display="none";
 }
 
-function showPickupSuccess(billNo, receiverName, destProv){
-  // สร้าง tracking URL
+function showPickupSuccess(billNo, receiverName, destProv, items, freight, freightPay){
   var trackUrl = "https://golodexpress-dev.github.io/golod-transport/TrackingSystem.html?bill="+billNo;
   var lineMsg = encodeURIComponent("📦 โกโลด ทรานสปอร์ต\nเลขบิล: "+billNo+"\nติดตามสินค้า: "+trackUrl);
+  var PAY_TH = {origin:"ต้นทาง",dest:"ปลายทาง(สด)",transfer:"โอนล่วงหน้า",credit:"เครดิต"};
+  var itemsHtml = (items||[]).filter(function(i){return i.desc;}).map(function(it){
+    return '<div style="display:flex;justify-content:space-between;font-size:12px;padding:3px 0;border-bottom:0.5px solid #eee">'
+      +'<span>'+it.desc+'</span><span style="color:#555">'+it.qty+' ชิ้น</span></div>';
+  }).join("");
+  var now = new Date();
+  var timeStr = now.toLocaleDateString("th-TH",{day:"2-digit",month:"2-digit",year:"numeric"})+" "+now.toLocaleTimeString("th-TH",{hour:"2-digit",minute:"2-digit"});
 
-  // สร้าง popup
+  // บันทึกใบสรุปใน localStorage
+  var history = JSON.parse(localStorage.getItem("dr_bill_history")||"[]");
+  history.unshift({billNo:billNo,receiverName:receiverName,destProv:destProv,items:items,freight:freight,freightPay:freightPay,time:timeStr});
+  if(history.length>50) history=history.slice(0,50);
+  localStorage.setItem("dr_bill_history", JSON.stringify(history));
+
   var popup = document.createElement("div");
   popup.id = "pickup-success-popup";
-  popup.style.cssText = "position:fixed;inset:0;background:rgba(0,0,0,.6);z-index:99999;display:flex;align-items:center;justify-content:center;padding:20px";
+  popup.style.cssText = "position:fixed;inset:0;background:rgba(0,0,0,.7);z-index:99999;display:flex;align-items:flex-start;justify-content:center;padding:16px;overflow-y:auto";
   popup.innerHTML =
-    '<div style="background:#fff;border-radius:16px;padding:24px;max-width:340px;width:100%;text-align:center">'
-    +'<div style="font-size:40px;margin-bottom:8px">✅</div>'
-    +'<div style="font-size:16px;font-weight:800;color:#0F6E56;margin-bottom:4px">บันทึกสำเร็จ!</div>'
-    +'<div style="font-size:12px;color:#888;margin-bottom:16px">รอเสมียน approve</div>'
-    // เลขบิลตัวใหญ่
-    +'<div style="background:#f8fffe;border:2px solid #0F6E56;border-radius:12px;padding:14px;margin-bottom:16px">'
-    +'<div style="font-size:11px;color:#888;margin-bottom:4px">เลขที่บิล</div>'
-    +'<div style="font-size:24px;font-weight:900;color:#0F6E56;letter-spacing:1px">'+billNo+'</div>'
-    +'<div style="font-size:12px;color:#555;margin-top:4px">'+receiverName+' · '+destProv+'</div>'
+    '<div id="ps-slip" style="background:#fff;border-radius:16px;padding:20px;max-width:360px;width:100%;margin:auto">'
+    +'<div style="text-align:center;margin-bottom:12px">'
+    +'<div style="font-size:13px;font-weight:700;color:#0F6E56">บจ.โกโลด ทรานสปอร์ต</div>'
+    +'<div style="font-size:10px;color:#888">'+timeStr+'</div>'
     +'</div>'
-    // QR code
-    +'<div style="margin-bottom:16px">'
-    +'<div style="font-size:11px;color:#888;margin-bottom:8px">QR ติดตามสินค้า</div>'
+    +'<div style="background:#f0faf5;border:2px solid #0F6E56;border-radius:10px;padding:12px;text-align:center;margin-bottom:12px">'
+    +'<div style="font-size:10px;color:#888">เลขที่บิล</div>'
+    +'<div style="font-size:26px;font-weight:900;color:#0F6E56;letter-spacing:1px">'+billNo+'</div>'
+    +'<div style="font-size:12px;color:#555">'+receiverName+' · '+destProv+'</div>'
+    +'</div>'
+    +'<div style="margin-bottom:12px">'
+    +'<div style="font-size:11px;font-weight:700;color:#333;margin-bottom:4px">รายการสินค้า</div>'
+    +itemsHtml
+    +'</div>'
+    +'<div style="display:flex;justify-content:space-between;font-size:13px;font-weight:700;padding:8px 0;border-top:1px solid #ddd;margin-bottom:4px">'
+    +'<span>ค่าขนส่ง</span><span>'+(freight||0).toLocaleString("th-TH")+' ฿</span>'
+    +'</div>'
+    +'<div style="display:flex;justify-content:space-between;font-size:11px;color:#888;margin-bottom:14px">'
+    +'<span>ชำระ</span><span>'+(PAY_TH[freightPay]||freightPay)+'</span>'
+    +'</div>'
+    +'<div style="text-align:center;margin-bottom:14px">'
+    +'<div style="font-size:10px;color:#888;margin-bottom:6px">QR ติดตามสินค้า</div>'
     +'<div id="ps-qr" style="display:flex;justify-content:center"></div>'
     +'</div>'
-    // ปุ่ม
-    +'<div style="display:flex;gap:10px">'
-    +'<button onclick="sharePickupLine(\''+lineMsg+'\');" style="flex:1;padding:12px;background:#06C755;color:#fff;border:none;border-radius:10px;font-size:13px;font-weight:700;cursor:pointer">📱 แชร์ Line</button>'
-    +'<button onclick="copyPickupBill(\''+billNo+'\',\''+trackUrl+'\');" style="flex:1;padding:12px;background:#0F6E56;color:#fff;border:none;border-radius:10px;font-size:13px;font-weight:700;cursor:pointer">📋 คัดลอก</button>'
+    +'<div style="display:flex;gap:8px;margin-bottom:8px">'
+    +'<button onclick="sharePickupLine(''+lineMsg+'');" style="flex:1;padding:10px;background:#06C755;color:#fff;border:none;border-radius:9px;font-size:12px;font-weight:700;cursor:pointer">📱 แชร์ Line</button>'
+    +'<button onclick="copyPickupBill(''+billNo+'',''+trackUrl+'');" style="flex:1;padding:10px;background:#0F6E56;color:#fff;border:none;border-radius:9px;font-size:12px;font-weight:700;cursor:pointer">📋 คัดลอก</button>'
     +'</div>'
-    +'<button onclick="document.getElementById(\'pickup-success-popup\').remove()" style="width:100%;margin-top:10px;padding:10px;background:#f5f5f5;border:none;border-radius:10px;font-size:13px;cursor:pointer">ปิด</button>'
+    +'<button onclick="showDrHistory();" style="width:100%;margin-bottom:6px;padding:10px;background:#f0f0f0;border:none;border-radius:9px;font-size:12px;font-weight:700;cursor:pointer;color:#555">📜 ดูประวัติบิลที่ออก</button>'
+    +'<button onclick="document.getElementById('pickup-success-popup').remove()" style="width:100%;padding:10px;background:#f5f5f5;border:none;border-radius:9px;font-size:12px;cursor:pointer">ปิด</button>'
     +'</div>';
 
   document.body.appendChild(popup);
 
-  // สร้าง QR code ด้วย QRServer API
+  // สร้าง QR code
   var qrImg = document.createElement("img");
-  qrImg.src = "https://api.qrserver.com/v1/create-qr-code/?size=150x150&data="+encodeURIComponent(trackUrl);
-  qrImg.style.cssText = "width:150px;height:150px;border-radius:8px";
-  qrImg.alt = "QR Code";
+  qrImg.src = "https://api.qrserver.com/v1/create-qr-code/?size=140x140&data="+encodeURIComponent(trackUrl);
+  qrImg.style.cssText = "width:140px;height:140px;border-radius:8px";
   document.getElementById("ps-qr").appendChild(qrImg);
+}
+
+function showDrHistory(){
+  var history = JSON.parse(localStorage.getItem("dr_bill_history")||"[]");
+  if(history.length===0){ alert("ยังไม่มีประวัติบิลที่ออก"); return; }
+  var old = document.getElementById("pickup-success-popup");
+  if(old) old.remove();
+  var popup = document.createElement("div");
+  popup.style.cssText = "position:fixed;inset:0;background:rgba(0,0,0,.7);z-index:99999;display:flex;align-items:flex-start;justify-content:center;padding:16px;overflow-y:auto";
+  var html = '<div style="background:#fff;border-radius:16px;padding:20px;max-width:360px;width:100%;margin:auto">'
+    +'<div style="font-size:15px;font-weight:800;color:#0F6E56;margin-bottom:14px">📜 ประวัติบิลที่ออก</div>';
+  history.forEach(function(h){
+    var itemStr = (h.items||[]).map(function(i){return i.desc+" x"+i.qty;}).join(", ");
+    html += '<div style="border:0.5px solid #eee;border-radius:10px;padding:10px;margin-bottom:8px">'
+      +'<div style="display:flex;justify-content:space-between;align-items:center">'
+      +'<span style="font-weight:700;color:#0F6E56;font-size:14px">'+h.billNo+'</span>'
+      +'<span style="font-size:10px;color:#aaa">'+h.time+'</span>'
+      +'</div>'
+      +'<div style="font-size:11px;color:#555;margin-top:2px">'+h.receiverName+' · '+h.destProv+'</div>'
+      +'<div style="font-size:11px;color:#888;margin-top:2px">'+itemStr+'</div>'
+      +'<div style="font-size:12px;font-weight:600;color:#333;margin-top:2px">'+h.freight.toLocaleString("th-TH")+' ฿</div>'
+      +'</div>';
+  });
+  html += '<button onclick="this.closest('div[style]').remove()" style="width:100%;padding:10px;background:#f5f5f5;border:none;border-radius:9px;font-size:12px;cursor:pointer;margin-top:4px">ปิด</button>'
+    +'</div>';
+  popup.innerHTML = html;
+  document.body.appendChild(popup);
 }
 
 function sharePickupLine(msg){
@@ -1012,7 +1058,8 @@ function addGoodsRow(){
   var div = document.createElement("div");
   div.className = "pb-goods-row";
   div.style.cssText = "display:flex;gap:6px;align-items:center;margin-bottom:6px";
-  div.innerHTML = '<input class="pb-goods-inp" placeholder="รายการสินค้า '+idx+'" style="flex:1;padding:10px 12px;border:1px solid #ddd;border-radius:8px;font-size:13px">'
+  div.innerHTML = '<input class="pb-goods-inp" placeholder="ชื่อสินค้า '+idx+'" style="flex:1;padding:10px 12px;border:1px solid #ddd;border-radius:8px;font-size:13px">'
+    +'<input class="pb-qty-inp" type="number" min="1" value="1" placeholder="จำนวน" style="width:54px;padding:10px 6px;border:1px solid #ddd;border-radius:8px;font-size:13px;text-align:center">'
     +'<button onclick="startVoiceGoods(this)" style="width:38px;height:38px;border-radius:50%;background:#f0faf5;border:1px solid #d0ede5;cursor:pointer;font-size:16px;flex-shrink:0">🎤</button>'
     +'<button onclick="removeGoodsRow(this)" style="width:32px;height:32px;border-radius:50%;background:#fff0f0;border:1px solid #fcc;cursor:pointer;font-size:14px;flex-shrink:0">✕</button>';
   list.appendChild(div);
@@ -1073,12 +1120,17 @@ function submitPickupBill(){
     freightNet: parseFloat(g("pb-freight"))||0,
     freightPay: g("pb-pay"),
     note: (Array.from(document.querySelectorAll(".pb-goods-inp")).map(function(x){return x.value.trim();}).filter(Boolean).join(", ")),
-    items: [{
-      desc: g("pb-goods")||"สินค้า",
-      kg: "0",
-      qty: 1,
-      sumCm: "0", hasCOD: false, codAmount: ""
-    }],
+    items: (function(){
+      var rows = Array.from(document.querySelectorAll(".pb-goods-row"));
+      if(rows.length===0) return [{desc:"สินค้า",kg:"0",qty:1,sumCm:"0",hasCOD:false,codAmount:""}];
+      return rows.map(function(row,i){
+        var inp = row.querySelector(".pb-goods-inp");
+        var qtyInp = row.querySelector(".pb-qty-inp");
+        var desc = inp?inp.value.trim():"";
+        var qty = qtyInp?parseInt(qtyInp.value)||1:1;
+        return {desc:desc||"สินค้า", kg:"0", qty:qty, sumCm:"0", hasCOD:false, codAmount:""};
+      }).filter(function(i){return i.desc&&i.desc!=="สินค้า"||rows.length===1;});
+    })(),
     codTotal: 0,
     driver: CU ? CU.username : "",
     driverName: CU ? CU.name : "",
@@ -1117,7 +1169,7 @@ function submitPickupBill(){
     if(photoUrls && photoUrls.length>0) bill.pickupPhotos = photoUrls;
     GolodDB.saveBill(bill).then(function(){
       closePickupBill();
-      showPickupSuccess(_pbBillNo, bill.receiverName, bill.destProv);
+      showPickupSuccess(bill.billNo||_pbBillNo, bill.receiverName, bill.destProv, bill.items||[], bill.freightNet||0, bill.freightPay||'origin');
     }).catch(function(e){
       if(btn){ btn.disabled=false; btn.textContent="💾 บันทึกบิลรับงาน"; }
       alert("❌ "+e.message);
@@ -1258,7 +1310,8 @@ function submitPickupBill(){
       <div style="font-size:11px;color:#888;margin-bottom:5px;font-weight:700">สินค้า * <span style="font-weight:400;color:#aaa">เพิ่มได้สูงสุด 4 รายการ</span></div>
       <div id="pb-goods-list">
         <div class="pb-goods-row" style="display:flex;gap:6px;align-items:center;margin-bottom:6px">
-          <input class="pb-goods-inp" placeholder="รายการสินค้า 1" style="flex:1;padding:10px 12px;border:1px solid #ddd;border-radius:8px;font-size:13px">
+          <input class="pb-goods-inp" placeholder="ชื่อสินค้า" style="flex:1;padding:10px 12px;border:1px solid #ddd;border-radius:8px;font-size:13px">
+          <input class="pb-qty-inp" type="number" min="1" value="1" placeholder="จำนวน" style="width:54px;padding:10px 6px;border:1px solid #ddd;border-radius:8px;font-size:13px;text-align:center">
           <button onclick="startVoiceGoods(this)" style="width:38px;height:38px;border-radius:50%;background:#f0faf5;border:1px solid #d0ede5;cursor:pointer;font-size:16px;flex-shrink:0">🎤</button>
         </div>
       </div>
