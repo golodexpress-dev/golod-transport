@@ -1709,6 +1709,10 @@ function makeTfPickupRow(p){
     +'<div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-bottom:6px">'
     +'<div><div style="font-size:10px;color:#888;margin-bottom:2px">รับที่ (สถานที่/ลูกค้า)</div>'
     +'<input class="pu-loc trip-inp" value="'+(p.location||"")+'" placeholder="เช่น บ.แมททีเรียล"></div>'
+    +'<div><div style="font-size:10px;color:#888;margin-bottom:2px">จังหวัดต้นทาง (ที่เข้ารับ)</div>'
+    +'<input class="pu-origin-prov trip-inp" value="'+(p.originProv||"")+'" placeholder="จังหวัดต้นทาง"></div>'
+    +'</div>'
+    +'<div style="display:grid;grid-template-columns:1fr;gap:6px;margin-bottom:6px">'
     +'<div><div style="font-size:10px;color:#888;margin-bottom:2px">สินค้า</div>'
     +'<input class="pu-goods trip-inp" value="'+(p.goods||"")+'" placeholder="ประเภทสินค้า"></div>'
     +'</div>'
@@ -1808,9 +1812,10 @@ function getTfPickupData(){
     var prov=(row.querySelector(".pu-prov")||{}).value||"";
     var amphoe=(row.querySelector(".pu-amphoe")||{}).value||"";
     var tambon=(row.querySelector(".pu-tambon")||{}).value||"";
+    var originProv=(row.querySelector(".pu-origin-prov")||{}).value||"";
     if(loc||goods||freight>0||recv||prov){
       pickups.push({location:loc,goods:goods,freight:freight,rate:rate,commission:comm,paidOnPickup:paid,
-        receiverName:recv,receiverPhone:recvPhone,destProv:prov,destAmphoe:amphoe,destTambon:tambon});
+        receiverName:recv,receiverPhone:recvPhone,destProv:prov,destAmphoe:amphoe,destTambon:tambon,originProv:originProv});
     }
   });
   return pickups;

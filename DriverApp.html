@@ -1013,6 +1013,8 @@ function openPickupFromTrip(idx){
   setTimeout(function(){
     var senderEl = document.getElementById("pb-sender-name");
     if(senderEl && p.location) senderEl.value = p.location;
+    var senderProvEl = document.getElementById("pb-sender-prov");
+    if(senderProvEl && p.originProv) senderProvEl.value = p.originProv;
     var freightEl = document.getElementById("pb-freight");
     if(freightEl && p.freight>0) freightEl.value = p.freight;
     var recvEl = document.getElementById("pb-receiver-name");
@@ -1037,7 +1039,7 @@ function openPickupFromTrip(idx){
 function openPickupBill(){
   _pbBillNo = genPickupBillNo();
   document.getElementById("pb-bill-no").textContent = "เลขบิล: "+_pbBillNo+" | คนรถ: "+(CU?CU.name:"");
-  ["pb-sender-name","pb-receiver-name","pb-receiver-phone","pb-dest-prov","pb-dest-amphoe","pb-dest-tambon","pb-freight"]
+  ["pb-sender-name","pb-sender-prov","pb-receiver-name","pb-receiver-phone","pb-dest-prov","pb-dest-amphoe","pb-dest-tambon","pb-freight"]
     .forEach(function(id){ var el=document.getElementById(id); if(el)el.value=""; });
   // reset goods rows เหลือแค่ช่องแรก
   var list=document.getElementById("pb-goods-list");
@@ -1243,6 +1245,7 @@ function submitPickupBill(){
     billNo: _pbBillNo,
     status: "รออนุมัติ",
     senderName: g("pb-sender-name"),
+    senderProv: g("pb-sender-prov"),
     senderPhone: "",
     receiverName: g("pb-receiver-name"),
     receiverPhone: g("pb-receiver-phone"),
@@ -1276,6 +1279,7 @@ function submitPickupBill(){
     isDriverBill: true,
     form: {
       senderName: g("pb-sender-name"),
+    senderProv: g("pb-sender-prov"),
       senderPhone: g("pb-sender-phone"),
       receiverName: g("pb-receiver-name"),
       receiverPhone: g("pb-receiver-phone"),
@@ -1413,6 +1417,7 @@ function submitPickupBill(){
         <input id="pb-sender-name" placeholder="ชื่อผู้ส่ง/บริษัท" style="flex:1;padding:10px 12px;border:1px solid #ddd;border-radius:8px;font-size:14px">
         <button onclick="startVoice('pb-sender-name','ผู้ส่ง')" style="width:42px;height:42px;border-radius:50%;background:#f0faf5;border:1px solid #d0ede5;cursor:pointer;display:flex;align-items:center;justify-content:center;flex-shrink:0">🎤</button>
       </div>
+      <input id="pb-sender-prov" placeholder="จังหวัดต้นทาง (ที่เข้ารับ)" style="width:100%;margin-top:8px;padding:10px 12px;border:1px solid #ddd;border-radius:8px;font-size:14px">
     </div>
 
     <!-- 1. ผู้รับ -->
