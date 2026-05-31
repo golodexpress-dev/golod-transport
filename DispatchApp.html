@@ -353,8 +353,9 @@ tr:hover td{background:#f8fffe}
         <input id="ap-dest-amphoe" class="inp" placeholder="อำเภอ"></div>
     </div>
     <div style="margin-bottom:10px">
-      <label style="font-size:11px;color:#888">สินค้า</label>
-      <input id="ap-goods" class="inp" placeholder="ชื่อสินค้า">
+      <label style="font-size:11px;color:#888">สินค้า <span style="color:#aaa">(แต่ละรายการขึ้นบรรทัดใหม่)</span></label>
+      <div id="ap-goods-list" style="margin-bottom:4px"></div>
+      <textarea id="ap-goods" class="inp" rows="3" placeholder="รายการสินค้า&#10;(แต่ละรายการขึ้นบรรทัดใหม่)" style="resize:vertical"></textarea>
     </div>
     <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:14px">
       <div><label style="font-size:11px;color:#888">ค่าขนส่ง (฿)</label>
@@ -742,8 +743,9 @@ tr:hover td{background:#f8fffe}
         <input id="ap-dest-amphoe" class="inp" placeholder="อำเภอ"></div>
     </div>
     <div style="margin-bottom:10px">
-      <label style="font-size:11px;color:#888">สินค้า</label>
-      <input id="ap-goods" class="inp" placeholder="ชื่อสินค้า">
+      <label style="font-size:11px;color:#888">สินค้า <span style="color:#aaa">(แต่ละรายการขึ้นบรรทัดใหม่)</span></label>
+      <div id="ap-goods-list" style="margin-bottom:4px"></div>
+      <textarea id="ap-goods" class="inp" rows="3" placeholder="รายการสินค้า&#10;(แต่ละรายการขึ้นบรรทัดใหม่)" style="resize:vertical"></textarea>
     </div>
     <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:14px">
       <div><label style="font-size:11px;color:#888">ค่าขนส่ง (฿)</label>
@@ -3504,7 +3506,16 @@ function approveBill(billNo){
   document.getElementById("ap-receiver-phone").value= b.receiverPhone||form.receiverPhone||"";
   document.getElementById("ap-dest-prov").value     = b.destProv||form.destProv||"";
   document.getElementById("ap-dest-amphoe").value   = b.destAmphoe||form.destAmphoe||form.receiverAmphoe||"";
-  document.getElementById("ap-goods").value         = (b.items&&b.items[0]&&b.items[0].desc)||(form.items&&form.items[0]&&form.items[0].desc)||b.note||"";
+  // โหลดสินค้าทุกรายการ
+  var allItems = Array.isArray(b.items)?b.items:(Array.isArray(form.items)?form.items:[]);
+  var goodsText = allItems.map(function(i){return i.desc||"";}).filter(Boolean).join("\n");
+  if(!goodsText) goodsText = b.note||form.note||"";
+  document.getElementById("ap-goods").value = goodsText;
+  // แสดง label รายการจากคนขับ
+  var goodsList = document.getElementById("ap-goods-list");
+  if(goodsList && allItems.length > 1){
+    goodsList.innerHTML = '<div style="font-size:10px;color:#0F6E56;background:#f0faf5;padding:4px 8px;border-radius:6px;margin-bottom:4px">📦 จากคนขับ: '+allItems.map(function(i){return i.desc;}).filter(Boolean).join(", ")+'</div>';
+  } else if(goodsList){ goodsList.innerHTML=""; }
   document.getElementById("ap-freight").value       = b.freightNet||0;
   document.getElementById("ap-pay").value           = b.freightPay||form.freightPay||"origin";
   document.getElementById("modal-approve").dataset.billNo = billNo;
@@ -3526,7 +3537,11 @@ function confirmApprove(){
     approvedBy: CU?CU.username:"", approvedAt: new Date().toISOString(),
     updatedAt: new Date().toISOString()
   };
-  if(goods) upd.items = [{desc:goods,kg:"0",qty:1,sumCm:"0",hasCOD:false,codAmount:""}];
+  if(goods){
+    var goodsList2 = goods.split(/[\n]+/).map(function(s){return s.trim();}).filter(Boolean);
+    upd.items = goodsList2.map(function(d){return {desc:d,kg:"0",qty:1,sumCm:"0",hasCOD:false,codAmount:""};});
+    if(upd.items.length===0) upd.items=[{desc:goods,kg:"0",qty:1,sumCm:"0",hasCOD:false,codAmount:""}];
+  }
   GolodDB.updateBill(billNo, upd).then(function(){
     updateLocalBillStatus(billNo,"ออกบิลรับของ");
     document.getElementById("modal-approve").style.display="none";
