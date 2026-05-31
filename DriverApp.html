@@ -976,11 +976,11 @@ function showPickupSuccess(billNo, receiverName, destProv, items, freight, freig
     +'<div id="ps-qr" style="display:flex;justify-content:center"></div>'
     +'</div>'
     +'<div style="display:flex;gap:8px;margin-bottom:8px">'
-    +'<button onclick="sharePickupLine(''+lineMsg+'');" style="flex:1;padding:10px;background:#06C755;color:#fff;border:none;border-radius:9px;font-size:12px;font-weight:700;cursor:pointer">📱 แชร์ Line</button>'
-    +'<button onclick="copyPickupBill(''+billNo+'',''+trackUrl+'');" style="flex:1;padding:10px;background:#0F6E56;color:#fff;border:none;border-radius:9px;font-size:12px;font-weight:700;cursor:pointer">📋 คัดลอก</button>'
+    +'<button onclick="sharePickupLine(\''+lineMsg+'\');" style="flex:1;padding:10px;background:#06C755;color:#fff;border:none;border-radius:9px;font-size:12px;font-weight:700;cursor:pointer">📱 แชร์ Line</button>'
+    +'<button onclick="copyPickupBill(\''+billNo+'\',\''+trackUrl+'\');" style="flex:1;padding:10px;background:#0F6E56;color:#fff;border:none;border-radius:9px;font-size:12px;font-weight:700;cursor:pointer">📋 คัดลอก</button>'
     +'</div>'
     +'<button onclick="showDrHistory();" style="width:100%;margin-bottom:6px;padding:10px;background:#f0f0f0;border:none;border-radius:9px;font-size:12px;font-weight:700;cursor:pointer;color:#555">📜 ดูประวัติบิลที่ออก</button>'
-    +'<button onclick="document.getElementById('pickup-success-popup').remove()" style="width:100%;padding:10px;background:#f5f5f5;border:none;border-radius:9px;font-size:12px;cursor:pointer">ปิด</button>'
+    +'<button onclick="document.getElementById(\'pickup-success-popup\').remove()" style="width:100%;padding:10px;background:#f5f5f5;border:none;border-radius:9px;font-size:12px;cursor:pointer">ปิด</button>'
     +'</div>';
 
   document.body.appendChild(popup);
