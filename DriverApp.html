@@ -906,8 +906,14 @@ function genPickupBillNo(){
 function openPickupBill(){
   _pbBillNo = genPickupBillNo();
   document.getElementById("pb-bill-no").textContent = "เลขบิล: "+_pbBillNo+" | คนรถ: "+(CU?CU.name:"");
-  ["pb-sender-name","pb-receiver-name","pb-receiver-phone","pb-dest-prov","pb-goods","pb-freight"]
+  ["pb-sender-name","pb-receiver-name","pb-receiver-phone","pb-dest-prov","pb-freight"]
     .forEach(function(id){ var el=document.getElementById(id); if(el)el.value=""; });
+  // reset goods rows เหลือแค่ช่องแรก
+  var list=document.getElementById("pb-goods-list");
+  if(list){
+    list.innerHTML='<div class="pb-goods-row" style="display:flex;gap:6px;align-items:center;margin-bottom:6px"><input class="pb-goods-inp" placeholder="รายการสินค้า 1" style="flex:1;padding:10px 12px;border:1px solid #ddd;border-radius:8px;font-size:13px"><button onclick="startVoiceGoods(this)" style="width:38px;height:38px;border-radius:50%;background:#f0faf5;border:1px solid #d0ede5;cursor:pointer;font-size:16px;flex-shrink:0">🎤</button></div>';
+  }
+  var addBtn=document.getElementById("pb-add-goods"); if(addBtn) addBtn.style.display="";
   document.getElementById("pb-pay").value="origin";
   // reset รูป
   ["pb-photo1","pb-photo2"].forEach(function(id){
@@ -927,7 +933,7 @@ function closePickupBill(){
 function showPickupSuccess(billNo, receiverName, destProv){
   // สร้าง tracking URL
   var trackUrl = "https://golodexpress-dev.github.io/golod-transport/TrackingSystem.html?bill="+billNo;
-  var lineMsg = encodeURIComponent("📦 ใบรับสินค้า โกโลด ทรานสปอร์ต\nเลขที่บิล: "+billNo+"\nผู้รับ: "+receiverName+" ("+destProv+")\nติดตามสินค้า: "+trackUrl);
+  var lineMsg = encodeURIComponent("📦 โกโลด ทรานสปอร์ต\nเลขบิล: "+billNo+"\nติดตามสินค้า: "+trackUrl);
 
   // สร้าง popup
   var popup = document.createElement("div");
@@ -976,7 +982,7 @@ function sharePickupLine(msg){
 }
 
 function copyPickupBill(billNo, url){
-  var text = "📦 ใบรับสินค้า โกโลด ทรานสปอร์ต\nเลขที่บิล: "+billNo+"\nติดตามสินค้า: "+url;
+  var text = "📦 โกโลด ทรานสปอร์ต\nเลขบิล: "+billNo+"\nติดตามสินค้า: "+url;
   if(navigator.clipboard){
     navigator.clipboard.writeText(text).then(function(){ alert("✅ คัดลอกแล้ว"); });
   } else {
@@ -998,6 +1004,35 @@ function previewPhoto(input, previewId){
   reader.readAsDataURL(file);
 }
 
+function addGoodsRow(){
+  var list = document.getElementById("pb-goods-list");
+  var rows = list.querySelectorAll(".pb-goods-row");
+  if(rows.length >= 4){ alert("เพิ่มได้สูงสุด 4 รายการ"); return; }
+  var idx = rows.length + 1;
+  var div = document.createElement("div");
+  div.className = "pb-goods-row";
+  div.style.cssText = "display:flex;gap:6px;align-items:center;margin-bottom:6px";
+  div.innerHTML = '<input class="pb-goods-inp" placeholder="รายการสินค้า '+idx+'" style="flex:1;padding:10px 12px;border:1px solid #ddd;border-radius:8px;font-size:13px">'
+    +'<button onclick="startVoiceGoods(this)" style="width:38px;height:38px;border-radius:50%;background:#f0faf5;border:1px solid #d0ede5;cursor:pointer;font-size:16px;flex-shrink:0">🎤</button>'
+    +'<button onclick="removeGoodsRow(this)" style="width:32px;height:32px;border-radius:50%;background:#fff0f0;border:1px solid #fcc;cursor:pointer;font-size:14px;flex-shrink:0">✕</button>';
+  list.appendChild(div);
+  if(list.querySelectorAll(".pb-goods-row").length >= 4){
+    document.getElementById("pb-add-goods").style.display="none";
+  }
+}
+function removeGoodsRow(btn){
+  btn.closest(".pb-goods-row").remove();
+  document.getElementById("pb-add-goods").style.display="";
+}
+function startVoiceGoods(btn){
+  var inp = btn.previousElementSibling;
+  if(!('webkitSpeechRecognition' in window||'SpeechRecognition' in window)){ alert("browser ไม่รองรับ speech"); return; }
+  var SR = window.SpeechRecognition||window.webkitSpeechRecognition;
+  var r = new SR(); r.lang="th-TH"; r.interimResults=false;
+  r.onresult=function(e){ inp.value=(inp.value?inp.value+", ":"")+e.results[0][0].transcript; };
+  r.onerror=function(){ alert("ไม่ได้ยิน ลองใหม่"); };
+  r.start();
+}
 function startVoice(fieldId, label){
   var SR = window.SpeechRecognition||window.webkitSpeechRecognition;
   if(!SR){ alert("กรุณาใช้ Chrome บน Android เพื่อใช้งาน Voice Input"); return; }
@@ -1037,7 +1072,7 @@ function submitPickupBill(){
     destAmphoe: "",
     freightNet: parseFloat(g("pb-freight"))||0,
     freightPay: g("pb-pay"),
-    note: g("pb-goods"),
+    note: (Array.from(document.querySelectorAll(".pb-goods-inp")).map(function(x){return x.value.trim();}).filter(Boolean).join(", ")),
     items: [{
       desc: g("pb-goods")||"สินค้า",
       kg: "0",
@@ -1061,7 +1096,7 @@ function submitPickupBill(){
       destProv: g("pb-dest-prov"),
       destAmphoe: g("pb-dest-amphoe"),
       freightPay: g("pb-pay"),
-      items: [{desc:g("pb-goods")||"สินค้า",kg:g("pb-weight")||"0",qty:parseInt(g("pb-qty"))||1,sumCm:"0",hasCOD:false,codAmount:""}],
+      items: (Array.from(document.querySelectorAll(".pb-goods-inp")).map(function(x){return x.value.trim();}).filter(Boolean).map(function(d,i){return {desc:d,kg:g("pb-weight")||"0",qty:i===0?(parseInt(g("pb-qty"))||1):1,sumCm:"0",hasCOD:false,codAmount:""};}))||[{desc:"สินค้า",kg:"0",qty:1,sumCm:"0",hasCOD:false,codAmount:""}],
       note: g("pb-note"),
       branch: CU?(CU.branch==="นครราชสีมา"?"krt":CU.branch==="ศรีสะเกษ"?"ssk":"bkk"):"bkk"
     }
@@ -1218,13 +1253,16 @@ function submitPickupBill(){
       </div>
     </div>
 
-    <!-- 3. สินค้า (รวมหลายชิ้นในช่องเดียว) -->
+    <!-- 3. สินค้า (สูงสุด 4 ช่อง) -->
     <div style="margin-bottom:14px">
-      <div style="font-size:11px;color:#888;margin-bottom:5px;font-weight:700">สินค้า <span style="font-weight:400;color:#aaa">(หลายชิ้น คั่นด้วย ,)</span></div>
-      <div style="display:flex;gap:8px;align-items:center">
-        <input id="pb-goods" placeholder="เช่น ท่อ PVC 5 ชิ้น, กาว 2 กระป๋อง" style="flex:1;padding:10px 12px;border:1px solid #ddd;border-radius:8px;font-size:13px">
-        <button onclick="startVoice('pb-goods','สินค้า')" style="width:42px;height:42px;border-radius:50%;background:#f0faf5;border:1px solid #d0ede5;cursor:pointer;display:flex;align-items:center;justify-content:center;flex-shrink:0">🎤</button>
+      <div style="font-size:11px;color:#888;margin-bottom:5px;font-weight:700">สินค้า * <span style="font-weight:400;color:#aaa">เพิ่มได้สูงสุด 4 รายการ</span></div>
+      <div id="pb-goods-list">
+        <div class="pb-goods-row" style="display:flex;gap:6px;align-items:center;margin-bottom:6px">
+          <input class="pb-goods-inp" placeholder="รายการสินค้า 1" style="flex:1;padding:10px 12px;border:1px solid #ddd;border-radius:8px;font-size:13px">
+          <button onclick="startVoiceGoods(this)" style="width:38px;height:38px;border-radius:50%;background:#f0faf5;border:1px solid #d0ede5;cursor:pointer;font-size:16px;flex-shrink:0">🎤</button>
+        </div>
       </div>
+      <button onclick="addGoodsRow()" id="pb-add-goods" style="font-size:11px;color:#0F6E56;background:none;border:1px dashed #0F6E56;border-radius:7px;padding:4px 12px;cursor:pointer;margin-top:2px">+ เพิ่มรายการ</button>
     </div>
 
     <!-- 4. ค่าขนส่ง + ชำระ -->
