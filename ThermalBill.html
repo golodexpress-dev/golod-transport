@@ -1225,7 +1225,11 @@ function ThermalBill({
     const sumCm = parseFloat(item.sumCm) || 0;
     const sz = calcSize(item.kg, sumCm);
     const z = getZone(form.branch, form.destProv, form.receiverAmphoe);
-    const up = getSizePrice(sz, z, item.cpN, item.cpF);
+    const upCalc = getSizePrice(sz, z, item.cpN, item.cpF);
+    // บิลมือใช้ item.price โดยตรง ถ้ามีค่า
+    const up = (form.isManual || parseFloat(item.price) > 0) && parseFloat(item.price) > 0
+      ? parseFloat(item.price)
+      : upCalc;
     const lt = up * (parseInt(item.qty) || 1);
     return /*#__PURE__*/React.createElement(React.Fragment, {
       key: item.id
