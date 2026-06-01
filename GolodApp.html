@@ -875,7 +875,7 @@ function pgBills(){
   var h='<div class="frow">';
   h+='<input id="bq" placeholder="ค้นหาเลขบิล / ปลายทาง / ชื่อ..." oninput="filterBillsPage()" style="max-width:180px"/>';
   if(CU&&(CU.role==="admin"||CU.role==="branch")){
-    h+='<select id="breg" onchange="filterBillsPage()" style="width:110px"><option value="all">ทุกภาค</option><option value="ตะวันออก">ตะวันออก</option><option value="อีสาน">อีสาน</option></select>';
+    h+='<select id="breg" onchange="filterBillsPage()" style="width:120px"><option value="all">ทุก Zone</option><option value="BKK">BKK</option><option value="East">East</option><option value="Central">Central</option><option value="West">West</option><option value="North">North</option><option value="South">South</option><option value="Korat">Korat</option><option value="Esan">Esan</option><option value="LEsan">LEsan</option></select>';
   } else { h+='<span id="breg" style="display:none"></span>'; }
   h+='<select id="bst" onchange="filterBillsPage()" style="width:130px"><option value="all">ทุกสถานะ</option><option value="issued">ออกบิล/รับของ</option><option value="in_transit">นำส่งสาขา</option><option value="delivering">กำลังวิ่งส่ง</option><option value="delivered">ส่งสำเร็จ</option><option value="failed">ส่งไม่สำเร็จ</option><option value="returned">ตีกลับต้นทาง</option><option value="reschedule">จัดส่งรอบใหม่</option></select>';
   h+='<select id="bslip" onchange="filterBillsPage()" style="width:140px"><option value="all">ทุกสลิป</option><option value="has_slip">📎 มีสลิปแล้ว</option><option value="no_slip">⏳ รอสลิป</option><option value="late3">⚠ เกิน 3 วัน</option><option value="late7">🔴 เกิน 7 วัน</option></select>';
@@ -888,6 +888,9 @@ function pgBills(){
 function filterBillsPage(){
   var q=(document.getElementById("bq")?.value||"").toLowerCase();
   var reg=document.getElementById("breg")?.value||"all";
+  // reset showN ถ้า filter เปลี่ยน
+  var fKey=q+"|"+reg+"|"+(document.getElementById("bst")?.value||"")+"|"+(document.getElementById("bslip")?.value||"");
+  if(window._lastFKey!==fKey){ window._billsShowN=100; window._lastFKey=fKey; }
   var st=document.getElementById("bst")?.value||"all";
   var data=window._billsData||[];
   if(!data.length){
@@ -908,9 +911,12 @@ function filterBillsPage(){
       var inProv=(b.destProv||"").toLowerCase().indexOf(q)>=0;
       var inSender=(b.senderName||"").toLowerCase().indexOf(q)>=0;
       var inReceiver=(b.receiverName||"").toLowerCase().indexOf(q)>=0;
-      if(!inBill&&!inProv&&!inSender&&!inReceiver) return false;
+      var inZone=(b.zone||"").toLowerCase().indexOf(q)>=0;
+      var inAmphoe=(b.destAmphoe||"").toLowerCase().indexOf(q)>=0;
+      var inGoods=(b.goodsDesc||"").toLowerCase().indexOf(q)>=0;
+      if(!inBill&&!inProv&&!inSender&&!inReceiver&&!inZone&&!inAmphoe&&!inGoods) return false;
     }
-    if(reg!=="all"&&b.region!==reg) return false;
+    if(reg!=="all"&&b.zone!==reg) return false;
     if(st!=="all"&&b.status!==st) return false;
     // filter สลิปโอน (เฉพาะ transfer)
     if(slipF!=="all"&&b.freightPay==="transfer"){
@@ -943,7 +949,11 @@ function filterBillsPage(){
     if(filtered.length===0){
       t.innerHTML='<div style="text-align:center;padding:32px;color:#bbb">ไม่มีบิลที่ตรงกับเงื่อนไข</div>';
     }else{
-      t.innerHTML=billTable(filtered.slice(0,100));
+      var showN = window._billsShowN || 100;
+      t.innerHTML=billTable(filtered.slice(0,showN));
+      if(filtered.length > showN){
+        t.innerHTML += '<div style="text-align:center;padding:14px"><button onclick="window._billsShowN=(window._billsShowN||100)+100;filterBillsPage();" style="padding:8px 20px;background:#1D9E75;color:#fff;border:none;border-radius:8px;font-size:13px;cursor:pointer;font-weight:600">โหลดเพิ่ม (เหลืออีก '+(filtered.length-showN)+' บิล)</button></div>';
+      }
     }
   }
 }
