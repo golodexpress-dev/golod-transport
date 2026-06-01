@@ -1,0 +1,705 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1"/>
+<title>โกโลด — ระบบตรวจสอบ COD</title>
+<script src="session.js"></script>
+<script src="firebase-app-compat.js"></script>
+<script src="firebase-firestore-compat.js"></script>
+<script src="golod-firebase.js?v=2"></script>
+<script>try{GolodDB.init();}catch(e){}</script>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:Arial,'Sarabun',sans-serif;background:#f5f5f2;min-height:100vh;color:#222}
+.hidden{display:none!important}
+.app{display:flex;flex-direction:column;min-height:100vh;max-width:1100px;margin:0 auto}
+.hdr{background:#0F6E56;padding:10px 16px;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:6px}
+.hdr-logo{color:#fff;font-size:16px;font-weight:700;letter-spacing:1px}
+.hdr-sub{color:#9FE1CB;font-size:11px}
+.hdr-pills{display:flex;gap:7px;flex-wrap:wrap}
+.hdr-pill{font-size:11px;background:rgba(255,255,255,.15);color:#E1F5EE;padding:4px 10px;border-radius:20px}
+.hdr-pill.red{background:#E24B4A;font-weight:600}
+.hdr-pill.amber{background:#EF9F27;color:#fff;font-weight:600}
+.hdr-pill.green{background:#1D9E75;font-weight:600}
+.banner{padding:8px 16px;font-size:12px;display:flex;align-items:center;gap:8px;background:#E1F5EE;color:#0F6E56}
+.banner.warn{background:#FFF8E7;color:#8a5a00}
+.banner.err{background:#FDE7E7;color:#B71C1C}
+.toolbar{background:#fff;padding:10px 16px;display:flex;gap:10px;flex-wrap:wrap;align-items:flex-end;border-bottom:0.5px solid #eee}
+.fld{display:flex;flex-direction:column;gap:3px}
+.fld label{font-size:10px;color:#888}
+.inp,select.inp{border:1px solid #ddd;border-radius:7px;padding:6px 9px;font-size:13px;font-family:inherit;background:#fff}
+.btn{border:none;border-radius:7px;padding:7px 14px;font-size:13px;cursor:pointer;font-family:inherit}
+.btn-green{background:#0F6E56;color:#fff}
+.btn-ghost{background:#eef2f0;color:#0F6E56}
+.btn-sm{padding:4px 10px;font-size:11px;border-radius:6px}
+.tabs{background:#fff;display:flex;border-bottom:0.5px solid #eee;overflow-x:auto}
+.tab{padding:11px 18px;cursor:pointer;font-size:13px;white-space:nowrap;color:#888;border-bottom:2.5px solid transparent}
+.tab.active{color:#0F6E56;font-weight:600;border-bottom-color:#1D9E75}
+.page{padding:14px 16px;display:none}
+.page.active{display:block}
+.cards{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px;margin-bottom:14px}
+.card{background:#fff;border-radius:12px;padding:12px 14px;border:0.5px solid #eee}
+.card .cl{font-size:11px;color:#888}
+.card .cv{font-size:20px;font-weight:800;color:#0F6E56;margin-top:3px}
+.card .cs{font-size:11px;color:#999;margin-top:2px}
+.card.red .cv{color:#B71C1C}
+.card.amber .cv{color:#B07400}
+table{width:100%;border-collapse:collapse;background:#fff;border-radius:10px;overflow:hidden}
+th,td{padding:8px 9px;font-size:12px;text-align:left;border-bottom:0.5px solid #f0f0ee}
+th{background:#f7faf9;color:#555;font-weight:600;position:sticky;top:0}
+td.r,th.r{text-align:right}
+.sec-title{font-size:13px;font-weight:700;color:#0F6E56;margin:16px 0 7px}
+.badge{display:inline-block;font-size:10px;padding:2px 8px;border-radius:20px;font-weight:600;white-space:nowrap}
+.b-green{background:#E1F5EE;color:#0F6E56}
+.b-amber{background:#FFF3DA;color:#B07400}
+.b-red{background:#FDE7E7;color:#B71C1C}
+.b-gray{background:#eee;color:#777}
+.trip-row{cursor:pointer}
+.trip-row:hover{background:#fafbfa}
+.sub-bills{background:#fbfcfb}
+.sub-bills td{font-size:11px;color:#555}
+.mini-note{font-size:11px;color:#999;margin:4px 0 10px;line-height:1.5}
+.tag-exempt{font-size:10px;background:#EDE7FF;color:#5B3FB3;padding:1px 7px;border-radius:20px;margin-left:6px}
+.empty{padding:30px;text-align:center;color:#aaa;font-size:13px;background:#fff;border-radius:10px}
+@media(max-width:600px){.hdr-sub{display:none}th,td{padding:7px 6px}}
+.overlay{position:fixed;inset:0;background:rgba(0,0,0,.4);display:flex;align-items:center;justify-content:center;z-index:2000;padding:16px}
+.modal{background:#fff;border-radius:14px;padding:18px;width:100%;max-width:380px}
+.modal-h{font-size:15px;font-weight:700;color:#0F6E56;margin-bottom:12px}
+.fld2{display:flex;flex-direction:column;gap:4px;margin-bottom:10px}
+.fld2 label{font-size:11px;color:#888}
+.acct-line{font-size:10px;color:#888;margin-top:2px}
+.acct-link{color:#0F6E56;cursor:pointer;text-decoration:underline}
+.chk-row{display:flex;align-items:center;gap:8px;padding:6px 4px;border-bottom:0.5px solid #f3f3f1;font-size:13px}
+</style>
+</head>
+<body>
+<div id="golod-session-bar" style="background:#0F6E56;padding:0 14px;display:flex;align-items:center;gap:10px;height:44px;position:sticky;top:0;z-index:999">
+  <div id="golod-user-chip"></div>
+</div>
+<script>try{GolodSession.renderTopbar("golod-user-chip","ระบบตรวจสอบ COD","#B07400");}catch(e){}</script>
+
+<div id="lock-screen" class="hidden" style="max-width:520px;margin:60px auto;padding:28px 24px;background:#fff;border-radius:14px;text-align:center;border:0.5px solid #eee">
+  <div style="font-size:42px">🔒</div>
+  <div style="font-size:16px;font-weight:700;color:#0F6E56;margin:10px 0 6px">ระบบตรวจสอบ COD</div>
+  <div id="lock-msg" style="font-size:13px;color:#666;line-height:1.7"></div>
+  <div style="margin-top:18px"><a href="GolodApp.html" class="btn btn-ghost" style="text-decoration:none">← กลับหน้าหลัก</a></div>
+</div>
+
+<div class="app hidden" id="app-main">
+  <div class="hdr">
+    <div>
+      <div class="hdr-logo">GOLOD · ตรวจสอบ COD</div>
+      <div class="hdr-sub">เช็คเงินปลายทางที่เก็บแทนลูกค้าต้นทาง — เก็บครบไหม / โอนคืนเท่าไหร่</div>
+    </div>
+    <div class="hdr-pills" id="hdr-pills"></div>
+  </div>
+
+  <div class="banner" id="fb-banner"><span id="fb-sync-status">⏳ กำลังเชื่อมต่อ Firestore…</span></div>
+
+  <div class="toolbar">
+    <div class="fld"><label>ตั้งแต่วันที่</label><input type="date" class="inp" id="f-from"></div>
+    <div class="fld"><label>ถึงวันที่</label><input type="date" class="inp" id="f-to"></div>
+    <div class="fld"><label>คนรถ</label><select class="inp" id="f-driver"><option value="">ทั้งหมด</option></select></div>
+    <div class="fld"><label>ค้นหา (บิล/ชื่อ)</label><input type="text" class="inp" id="f-text" placeholder="เลขบิล หรือ ชื่อ"></div>
+    <button class="btn btn-green" onclick="applyFilter()">ใช้ตัวกรอง</button>
+    <button class="btn btn-ghost" onclick="reload()">↻ โหลดใหม่</button>
+    <button id="assign-btn" class="btn btn-ghost hidden" onclick="openAssign()" style="margin-left:auto">⚙️ มอบหมายสิทธิ์</button>
+  </div>
+
+  <div class="tabs">
+    <div class="tab active" data-pg="dash" onclick="showPage('dash')">📊 ภาพรวม</div>
+    <div class="tab" data-pg="trips" onclick="showPage('trips')">🚚 ตรวจรายเที่ยว/คนรถ</div>
+    <div class="tab" data-pg="remit" onclick="showPage('remit')">💸 โอนคืนต้นทาง</div>
+    <div class="tab" data-pg="bills" onclick="showPage('bills')">🧾 บิล COD ทั้งหมด</div>
+    <div class="tab" data-pg="accounts" onclick="showPage('accounts')">🏦 บัญชีรับโอน</div>
+  </div>
+
+  <div class="page active" id="page-dash"></div>
+  <div class="page" id="page-trips"></div>
+  <div class="page" id="page-remit"></div>
+  <div class="page" id="page-bills"></div>
+  <div class="page" id="page-accounts"></div>
+</div>
+
+<div id="acct-modal" class="overlay hidden" onclick="if(event.target===this)closeAcct()">
+  <div class="modal">
+    <div class="modal-h">บัญชีรับโอนคืน COD</div>
+    <div class="fld2"><label>ลูกค้าต้นทาง (1 ราย = 1 บัญชี)</label><input id="ac-name" class="inp" readonly style="background:#f5f5f2"></div>
+    <div class="fld2"><label>ธนาคาร</label><input id="ac-bank" class="inp" placeholder="เช่น กสิกรไทย / ไทยพาณิชย์ / กรุงเทพ"></div>
+    <div class="fld2"><label>เลขบัญชี</label><input id="ac-no" class="inp" placeholder="xxx-x-xxxxx-x"></div>
+    <div class="fld2"><label>ชื่อบัญชี</label><input id="ac-acctname" class="inp" placeholder="ชื่อเจ้าของบัญชี"></div>
+    <div style="display:flex;gap:8px;margin-top:6px">
+      <button class="btn btn-green" style="flex:1" onclick="saveAcct()">บันทึก</button>
+      <button class="btn btn-ghost" onclick="closeAcct()">ยกเลิก</button>
+    </div>
+  </div>
+</div>
+
+<div id="assign-modal" class="overlay hidden" onclick="if(event.target===this)closeAssign()">
+  <div class="modal" style="max-width:420px">
+    <div class="modal-h">มอบหมายสิทธิ์ดูระบบ COD</div>
+    <div class="acct-line" style="margin-bottom:8px">แอดมินเข้าได้เสมอ · ติ๊กเลือกผู้ที่อนุญาตให้ดูระบบตรวจสอบ COD</div>
+    <div id="assign-list" style="max-height:300px;overflow:auto;border:1px solid #eee;border-radius:8px;padding:6px"></div>
+    <div style="display:flex;gap:8px;margin-top:12px">
+      <button class="btn btn-green" style="flex:1" onclick="saveAssign()">บันทึก</button>
+      <button class="btn btn-ghost" onclick="closeAssign()">ยกเลิก</button>
+    </div>
+  </div>
+</div>
+
+<script>
+/* ============================================================
+   ระบบตรวจสอบ COD — โกโลด ทรานสปอร์ต
+   อ่านข้อมูลสดจาก Firestore ผ่าน GolodDB (collections: bills, trips)
+   ============================================================ */
+
+/* ---------- ตั้งค่า (ปรับได้) ---------- */
+var COD_FEE_RATE   = 0.03;                 // ค่าธรรมเนียม COD 3% ของ (COD + ค่าส่งปลายทาง)
+var COD_FEE_EXEMPT = ["โกวิท บุญชม"];      // ลูกค้าที่ได้ COD เต็ม ไม่หักค่าธรรมเนียม
+var DEST_PAY       = ["dest","dest_cash","dest_transfer","cod"]; // วิธีชำระที่ถือว่าเก็บค่าส่งปลายทาง
+/* -------------------------------------- */
+
+var ALL_BILLS = [];   // บิลดิบจาก Firestore
+var ALL_TRIPS = [];   // เที่ยวดิบจาก Firestore
+var BILL_MAP  = {};    // billNo -> bill
+var ACCTS     = {};    // ชื่อลูกค้าต้นทาง -> {name,bank,accountNo,accountName} (หนึ่งต่อหนึ่ง)
+var curPage   = "dash";
+var CU        = null;  // ผู้ใช้ปัจจุบัน (จาก GolodSession)
+var COD_VIEWERS = [];  // username ที่แอดมินมอบหมายให้ดู COD ได้
+
+/* ---------- สิทธิ์เข้าถึง (collection: codSettings/viewers) ---------- */
+var Settings = (function(){
+  function _fs(){ try{ return firebase.firestore(); }catch(e){ return null; } }
+  function loadViewers(){
+    var fs=_fs();
+    if(fs){
+      return fs.collection("codSettings").doc("viewers").get().then(function(d){
+        var v=(d.exists&&d.data().usernames)||[];
+        COD_VIEWERS=v; try{ localStorage.setItem("golod_cod_viewers", JSON.stringify(v)); }catch(e){}
+        return v;
+      }).catch(function(e){
+        console.warn("[Settings] loadViewers:",e);
+        try{ COD_VIEWERS=JSON.parse(localStorage.getItem("golod_cod_viewers")||"[]"); }catch(_){ COD_VIEWERS=[]; }
+        return COD_VIEWERS;
+      });
+    }
+    try{ COD_VIEWERS=JSON.parse(localStorage.getItem("golod_cod_viewers")||"[]"); }catch(e){ COD_VIEWERS=[]; }
+    return Promise.resolve(COD_VIEWERS);
+  }
+  function saveViewers(list){
+    COD_VIEWERS=list; try{ localStorage.setItem("golod_cod_viewers", JSON.stringify(list)); }catch(e){}
+    var fs=_fs();
+    if(fs) return fs.collection("codSettings").doc("viewers").set({usernames:list, updatedAt:new Date().toISOString(), updatedBy:_user()},{merge:true}).catch(function(e){ console.warn("[Settings] save:",e); });
+    return Promise.resolve();
+  }
+  return {loadViewers:loadViewers, saveViewers:saveViewers};
+})();
+
+/* ---------- บัญชีรับโอนคืน (collection: codAccounts) ---------- */
+var Accounts = (function(){
+  function _fs(){ try{ return firebase.firestore(); }catch(e){ return null; } }
+  function _local(){ try{ ACCTS = JSON.parse(localStorage.getItem("golod_cod_accounts")||"{}"); }catch(e){ ACCTS={}; } }
+  function load(){
+    var fs=_fs();
+    if(fs){
+      return fs.collection("codAccounts").limit(2000).get().then(function(snap){
+        ACCTS={}; snap.forEach(function(d){ var v=d.data(); if(v&&v.name) ACCTS[v.name.trim()]=v; });
+        try{ localStorage.setItem("golod_cod_accounts", JSON.stringify(ACCTS)); }catch(e){}
+        return ACCTS;
+      }).catch(function(e){ console.warn("[Accounts] load:",e); _local(); return ACCTS; });
+    }
+    _local(); return Promise.resolve(ACCTS);
+  }
+  function get(name){ return ACCTS[(name||"").trim()] || null; }
+  function set(name, data){
+    name=(name||"").trim(); if(!name) return Promise.resolve();
+    var prev=ACCTS[name];
+    var hist=(prev&&prev.history)?prev.history.slice(-9):[];
+    if(prev && (prev.bank!==data.bank || prev.accountNo!==data.accountNo || prev.accountName!==data.accountName)){
+      hist.push({bank:prev.bank||"",accountNo:prev.accountNo||"",accountName:prev.accountName||"",at:prev.updatedAt||"",by:prev.updatedBy||""});
+    }
+    var rec=Object.assign({name:name}, data, {history:hist, updatedAt:new Date().toISOString(), updatedBy:_user()});
+    ACCTS[name]=rec; // อัปเดต local ก่อนให้ UI ไว
+    try{ localStorage.setItem("golod_cod_accounts", JSON.stringify(ACCTS)); }catch(e){}
+    var fs=_fs();
+    if(fs){
+      var id=name.replace(/\//g,"_").slice(0,200);
+      return fs.collection("codAccounts").doc(id).set(rec,{merge:true}).catch(function(e){ console.warn("[Accounts] save:",e); });
+    }
+    return Promise.resolve();
+  }
+  return {load:load, get:get, set:set, all:function(){return ACCTS;}};
+})();
+
+var ST_TH = {
+  "delivered":"ส่งสำเร็จ","ส่งแล้ว":"ส่งสำเร็จ","returned":"ตีกลับ",
+  "ออกบิลรับของ":"ออกบิลรับของ","ระหว่างนำส่งสาขา":"ระหว่างนำส่งสาขา",
+  "กำลังวิ่งส่งลูกค้า":"กำลังวิ่งส่ง","นำส่งใหม่":"นำส่งใหม่","ส่งสำเร็จ":"ส่งสำเร็จ"
+};
+var PAY_TH = {origin:"ต้นทาง",dest:"ปลายทาง",dest_cash:"ปลายทาง(สด)",dest_transfer:"ปลายทาง(โอน)",transfer:"โอน",credit:"เครดิต",cod:"COD"};
+
+/* ---------- helpers ---------- */
+function fmt(n){ n = Math.round(parseFloat(n)||0); return n.toLocaleString("th-TH"); }
+function enc(s){ return encodeURIComponent(s); }
+function setStatus(msg,color){ var el=document.getElementById("fb-sync-status"); if(el){el.textContent=msg; if(color)el.parentNode.className="banner "+color;} }
+
+function num(v){ var n=parseFloat(v); return isNaN(n)?0:n; }
+function getCOD(b){ return num(b.codTotal != null ? b.codTotal : (b.summary && b.summary.codTotal)); }
+function getFreightNet(b){ return num(b.freightNet != null ? b.freightNet : (b.summary && b.summary.freightNet)); }
+function getPay(b){ return b.freightPay || (b.summary && b.summary.freightPay) || (b.form && b.form.freightPay) || ""; }
+function getSender(b){ return (b.senderName || (b.form && b.form.senderName) || "").trim(); }
+function getReceiver(b){ return (b.receiverName || (b.form && b.form.receiverName) || "").trim(); }
+function getDestProv(b){ return b.destProv || (b.form && b.form.destProv) || ""; }
+function isExempt(name){ return COD_FEE_EXEMPT.indexOf((name||"").trim()) >= 0; }
+
+// ค่าส่งปลายทาง = freightNet เฉพาะบิลที่เก็บเงินปลายทาง
+function destFreight(b){ return DEST_PAY.indexOf(getPay(b)) >= 0 ? getFreightNet(b) : 0; }
+
+// ค่าธรรมเนียม COD ของบิล (หัก 3% จาก COD + ค่าส่งปลายทาง) ยกเว้นลูกค้าที่กำหนด
+function codFee(b){
+  var cod = getCOD(b);
+  if(cod <= 0) return 0;
+  if(isExempt(getSender(b))) return 0;
+  return Math.round((cod + destFreight(b)) * COD_FEE_RATE);
+}
+// ยอดสุทธิที่ต้องโอนคืนต้นทาง = COD − ค่าธรรมเนียม
+function codNet(b){ return getCOD(b) - codFee(b); }
+
+function parseDate(v){
+  if(!v) return null;
+  var s = String(v).trim();
+  if(/^\d{4}-\d{2}-\d{2}/.test(s)) return new Date(s.slice(0,10)+"T00:00:00");
+  var m = s.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})/);
+  if(m){ var y=parseInt(m[3]); if(y>2400)y-=543; return new Date(y, parseInt(m[2])-1, parseInt(m[1])); }
+  var d = new Date(s); return isNaN(d.getTime()) ? null : d;
+}
+function toISO(v){ var d=parseDate(v); if(!d)return ""; var mm=("0"+(d.getMonth()+1)).slice(-2),dd=("0"+d.getDate()).slice(-2); return d.getFullYear()+"-"+mm+"-"+dd; }
+function billDate(b){ return toISO(b.date || (b.createdAt||"").slice(0,10)); }
+
+function inRange(iso){
+  var f=document.getElementById("f-from").value, t=document.getElementById("f-to").value;
+  if(f && iso < f) return false;
+  if(t && iso > t) return false;
+  return true;
+}
+function matchText(b){
+  var q=(document.getElementById("f-text").value||"").trim().toLowerCase();
+  if(!q) return true;
+  return (b.billNo||"").toLowerCase().indexOf(q)>=0
+      || getSender(b).toLowerCase().indexOf(q)>=0
+      || getReceiver(b).toLowerCase().indexOf(q)>=0;
+}
+
+// บิล COD ที่ผ่านตัวกรองช่วงวันที่/ข้อความ
+function codBillsFiltered(){
+  return ALL_BILLS.filter(function(b){
+    return getCOD(b) > 0 && inRange(billDate(b)) && matchText(b);
+  });
+}
+
+/* ---------- trip clearance status ---------- */
+function tripClear(trip){
+  var cd = trip.clearData || null;
+  var cleared = !!(cd && (trip.status==="cleared" || cd.clearedAt));
+  var diff = cd ? num(cd.diff) : null;
+  var label, cls;
+  if(!cleared){ label="ยังไม่เคลียร์"; cls="b-amber"; }
+  else if(diff < 0){ label="เคลียร์ขาด "+fmt(Math.abs(diff))+" ฿"; cls="b-red"; }
+  else { label = diff>0 ? ("เคลียร์เกิน "+fmt(diff)+" ฿") : "เคลียร์ครบ"; cls="b-green"; }
+  return {cleared:cleared, diff:diff, label:label, cls:cls, cd:cd};
+}
+// บิลของเที่ยว (จาก billIds)
+function tripBills(trip){
+  var ids = trip.billIds || [];
+  return ids.map(function(id){ return BILL_MAP[id]; }).filter(Boolean);
+}
+
+/* ============================================================
+   LOAD
+   ============================================================ */
+function reload(){ loadData(); }
+
+function loadData(){
+  if(typeof GolodDB === "undefined"){
+    setStatus("⚠ ไม่พบ GolodDB — ต้องเปิดไฟล์นี้ในโฟลเดอร์เดียวกับระบบโกโลด (มี firebase + golod-firebase.js)","err");
+    renderAll();
+    return;
+  }
+  setStatus("⏳ กำลังโหลดบิล + เที่ยว…","");
+  var run = function(){
+    var pBills = (GolodDB.getBillsNew ? GolodDB.getBillsNew(3000)
+                : GolodDB.getAllBills ? GolodDB.getAllBills(3000)
+                : GolodDB.getBills("",true));
+    var pTrips = (GolodDB.getTrips ? GolodDB.getTrips({limitN:400}) : Promise.resolve([]));
+    Promise.all([pBills, pTrips]).then(function(res){
+      ALL_BILLS = res[0]||[];
+      ALL_TRIPS = res[1]||[];
+      BILL_MAP = {};
+      ALL_BILLS.forEach(function(b){ if(b.billNo) BILL_MAP[b.billNo]=b; });
+      var codN = ALL_BILLS.filter(function(b){return getCOD(b)>0;}).length;
+      setStatus("✓ โหลดแล้ว "+ALL_BILLS.length+" บิล ("+codN+" บิลมี COD) · "+ALL_TRIPS.length+" เที่ยว","");
+      fillDriverFilter();
+      Accounts.load().then(renderAll);
+    }).catch(function(e){
+      console.error(e);
+      setStatus("❌ โหลดไม่สำเร็จ: "+(e&&e.message||e),"err");
+    });
+  };
+  if(GolodDB.ready) GolodDB.ready(run); else run();
+}
+
+function fillDriverFilter(){
+  var sel=document.getElementById("f-driver"); var cur=sel.value;
+  var names={};
+  ALL_TRIPS.forEach(function(t){ if(t.driverName) names[t.driverName]=(t.driverUsername||""); });
+  sel.innerHTML='<option value="">ทั้งหมด</option>'+Object.keys(names).sort().map(function(n){
+    return '<option value="'+n.replace(/"/g,'')+'">'+n+'</option>';
+  }).join("");
+  sel.value=cur;
+}
+
+function applyFilter(){ renderAll(); }
+
+/* ============================================================
+   RENDER
+   ============================================================ */
+function showPage(pg){
+  curPage=pg;
+  document.querySelectorAll(".tab").forEach(function(t){ t.classList.toggle("active", t.dataset.pg===pg); });
+  document.querySelectorAll(".page").forEach(function(p){ p.classList.remove("active"); });
+  document.getElementById("page-"+pg).classList.add("active");
+}
+function renderAll(){ renderDash(); renderTrips(); renderRemit(); renderBills(); renderAccounts(); renderPills(); }
+
+function renderPills(){
+  var bills=codBillsFiltered();
+  var totalCOD=bills.reduce(function(s,b){return s+getCOD(b);},0);
+  var pendingNet=bills.filter(function(b){return !(b.codRemit&&b.codRemit.remitted);})
+                      .reduce(function(s,b){return s+codNet(b);},0);
+  document.getElementById("hdr-pills").innerHTML=
+    '<span class="hdr-pill">COD รวม '+fmt(totalCOD)+' ฿</span>'+
+    (pendingNet>0?'<span class="hdr-pill amber">ค้างโอนคืน '+fmt(pendingNet)+' ฿</span>':'<span class="hdr-pill green">โอนคืนครบ</span>');
+}
+
+/* ----- DASH ----- */
+function renderDash(){
+  var bills=codBillsFiltered();
+  if(!bills.length){ document.getElementById("page-dash").innerHTML='<div class="empty">ไม่พบบิล COD ในช่วงที่เลือก</div>'; return; }
+
+  // จัด bucket ตามสถานะการเคลียร์ของเที่ยวที่บิลนั้นอยู่
+  var billTrip={}; // billNo -> tripClear info
+  ALL_TRIPS.forEach(function(t){ var tc=tripClear(t); (t.billIds||[]).forEach(function(id){ billTrip[id]=tc; }); });
+
+  var sum={cod:0,fee:0,net:0}, buckets={ok:{n:0,cod:0},short:{n:0,cod:0},open:{n:0,cod:0},notrip:{n:0,cod:0}};
+  var remitted=0, pending=0;
+  bills.forEach(function(b){
+    var cod=getCOD(b); sum.cod+=cod; sum.fee+=codFee(b); sum.net+=codNet(b);
+    if(b.codRemit&&b.codRemit.remitted) remitted+=codNet(b); else pending+=codNet(b);
+    var tc=billTrip[b.billNo];
+    if(!tc){ buckets.notrip.n++; buckets.notrip.cod+=cod; }
+    else if(!tc.cleared){ buckets.open.n++; buckets.open.cod+=cod; }
+    else if(tc.diff<0){ buckets.short.n++; buckets.short.cod+=cod; }
+    else { buckets.ok.n++; buckets.ok.cod+=cod; }
+  });
+
+  var html=''+
+   '<div class="cards">'+
+     card("บิล COD ทั้งหมด", bills.length+" ใบ", "COD รวม "+fmt(sum.cod)+" ฿","")+
+     card("ค่าธรรมเนียม 3%", fmt(sum.fee)+" ฿", "ยกเว้น: "+COD_FEE_EXEMPT.join(", "),"")+
+     card("ต้องโอนคืนต้นทาง (สุทธิ)", fmt(sum.net)+" ฿", "COD − ค่าธรรมเนียม","")+
+     card("ค้างโอนคืน", fmt(pending)+" ฿", "โอนแล้ว "+fmt(remitted)+" ฿", pending>0?"amber":"")+
+   '</div>'+
+   '<div class="sec-title">สถานะการเก็บ COD (อิงการเคลียร์เที่ยวของคนรถ)</div>'+
+   '<div class="cards">'+
+     card("เคลียร์ครบ", buckets.ok.n+" ใบ", fmt(buckets.ok.cod)+" ฿","")+
+     card("เคลียร์ขาด ⚠", buckets.short.n+" ใบ", fmt(buckets.short.cod)+" ฿", buckets.short.n?"red":"")+
+     card("ยังไม่เคลียร์", buckets.open.n+" ใบ", fmt(buckets.open.cod)+" ฿", buckets.open.n?"amber":"")+
+     card("ยังไม่เข้าเที่ยว", buckets.notrip.n+" ใบ", fmt(buckets.notrip.cod)+" ฿","")+
+   '</div>'+
+   '<div class="mini-note">หมายเหตุ: ยอด "เคลียร์ขาด/เกิน" เป็นส่วนต่างรวมของทั้งเที่ยว (ค่าปลายทาง + COD + งานรับปลายทาง) '+
+   'ระบบจึงชี้ว่าเที่ยวไหน "เงินไม่ครบ" เพื่อให้ไปไล่ดู COD รายบิลในแท็บ "ตรวจรายเที่ยว" ได้ตรงจุด — '+
+   'ไม่ได้แปลว่า COD ขาดทั้งจำนวนนั้น</div>';
+  document.getElementById("page-dash").innerHTML=html;
+}
+function card(l,v,s,cls){ return '<div class="card '+(cls||'')+'"><div class="cl">'+l+'</div><div class="cv">'+v+'</div><div class="cs">'+(s||'')+'</div></div>'; }
+
+/* ----- TRIPS ----- */
+function renderTrips(){
+  var fd=document.getElementById("f-driver").value;
+  var trips=ALL_TRIPS.filter(function(t){
+    var d=t.departDate || (t.createdAt||"").slice(0,10);
+    if(d && !inRange(toISO(d))) return false;
+    if(fd && t.driverName!==fd) return false;
+    // ต้องมีบิล COD อย่างน้อย 1 ใบในเที่ยว
+    return tripBills(t).some(function(b){return getCOD(b)>0;});
+  });
+  trips.sort(function(a,b){ var da=a.departDate||a.createdAt||"",db=b.departDate||b.createdAt||""; return da<db?1:-1; });
+
+  if(!trips.length){ document.getElementById("page-trips").innerHTML='<div class="empty">ไม่พบเที่ยวที่มีบิล COD ในช่วง/คนรถที่เลือก</div>'; return; }
+
+  var rows=trips.map(function(t,i){
+    var tc=tripClear(t);
+    var cbs=tripBills(t).filter(function(b){return getCOD(b)>0;});
+    var codSum=cbs.reduce(function(s,b){return s+getCOD(b);},0);
+    var sumCod=(t.summary&&num(t.summary.codTotal))||0;
+    var mismatch = Math.abs(sumCod-codSum)>=1 && sumCod>0;
+    var head=
+      '<tr class="trip-row" onclick="toggleTrip('+i+')">'+
+        '<td>'+(t.departDate||(t.createdAt||"").slice(0,10)||"—")+'</td>'+
+        '<td><b>'+(t.driverName||"—")+'</b><div style="font-size:10px;color:#999">'+(t.route||"")+'</div></td>'+
+        '<td class="r">'+cbs.length+'</td>'+
+        '<td class="r"><b>'+fmt(codSum)+'</b>'+(mismatch?'<div style="font-size:9px;color:#B71C1C">≠ สรุป '+fmt(sumCod)+'</div>':'')+'</td>'+
+        '<td><span class="badge '+tc.cls+'">'+tc.label+'</span></td>'+
+        '<td style="color:#bbb">▾</td>'+
+      '</tr>';
+    var sub=cbs.map(function(b){
+      var rm=b.codRemit&&b.codRemit.remitted;
+      return '<tr class="sub-bills"><td>'+(b.billNo||"")+'</td>'+
+        '<td>ต้นทาง: '+(getSender(b)||"—")+(isExempt(getSender(b))?'<span class="tag-exempt">ยกเว้น 3%</span>':'')+
+          '<div style="font-size:10px;color:#aaa">ปลายทาง: '+(getReceiver(b)||"—")+' · '+getDestProv(b)+'</div></td>'+
+        '<td class="r" colspan="2">COD '+fmt(getCOD(b))+' ฿<div style="font-size:10px;color:#999">โอนคืน '+fmt(codNet(b))+' ฿ (หัก '+fmt(codFee(b))+')</div></td>'+
+        '<td>'+(rm?'<span class="badge b-green">โอนคืนแล้ว</span>':'<span class="badge b-gray">รอโอนคืน</span>')+'</td><td></td></tr>';
+    }).join("");
+    return head+'<tbody id="trip-sub-'+i+'" class="hidden">'+sub+'</tbody>';
+  }).join("");
+
+  document.getElementById("page-trips").innerHTML=
+    '<div class="mini-note">แตะแถวเพื่อดู COD รายบิลของเที่ยวนั้น · แถวสีแดง = เที่ยวเคลียร์เงินไม่ครบ ควรไล่ตรวจ COD</div>'+
+    '<table><thead><tr><th>วันที่</th><th>คนรถ / เส้นทาง</th><th class="r">บิล COD</th><th class="r">COD รวม</th><th>สถานะเคลียร์</th><th></th></tr></thead>'+
+    '<tbody>'+rows+'</tbody></table>';
+}
+function toggleTrip(i){ var el=document.getElementById("trip-sub-"+i); if(el)el.classList.toggle("hidden"); }
+
+/* ----- REMIT (โอนคืนต้นทาง) ----- */
+function renderRemit(){
+  var bills=codBillsFiltered();
+  if(!bills.length){ document.getElementById("page-remit").innerHTML='<div class="empty">ไม่พบบิล COD ในช่วงที่เลือก</div>'; return; }
+
+  // group by sender
+  var groups={};
+  bills.forEach(function(b){
+    var s=getSender(b)||"(ไม่ระบุชื่อต้นทาง)";
+    if(!groups[s]) groups[s]={name:s,bills:[],cod:0,fee:0,net:0,pendNet:0,exempt:isExempt(s)};
+    var g=groups[s];
+    g.bills.push(b); g.cod+=getCOD(b); g.fee+=codFee(b); g.net+=codNet(b);
+    if(!(b.codRemit&&b.codRemit.remitted)) g.pendNet+=codNet(b);
+  });
+  var list=Object.keys(groups).map(function(k){return groups[k];})
+            .sort(function(a,b){return b.pendNet-a.pendNet;});
+
+  var rows=list.map(function(g,gi){
+    var ac=Accounts.get(g.name);
+    var acLine = ac && (ac.bank||ac.accountNo)
+      ? '🏦 '+(ac.bank||'')+' '+(ac.accountNo||'')+(ac.accountName?' ('+ac.accountName+')':'')
+      : '<span style="color:#B07400">⚠ ยังไม่ตั้งบัญชีรับโอน</span>';
+    var head='<tr class="trip-row" onclick="toggleRemit('+gi+')">'+
+      '<td><b>'+g.name+'</b>'+(g.exempt?'<span class="tag-exempt">ยกเว้น 3%</span>':'')+
+        '<div class="acct-line">'+acLine+' · <a class="acct-link" onclick="event.stopPropagation();openAcct(\''+enc(g.name)+'\')">'+(ac?'แก้บัญชี':'ตั้งบัญชี')+'</a></div></td>'+
+      '<td class="r">'+g.bills.length+'</td>'+
+      '<td class="r">'+fmt(g.cod)+'</td>'+
+      '<td class="r" style="color:#B07400">'+fmt(g.fee)+'</td>'+
+      '<td class="r"><b>'+fmt(g.net)+'</b></td>'+
+      '<td>'+(g.pendNet>0?'<span class="badge b-amber">ค้าง '+fmt(g.pendNet)+'</span>':'<span class="badge b-green">ครบ</span>')+'</td>'+
+      '<td>'+(g.pendNet>0?'<button class="btn btn-green btn-sm" onclick="event.stopPropagation();markGroup(\''+encodeURIComponent(g.name)+'\')">✓ โอนคืนแล้ว</button>':'')+'</td>'+
+      '</tr>';
+    var sub=g.bills.map(function(b){
+      var rm=b.codRemit&&b.codRemit.remitted;
+      return '<tr class="sub-bills"><td>'+(b.billNo||"")+' · '+billDate(b)+'</td>'+
+        '<td class="r" colspan="3">COD '+fmt(getCOD(b))+' − '+fmt(codFee(b))+'</td>'+
+        '<td class="r">'+fmt(codNet(b))+'</td>'+
+        '<td>'+(rm?'<span class="badge b-green">โอนแล้ว</span>':'<span class="badge b-gray">รอ</span>')+'</td>'+
+        '<td><button class="btn btn-ghost btn-sm" onclick="toggleBill(\''+(b.billNo||"")+'\')">'+(rm?'ยกเลิก':'ทำเครื่องหมาย')+'</button></td></tr>';
+    }).join("");
+    return head+'<tbody id="remit-sub-'+gi+'" class="hidden">'+sub+'</tbody>';
+  }).join("");
+
+  document.getElementById("page-remit").innerHTML=
+    '<div class="mini-note">สูตร: โอนคืน = COD − (COD + ค่าส่งปลายทาง) × '+(COD_FEE_RATE*100)+'% — ถ้ามีเก็บค่าส่งปลายทาง จะคิด 3% รวมค่าส่งด้วย · ลูกค้ายกเว้น ('+COD_FEE_EXEMPT.join(", ")+') ได้ COD เต็ม · แตะแถวเพื่อดูรายบิล</div>'+
+    '<table><thead><tr><th>ลูกค้าต้นทาง</th><th class="r">บิล</th><th class="r">COD</th><th class="r">ค่าธรรมเนียม</th><th class="r">โอนคืนสุทธิ</th><th>สถานะ</th><th></th></tr></thead>'+
+    '<tbody>'+rows+'</tbody></table>';
+}
+function toggleRemit(i){ var el=document.getElementById("remit-sub-"+i); if(el)el.classList.toggle("hidden"); }
+
+/* ----- BILLS (flat) ----- */
+function renderBills(){
+  var bills=codBillsFiltered().slice().sort(function(a,b){ return billDate(a)<billDate(b)?1:-1; });
+  if(!bills.length){ document.getElementById("page-bills").innerHTML='<div class="empty">ไม่พบบิล COD ในช่วงที่เลือก</div>'; return; }
+  var rows=bills.map(function(b){
+    var rm=b.codRemit&&b.codRemit.remitted;
+    return '<tr><td>'+(b.billNo||"")+'</td><td>'+billDate(b)+'</td>'+
+      '<td>'+(getSender(b)||"—")+(isExempt(getSender(b))?'<span class="tag-exempt">ยกเว้น</span>':'')+'</td>'+
+      '<td>'+(getReceiver(b)||"—")+'<div style="font-size:10px;color:#aaa">'+getDestProv(b)+'</div></td>'+
+      '<td>'+(PAY_TH[getPay(b)]||getPay(b)||"—")+'</td>'+
+      '<td class="r">'+fmt(destFreight(b))+'</td>'+
+      '<td class="r">'+fmt(getCOD(b))+'</td>'+
+      '<td class="r" style="color:#B07400">'+fmt(codFee(b))+'</td>'+
+      '<td class="r"><b>'+fmt(codNet(b))+'</b></td>'+
+      '<td>'+(ST_TH[b.status]||b.status||"—")+'</td>'+
+      '<td>'+(rm?'<span class="badge b-green">โอนแล้ว</span>':'<button class="btn btn-ghost btn-sm" onclick="toggleBill(\''+(b.billNo||"")+'\')">โอนคืน</button>')+'</td></tr>';
+  }).join("");
+  document.getElementById("page-bills").innerHTML=
+    '<table><thead><tr><th>เลขบิล</th><th>วันที่</th><th>ต้นทาง</th><th>ปลายทาง</th><th>ชำระ</th><th class="r">ค่าส่งปลายทาง</th><th class="r">COD</th><th class="r">ธรรมเนียม</th><th class="r">โอนคืน</th><th>สถานะ</th><th></th></tr></thead><tbody>'+rows+'</tbody></table>';
+}
+
+/* ============================================================
+   MARK REMITTED  (เขียนกลับ Firestore: bills.codRemit)
+   ============================================================ */
+function _user(){ try{ return (CU&&CU.username) || (GolodSession.get&&GolodSession.get().username) || ""; }catch(e){ return ""; } }
+
+function setBillRemit(billNo, remitted){
+  var b=BILL_MAP[billNo]; if(!b) return Promise.resolve();
+  var payload = remitted
+    ? {remitted:true, at:new Date().toISOString(), by:_user(), net:codNet(b)}
+    : {remitted:false, at:new Date().toISOString(), by:_user()};
+  b.codRemit=payload; // อัปเดต local ก่อนเพื่อให้ UI ไว
+  if(typeof GolodDB!=="undefined" && GolodDB.updateBill){
+    return GolodDB.updateBill(billNo, {codRemit:payload}).catch(function(e){ console.warn("updateBill codRemit:",e); });
+  }
+  return Promise.resolve();
+}
+
+function toggleBill(billNo){
+  var b=BILL_MAP[billNo]; if(!b) return;
+  var now=!(b.codRemit&&b.codRemit.remitted);
+  setBillRemit(billNo, now).then(function(){ renderAll(); });
+}
+
+function markGroup(encName){
+  var name=decodeURIComponent(encName);
+  var targets=codBillsFiltered().filter(function(b){
+    return (getSender(b)||"(ไม่ระบุชื่อต้นทาง)")===name && !(b.codRemit&&b.codRemit.remitted);
+  });
+  if(!targets.length) return;
+  if(!confirm("ทำเครื่องหมาย \"โอนคืนแล้ว\" ให้ "+targets.length+" บิลของ "+name+" ?")) return;
+  Promise.all(targets.map(function(b){ return setBillRemit(b.billNo, true); }))
+    .then(function(){ renderAll(); });
+}
+
+/* ============================================================
+   ACCOUNTS TAB + MODAL
+   ============================================================ */
+function renderAccounts(){
+  var senders={};
+  ALL_BILLS.forEach(function(b){ if(getCOD(b)>0){ var s=getSender(b); if(s) senders[s]=(senders[s]||0)+1; } });
+  Object.keys(ACCTS).forEach(function(n){ if(!(n in senders)) senders[n]=0; });
+  var names=Object.keys(senders).sort();
+  var box=document.getElementById("page-accounts");
+  if(!names.length){ box.innerHTML='<div class="empty">ยังไม่มีลูกค้าต้นทางที่มีบิล COD</div>'; return; }
+  var nset=0;
+  var rows=names.map(function(n){
+    var a=Accounts.get(n);
+    var has=a&&(a.bank||a.accountNo);
+    if(has)nset++;
+    var mismatch = has && a.accountName && a.accountName.trim()!==n.trim();
+    return '<tr><td><b>'+n+'</b>'+(isExempt(n)?'<span class="tag-exempt">ยกเว้น 3%</span>':'')+
+      (has?('<div class="acct-line">🔒 ผูกเมื่อ '+(a.updatedAt?a.updatedAt.slice(0,10):'—')+(a.history&&a.history.length?(' · เคยแก้ '+a.history.length+' ครั้ง'):'')+'</div>'):'')+
+      '</td>'+
+      '<td>'+(has?(a.bank||'—'):'<span class="badge b-amber">ยังไม่ตั้ง</span>')+'</td>'+
+      '<td>'+(has?(a.accountNo||'—'):'')+'</td>'+
+      '<td>'+(has?((a.accountName||'—')+(mismatch?'<span class="acct-line" style="color:#5B3FB3"> (≠ ชื่อบิล)</span>':'')):'')+'</td>'+
+      '<td class="r">'+(senders[n]||0)+'</td>'+
+      '<td><button class="btn btn-ghost btn-sm" onclick="openAcct(\''+enc(n)+'\')">'+(has?'แก้ไข':'+ ตั้งบัญชี')+'</button></td></tr>';
+  }).join("");
+  box.innerHTML=
+    '<div class="mini-note">ผูกบัญชีรับโอนคืน COD แบบ 1 ลูกค้าต้นทาง (ชื่อในบิล) = 1 บัญชี · เมื่อผูกแล้วระบบใช้บัญชีนี้ตลอดจนกว่าจะกดแก้ไข (และเก็บประวัติทุกครั้ง) · ชื่อบัญชีไม่จำเป็นต้องตรงกับชื่อในบิล · ตั้งครบ '+nset+'/'+names.length+' ราย</div>'+
+    '<table><thead><tr><th>ลูกค้าต้นทาง</th><th>ธนาคาร</th><th>เลขบัญชี</th><th>ชื่อบัญชี</th><th class="r">บิล COD</th><th></th></tr></thead><tbody>'+rows+'</tbody></table>';
+}
+
+var _acctName="";
+function openAcct(encName){
+  var name=decodeURIComponent(encName); _acctName=name;
+  var a=Accounts.get(name)||{};
+  var isNew=!(a.bank||a.accountNo||a.accountName);
+  document.getElementById("ac-name").value=name;
+  document.getElementById("ac-bank").value=a.bank||"";
+  document.getElementById("ac-no").value=a.accountNo||"";
+  // ส่วนใหญ่ชื่อบัญชีตรงกับชื่อในบิล → เติมให้อัตโนมัติเฉพาะรายใหม่ แล้วผู้ใช้แก้เฉพาะที่ไม่ตรง
+  document.getElementById("ac-acctname").value=isNew ? name : (a.accountName||"");
+  document.getElementById("acct-modal").classList.remove("hidden");
+}
+function closeAcct(){ document.getElementById("acct-modal").classList.add("hidden"); _acctName=""; }
+function saveAcct(){
+  if(!_acctName) return;
+  var existed=Accounts.get(_acctName);
+  var hadBinding=existed&&(existed.bank||existed.accountNo);
+  var data={
+    bank: document.getElementById("ac-bank").value.trim(),
+    accountNo: document.getElementById("ac-no").value.trim(),
+    accountName: document.getElementById("ac-acctname").value.trim()
+  };
+  // การผูกบัญชีค้างถาวร — ถ้าแก้ของเดิม ต้องยืนยัน (ถือเป็น "ขอแก้ไข")
+  if(hadBinding && (existed.bank!==data.bank||existed.accountNo!==data.accountNo||existed.accountName!==data.accountName)){
+    if(!confirm("ลูกค้า \""+_acctName+"\" ผูกบัญชีไว้แล้ว\nยืนยันเปลี่ยนเป็นบัญชีใหม่? ระบบจะใช้บัญชีใหม่นี้ต่อไป (เก็บประวัติเดิมไว้)")) return;
+  }
+  Accounts.set(_acctName, data).then(function(){ closeAcct(); renderAll(); });
+}
+
+/* ============================================================
+   ACCESS CONTROL — แอดมิน หรือ ผู้ที่ได้รับมอบหมายเท่านั้น
+   ============================================================ */
+function showLock(msg){
+  document.getElementById("lock-msg").innerHTML=msg;
+  document.getElementById("lock-screen").classList.remove("hidden");
+  document.getElementById("app-main").classList.add("hidden");
+}
+function authGate(){
+  var GS=(typeof GolodSession!=="undefined")?GolodSession:null;
+  if(!GS||!GS.get){ showLock("ไม่พบระบบเข้าสู่ระบบ — เปิดไฟล์นี้ในโฟลเดอร์ระบบโกโลด (ต้องมี session.js)"); return Promise.resolve(false); }
+  CU=GS.get();
+  if(!CU){ location.href="GolodApp.html"; return Promise.resolve(false); }
+  if(CU.role==="admin") return Promise.resolve(true);            // แอดมินเข้าได้เสมอ
+  return Settings.loadViewers().then(function(list){             // คนอื่นต้องอยู่ในรายชื่อมอบหมาย
+    if((list||[]).indexOf(CU.username)>=0) return true;
+    showLock("หน้านี้เปิดให้เฉพาะแอดมิน และผู้ที่ได้รับมอบหมายเท่านั้น<br>กรุณาติดต่อแอดมินเพื่อขอสิทธิ์ดูระบบตรวจสอบ COD");
+    return false;
+  });
+}
+
+function openAssign(){
+  if(!CU||CU.role!=="admin"){ alert("เฉพาะแอดมินเท่านั้น"); return; }
+  var box=document.getElementById("assign-list");
+  box.innerHTML='<div class="acct-line">กำลังโหลดผู้ใช้…</div>';
+  document.getElementById("assign-modal").classList.remove("hidden");
+  var p=(typeof GolodDB!=="undefined"&&GolodDB.getUsers)?GolodDB.getUsers():Promise.resolve([]);
+  p.then(function(users){
+    users=(users||[]).filter(function(u){ return u.role!=="customer"; });
+    users.sort(function(a,b){ return (a.role+(a.name||""))>(b.role+(b.name||""))?1:-1; });
+    var roleLabels={admin:"แอดมิน",branch:"หัวหน้าสาขา",clerk:"เสมียน",driver:"คนขับ"};
+    box.innerHTML=users.map(function(u){
+      var isAdmin=u.role==="admin";
+      var checked=isAdmin||COD_VIEWERS.indexOf(u.username)>=0;
+      return '<label class="chk-row"><input type="checkbox" value="'+u.username+'"'+(checked?' checked':'')+(isAdmin?' disabled':'')+'>'+
+        '<span><b>'+(u.name||u.username)+'</b> <span class="acct-line">'+(roleLabels[u.role]||u.role)+(isAdmin?' · เข้าได้เสมอ':'')+'</span></span></label>';
+    }).join("")||'<div class="acct-line">ไม่พบผู้ใช้</div>';
+  }).catch(function(){ box.innerHTML='<div class="acct-line">โหลดผู้ใช้ไม่สำเร็จ</div>'; });
+}
+function closeAssign(){ document.getElementById("assign-modal").classList.add("hidden"); }
+function saveAssign(){
+  var box=document.getElementById("assign-list");
+  var list=[].slice.call(box.querySelectorAll('input[type=checkbox]'))
+    .filter(function(c){ return c.checked && !c.disabled; })
+    .map(function(c){ return c.value; });
+  Settings.saveViewers(list).then(function(){ alert("✅ บันทึกสิทธิ์แล้ว ("+list.length+" คน)"); closeAssign(); });
+}
+
+/* ============================================================
+   INIT
+   ============================================================ */
+(function init(){
+  // ค่าเริ่มต้นช่วงวันที่ = 30 วันล่าสุด
+  var to=new Date(), from=new Date(); from.setDate(from.getDate()-30);
+  var iso=function(d){var m=("0"+(d.getMonth()+1)).slice(-2),dd=("0"+d.getDate()).slice(-2);return d.getFullYear()+"-"+m+"-"+dd;};
+  document.getElementById("f-to").value=iso(to);
+  document.getElementById("f-from").value=iso(from);
+  document.getElementById("f-text").addEventListener("keydown",function(e){ if(e.key==="Enter")applyFilter(); });
+  authGate().then(function(ok){
+    if(!ok) return;
+    document.getElementById("app-main").classList.remove("hidden");
+    if(CU && CU.role==="admin") document.getElementById("assign-btn").classList.remove("hidden");
+    loadData();
+  });
+})();
+</script>
+</body>
+</html>
