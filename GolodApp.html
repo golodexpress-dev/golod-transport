@@ -364,10 +364,22 @@ try{BILLS=loadRealBills();}catch(e){BILLS=[];console.error("loadRealBills error:
 // ===== SESSION =====
 var CU=null,CS=null,SEC="dashboard";
 
+// รายชื่อผู้ที่แอดมินมอบหมายให้ดู COD (จาก Firestore codSettings/viewers — แหล่งเดียวกับ CODCheck)
+var COD_VIEWERS=[];
+function loadCodViewers(){
+  try{
+    firebase.firestore().collection("codSettings").doc("viewers").get().then(function(d){
+      COD_VIEWERS=(d.exists&&d.data().usernames)||[];
+      try{ if(typeof CU!=="undefined"&&CU){ buildSidebar(); } }catch(e){}
+    }).catch(function(){});
+  }catch(e){}
+}
+
 // init Firebase และ sync users ทันทีตอนโหลดหน้า
 (function initFirebase(){
   try{
     GolodDB.init();
+    loadCodViewers();
     GolodDB.getUsers().then(function(users){
       if(users&&users.length>0){
         var _deleted=[];
@@ -464,6 +476,7 @@ var MENU=[
   {k:"transport",lb:"จัดการขนส่ง",ic:"🚛",perm:"transport",roles:["admin","branch","clerk","driver"],extUrl:"DispatchApp.html",driverUrl:"DriverApp.html"},
   {k:"tracking",lb:"ติดตามสินค้า",ic:"📍",roles:["admin","branch","clerk","driver","customer"],extUrl:"TrackingSystem.html"},
   {k:"finance",lb:"การเงิน",ic:"💰",perm:"finance",roles:["admin","branch","clerk"],extUrl:"FinanceSystem.html"},
+  {k:"cod",lb:"ตรวจสอบ COD",ic:"💸",roles:["admin","branch","clerk"],extUrl:"CODCheck.html"},
   {k:"reports",lb:"รายงาน",ic:"📊",perm:"reports",roles:["admin","branch","clerk"],extUrl:"MonthlyReport.html"},
   {k:"salesreport",lb:"รายงานยอดขาย",ic:"💹",perm:"reports",roles:["admin","branch"],extUrl:"SalesReport.html"},
   {k:"customers",lb:"ลูกค้า",ic:"👥",perm:"customers",roles:["admin","branch","clerk"],extUrl:"CustomerSystem.html"},
@@ -475,6 +488,7 @@ var MENU=[
 ];
 function canAccess(k){
   var m=MENU.find(function(x){return x.k===k;});if(!m)return false;
+  if(k==="cod")return CU.role==="admin"||COD_VIEWERS.indexOf(CU.username)>=0;
   if(!m.roles.includes(CU.role))return false;
   if(m.perm&&!(CU.perms&&CU.perms[m.perm]))return false;
   return true;
@@ -482,14 +496,14 @@ function canAccess(k){
 function buildSidebar(){
   var isDriver=CU.role==="driver"||CU.role==="customer";
   var h="";
-  var secs=[{lb:"เมนูหลัก",ks:["dashboard","billing","bills","transport","tracking"]},{lb:"ข้อมูล",ks:["finance","reports","salesreport","customers","drivers"]},{lb:"ระบบ",ks:["users","profile"]}];
+  var secs=[{lb:"เมนูหลัก",ks:["dashboard","billing","bills","transport","tracking"]},{lb:"ข้อมูล",ks:["finance","cod","reports","salesreport","customers","drivers"]},{lb:"ระบบ",ks:["users","profile"]}];
   secs.forEach(function(s){
     var visItems=MENU.filter(function(m){return s.ks.includes(m.k)&&m.roles.includes(CU.role);});
     if(!visItems.length)return;
     h+='<div class="sb-sec">'+s.lb+"</div>";
     visItems.forEach(function(m){
       var ok=canAccess(m.k);
-      if(!ok&&isDriver)return;
+      if(!ok&&(isDriver||m.k==="cod"))return;
       h+='<div class="sb-item'+(SEC===m.k?" on":"")+(ok?"":" locked")+'" onclick="'+(ok?"goSection('"+m.k+"')":"showDenied('"+m.k+"')")+'">';
       h+='<span class="ic">'+m.ic+"</span>"+m.lb;
       if(!ok)h+='<span class="sb-lock">🔒</span>';
