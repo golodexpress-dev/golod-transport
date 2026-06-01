@@ -291,7 +291,7 @@ function doLogout(){
 function startApp(){
   document.getElementById("login-page").style.display="none";
   document.getElementById("main-app").style.display="flex";
-  var avColor=SYS_COLOR[CS]||"#1D9E75";
+  var avColor=SYS_COLORS[CS]||"#1D9E75";
   document.getElementById("user-av").textContent=CU.avatar;
   document.getElementById("user-av").style.background=avColor;
   document.getElementById("user-nm").textContent=CU.name.split(" ")[0];
@@ -395,7 +395,7 @@ function renderDashboard(){
   // Non-admin dashboard (fallthrough)
   var u=CU;
   var h='<div class="card"><div style="display:flex;align-items:center;gap:14px;margin-bottom:16px">';
-  h+='<div style="width:52px;height:52px;border-radius:50%;background:'+( SYS_COLOR[CS]||"#1D9E75")+';display:flex;align-items:center;justify-content:center;font-size:22px;font-weight:700;color:#fff">'+u.avatar+"</div>";
+  h+='<div style="width:52px;height:52px;border-radius:50%;background:'+( SYS_COLORS[CS]||"#1D9E75")+';display:flex;align-items:center;justify-content:center;font-size:22px;font-weight:700;color:#fff">'+u.avatar+"</div>";
   h+='<div><div style="font-size:16px;font-weight:700;color:#222">'+u.name+"</div>";
   h+='<div style="display:flex;gap:6px;align-items:center;margin-top:4px">'+rolePill(u.role);
   if(u.branch!=="all")h+='<span style="font-size:11px;color:#888">สาขา: '+u.branch+"</span>";
