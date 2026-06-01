@@ -3284,9 +3284,7 @@ function ThermalBillingApp() {
         doPreview(); // บันทึกสำเร็จ → ไป preview
       }).catch(function(e){
         if(saveBtn){ saveBtn.disabled=false; saveBtn.textContent="ออกบิล ✓"; saveBtn.style.background="#1D9E75"; }
-        if(!confirm("⚠️ บันทึกไม่สำเร็จ: " + (e.message||"") + "
-
-ต้องการดำเนินการต่อไหม?")) return;
+        if(!confirm("⚠️ บันทึกไม่สำเร็จ: " + (e.message||"") + "\n\nต้องการดำเนินการต่อไหม?")) return;
         doPreview();
       });
     } else {
