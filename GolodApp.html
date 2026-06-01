@@ -243,7 +243,7 @@ function loadRealBills(){
     var raw=localStorage.getItem("golod_bills");
     // ถ้าว่าง ให้ดึงจาก Firestore
     if((!raw||JSON.parse(raw).length===0) && typeof GolodDB!=="undefined"){
-      GolodDB.getBillsNew(500).then(function(bills){
+      GolodDB.getBillsNew(3000).then(function(bills){
         if(bills&&bills.length>0){
           try{localStorage.setItem("golod_bills",JSON.stringify(bills));}catch(e){}
           window._billsData=bills;
@@ -927,7 +927,7 @@ function pgBills(){
   window._billsData=data;
   // ดึงสดจาก Firestore ทุกครั้งที่เปิดแท็บ (เห็นบิลล่าสุด)
   if(typeof GolodDB!=="undefined" && GolodDB.getBillsNew){
-    GolodDB.getBillsNew(500).then(function(bills){
+    GolodDB.getBillsNew(3000).then(function(bills){
       if(bills && bills.length>0){
         try{localStorage.setItem("golod_bills",JSON.stringify(bills));}catch(e){}
         window._billsData=null; // ล้าง cache ให้ filterBillsPage โหลดใหม่
@@ -949,7 +949,7 @@ function refreshBillsFromFirestore(){
   if(typeof GolodDB==="undefined"||!GolodDB.getBillsNew){ alert("ระบบยังไม่พร้อม"); return; }
   var cnt=document.getElementById("bcnt");
   if(cnt) cnt.textContent="⏳ กำลังโหลด...";
-  GolodDB.getBillsNew(500).then(function(bills){
+  GolodDB.getBillsNew(3000).then(function(bills){
     if(bills&&bills.length>0){
       try{localStorage.setItem("golod_bills",JSON.stringify(bills));}catch(e){}
       window._billsData=null;
