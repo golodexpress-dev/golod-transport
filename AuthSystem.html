@@ -5,6 +5,10 @@
 <meta name="viewport" content="width=device-width,initial-scale=1"/>
 <title>โกโลด — ระบบ Login & สิทธิ์ v2.5</title>
 <script src="session.js"></script>
+<script src="firebase-app-compat.js"></script>
+<script src="firebase-firestore-compat.js"></script>
+<script src="golod-firebase.js?v=2"></script>
+<script>try{GolodDB.init();}catch(e){}</script>
 <style>
 *{box-sizing:border-box;margin:0;padding:0}
 body{font-family:Arial,sans-serif;background:#f5f5f2;min-height:100vh}
@@ -227,6 +231,19 @@ var USERS=[
 ];
 loadSavedUsers(); // Load persisted users
 
+// รายชื่อผู้ที่แอดมินมอบหมายให้ดู COD (จาก Firestore codSettings/viewers — แหล่งเดียวกับ CODCheck)
+var COD_VIEWERS=[];
+function loadCodViewers(){
+  try{
+    var fs=firebase.firestore();
+    fs.collection("codSettings").doc("viewers").get().then(function(d){
+      COD_VIEWERS=(d.exists&&d.data().usernames)||[];
+      try{ if(CU){ buildSidebar(); if(currentSection==="dashboard") showSection("dashboard"); } }catch(e){}
+    }).catch(function(){});
+  }catch(e){}
+}
+loadCodViewers();
+
 
 var REPORT_ITEMS=[
   {key:"rep_daily",label:"รายงานยอดขายรายวัน"},
@@ -245,7 +262,7 @@ var MENU_ITEMS=[
   {key:"transport",label:"จัดการงานขนส่ง",ico:"🚛",perm:"transport",roles:["admin","branch","clerk","driver"],systems:["transport","admin"]},
   {key:"tracking",label:"ติดตามสินค้า",ico:"📍",roles:["admin","branch","clerk","driver","customer"],systems:["billing","transport","admin"]},
   {key:"finance",label:"การเงิน",ico:"💰",perm:"finance",roles:["admin","branch","clerk"],systems:["finance","admin"]},
-  {key:"cod",label:"ตรวจสอบ COD",ico:"💸",perm:"finance",roles:["admin","branch","clerk"],systems:["finance","admin"]},
+  {key:"cod",label:"ตรวจสอบ COD",ico:"💸",roles:["admin"],systems:["finance","admin"]},
   {key:"reports",label:"รายงาน",ico:"📊",perm:"reports",roles:["admin","branch","clerk"],systems:["billing","finance","admin"]},
   {key:"customers",label:"ลูกค้า",ico:"👥",perm:"customers",roles:["admin","branch","clerk"],systems:["billing","admin"]},
   {key:"drivers",label:"คนขับ",ico:"🚗",perm:"drivers",roles:["admin","branch"],systems:["transport","admin"]},
@@ -300,6 +317,7 @@ function startApp(){
   document.getElementById("topbar-sys").textContent=SYSTEMS[CS]||"";
   buildSidebar();
   showSection("dashboard");
+  loadCodViewers();
 }
 
 // ===== SIDEBAR =====
@@ -315,7 +333,7 @@ function buildSidebar(){
       var canSee=canAccess(key);
       // Driver and customer: hide inaccessible items completely. Others: show lock icon.
       var hideCompletely=(CU.role==="driver"||CU.role==="customer");
-      if(!canSee&&hideCompletely)return;
+      if(!canSee&&(hideCompletely||key==="cod"))return;
       html+='<div class="sb-item'+(currentSection===key?" active":"")+(canSee?"":" locked")+'" onclick="'+(canSee?"showSection('"+key+"')":"showDenied('"+key+"')")+'">';
       html+='<span class="ico">'+item.ico+"</span>"+item.label;
       if(!canSee)html+='<span class="lock-ico">🔒</span>';
@@ -327,13 +345,15 @@ function buildSidebar(){
 function canAccess(key){
   var item=MENU_ITEMS.find(function(m){return m.key===key;});
   if(!item)return false;
+  if(key==="cod"){ return CU.role==="admin" || COD_VIEWERS.indexOf(CU.username)>=0; }
   if(!item.roles.includes(CU.role))return false;
   if(item.perm&&!CU.perms[item.perm])return false;
   return true;
 }
 function canAccess_sys(url){
   if(CU.role==="admin") return true;
-  var map={"ThermalBill.html":"billing","TripManager.html":"transport","FinanceSystem.html":"finance","CustomerSystem.html":"customers","MonthlyReport.html":"reports","CODCheck.html":"finance"};
+  if(url==="CODCheck.html") return COD_VIEWERS.indexOf(CU.username)>=0;
+  var map={"ThermalBill.html":"billing","TripManager.html":"transport","FinanceSystem.html":"finance","CustomerSystem.html":"customers","MonthlyReport.html":"reports"};
   var perm=map[url];
   if(!perm) return true;
   return !!(CU.perms&&CU.perms[perm]);
