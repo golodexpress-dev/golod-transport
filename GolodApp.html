@@ -675,14 +675,55 @@ function pgDashboard(showAll){
     if(myCode2)dashBills=BILLS.filter(function(b){return b.clerkCode===myCode2||(b.billNo&&b.billNo.startsWith(myCode2));});
   }
   // Recent bills
-  h+='<div class="card" style="margin-top:0"><div class="ct">บิลล่าสุด <span style="font-size:11px;font-weight:400;color:#888">'+dashBills.length+' รายการ</span></div>';
+  h+='<div class="card" style="margin-top:0"><div class="ct">บิลล่าสุด <span style="font-size:11px;font-weight:400;color:#888">'+dashBills.length+' รายการ</span> <button onclick="refreshDashBills()" style="float:right;padding:4px 10px;background:#1D9E75;color:#fff;border:none;border-radius:6px;font-size:11px;cursor:pointer">🔄 รีเฟรช</button></div>';
   if(dashBills.length===0){
     h+='<div style="text-align:center;padding:24px;color:#bbb">ยังไม่มีบิล — ออกบิลใน ThermalBill ก่อนครับ</div>';
   }else{
-    h+=billTable(dashBills.slice(0,10));
+    h+='<div id="dash-bill-table">'+billTable(sortBillsByNewest(dashBills).slice(0,10))+'</div>';
   }
   h+="</div>";
   document.getElementById("content").innerHTML=h;
+  // ดึงสดจาก Firestore เห็นบิลล่าสุด
+  if(typeof GolodDB!=="undefined" && GolodDB.getBillsNew){
+    GolodDB.getBillsNew(500).then(function(bills){
+      if(bills && bills.length>0){
+        try{localStorage.setItem("golod_bills",JSON.stringify(bills));}catch(e){}
+        BILLS=loadRealBills();
+        var db2=BILLS;
+        if(CU.role==="clerk"||CU.role==="driver"){
+          var mc=CU.clerkCode||"";
+          if(!mc){try{var lu3=JSON.parse(localStorage.getItem("golod_users_v1")||"[]").find(function(u){return u.username===CU.username;});if(lu3&&lu3.clerkCode)mc=lu3.clerkCode;}catch(e){}}
+          if(mc)db2=BILLS.filter(function(b){return b.clerkCode===mc||(b.billNo&&b.billNo.startsWith(mc));});
+        }
+        var tbl=document.getElementById("dash-bill-table");
+        if(tbl)tbl.innerHTML=billTable(sortBillsByNewest(db2).slice(0,10));
+      }
+    }).catch(function(){});
+  }
+}
+function sortBillsByNewest(bills){
+  return bills.slice().sort(function(a,b){
+    var ta=billTimestamp(a), tb=billTimestamp(b);
+    return tb-ta;
+  });
+}
+function billTimestamp(b){
+  if(b.createdAt){ var t=new Date(b.createdAt).getTime(); if(!isNaN(t))return t; }
+  if(b.date){
+    var m=b.date.match(/(\d{1,2})\/(\d{1,2})\/(\d{4})/);
+    if(m){ var y=parseInt(m[3]); if(y>2400)y-=543; return new Date(y,parseInt(m[2])-1,parseInt(m[1])).getTime(); }
+  }
+  return 0;
+}
+function refreshDashBills(){
+  if(typeof GolodDB==="undefined"||!GolodDB.getBillsNew){ return; }
+  GolodDB.getBillsNew(500).then(function(bills){
+    if(bills&&bills.length>0){
+      try{localStorage.setItem("golod_bills",JSON.stringify(bills));}catch(e){}
+      BILLS=loadRealBills();
+      pgDashboard();
+    }
+  }).catch(function(){});
 }
 
 // ===== BILL TABLE helper =====
@@ -879,12 +920,52 @@ function pgBills(){
   } else { h+='<span id="breg" style="display:none"></span>'; }
   h+='<select id="bst" onchange="filterBillsPage()" style="width:130px"><option value="all">ทุกสถานะ</option><option value="issued">ออกบิล/รับของ</option><option value="in_transit">นำส่งสาขา</option><option value="delivering">กำลังวิ่งส่ง</option><option value="delivered">ส่งสำเร็จ</option><option value="failed">ส่งไม่สำเร็จ</option><option value="returned">ตีกลับต้นทาง</option><option value="reschedule">จัดส่งรอบใหม่</option></select>';
   h+='<select id="bslip" onchange="filterBillsPage()" style="width:140px"><option value="all">ทุกสลิป</option><option value="has_slip">📎 มีสลิปแล้ว</option><option value="no_slip">⏳ รอสลิป</option><option value="late3">⚠ เกิน 3 วัน</option><option value="late7">🔴 เกิน 7 วัน</option></select>';
+  h+='<button onclick="refreshBillsFromFirestore()" style="padding:6px 12px;background:#1D9E75;color:#fff;border:none;border-radius:7px;font-size:12px;cursor:pointer;font-weight:600">🔄 รีเฟรช</button>';
   h+='<span id="bcnt" style="font-size:11px;color:#888;margin-left:auto"></span></div>';
   h+='<div class="card" style="padding:0;overflow:hidden"><div id="btable"></div></div>';
   document.getElementById("content").innerHTML=h;
   window._billsData=data;
+  // ดึงสดจาก Firestore ทุกครั้งที่เปิดแท็บ (เห็นบิลล่าสุด)
+  if(typeof GolodDB!=="undefined" && GolodDB.getBillsNew){
+    GolodDB.getBillsNew(500).then(function(bills){
+      if(bills && bills.length>0){
+        try{localStorage.setItem("golod_bills",JSON.stringify(bills));}catch(e){}
+        window._billsData=null; // ล้าง cache ให้ filterBillsPage โหลดใหม่
+        BILLS=loadRealBills();
+        window._billsData=BILLS;
+        // re-apply role filter
+        if(CU&&(CU.role==="clerk"||CU.role==="driver")){
+          var _code=CU.clerkCode||"";
+          if(!_code){try{var _lu=JSON.parse(localStorage.getItem("golod_users_v1")||"[]").find(function(u){return u.username===CU.username;});if(_lu&&_lu.clerkCode)_code=_lu.clerkCode;}catch(e){}}
+          if(_code)window._billsData=BILLS.filter(function(b){return b.clerkCode===_code||(b.billNo&&b.billNo.startsWith(_code));});
+        }
+        filterBillsPage();
+      }
+    }).catch(function(){});
+  }
   filterBillsPage();
 }
+function refreshBillsFromFirestore(){
+  if(typeof GolodDB==="undefined"||!GolodDB.getBillsNew){ alert("ระบบยังไม่พร้อม"); return; }
+  var cnt=document.getElementById("bcnt");
+  if(cnt) cnt.textContent="⏳ กำลังโหลด...";
+  GolodDB.getBillsNew(500).then(function(bills){
+    if(bills&&bills.length>0){
+      try{localStorage.setItem("golod_bills",JSON.stringify(bills));}catch(e){}
+      window._billsData=null;
+      BILLS=loadRealBills();
+      window._billsData=BILLS;
+      if(CU&&(CU.role==="clerk"||CU.role==="driver")){
+        var _code=CU.clerkCode||"";
+        if(!_code){try{var _lu=JSON.parse(localStorage.getItem("golod_users_v1")||"[]").find(function(u){return u.username===CU.username;});if(_lu&&_lu.clerkCode)_code=_lu.clerkCode;}catch(e){}}
+        if(_code)window._billsData=BILLS.filter(function(b){return b.clerkCode===_code||(b.billNo&&b.billNo.startsWith(_code));});
+      }
+      window._billsShowN=100;
+      filterBillsPage();
+    }
+  }).catch(function(e){ if(cnt)cnt.textContent="โหลดไม่สำเร็จ"; });
+}
+
 function filterBillsPage(){
   var q=(document.getElementById("bq")?.value||"").toLowerCase();
   var reg=document.getElementById("breg")?.value||"all";
