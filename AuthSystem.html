@@ -245,6 +245,7 @@ var MENU_ITEMS=[
   {key:"transport",label:"จัดการงานขนส่ง",ico:"🚛",perm:"transport",roles:["admin","branch","clerk","driver"],systems:["transport","admin"]},
   {key:"tracking",label:"ติดตามสินค้า",ico:"📍",roles:["admin","branch","clerk","driver","customer"],systems:["billing","transport","admin"]},
   {key:"finance",label:"การเงิน",ico:"💰",perm:"finance",roles:["admin","branch","clerk"],systems:["finance","admin"]},
+  {key:"cod",label:"ตรวจสอบ COD",ico:"💸",perm:"finance",roles:["admin","branch","clerk"],systems:["finance","admin"]},
   {key:"reports",label:"รายงาน",ico:"📊",perm:"reports",roles:["admin","branch","clerk"],systems:["billing","finance","admin"]},
   {key:"customers",label:"ลูกค้า",ico:"👥",perm:"customers",roles:["admin","branch","clerk"],systems:["billing","admin"]},
   {key:"drivers",label:"คนขับ",ico:"🚗",perm:"drivers",roles:["admin","branch"],systems:["transport","admin"]},
@@ -304,7 +305,7 @@ function startApp(){
 // ===== SIDEBAR =====
 function buildSidebar(){
   var html="";
-  var sections={main:["dashboard","billing","transport","tracking"],data:["finance","reports","customers","drivers"],system:["users","profile"]};
+  var sections={main:["dashboard","billing","transport","tracking"],data:["finance","cod","reports","customers","drivers"],system:["users","profile"]};
   var sectionLabels={main:"เมนูหลัก",data:"ข้อมูล",system:"ระบบ"};
   Object.keys(sections).forEach(function(sec){
     html+='<div class="sb-section">'+sectionLabels[sec]+"</div>";
@@ -330,6 +331,13 @@ function canAccess(key){
   if(item.perm&&!CU.perms[item.perm])return false;
   return true;
 }
+function canAccess_sys(url){
+  if(CU.role==="admin") return true;
+  var map={"ThermalBill.html":"billing","TripManager.html":"transport","FinanceSystem.html":"finance","CustomerSystem.html":"customers","MonthlyReport.html":"reports","CODCheck.html":"finance"};
+  var perm=map[url];
+  if(!perm) return true;
+  return !!(CU.perms&&CU.perms[perm]);
+}
 
 // ===== SECTIONS =====
 function showSection(key){
@@ -342,6 +350,7 @@ function showSection(key){
     transport:renderTransport,
     tracking:renderTracking,
     finance:renderFinance,
+    cod:renderCOD,
     reports:renderReports,
     customers:renderCustomers,
     drivers:renderDrivers,
@@ -367,6 +376,7 @@ function renderDashboard(){
       {name:"จัดการขนส่ง",ic:"🚛",url:"TripManager.html",color:"#378ADD",desc:"จ่ายงาน ค่าเที่ยว เคลียร์"},
       {name:"ติดตามสินค้า",ic:"📍",url:"TrackingSystem.html",color:"#EF9F27",desc:"ค้นหา อัปสถานะ ลายเซ็น"},
       {name:"การเงิน",ic:"💰",url:"FinanceSystem.html",color:"#7C3AED",desc:"รายรับ-รายจ่าย BeM BBL"},
+      {name:"ตรวจสอบ COD",ic:"💸",url:"CODCheck.html",color:"#B07400",desc:"COD เก็บครบ / โอนคืนต้นทาง"},
       {name:"ลูกค้า",ic:"👥",url:"CustomerSystem.html",color:"#085041",desc:"ประวัติ เครดิต ABC"},
       {name:"รายงาน",ic:"📊",url:"MonthlyReport.html",color:"#E24B4A",desc:"ยอดขาย สาขา จังหวัด"},
     ];
@@ -440,6 +450,9 @@ function renderFinance(){
     return;
   }
   document.getElementById("content").innerHTML='<div class="card"><div class="ct">ระบบการเงิน</div><div style="text-align:center;padding:40px;color:#888"><div style="font-size:48px;margin-bottom:14px">💰</div><div style="font-size:15px;font-weight:600;color:#333;margin-bottom:8px">ระบบการเงิน</div><div style="font-size:12px;color:#aaa;margin-bottom:20px">รายรับ-รายจ่าย สลิปโอน BeM กระทบยอด BBL</div><a href="FinanceSystem.html" style="display:inline-block;padding:11px 28px;background:#7C3AED;color:#fff;border-radius:9px;text-decoration:none;font-size:14px;font-weight:600">เปิดระบบการเงิน →</a></div></div>';
+}
+function renderCOD(){
+  document.getElementById("content").innerHTML='<div class="card"><div class="ct">ตรวจสอบ COD</div><div style="text-align:center;padding:40px;color:#888"><div style="font-size:48px;margin-bottom:14px">💸</div><div style="font-size:15px;font-weight:600;color:#333;margin-bottom:8px">ระบบตรวจสอบ COD</div><div style="font-size:12px;color:#aaa;margin-bottom:20px">เช็คเงินปลายทางเก็บครบ • ยอดโอนคืนต้นทาง (หัก 3%) • บัญชีรับโอน</div><a href="CODCheck.html" style="display:inline-block;padding:11px 28px;background:#B07400;color:#fff;border-radius:9px;text-decoration:none;font-size:14px;font-weight:600">เปิดระบบตรวจสอบ COD →</a></div></div>';
 }
 function renderReports(){
   var u=CU;
