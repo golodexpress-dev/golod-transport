@@ -1024,6 +1024,8 @@ function filterBillsPage(){
     }
     return true;
   });
+  // เรียงล่าสุดก่อน
+  if(typeof sortBillsByNewest==="function") filtered=sortBillsByNewest(filtered);
   var cnt=document.getElementById("bcnt");if(cnt)cnt.textContent=filtered.length+" บิล";
   var t=document.getElementById("btable");
   if(t){
