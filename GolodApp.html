@@ -237,22 +237,28 @@ function thDate2(s){
   if(p.length!==3) return s;
   return parseInt(p[2])+"/"+parseInt(p[1])+"/"+(parseInt(p[0])+543);
 }
-function loadRealBills(){
+function loadRealBills(rawBillsArg){
   try{
-    // ลอง localStorage ก่อน
-    var raw=localStorage.getItem("golod_bills");
-    // ถ้าว่าง ให้ดึงจาก Firestore
-    if((!raw||JSON.parse(raw).length===0) && typeof GolodDB!=="undefined"){
-      GolodDB.getBillsNew(3000).then(function(bills){
-        if(bills&&bills.length>0){
-          try{localStorage.setItem("golod_bills",JSON.stringify(bills));}catch(e){}
-          window._billsData=bills;
-          filterBillsPage();
-        }
-      }).catch(function(){});
+    var arr;
+    if(rawBillsArg && Array.isArray(rawBillsArg)){
+      // ใช้ array ที่ส่งมาโดยตรง (จาก Firestore 3000)
+      arr=rawBillsArg;
+    } else {
+      // ลอง localStorage ก่อน
+      var raw=localStorage.getItem("golod_bills");
+      // ถ้าว่าง ให้ดึงจาก Firestore
+      if((!raw||JSON.parse(raw).length===0) && typeof GolodDB!=="undefined"){
+        GolodDB.getBillsNew(3000).then(function(bills){
+          if(bills&&bills.length>0){
+            try{localStorage.setItem("golod_bills",JSON.stringify(bills.slice(0,500)));}catch(e){}
+            window._billsData=loadRealBills(bills);
+            filterBillsPage();
+          }
+        }).catch(function(){});
+      }
+      if(!raw) return [];
+      arr=JSON.parse(raw);
     }
-    if(!raw) return [];
-    var arr=JSON.parse(raw);
     // map freightPay เก่า → ใหม่
     var PAY_MAP={"dest":"dest_cash","dest_cash":"dest_cash","dest_transfer":"dest_transfer","dest_driver":"dest_driver","origin":"origin","transfer":"transfer","credit":"credit","origin_enroute":"origin_enroute"};
     // zone ตาม destProv+destAmphoe
@@ -686,21 +692,24 @@ function pgDashboard(showAll){
   }
   h+="</div>";
   document.getElementById("content").innerHTML=h;
-  // ดึงสดจาก Firestore เห็นบิลล่าสุด
+  // ดึงสดจาก Firestore เห็นบิลล่าสุด (clerk/branch ดึง 3000 เพื่อเห็นบิลตัวเอง)
   if(typeof GolodDB!=="undefined" && GolodDB.getBillsNew){
-    GolodDB.getBillsNew(500).then(function(bills){
+    var dashLimit=(CU.role==="clerk"||CU.role==="driver"||CU.role==="branch")?3000:500;
+    GolodDB.getBillsNew(dashLimit).then(function(bills){
       if(bills && bills.length>0){
-        try{localStorage.setItem("golod_bills",JSON.stringify(bills));}catch(e){}
-        BILLS=loadRealBills();
-        var db2=BILLS;
+        var mapped=loadRealBills(bills);
+        try{localStorage.setItem("golod_bills",JSON.stringify(bills.slice(0,500)));}catch(e){}
+        BILLS=mapped;
+        var db2=mapped;
         if(CU.role==="clerk"||CU.role==="driver"||CU.role==="branch"){
           var mc=CU.clerkCode||"";
           if(!mc){try{var lu3=JSON.parse(localStorage.getItem("golod_users_v1")||"[]").find(function(u){return u.username===CU.username;});if(lu3&&lu3.clerkCode)mc=lu3.clerkCode;}catch(e){}}
-          if(mc)db2=BILLS.filter(function(b){
+          if(mc)db2=mapped.filter(function(b){
             if(b.clerkCode===mc) return true;
             var bn=(b.billNo||"");
             return bn.indexOf(mc)===0 && (bn.charAt(mc.length)>='0'&&bn.charAt(mc.length)<='9' || bn.charAt(mc.length)==='-');
           });
+          else db2=[];
         }
         var tbl=document.getElementById("dash-bill-table");
         if(tbl)tbl.innerHTML=billTable(sortBillsByNewest(db2).slice(0,10));
@@ -935,20 +944,25 @@ function pgBills(){
   if(typeof GolodDB!=="undefined" && GolodDB.getBillsNew){
     GolodDB.getBillsNew(3000).then(function(bills){
       if(bills && bills.length>0){
-        try{localStorage.setItem("golod_bills",JSON.stringify(bills));}catch(e){}
-        window._billsData=null; // ล้าง cache ให้ filterBillsPage โหลดใหม่
-        BILLS=loadRealBills();
-        window._billsData=BILLS;
-        // re-apply role filter
+        // map ผ่าน loadRealBills ให้ได้ field zone/goodsDesc ครบ
+        var mapped=loadRealBills(bills);
+        // เก็บ localStorage เท่าที่ได้ (อาจ quota เต็ม - ไม่เป็นไร)
+        try{localStorage.setItem("golod_bills",JSON.stringify(bills.slice(0,500)));}catch(e){}
+        // ใช้ mapped (3000) เป็น data หลัก — ไม่ผ่าน localStorage
+        BILLS=mapped;
+        var fdata=mapped;
+        // re-apply role filter จาก 3000 ตัว
         if(CU&&(CU.role==="clerk"||CU.role==="driver"||CU.role==="branch")){
           var _code=CU.clerkCode||"";
           if(!_code){try{var _lu=JSON.parse(localStorage.getItem("golod_users_v1")||"[]").find(function(u){return u.username===CU.username;});if(_lu&&_lu.clerkCode)_code=_lu.clerkCode;}catch(e){}}
-          if(_code)window._billsData=BILLS.filter(function(b){
+          if(_code)fdata=mapped.filter(function(b){
             if(b.clerkCode===_code) return true;
             var bn=(b.billNo||"");
             return bn.indexOf(_code)===0 && (bn.charAt(_code.length)>='0'&&bn.charAt(_code.length)<='9' || bn.charAt(_code.length)==='-');
           });
+          else fdata=[];
         }
+        window._billsData=fdata;
         filterBillsPage();
       }
     }).catch(function(){});
@@ -961,15 +975,21 @@ function refreshBillsFromFirestore(){
   if(cnt) cnt.textContent="⏳ กำลังโหลด...";
   GolodDB.getBillsNew(3000).then(function(bills){
     if(bills&&bills.length>0){
-      try{localStorage.setItem("golod_bills",JSON.stringify(bills));}catch(e){}
-      window._billsData=null;
-      BILLS=loadRealBills();
-      window._billsData=BILLS;
-      if(CU&&(CU.role==="clerk"||CU.role==="driver")){
+      var mapped=loadRealBills(bills);
+      try{localStorage.setItem("golod_bills",JSON.stringify(bills.slice(0,500)));}catch(e){}
+      BILLS=mapped;
+      var fdata=mapped;
+      if(CU&&(CU.role==="clerk"||CU.role==="driver"||CU.role==="branch")){
         var _code=CU.clerkCode||"";
         if(!_code){try{var _lu=JSON.parse(localStorage.getItem("golod_users_v1")||"[]").find(function(u){return u.username===CU.username;});if(_lu&&_lu.clerkCode)_code=_lu.clerkCode;}catch(e){}}
-        if(_code)window._billsData=BILLS.filter(function(b){return b.clerkCode===_code||(b.billNo&&b.billNo.startsWith(_code));});
+        if(_code)fdata=mapped.filter(function(b){
+          if(b.clerkCode===_code) return true;
+          var bn=(b.billNo||"");
+          return bn.indexOf(_code)===0 && (bn.charAt(_code.length)>='0'&&bn.charAt(_code.length)<='9' || bn.charAt(_code.length)==='-');
+        });
+        else fdata=[];
       }
+      window._billsData=fdata;
       window._billsShowN=100;
       filterBillsPage();
     }
