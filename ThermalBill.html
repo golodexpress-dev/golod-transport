@@ -812,11 +812,9 @@ async function genBillNo(staff) {
       .map(d => parseInt((d.data().billNo||"").slice(prefix.length))||0)
       .reduce((m,n) => Math.max(m,n), 0);
     seq = maxSeq + 1;
-    // เก็บ localStorage เป็น backup เผื่อ offline
+    // อัปเดต localStorage ให้ตรงกับ Firestore เสมอ (ไม่ใช้เป็นตัวบังคับเพิ่ม)
     const KEY = `golod_seq_${staff}_${today}`;
-    const localSeq = parseInt(localStorage.getItem(KEY)||"0");
-    if(localSeq >= seq) seq = localSeq + 1;
-    localStorage.setItem(KEY, String(seq));
+    localStorage.setItem(KEY, String(maxSeq));
   } catch(e) {
     // fallback localStorage ถ้า Firestore ไม่ได้
     const KEY = `golod_seq_${staff}_${today}`;
