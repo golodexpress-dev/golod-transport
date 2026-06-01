@@ -1966,12 +1966,16 @@ function saveTrip(){
       overHeight: !!(document.getElementById("tf-x4")||{}).checked
     },
     billIds: billIds,
+    pickups: getTfPickupData(),
     status: "open",
     createdAt: _tripState.editId ? undefined : new Date().toISOString(),
     createdBy: CU ? CU.username : "",
     summary: {billCount:billIds.length, destTotal:destTotal, codTotal:codTotal, pickupCount:pickupCount}
   };
   if(!trip.id) delete trip.id;
+  if(trip.createdAt === undefined) delete trip.createdAt;
+  // กรอง undefined ออกจากทุก field
+  Object.keys(trip).forEach(function(k){ if(trip[k]===undefined) delete trip[k]; });
 
   GolodDB.saveTrip(trip).then(function(saved){
     // ผูก tripId กับ bills
