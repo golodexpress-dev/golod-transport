@@ -665,14 +665,17 @@ function pgDashboard(showAll){
   BILLS=loadRealBills();
   // กรองบิลตาม role
   var dashBills=BILLS;
-  if(CU.role==="clerk"||CU.role==="driver"){
-    var USER_CLERK_MAP2={admin:"AD",branch1:"BA",clerk1:"BB",clerk2:"KA",driver1:"BA",driver2:"BB",driver3:"BC",driver4:"KA",driver5:"BD"};
+  if(CU.role==="clerk"||CU.role==="driver"||CU.role==="branch"){
     var myCode2=CU.clerkCode||"";
     if(!myCode2){
       try{var lu=JSON.parse(localStorage.getItem("golod_users_v1")||"[]").find(function(u){return u.username===CU.username;});if(lu&&lu.clerkCode)myCode2=lu.clerkCode;}catch(e){}
     }
-    if(!myCode2)myCode2=USER_CLERK_MAP2[CU.username]||"";
-    if(myCode2)dashBills=BILLS.filter(function(b){return b.clerkCode===myCode2||(b.billNo&&b.billNo.startsWith(myCode2));});
+    if(myCode2)dashBills=BILLS.filter(function(b){
+      if(b.clerkCode===myCode2) return true;
+      var bn=(b.billNo||"");
+      return bn.indexOf(myCode2)===0 && (bn.charAt(myCode2.length)>='0'&&bn.charAt(myCode2.length)<='9' || bn.charAt(myCode2.length)==='-');
+    });
+    else dashBills=[];
   }
   // Recent bills
   h+='<div class="card" style="margin-top:0"><div class="ct">บิลล่าสุด <span style="font-size:11px;font-weight:400;color:#888">'+dashBills.length+' รายการ</span> <button onclick="refreshDashBills()" style="float:right;padding:4px 10px;background:#1D9E75;color:#fff;border:none;border-radius:6px;font-size:11px;cursor:pointer">🔄 รีเฟรช</button></div>';
@@ -690,10 +693,14 @@ function pgDashboard(showAll){
         try{localStorage.setItem("golod_bills",JSON.stringify(bills));}catch(e){}
         BILLS=loadRealBills();
         var db2=BILLS;
-        if(CU.role==="clerk"||CU.role==="driver"){
+        if(CU.role==="clerk"||CU.role==="driver"||CU.role==="branch"){
           var mc=CU.clerkCode||"";
           if(!mc){try{var lu3=JSON.parse(localStorage.getItem("golod_users_v1")||"[]").find(function(u){return u.username===CU.username;});if(lu3&&lu3.clerkCode)mc=lu3.clerkCode;}catch(e){}}
-          if(mc)db2=BILLS.filter(function(b){return b.clerkCode===mc||(b.billNo&&b.billNo.startsWith(mc));});
+          if(mc)db2=BILLS.filter(function(b){
+            if(b.clerkCode===mc) return true;
+            var bn=(b.billNo||"");
+            return bn.indexOf(mc)===0 && (bn.charAt(mc.length)>='0'&&bn.charAt(mc.length)<='9' || bn.charAt(mc.length)==='-');
+          });
         }
         var tbl=document.getElementById("dash-bill-table");
         if(tbl)tbl.innerHTML=billTable(sortBillsByNewest(db2).slice(0,10));
@@ -891,10 +898,8 @@ function pgBills(){
   try{BILLS=loadRealBills();}catch(e){BILLS=[];}
 
   var data=BILLS;
-  // clerk/driver เห็นเฉพาะบิลตัวเอง
-  if(CU.role==="clerk"||CU.role==="driver"){
-    var USER_CLERK_MAP={admin:"AD",branch1:"BA",clerk1:"BB",clerk2:"KA",driver1:"BA",driver2:"BB",driver3:"BC",driver4:"KA",driver5:"BD"};
-    // หา clerkCode จาก: 1) CU.clerkCode 2) golod_users_v1 3) map
+  // clerk/branch เห็นเฉพาะบิลตัวเอง (ตาม clerkCode prefix)
+  if(CU.role==="clerk"||CU.role==="driver"||CU.role==="branch"){
     var myCode=CU.clerkCode||"";
     if(!myCode){
       try{
@@ -903,14 +908,15 @@ function pgBills(){
         if(lsUser&&lsUser.clerkCode) myCode=lsUser.clerkCode;
       }catch(e){}
     }
-    if(!myCode) myCode=USER_CLERK_MAP[CU.username]||"";
     if(myCode){
       data=BILLS.filter(function(b){
-        return b.clerkCode===myCode||
-               (b.billNo&&b.billNo.startsWith(myCode+String(new Date().getDate()).padStart(2,"0")));
+        if(b.clerkCode===myCode) return true;
+        // billNo ขึ้นต้นด้วย clerkCode (เช่น BN3005-41, BN-21601)
+        var bn=(b.billNo||"");
+        return bn.indexOf(myCode)===0 && (bn.charAt(myCode.length)>='0'&&bn.charAt(myCode.length)<='9' || bn.charAt(myCode.length)==='-');
       });
     } else {
-      data=[]; // ถ้าหา clerkCode ไม่เจอ ไม่แสดงเลย
+      data=[];
     }
   }
   var h='<div class="frow">';
@@ -934,10 +940,14 @@ function pgBills(){
         BILLS=loadRealBills();
         window._billsData=BILLS;
         // re-apply role filter
-        if(CU&&(CU.role==="clerk"||CU.role==="driver")){
+        if(CU&&(CU.role==="clerk"||CU.role==="driver"||CU.role==="branch")){
           var _code=CU.clerkCode||"";
           if(!_code){try{var _lu=JSON.parse(localStorage.getItem("golod_users_v1")||"[]").find(function(u){return u.username===CU.username;});if(_lu&&_lu.clerkCode)_code=_lu.clerkCode;}catch(e){}}
-          if(_code)window._billsData=BILLS.filter(function(b){return b.clerkCode===_code||(b.billNo&&b.billNo.startsWith(_code));});
+          if(_code)window._billsData=BILLS.filter(function(b){
+            if(b.clerkCode===_code) return true;
+            var bn=(b.billNo||"");
+            return bn.indexOf(_code)===0 && (bn.charAt(_code.length)>='0'&&bn.charAt(_code.length)<='9' || bn.charAt(_code.length)==='-');
+          });
         }
         filterBillsPage();
       }
@@ -977,11 +987,14 @@ function filterBillsPage(){
   if(!data.length){
     data=loadRealBills();
     // filter ตาม role
-    if(CU&&(CU.role==="clerk"||CU.role==="driver")){
-      var _map={admin:"AD",branch1:"BA",clerk1:"BB",clerk2:"KA",driver1:"BA",driver2:"BB",driver3:"BC",driver4:"KA",driver5:"BD"};
-      var _code=CU.clerkCode||_map[CU.username]||"";
+    if(CU&&(CU.role==="clerk"||CU.role==="driver"||CU.role==="branch")){
+      var _code=CU.clerkCode||"";
       if(!_code){try{var _lu=JSON.parse(localStorage.getItem("golod_users_v1")||"[]").find(function(u){return u.username===CU.username;});if(_lu&&_lu.clerkCode)_code=_lu.clerkCode;}catch(e){}}
-      if(_code)data=data.filter(function(b){return b.clerkCode===_code||(b.billNo&&b.billNo.startsWith(_code));});
+      if(_code)data=data.filter(function(b){
+        if(b.clerkCode===_code) return true;
+        var bn=(b.billNo||"");
+        return bn.indexOf(_code)===0 && (bn.charAt(_code.length)>='0'&&bn.charAt(_code.length)<='9' || bn.charAt(_code.length)==='-');
+      });
     }
     window._billsData=data;
   }
