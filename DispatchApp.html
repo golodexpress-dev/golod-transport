@@ -1642,8 +1642,11 @@ function renderTripForm(existingTrip){
     +'<div id="tf-pickup-rows">'
     +pickupRowsHTML
     +'</div>'
-    +'<div style="display:flex;align-items:center;justify-content:space-between;margin-top:6px">'
+    +'<div style="display:flex;align-items:center;justify-content:space-between;margin-top:6px;flex-wrap:wrap;gap:6px">'
+    +'<div style="display:flex;gap:6px">'
     +'<button type="button" class="btn btn-gray" onclick="addTfPickupRow()">+ เพิ่มงานรับ</button>'
+    +'<button type="button" onclick="openPickupPicker()" style="padding:7px 12px;background:#0F6E56;color:#fff;border:none;border-radius:6px;font-size:13px;font-weight:700;cursor:pointer">📥 ดึงงานล่วงหน้า</button>'
+    +'</div>'
     +'<div id="tf-pickup-total" style="font-size:11px;font-weight:700;color:#b7950b"></div>'
     +'</div>'
     +'</div>'
@@ -1705,7 +1708,9 @@ function makeTfPickupRow(p){
   var freight = p.freight||"";
   var comm = p.commission||"";
   var paid = p.paidOnPickup ? "checked" : "";
-  return '<div class="tf-pu-row" style="background:#fff;border:1px solid #ffe082;border-radius:7px;padding:10px;margin-bottom:8px">'
+  var pid = p.pickupId || p.id || "";
+  return '<div class="tf-pu-row" data-pickup-id="'+pid+'" style="background:#fff;border:1px solid #ffe082;border-radius:7px;padding:10px;margin-bottom:8px">'
+    +(pid?'<div style="font-size:10px;color:#0F6E56;font-weight:700;margin-bottom:4px">📥 ดึงจากคิวงานรับ'+(p.ref?(" · "+p.ref):"")+'</div>':'')
     +'<div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-bottom:6px">'
     +'<div><div style="font-size:10px;color:#888;margin-bottom:2px">รับที่ (สถานที่/ลูกค้า)</div>'
     +'<input class="pu-loc trip-inp" value="'+(p.location||"")+'" placeholder="เช่น บ.แมททีเรียล"></div>'
@@ -1758,6 +1763,89 @@ function addTfPickupRow(){
   var div = document.createElement("div");
   div.innerHTML = makeTfPickupRow({});
   container.appendChild(div.firstChild);
+}
+
+// ===== ดึงงานรับล่วงหน้าจากคิว (collection: pickups) =====
+var _pickupPickerData = [];
+function openPickupPicker(){
+  var ov = document.getElementById("pickup-picker-ov");
+  if(!ov){
+    ov = document.createElement("div");
+    ov.id = "pickup-picker-ov";
+    ov.style.cssText = "position:fixed;inset:0;background:rgba(0,0,0,.45);z-index:9999;display:flex;align-items:flex-end;justify-content:center";
+    ov.onclick = function(e){ if(e.target===ov) closePickupPicker(); };
+    ov.innerHTML = '<div style="background:#fff;width:100%;max-width:560px;border-radius:16px 16px 0 0;padding:16px;max-height:86vh;overflow:auto">'
+      +'<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px">'
+      +'<div style="font-size:16px;font-weight:800;color:#0F6E56">📥 ดึงงานรับล่วงหน้า</div>'
+      +'<button onclick="closePickupPicker()" style="background:#eee;border:none;border-radius:6px;padding:6px 12px;font-weight:700;cursor:pointer">ปิด</button>'
+      +'</div>'
+      +'<input id="pickup-picker-q" oninput="renderPickupPickerList()" placeholder="🔍 ค้นหา: ลูกค้า/จังหวัด/สินค้า" style="width:100%;padding:9px 11px;border:1px solid #ddd;border-radius:8px;font-size:14px;margin-bottom:10px">'
+      +'<div id="pickup-picker-list"><div style="padding:30px;text-align:center;color:#aaa">กำลังโหลด...</div></div>'
+      +'</div>';
+    document.body.appendChild(ov);
+  }
+  ov.style.display = "flex";
+  document.getElementById("pickup-picker-list").innerHTML = '<div style="padding:30px;text-align:center;color:#aaa">กำลังโหลด...</div>';
+  GolodDB.getPickups({status:"pending"}).then(function(list){
+    _pickupPickerData = list || [];
+    renderPickupPickerList();
+  }).catch(function(e){
+    document.getElementById("pickup-picker-list").innerHTML = '<div style="padding:20px;text-align:center;color:#c0392b">โหลดไม่สำเร็จ: '+e.message+'</div>';
+  });
+}
+function closePickupPicker(){
+  var ov = document.getElementById("pickup-picker-ov");
+  if(ov) ov.style.display = "none";
+}
+function _thD(iso){ if(!iso) return "-"; var a=iso.split("-"); return (+a[2])+"/"+(+a[1])+"/"+(+a[0]+543); }
+function renderPickupPickerList(){
+  var q = ((document.getElementById("pickup-picker-q")||{}).value||"").toLowerCase();
+  var arr = _pickupPickerData.filter(function(p){
+    if(!q) return true;
+    var s = ((p.location||"")+(p.originProv||"")+(p.destProv||"")+(p.goods||"")+(p.receiverName||"")+(p.ref||"")).toLowerCase();
+    return s.indexOf(q)>=0;
+  });
+  var el = document.getElementById("pickup-picker-list");
+  if(!arr.length){ el.innerHTML = '<div style="padding:30px;text-align:center;color:#aaa">— ไม่มีงานรับรอจ่าย —</div>'; return; }
+  el.innerHTML = arr.map(function(p){
+    return '<div style="border:1px solid #ffe082;border-left:5px solid #0F6E56;border-radius:10px;padding:11px 12px;margin-bottom:9px;background:#fffdf6">'
+      +'<div style="display:flex;justify-content:space-between;gap:8px;align-items:flex-start">'
+      +'<div><div style="font-weight:800;color:#0F6E56;font-size:15px">'+(p.location||"(ไม่ระบุ)")+'</div>'
+      +'<div style="font-size:11px;color:#999;font-weight:700">'+(p.ref||"")+' · '+(p.branch||"")+' · โดย '+(p.createdBy||"")+'</div></div>'
+      +'<button onclick="pullPickupToRow(\''+p.id+'\')" style="background:#0F6E56;color:#fff;border:none;border-radius:7px;padding:8px 14px;font-weight:800;font-size:13px;cursor:pointer;white-space:nowrap">เลือก →</button>'
+      +'</div>'
+      +'<div style="font-size:13px;color:#444;margin-top:6px;line-height:1.5">'
+      +'🗓️ นัดรับ <b>'+_thD(p.pickupDate)+'</b> · ต้นทาง <b>'+(p.originProv||"-")+'</b><br>'
+      +'📦 '+(p.goods||"-")+' → '+(p.destProv||"-")+' '+(p.destAmphoe||"")+'<br>'
+      +'💰 ค่าส่ง '+(p.freight||0)+' · ค่าจ้างรับ '+(p.commission||0)+' ('+(p.rate||15)+'%)'+(p.paidOnPickup?" · เก็บตอนรับ":"")
+      +(p.note?('<br>📝 '+p.note):"")
+      +'</div></div>';
+  }).join("");
+}
+function pullPickupToRow(pickupId){
+  var p = _pickupPickerData.find(function(x){ return x.id===pickupId; });
+  if(!p) return;
+  var container = document.getElementById("tf-pickup-rows");
+  if(!container){ alert("เปิดฟอร์มจัดเที่ยวก่อน"); return; }
+  // ถ้ามีแถวว่างแถวแรก (ไม่มี pickup-id และยังไม่กรอก) ให้ลบทิ้งเพื่อความสะอาด
+  var first = container.querySelector(".tf-pu-row");
+  if(first && !first.getAttribute("data-pickup-id") && !(first.querySelector(".pu-loc")||{}).value){
+    first.remove();
+  }
+  var pdata = {
+    pickupId: p.id, ref: p.ref,
+    location: p.location, originProv: p.originProv, goods: p.goods,
+    receiverName: p.receiverName, receiverPhone: p.receiverPhone,
+    destProv: p.destProv, destAmphoe: p.destAmphoe, destTambon: p.destTambon,
+    freight: p.freight, rate: p.rate||15, commission: p.commission, paidOnPickup: p.paidOnPickup
+  };
+  var div = document.createElement("div");
+  div.innerHTML = makeTfPickupRow(pdata);
+  container.appendChild(div.firstChild);
+  calcTfPickupTotal();
+  // เอาออกจาก list ในจอ (กันเลือกซ้ำ) — สถานะจริงเปลี่ยนตอนบันทึกเที่ยว
+  _pickupPickerData = _pickupPickerData.filter(function(x){ return x.id!==pickupId; });
+  renderPickupPickerList();
 }
 
 function calcTfPickupTotal(){
@@ -1813,9 +1901,10 @@ function getTfPickupData(){
     var amphoe=(row.querySelector(".pu-amphoe")||{}).value||"";
     var tambon=(row.querySelector(".pu-tambon")||{}).value||"";
     var originProv=(row.querySelector(".pu-origin-prov")||{}).value||"";
+    var pickupId=row.getAttribute("data-pickup-id")||"";
     if(loc||goods||freight>0||recv||prov){
       pickups.push({location:loc,goods:goods,freight:freight,rate:rate,commission:comm,paidOnPickup:paid,
-        receiverName:recv,receiverPhone:recvPhone,destProv:prov,destAmphoe:amphoe,destTambon:tambon,originProv:originProv});
+        receiverName:recv,receiverPhone:recvPhone,destProv:prov,destAmphoe:amphoe,destTambon:tambon,originProv:originProv,pickupId:pickupId});
     }
   });
   return pickups;
@@ -1977,10 +2066,30 @@ function saveTrip(){
   // กรอง undefined ออกจากทุก field
   Object.keys(trip).forEach(function(k){ if(trip[k]===undefined) delete trip[k]; });
 
+  // เก็บ id งานรับที่ดึงมาจากคิว เพื่ออัปเดตสถานะหลังบันทึกเที่ยว
+  var pulledPickupIds = (trip.pickups||[])
+    .map(function(p){ return p.pickupId; })
+    .filter(function(id){ return id; });
+
+  var _savedTrip = null;
   GolodDB.saveTrip(trip).then(function(saved){
+    _savedTrip = saved;
     // ผูก tripId กับ bills
     if(billIds.length > 0){
       return GolodDB.assignBillsToTrip(billIds, saved.id);
+    }
+  }).then(function(){
+    // ตัดงานรับที่ดึงมาออกจากคิว → สถานะ "จ่ายแล้ว"
+    if(pulledPickupIds.length && GolodDB.updatePickup){
+      var who = (typeof CU!=="undefined" && CU) ? CU.username : "";
+      return Promise.all(pulledPickupIds.map(function(pid){
+        return GolodDB.updatePickup(pid, {
+          status:"dispatched",
+          tripId:(_savedTrip&&_savedTrip.id)||"",
+          dispatchedAt:new Date().toISOString(),
+          dispatchedBy:who
+        }).catch(function(e){ console.warn("updatePickup",pid,e); });
+      }));
     }
   }).then(function(){
     alert("✅ "+(trip.id?"บันทึกเที่ยวแล้ว":"สร้างเที่ยวใหม่แล้ว")+"!");

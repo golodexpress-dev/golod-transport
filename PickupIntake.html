@@ -1,0 +1,351 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1"/>
+<title>โกโลด — ฟอร์มรับงาน (เสมียน)</title>
+<script src="session.js"></script>
+<script src="firebase-app-compat.js"></script>
+<script src="firebase-firestore-compat.js"></script>
+<script src="golod-firebase.js"></script>
+<script>try{GolodDB.init();}catch(e){}</script>
+<style>
+  *{box-sizing:border-box;margin:0;padding:0}
+  :root{
+    --green:#0F6E56; --green-d:#0b5141; --green-l:#e8f3ef;
+    --line:#d7e3da; --ink:#222; --mut:#6b7d72;
+    --orange:#e89a3c; --blue:#2c5f8a; --red:#d8543f; --bg:#f0f4f0; --amber:#fff8e1;
+  }
+  body{font-family:'Sarabun','Noto Sans Thai',Tahoma,Arial,sans-serif;background:var(--bg);color:var(--ink);min-height:100vh}
+  input,select,textarea,button{font-family:inherit;font-size:16px}
+  .wrap{max-width:560px;margin:0 auto;padding:0 0 92px}
+  header{background:var(--green);color:#fff;padding:14px 16px;position:sticky;top:0;z-index:5;box-shadow:0 2px 8px rgba(0,0,0,.12)}
+  header h1{font-size:19px;font-weight:800;display:flex;align-items:center;gap:8px}
+  header .who{font-size:12.5px;opacity:.92;margin-top:3px}
+  .topsel{display:flex;gap:8px;margin-top:10px}
+  .topsel select{flex:1;border:none;border-radius:8px;padding:9px 8px;background:rgba(255,255,255,.16);color:#fff;font-weight:700}
+  .topsel select option{color:#222}
+  .tabs{display:flex;gap:8px;padding:12px 16px 0}
+  .tab{flex:1;text-align:center;padding:11px 6px;border-radius:10px 10px 0 0;background:#dfe9e2;color:var(--green-d);font-weight:800;font-size:15px;cursor:pointer;border:1px solid var(--line);border-bottom:none}
+  .tab.on{background:#fff;color:var(--green);box-shadow:0 -2px 6px rgba(0,0,0,.05)}
+  .card{background:#fff;margin:0 16px;border:1px solid var(--line);border-radius:0 0 14px 14px;padding:16px}
+  .sec{font-weight:800;color:var(--green);font-size:15px;margin:6px 0 10px;display:flex;align-items:center;gap:7px}
+  .row{display:flex;gap:10px;margin-bottom:12px}
+  .fld{flex:1;display:flex;flex-direction:column;min-width:0}
+  .fld label{font-size:12.5px;color:var(--mut);margin-bottom:4px;font-weight:600}
+  .fld .req{color:var(--red)}
+  input[type=text],input[type=tel],input[type=number],input[type=date],select.in,textarea{
+    border:1.5px solid var(--line);border-radius:9px;padding:10px 11px;background:#fcfdfc;color:var(--ink);width:100%}
+  input:focus,select.in:focus,textarea:focus{outline:none;border-color:var(--green)}
+  textarea{resize:vertical;min-height:54px}
+  .wagebox{display:flex;gap:8px;align-items:flex-end}
+  .chk{display:flex;align-items:center;gap:9px;padding:11px;background:var(--amber);border:1px solid #ffe082;border-radius:9px;margin-bottom:12px;cursor:pointer;font-size:14px;font-weight:600;color:#8a6d1b}
+  .chk input{width:20px;height:20px;accent-color:var(--green)}
+  .photos{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:6px}
+  .ph{width:74px;height:74px;border-radius:9px;object-fit:cover;border:1px solid var(--line)}
+  .ph-wrap{position:relative}
+  .ph-x{position:absolute;top:-7px;right:-7px;background:var(--red);color:#fff;border:none;border-radius:50%;width:22px;height:22px;font-weight:800;cursor:pointer;line-height:1}
+  .addph{width:74px;height:74px;border:1.5px dashed var(--green);border-radius:9px;background:var(--green-l);color:var(--green);font-size:24px;display:flex;align-items:center;justify-content:center;cursor:pointer}
+  .btn{border:none;border-radius:10px;padding:13px;font-weight:800;font-size:16px;cursor:pointer;color:#fff;width:100%}
+  .btn.green{background:var(--green)} .btn.orange{background:var(--orange)} .btn.blue{background:var(--blue)} .btn.red{background:var(--red)}
+  .btn.gho{background:#eef3ef;color:var(--green-d)}
+  .btn.sm{padding:8px 12px;font-size:13.5px;width:auto;border-radius:8px}
+  .btn[disabled]{opacity:.55;cursor:default}
+  .calcbtn{background:var(--green-l);color:var(--green-d);border:1.5px solid var(--green);border-radius:9px;padding:10px 12px;font-weight:800;cursor:pointer;white-space:nowrap}
+  .filters{display:flex;gap:8px;flex-wrap:wrap;margin:0 16px 10px}
+  .pill{padding:8px 13px;border-radius:20px;background:#fff;border:1.5px solid var(--line);font-weight:700;font-size:13.5px;cursor:pointer;color:var(--mut)}
+  .pill.on{background:var(--green);color:#fff;border-color:var(--green)}
+  .search{margin:0 16px 10px;display:flex;gap:8px}
+  .search input{flex:1}
+  .item{background:#fff;margin:0 16px 12px;border:1px solid var(--line);border-left:5px solid var(--green);border-radius:12px;padding:13px 14px}
+  .item.done{border-left-color:#9bb0a3;opacity:.72}
+  .item .h{display:flex;justify-content:space-between;gap:8px;align-items:flex-start}
+  .item .nm{font-weight:800;font-size:16px;color:var(--green-d)}
+  .item .rf{font-size:11.5px;color:var(--mut);font-weight:700}
+  .badge{font-size:11.5px;font-weight:800;padding:3px 9px;border-radius:12px;white-space:nowrap}
+  .b-wait{background:#fff4e2;color:#b9762a} .b-done{background:#e3ece6;color:#5b6f63}
+  .item .meta{font-size:13.5px;color:#3a4a40;margin-top:6px;line-height:1.5}
+  .item .meta b{color:var(--ink)}
+  .item .acts{display:flex;gap:8px;margin-top:11px;flex-wrap:wrap}
+  .empty{text-align:center;color:var(--mut);padding:40px 16px;font-size:15px}
+  .toast{position:fixed;left:50%;bottom:24px;transform:translateX(-50%);background:#222;color:#fff;padding:11px 18px;border-radius:24px;font-weight:700;font-size:14px;z-index:50;box-shadow:0 4px 16px rgba(0,0,0,.3)}
+  .save-bar{position:fixed;bottom:0;left:0;right:0;background:#fff;border-top:1px solid var(--line);padding:12px 16px;max-width:560px;margin:0 auto}
+  .warn{margin:12px 16px;background:#fdecea;border:1px solid #f5b7b1;color:#922;border-radius:10px;padding:11px 13px;font-size:13.5px}
+</style>
+</head>
+<body>
+<div id="root"></div>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/react/17.0.2/umd/react.production.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/17.0.2/umd/react-dom.production.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/babel-standalone/6.26.0/babel.min.js"></script>
+<script type="text/babel">
+const {useState,useEffect,useRef} = React;
+
+const BRANCHES=["กรุงเทพ","ศรีสะเกษ","นครราชสีมา"];
+const CLERKS=["A","B","N","H","P","เสมียนสาขา","admin"];
+const hasDB = typeof GolodDB!=="undefined" && GolodDB.savePickup;
+
+function todayISO(o=0){const d=new Date();d.setDate(d.getDate()+o);return d.toISOString().slice(0,10);}
+function thDate(iso){if(!iso)return"-";const[y,m,d]=iso.split("-");return `${+d}/${+m}/${+y+543}`;}
+
+function compress(file,cb){
+  const r=new FileReader();
+  r.onload=e=>{const img=new Image();img.onload=()=>{
+    const max=640;let w=img.width,h=img.height;
+    if(w>h&&w>max){h=h*max/w;w=max;}else if(h>max){w=w*max/h;h=max;}
+    const c=document.createElement("canvas");c.width=w;c.height=h;
+    c.getContext("2d").drawImage(img,0,0,w,h);
+    cb(c.toDataURL("image/jpeg",0.5));
+  };img.src=e.target.result;};
+  r.readAsDataURL(file);
+}
+
+const blank=(branch,clerk)=>({
+  id:"", ref:"", createdAt:"", createdBy:clerk, branch,
+  location:"", originProv:"", goods:"",
+  receiverName:"", receiverPhone:"", destProv:"", destAmphoe:"", destTambon:"",
+  freight:"", rate:15, commission:"", paidOnPickup:false,
+  pickupDate:todayISO(), note:"", photos:[], status:"pending"
+});
+
+function App(){
+  let sBranch=BRANCHES[0], sClerk=CLERKS[0];
+  try{const s=GolodSession&&GolodSession.get&&GolodSession.get();
+      if(s){if(s.branch)sBranch=s.branch; if(s.username||s.staff)sClerk=(s.staff||s.username);}}catch(e){}
+
+  const [branch,setBranch]=useState(sBranch);
+  const [clerk,setClerk]=useState(sClerk);
+  const [tab,setTab]=useState("form");
+  const [f,setF]=useState(()=>blank(sBranch,sClerk));
+  const [list,setList]=useState([]);
+  const [loading,setLoading]=useState(true);
+  const [saving,setSaving]=useState(false);
+  const [toast,setToast]=useState("");
+  const [filter,setFilter]=useState("wait");
+  const [q,setQ]=useState("");
+  const fileRef=useRef();
+
+  const flash=m=>{setToast(m);setTimeout(()=>setToast(""),1900);};
+  const set=(k,v)=>setF(p=>({...p,[k]:v}));
+
+  const loadList=()=>{
+    if(!hasDB){setLoading(false);return;}
+    setLoading(true);
+    GolodDB.getPickups({limitN:400}).then(arr=>{setList(arr||[]);setLoading(false);})
+      .catch(()=>{setLoading(false);flash("โหลดคิวไม่สำเร็จ");});
+  };
+  useEffect(()=>{ if(hasDB) GolodDB.ready(loadList); else setLoading(false); },[]);
+
+  // auto-คำนวณค่าจ้างรับ
+  useEffect(()=>{const fr=parseFloat(f.freight)||0;const r=parseFloat(f.rate)||0;
+    set("commission",fr?Math.round(fr*r/100):"");},[f.freight,f.rate]);
+  const calcWage=()=>{const fr=parseFloat(f.freight)||0;const r=parseFloat(f.rate)||0;set("commission",Math.round(fr*r/100));};
+
+  const pickPhoto=e=>{const files=[...e.target.files];if(!files.length)return;
+    if(f.photos.length+files.length>3){flash("แนบได้สูงสุด 3 รูป");return;}
+    files.forEach(file=>compress(file,d=>setF(p=>({...p,photos:[...p.photos,d]}))));
+    e.target.value="";};
+  const removePhoto=i=>setF(p=>({...p,photos:p.photos.filter((_,j)=>j!==i)}));
+
+  const genRef=()=>{
+    const d=new Date();const yy=String(d.getFullYear()+543).slice(-2);
+    const mm=String(d.getMonth()+1).padStart(2,"0");const dd=String(d.getDate()).padStart(2,"0");
+    const pre=`RB${yy}${mm}${dd}-`;
+    const n=list.filter(r=>(r.ref||"").startsWith(pre)).length+1;
+    return pre+String(n).padStart(2,"0");
+  };
+
+  const save=()=>{
+    if(!hasDB){flash("ต้องเปิดบนเซิร์ฟเวอร์ที่มี Firebase");return;}
+    if(!f.location.trim()){flash("กรอก รับที่/ลูกค้า ก่อน");return;}
+    if(!f.originProv.trim()){flash("กรอก จังหวัดต้นทาง ก่อน");return;}
+    if(!f.pickupDate){flash("เลือกวันนัดรับ");return;}
+    setSaving(true);
+    const isEdit=!!f.id;
+    const rec={...f,
+      createdBy:clerk, branch,
+      ref:f.ref||genRef(),
+      freight:parseFloat(f.freight)||0,
+      rate:parseFloat(f.rate)||0,
+      commission:parseFloat(f.commission)||0,
+      status:f.status||"pending"
+    };
+    if(!isEdit) delete rec.id;
+    GolodDB.savePickup(rec).then(()=>{
+      flash(isEdit?"แก้ไขแล้ว ✓":"บันทึกเข้าคิวแล้ว ✓");
+      setF(blank(branch,clerk));
+      setSaving(false);
+      loadList();
+      setTab("queue");
+    }).catch(e=>{setSaving(false);flash("บันทึกไม่สำเร็จ: "+e.message);});
+  };
+
+  const edit=r=>{setF({...r});setTab("form");window.scrollTo(0,0);};
+  const del=r=>{if(!confirm(`ลบงานรับ ${r.ref}?`))return;
+    GolodDB.deletePickup(r.id).then(()=>{flash("ลบแล้ว");loadList();});};
+  const markDispatch=r=>{GolodDB.updatePickup(r.id,{status:"dispatched",dispatchedAt:new Date().toISOString(),dispatchedBy:clerk}).then(()=>{flash("ทำเครื่องหมาย จ่ายแล้ว");loadList();});};
+  const undo=r=>{GolodDB.updatePickup(r.id,{status:"pending"}).then(loadList);};
+
+  const filtered=list.filter(r=>{
+    if(filter==="wait"&&r.status!=="pending")return false;
+    if(filter==="done"&&r.status!=="dispatched")return false;
+    if(filter==="today"&&r.pickupDate!==todayISO())return false;
+    if(filter==="tmr"&&r.pickupDate!==todayISO(1))return false;
+    if(q){const s=((r.location||"")+(r.originProv||"")+(r.destProv||"")+(r.goods||"")+(r.receiverName||"")+(r.ref||"")).toLowerCase();
+      if(!s.includes(q.toLowerCase()))return false;}
+    return true;
+  });
+  const waitCount=list.filter(r=>r.status==="pending").length;
+  const isEditing=!!f.id;
+
+  return (
+   <div className="wrap">
+    <header>
+      <h1>📦 ฟอร์มรับงาน — เสมียน</h1>
+      <div className="who">บันทึกงานล่วงหน้า แล้วดึงไปจ่ายให้คนรถวันจัดเที่ยว</div>
+      <div className="topsel">
+        <select value={branch} onChange={e=>setBranch(e.target.value)}>
+          {BRANCHES.map(b=><option key={b}>{b}</option>)}
+        </select>
+        <select value={clerk} onChange={e=>setClerk(e.target.value)}>
+          {CLERKS.map(c=><option key={c}>{c}</option>)}
+        </select>
+      </div>
+    </header>
+
+    {!hasDB && <div className="warn">⚠️ หน้านี้ต้องเปิดบนเว็บที่มีไฟล์ Firebase (github.io) — เปิดแบบ preview จะยังบันทึกไม่ได้</div>}
+
+    <div className="tabs">
+      <div className={"tab"+(tab==="form"?" on":"")} onClick={()=>setTab("form")}>➕ บันทึกงานรับ</div>
+      <div className={"tab"+(tab==="queue"?" on":"")} onClick={()=>setTab("queue")}>📋 คิวรอจ่าย {waitCount?`(${waitCount})`:""}</div>
+    </div>
+
+    {tab==="form" &&
+     <React.Fragment>
+      <div className="card">
+        {isEditing && <div style={{background:"#e8f3ef",border:"1px solid #b6dccd",borderRadius:9,padding:"8px 11px",marginBottom:12,fontSize:13,fontWeight:700,color:"#0b5141"}}>✏️ กำลังแก้ไข {f.ref}</div>}
+        <div className="sec">📦 ข้อมูลงานรับ</div>
+        <div className="row">
+          <div className="fld"><label>รับที่ (สถานที่/ลูกค้า) <span className="req">*</span></label>
+            <input type="text" value={f.location} onChange={e=>set("location",e.target.value)} placeholder="ชื่อร้าน/บริษัท"/></div>
+        </div>
+        <div className="row">
+          <div className="fld"><label>จังหวัดต้นทาง (ที่เข้ารับ) <span className="req">*</span></label>
+            <input type="text" value={f.originProv} onChange={e=>set("originProv",e.target.value)} placeholder="เช่น ฉะเชิงเทรา"/></div>
+        </div>
+        <div className="row">
+          <div className="fld"><label>สินค้า</label>
+            <input type="text" value={f.goods} onChange={e=>set("goods",e.target.value)} placeholder="รายละเอียด/จำนวน"/></div>
+        </div>
+
+        <div className="sec">📍 ปลายทาง</div>
+        <div className="row">
+          <div className="fld"><label>ผู้รับปลายทาง</label>
+            <input type="text" value={f.receiverName} onChange={e=>set("receiverName",e.target.value)} placeholder="ชื่อผู้รับ"/></div>
+          <div className="fld"><label>เบอร์ผู้รับ</label>
+            <input type="tel" value={f.receiverPhone} onChange={e=>set("receiverPhone",e.target.value)} placeholder="08x-xxxxxxx"/></div>
+        </div>
+        <div className="row">
+          <div className="fld"><label>จังหวัด</label>
+            <input type="text" value={f.destProv} onChange={e=>set("destProv",e.target.value)} placeholder="จังหวัด"/></div>
+          <div className="fld"><label>อำเภอ</label>
+            <input type="text" value={f.destAmphoe} onChange={e=>set("destAmphoe",e.target.value)} placeholder="อำเภอ"/></div>
+          <div className="fld"><label>ตำบล</label>
+            <input type="text" value={f.destTambon} onChange={e=>set("destTambon",e.target.value)} placeholder="ตำบล"/></div>
+        </div>
+
+        <div className="sec">💰 ค่าขนส่ง / ค่าจ้างรับ</div>
+        <div className="row wagebox">
+          <div className="fld"><label>ค่าขนส่ง (฿) — แก้มือได้</label>
+            <input type="number" value={f.freight} onChange={e=>set("freight",e.target.value)} placeholder="0"/></div>
+          <div className="fld" style={{maxWidth:88}}><label>เรท %</label>
+            <select className="in" value={f.rate} onChange={e=>set("rate",e.target.value)}>
+              {[15,20,0].map(r=><option key={r} value={r}>{r?r+"%":"ไม่มี"}</option>)}</select></div>
+          <div className="fld"><label>ค่าจ้างรับ (฿)</label>
+            <input type="number" value={f.commission} onChange={e=>set("commission",e.target.value)} placeholder="0"/></div>
+          <button className="calcbtn" onClick={calcWage}>คำนวณ</button>
+        </div>
+        <label className="chk">
+          <input type="checkbox" checked={f.paidOnPickup} onChange={e=>set("paidOnPickup",e.target.checked)}/>
+          เก็บค่าส่งตอนรับแล้ว (นำมาบวกยอดเคลียร์)
+        </label>
+
+        <div className="sec">🗓️ นัดหมาย / หมายเหตุ / รูป</div>
+        <div className="row">
+          <div className="fld"><label>วันนัดรับ <span className="req">*</span></label>
+            <input type="date" value={f.pickupDate} onChange={e=>set("pickupDate",e.target.value)}/></div>
+        </div>
+        <div className="row">
+          <div className="fld"><label>หมายเหตุ</label>
+            <textarea value={f.note} onChange={e=>set("note",e.target.value)} placeholder="เช่น โทรก่อนเข้า / ของหนัก / เวลาที่รับได้"></textarea></div>
+        </div>
+        <div className="fld"><label>รูปสถานที่ / สินค้า (สูงสุด 3)</label>
+          <div className="photos">
+            {f.photos.map((p,i)=>
+              <div className="ph-wrap" key={i}>
+                <img className="ph" src={p}/>
+                <button className="ph-x" onClick={()=>removePhoto(i)}>×</button>
+              </div>)}
+            {f.photos.length<3 && <div className="addph" onClick={()=>fileRef.current.click()}>＋</div>}
+          </div>
+          <input ref={fileRef} type="file" accept="image/*" capture="environment" multiple style={{display:"none"}} onChange={pickPhoto}/>
+        </div>
+      </div>
+      <div className="save-bar">
+        <button className="btn green" disabled={saving} onClick={save}>
+          {saving?"กำลังบันทึก...":(isEditing?"💾 บันทึกการแก้ไข":"💾 บันทึกเข้าคิวรอจ่าย")}</button>
+      </div>
+     </React.Fragment>}
+
+    {tab==="queue" &&
+     <React.Fragment>
+      <div style={{height:12}}></div>
+      <div className="filters">
+        {[["wait","⏳ รอจ่าย"],["today","วันนี้"],["tmr","พรุ่งนี้"],["done","จ่ายแล้ว"],["all","ทั้งหมด"]].map(([k,l])=>
+          <div key={k} className={"pill"+(filter===k?" on":"")} onClick={()=>setFilter(k)}>{l}</div>)}
+      </div>
+      <div className="search">
+        <input type="text" value={q} onChange={e=>setQ(e.target.value)} placeholder="🔍 ค้นหา: ลูกค้า/จังหวัด/สินค้า"/>
+        <button className="btn gho sm" onClick={loadList}>🔄</button>
+      </div>
+      {loading && <div className="empty">กำลังโหลด...</div>}
+      {!loading && filtered.length===0 && <div className="empty">— ไม่มีงานในเงื่อนไขนี้ —</div>}
+      {!loading && filtered.map(r=>
+        <div key={r.id} className={"item"+(r.status==="dispatched"?" done":"")}>
+          <div className="h">
+            <div>
+              <div className="nm">{r.location||"(ไม่ระบุ)"}</div>
+              <div className="rf">{r.ref} · {r.branch} · โดย {r.createdBy}</div>
+            </div>
+            <span className={"badge "+(r.status==="dispatched"?"b-done":"b-wait")}>
+              {r.status==="dispatched"?"จ่ายแล้ว":"รอจ่าย"}</span>
+          </div>
+          <div className="meta">
+            🗓️ นัดรับ <b>{thDate(r.pickupDate)}</b> · ต้นทาง <b>{r.originProv||"-"}</b><br/>
+            📦 {r.goods||"-"} → {r.destProv||"-"} {r.destAmphoe} {r.destTambon}<br/>
+            💰 ค่าส่ง {r.freight||0} · ค่าจ้างรับ {r.commission||0} ({r.rate}%)
+            {r.paidOnPickup?" · เก็บตอนรับ":""}
+            {r.receiverName?<span><br/>👤 {r.receiverName} {r.receiverPhone}</span>:null}
+            {r.note?<span><br/>📝 {r.note}</span>:null}
+            {r.photos&&r.photos.length?<div className="photos" style={{marginTop:8}}>{r.photos.map((p,i)=><img key={i} className="ph" src={p}/>)}</div>:null}
+          </div>
+          <div className="acts">
+            <button className="btn gho sm" onClick={()=>edit(r)}>✏️ แก้ไข</button>
+            {r.status==="pending"
+              ? <button className="btn green sm" onClick={()=>markDispatch(r)}>✓ จ่ายแล้ว</button>
+              : <button className="btn gho sm" onClick={()=>undo(r)}>↩ คืนคิว</button>}
+            <button className="btn red sm" onClick={()=>del(r)}>🗑 ลบ</button>
+          </div>
+        </div>)}
+      <div style={{textAlign:"center",fontSize:12,color:"#9bb0a3",padding:"6px 16px 0"}}>
+        งานรับ "รอจ่าย" จะไปโผล่ในปุ่ม 📥 ดึงงานล่วงหน้า ของหน้าจัดเที่ยว</div>
+     </React.Fragment>}
+
+    {toast && <div className="toast">{toast}</div>}
+   </div>
+  );
+}
+ReactDOM.render(<App/>,document.getElementById("root"));
+</script>
+</body>
+</html>
