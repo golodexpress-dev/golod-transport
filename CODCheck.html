@@ -71,6 +71,27 @@ td.r,th.r{text-align:right}
 .acct-line{font-size:10px;color:#888;margin-top:2px}
 .acct-link{color:#0F6E56;cursor:pointer;text-decoration:underline}
 .chk-row{display:flex;align-items:center;gap:8px;padding:6px 4px;border-bottom:0.5px solid #f3f3f1;font-size:13px}
+/* ----- ใบจ่ายเงิน COD ----- */
+.vc-doc{background:#fff;color:#000;max-width:900px;margin:14px auto;padding:26px 30px;border:1px solid #ddd;font-family:'TH Sarabun New','Sarabun',Arial,sans-serif}
+.vc-title{text-align:center;font-size:20px;font-weight:700;margin-bottom:18px}
+.vc-head{display:flex;justify-content:space-between;font-size:14px;margin-bottom:10px}
+.vc-tb{width:100%;border-collapse:collapse;font-size:13px}
+.vc-tb th,.vc-tb td{border:1px solid #333;padding:5px 7px}
+.vc-tb th{background:#f2f2f2;text-align:center;font-weight:700}
+.vc-tb td.r{text-align:right}
+.vc-tb td.c{text-align:center}
+.vc-tot td{font-weight:700}
+.vc-net{color:#c00;font-weight:700}
+.vc-acct{margin-top:12px;font-size:14px;border:1px solid #333;padding:8px 10px}
+.vc-sign{display:flex;justify-content:space-around;margin-top:40px;font-size:13px;text-align:center}
+.vc-sign div{width:40%}
+.vc-note{font-size:12px;color:#c00}
+@media print{
+  body *{visibility:hidden!important}
+  #page-voucher .vc-doc, #page-voucher .vc-doc *{visibility:visible!important}
+  #page-voucher .vc-doc{position:absolute;left:0;top:0;width:100%;margin:0;border:none}
+  .vc-noprint{display:none!important}
+}
 </style>
 </head>
 <body>
@@ -111,13 +132,15 @@ td.r,th.r{text-align:right}
     <div class="tab active" data-pg="dash" onclick="showPage('dash')">📊 ภาพรวม</div>
     <div class="tab" data-pg="trips" onclick="showPage('trips')">🚚 ตรวจรายเที่ยว/คนรถ</div>
     <div class="tab" data-pg="remit" onclick="showPage('remit')">💸 โอนคืนต้นทาง</div>
+    <div class="tab" data-pg="voucher" onclick="showPage('voucher')">🧾 ใบจ่ายเงิน</div>
     <div class="tab" data-pg="bills" onclick="showPage('bills')">🧾 บิล COD ทั้งหมด</div>
-    <div class="tab" data-pg="accounts" onclick="showPage('accounts')">🏦 บัญชีรับโอน</div>
+    <div class="tab" data-pg="accounts" onclick="showPage('accounts')">🏦 ลูกค้า/บัญชีรับโอน</div>
   </div>
 
   <div class="page active" id="page-dash"></div>
   <div class="page" id="page-trips"></div>
   <div class="page" id="page-remit"></div>
+  <div class="page" id="page-voucher"></div>
   <div class="page" id="page-bills"></div>
   <div class="page" id="page-accounts"></div>
 </div>
@@ -126,6 +149,7 @@ td.r,th.r{text-align:right}
   <div class="modal">
     <div class="modal-h">บัญชีรับโอนคืน COD</div>
     <div class="fld2"><label>ลูกค้าต้นทาง (1 ราย = 1 บัญชี)</label><input id="ac-name" class="inp" readonly style="background:#f5f5f2"></div>
+    <div class="fld2"><label>รหัสลูกค้า (เว้นว่าง = ระบบออกให้อัตโนมัติ)</label><input id="ac-code" class="inp" placeholder="เช่น C1"></div>
     <div class="fld2"><label>ธนาคาร</label><input id="ac-bank" class="inp" placeholder="เช่น กสิกรไทย / ไทยพาณิชย์ / กรุงเทพ"></div>
     <div class="fld2"><label>เลขบัญชี</label><input id="ac-no" class="inp" placeholder="xxx-x-xxxxx-x"></div>
     <div class="fld2"><label>ชื่อบัญชี</label><input id="ac-acctname" class="inp" placeholder="ชื่อเจ้าของบัญชี"></div>
@@ -163,6 +187,8 @@ var DEST_PAY       = ["dest","dest_cash","dest_transfer","cod"]; // วิธี
 var ALL_BILLS = [];   // บิลดิบจาก Firestore
 var ALL_TRIPS = [];   // เที่ยวดิบจาก Firestore
 var BILL_MAP  = {};    // billNo -> bill
+var BILL_DRIVER = {};  // billNo -> ชื่อคนรถ (จาก trips)
+var BILL_CLEAR  = {};  // billNo -> วันเคลียร์เงิน (clearedAt ของเที่ยว)
 var ACCTS     = {};    // ชื่อลูกค้าต้นทาง -> {name,bank,accountNo,accountName} (หนึ่งต่อหนึ่ง)
 var curPage   = "dash";
 var CU        = null;  // ผู้ใช้ปัจจุบัน (จาก GolodSession)
@@ -212,6 +238,21 @@ var Accounts = (function(){
     _local(); return Promise.resolve(ACCTS);
   }
   function get(name){ return ACCTS[(name||"").trim()] || null; }
+  function code(name){ var r=ACCTS[(name||"").trim()]; return (r&&r.code)||""; }
+  // หาเลขรหัส C สูงสุดที่มีอยู่ แล้วคืนรหัสถัดไป (C1, C2, …)
+  function nextCode(){
+    var max=0;
+    Object.keys(ACCTS).forEach(function(k){
+      var c=ACCTS[k].code||""; var m=/^C(\d+)$/i.exec(c.trim());
+      if(m){ var n=parseInt(m[1],10); if(n>max)max=n; }
+    });
+    return "C"+(max+1);
+  }
+  // เช็ครหัสซ้ำ (เว้นชื่อตัวเอง)
+  function codeTaken(codeVal, exceptName){
+    codeVal=(codeVal||"").trim().toUpperCase(); if(!codeVal) return false;
+    return Object.keys(ACCTS).some(function(k){ return k!==exceptName && (ACCTS[k].code||"").trim().toUpperCase()===codeVal; });
+  }
   function set(name, data){
     name=(name||"").trim(); if(!name) return Promise.resolve();
     var prev=ACCTS[name];
@@ -219,7 +260,10 @@ var Accounts = (function(){
     if(prev && (prev.bank!==data.bank || prev.accountNo!==data.accountNo || prev.accountName!==data.accountName)){
       hist.push({bank:prev.bank||"",accountNo:prev.accountNo||"",accountName:prev.accountName||"",at:prev.updatedAt||"",by:prev.updatedBy||""});
     }
-    var rec=Object.assign({name:name}, data, {history:hist, updatedAt:new Date().toISOString(), updatedBy:_user()});
+    // รหัสลูกค้า: คงรหัสเดิมไว้เสมอ ถ้ายังไม่มีและไม่ได้ส่งมา → ออกอัตโนมัติ
+    var theCode = (data.code!=null && data.code!=="") ? data.code.trim()
+                : (prev&&prev.code) ? prev.code : nextCode();
+    var rec=Object.assign({name:name}, data, {code:theCode, history:hist, updatedAt:new Date().toISOString(), updatedBy:_user()});
     ACCTS[name]=rec; // อัปเดต local ก่อนให้ UI ไว
     try{ localStorage.setItem("golod_cod_accounts", JSON.stringify(ACCTS)); }catch(e){}
     var fs=_fs();
@@ -229,7 +273,13 @@ var Accounts = (function(){
     }
     return Promise.resolve();
   }
-  return {load:load, get:get, set:set, all:function(){return ACCTS;}};
+  // ออกรหัสให้ผู้ส่งที่ยังไม่มีรหัส (ใช้ตอนกด "ออกรหัสให้ทุกราย")
+  function ensureCode(name){
+    name=(name||"").trim(); var r=ACCTS[name];
+    if(r&&r.code) return Promise.resolve(r.code);
+    return set(name, (r?{bank:r.bank||"",accountNo:r.accountNo||"",accountName:r.accountName||""}:{})).then(function(){ return ACCTS[name].code; });
+  }
+  return {load:load, get:get, set:set, code:code, nextCode:nextCode, codeTaken:codeTaken, ensureCode:ensureCode, all:function(){return ACCTS;}};
 })();
 
 var ST_TH = {
@@ -241,6 +291,7 @@ var PAY_TH = {origin:"ต้นทาง",dest:"ปลายทาง",dest_cash
 
 /* ---------- helpers ---------- */
 function fmt(n){ n = Math.round(parseFloat(n)||0); return n.toLocaleString("th-TH"); }
+function money(n){ n = Math.round((parseFloat(n)||0)*100)/100; return n.toLocaleString("th-TH",{minimumFractionDigits:2,maximumFractionDigits:2}); }
 function enc(s){ return encodeURIComponent(s); }
 function setStatus(msg,color){ var el=document.getElementById("fb-sync-status"); if(el){el.textContent=msg; if(color)el.parentNode.className="banner "+color;} }
 
@@ -256,15 +307,15 @@ function isExempt(name){ return COD_FEE_EXEMPT.indexOf((name||"").trim()) >= 0; 
 // ค่าส่งปลายทาง = freightNet เฉพาะบิลที่เก็บเงินปลายทาง
 function destFreight(b){ return DEST_PAY.indexOf(getPay(b)) >= 0 ? getFreightNet(b) : 0; }
 
-// ค่าธรรมเนียม COD ของบิล (หัก 3% จาก COD + ค่าส่งปลายทาง) ยกเว้นลูกค้าที่กำหนด
+// ค่าธรรมเนียม COD ของบิล (หัก 3% จาก COD + ค่าส่งปลายทาง) ยกเว้นลูกค้าที่กำหนด — ทศนิยม 2 ตำแหน่ง
 function codFee(b){
   var cod = getCOD(b);
   if(cod <= 0) return 0;
   if(isExempt(getSender(b))) return 0;
-  return Math.round((cod + destFreight(b)) * COD_FEE_RATE);
+  return Math.round((cod + destFreight(b)) * COD_FEE_RATE * 100)/100;
 }
 // ยอดสุทธิที่ต้องโอนคืนต้นทาง = COD − ค่าธรรมเนียม
-function codNet(b){ return getCOD(b) - codFee(b); }
+function codNet(b){ return Math.round((getCOD(b) - codFee(b))*100)/100; }
 
 function parseDate(v){
   if(!v) return null;
@@ -276,6 +327,13 @@ function parseDate(v){
 }
 function toISO(v){ var d=parseDate(v); if(!d)return ""; var mm=("0"+(d.getMonth()+1)).slice(-2),dd=("0"+d.getDate()).slice(-2); return d.getFullYear()+"-"+mm+"-"+dd; }
 function billDate(b){ return toISO(b.date || (b.createdAt||"").slice(0,10)); }
+// รูปแบบวันเคลียร์เงินแบบในใบจ่าย: 28/5(18.46)
+function fmtClear(v){
+  if(!v) return "";
+  var d=new Date(v); if(isNaN(d.getTime())){ var iso=parseDate(v); if(!iso)return String(v); d=iso; }
+  var hh=("0"+d.getHours()).slice(-2), mi=("0"+d.getMinutes()).slice(-2);
+  return d.getDate()+"/"+(d.getMonth()+1)+"("+hh+"."+mi+")";
+}
 
 function inRange(iso){
   var f=document.getElementById("f-from").value, t=document.getElementById("f-to").value;
@@ -337,6 +395,11 @@ function loadData(){
       ALL_TRIPS = res[1]||[];
       BILL_MAP = {};
       ALL_BILLS.forEach(function(b){ if(b.billNo) BILL_MAP[b.billNo]=b; });
+      BILL_DRIVER = {}; BILL_CLEAR = {};
+      ALL_TRIPS.forEach(function(t){
+        var clr=(t.clearData&&t.clearData.clearedAt)||"";
+        (t.billIds||[]).forEach(function(id){ if(t.driverName) BILL_DRIVER[id]=t.driverName; if(clr) BILL_CLEAR[id]=clr; });
+      });
       var codN = ALL_BILLS.filter(function(b){return getCOD(b)>0;}).length;
       setStatus("✓ โหลดแล้ว "+ALL_BILLS.length+" บิล ("+codN+" บิลมี COD) · "+ALL_TRIPS.length+" เที่ยว","");
       fillDriverFilter();
@@ -370,7 +433,7 @@ function showPage(pg){
   document.querySelectorAll(".page").forEach(function(p){ p.classList.remove("active"); });
   document.getElementById("page-"+pg).classList.add("active");
 }
-function renderAll(){ renderDash(); renderTrips(); renderRemit(); renderBills(); renderAccounts(); renderPills(); }
+function renderAll(){ renderDash(); renderTrips(); renderRemit(); renderVoucher(); renderBills(); renderAccounts(); renderPills(); }
 
 function renderPills(){
   var bills=codBillsFiltered();
@@ -406,9 +469,9 @@ function renderDash(){
   var html=''+
    '<div class="cards">'+
      card("บิล COD ทั้งหมด", bills.length+" ใบ", "COD รวม "+fmt(sum.cod)+" ฿","")+
-     card("ค่าธรรมเนียม 3%", fmt(sum.fee)+" ฿", "ยกเว้น: "+COD_FEE_EXEMPT.join(", "),"")+
-     card("ต้องโอนคืนต้นทาง (สุทธิ)", fmt(sum.net)+" ฿", "COD − ค่าธรรมเนียม","")+
-     card("ค้างโอนคืน", fmt(pending)+" ฿", "โอนแล้ว "+fmt(remitted)+" ฿", pending>0?"amber":"")+
+     card("ค่าธรรมเนียม 3%", money(sum.fee)+" ฿", "ยกเว้น: "+COD_FEE_EXEMPT.join(", "),"")+
+     card("ต้องโอนคืนต้นทาง (สุทธิ)", money(sum.net)+" ฿", "COD − ค่าธรรมเนียม","")+
+     card("ค้างโอนคืน", money(pending)+" ฿", "โอนแล้ว "+money(remitted)+" ฿", pending>0?"amber":"")+
    '</div>'+
    '<div class="sec-title">สถานะการเก็บ COD (อิงการเคลียร์เที่ยวของคนรถ)</div>'+
    '<div class="cards">'+
@@ -458,7 +521,7 @@ function renderTrips(){
       return '<tr class="sub-bills"><td>'+(b.billNo||"")+'</td>'+
         '<td>ต้นทาง: '+(getSender(b)||"—")+(isExempt(getSender(b))?'<span class="tag-exempt">ยกเว้น 3%</span>':'')+
           '<div style="font-size:10px;color:#aaa">ปลายทาง: '+(getReceiver(b)||"—")+' · '+getDestProv(b)+'</div></td>'+
-        '<td class="r" colspan="2">COD '+fmt(getCOD(b))+' ฿<div style="font-size:10px;color:#999">โอนคืน '+fmt(codNet(b))+' ฿ (หัก '+fmt(codFee(b))+')</div></td>'+
+        '<td class="r" colspan="2">COD '+fmt(getCOD(b))+' ฿<div style="font-size:10px;color:#999">โอนคืน '+money(codNet(b))+' ฿ (หัก '+money(codFee(b))+')</div></td>'+
         '<td>'+(rm?'<span class="badge b-green">โอนคืนแล้ว</span>':'<span class="badge b-gray">รอโอนคืน</span>')+'</td><td></td></tr>';
     }).join("");
     return head+'<tbody id="trip-sub-'+i+'" class="hidden">'+sub+'</tbody>';
@@ -490,24 +553,25 @@ function renderRemit(){
 
   var rows=list.map(function(g,gi){
     var ac=Accounts.get(g.name);
+    var remitNet=g.net-g.pendNet;
     var acLine = ac && (ac.bank||ac.accountNo)
       ? '🏦 '+(ac.bank||'')+' '+(ac.accountNo||'')+(ac.accountName?' ('+ac.accountName+')':'')
       : '<span style="color:#B07400">⚠ ยังไม่ตั้งบัญชีรับโอน</span>';
     var head='<tr class="trip-row" onclick="toggleRemit('+gi+')">'+
-      '<td><b>'+g.name+'</b>'+(g.exempt?'<span class="tag-exempt">ยกเว้น 3%</span>':'')+
+      '<td><b>'+g.name+'</b>'+(Accounts.code(g.name)?'<span style="color:#0F6E56;font-weight:700;font-size:11px"> ('+Accounts.code(g.name)+')</span>':'')+(g.exempt?'<span class="tag-exempt">ยกเว้น 3%</span>':'')+
         '<div class="acct-line">'+acLine+' · <a class="acct-link" onclick="event.stopPropagation();openAcct(\''+enc(g.name)+'\')">'+(ac?'แก้บัญชี':'ตั้งบัญชี')+'</a></div></td>'+
       '<td class="r">'+g.bills.length+'</td>'+
       '<td class="r">'+fmt(g.cod)+'</td>'+
-      '<td class="r" style="color:#B07400">'+fmt(g.fee)+'</td>'+
-      '<td class="r"><b>'+fmt(g.net)+'</b></td>'+
-      '<td>'+(g.pendNet>0?'<span class="badge b-amber">ค้าง '+fmt(g.pendNet)+'</span>':'<span class="badge b-green">ครบ</span>')+'</td>'+
+      '<td class="r" style="color:#B07400">'+money(g.fee)+'</td>'+
+      '<td class="r"><b>'+money(g.net)+'</b>'+(remitNet>0&&g.pendNet>0?'<div class="acct-line" style="color:#0F6E56">โอนแล้ว '+money(remitNet)+'</div>':'')+'</td>'+
+      '<td>'+(g.pendNet>0?'<span class="badge b-amber">ค้างโอน '+money(g.pendNet)+'</span>':'<span class="badge b-green">โอนคืนครบ</span>')+'</td>'+
       '<td>'+(g.pendNet>0?'<button class="btn btn-green btn-sm" onclick="event.stopPropagation();markGroup(\''+encodeURIComponent(g.name)+'\')">✓ โอนคืนแล้ว</button>':'')+'</td>'+
       '</tr>';
     var sub=g.bills.map(function(b){
       var rm=b.codRemit&&b.codRemit.remitted;
       return '<tr class="sub-bills"><td>'+(b.billNo||"")+' · '+billDate(b)+'</td>'+
-        '<td class="r" colspan="3">COD '+fmt(getCOD(b))+' − '+fmt(codFee(b))+'</td>'+
-        '<td class="r">'+fmt(codNet(b))+'</td>'+
+        '<td class="r" colspan="3">COD '+fmt(getCOD(b))+' − '+money(codFee(b))+'</td>'+
+        '<td class="r">'+money(codNet(b))+'</td>'+
         '<td>'+(rm?'<span class="badge b-green">โอนแล้ว</span>':'<span class="badge b-gray">รอ</span>')+'</td>'+
         '<td><button class="btn btn-ghost btn-sm" onclick="toggleBill(\''+(b.billNo||"")+'\')">'+(rm?'ยกเลิก':'ทำเครื่องหมาย')+'</button></td></tr>';
     }).join("");
@@ -521,6 +585,107 @@ function renderRemit(){
 }
 function toggleRemit(i){ var el=document.getElementById("remit-sub-"+i); if(el)el.classList.toggle("hidden"); }
 
+/* ============================================================
+   ใบจ่ายเงิน COD  (เลือกบิล → ออกใบจ่าย → พิมพ์ / ตัดยอด)
+   ============================================================ */
+var VC_SENDER="";          // ลูกค้าต้นทางที่เลือก
+var VC_SEL={};             // billNo -> true (บิลที่ติ๊กจ่าย)
+var VC_SHOW=false;         // แสดงใบจ่ายแล้วหรือยัง
+
+function vcSenders(){
+  var s={};
+  codBillsFiltered().forEach(function(b){ var n=getSender(b); if(n) s[n]=(s[n]||0)+1; });
+  return Object.keys(s).sort();
+}
+function vcBills(){
+  return codBillsFiltered().filter(function(b){ return getSender(b)===VC_SENDER; })
+         .sort(function(a,b){ return billDate(a)<billDate(b)?-1:1; });
+}
+function renderVoucher(){
+  var box=document.getElementById("page-voucher");
+  var senders=vcSenders();
+  var opts='<option value="">— เลือกลูกค้าต้นทาง —</option>'+senders.map(function(n){
+    var c=Accounts.code(n);
+    return '<option value="'+n.replace(/"/g,'')+'"'+(n===VC_SENDER?' selected':'')+'>'+(c?'['+c+'] ':'')+n+'</option>';
+  }).join("");
+  var ctrl='<div class="vc-noprint" style="background:#fff;border-radius:10px;padding:12px;border:0.5px solid #eee;margin-bottom:12px">'+
+    '<div style="display:flex;gap:10px;flex-wrap:wrap;align-items:flex-end">'+
+      '<div class="fld"><label style="font-size:10px;color:#888">ลูกค้าต้นทาง</label><select class="inp" id="vc-sender" onchange="vcPick(this.value)">'+opts+'</select></div>'+
+      (VC_SENDER?'<button class="btn btn-ghost" onclick="vcCheckAll(true)">เลือกทั้งหมด</button><button class="btn btn-ghost" onclick="vcCheckAll(false)">ล้าง</button>'+
+        '<button class="btn btn-ghost" onclick="vcCheckUnpaid()">เฉพาะที่ยังไม่จ่าย</button>':'')+
+    '</div></div>';
+
+  if(!VC_SENDER){ box.innerHTML=ctrl+'<div class="empty">เลือกลูกค้าต้นทางเพื่อออกใบจ่ายเงิน COD</div>'; return; }
+
+  var bills=vcBills();
+  if(!bills.length){ box.innerHTML=ctrl+'<div class="empty">ไม่พบบิล COD ของลูกค้ารายนี้ในช่วงวันที่ที่เลือก</div>'; return; }
+
+  // ตารางเลือกบิล
+  var pick='<div class="vc-noprint" style="background:#fff;border-radius:10px;padding:4px;border:0.5px solid #eee;margin-bottom:12px">'+
+    '<table><thead><tr><th style="width:34px"></th><th>วันที่</th><th>เลขบิล</th><th>คนรถ</th><th>วันเคลียร์เงิน</th><th class="r">COD</th><th class="r">3%</th><th class="r">สุทธิ</th><th>สถานะ</th></tr></thead><tbody>'+
+    bills.map(function(b){
+      var rm=b.codRemit&&b.codRemit.remitted;
+      var ck=VC_SEL[b.billNo]?'checked':'';
+      return '<tr><td class="c"><input type="checkbox" '+ck+' onchange="vcToggle(\''+(b.billNo||"")+'\')"></td>'+
+        '<td>'+billDate(b)+'</td><td>'+(b.billNo||"")+'</td><td>'+(BILL_DRIVER[b.billNo]||"—")+'</td>'+
+        '<td>'+(fmtClear(BILL_CLEAR[b.billNo])||"—")+'</td>'+
+        '<td class="r">'+fmt(getCOD(b))+'</td><td class="r">'+money(codFee(b))+'</td><td class="r"><b>'+money(codNet(b))+'</b></td>'+
+        '<td>'+(rm?'<span class="badge b-green">จ่ายแล้ว</span>':'<span class="badge b-gray">ยังไม่จ่าย</span>')+'</td></tr>';
+    }).join("")+'</tbody></table>'+
+    '<div style="padding:10px;display:flex;gap:8px;flex-wrap:wrap"><button class="btn btn-green" onclick="vcRender()">🧾 ออกใบจ่าย</button>'+
+    '<button class="btn btn-green" style="background:#B07400" onclick="vcMarkPaid()">✓ บันทึกจ่ายแล้ว (ตัดยอด)</button>'+
+    '<button class="btn btn-ghost" onclick="window.print()">🖨️ พิมพ์</button></div></div>';
+
+  box.innerHTML=ctrl+pick+(VC_SHOW?vcDoc():'');
+}
+
+function vcPick(v){ VC_SENDER=v; VC_SEL={}; VC_SHOW=false; vcCheckUnpaid(); }
+function vcToggle(no){ if(VC_SEL[no])delete VC_SEL[no]; else VC_SEL[no]=true; VC_SHOW=false; renderVoucher(); }
+function vcCheckAll(on){ VC_SEL={}; if(on)vcBills().forEach(function(b){ VC_SEL[b.billNo]=true; }); VC_SHOW=false; renderVoucher(); }
+function vcCheckUnpaid(){ VC_SEL={}; vcBills().forEach(function(b){ if(!(b.codRemit&&b.codRemit.remitted)) VC_SEL[b.billNo]=true; }); VC_SHOW=false; renderVoucher(); }
+function vcRender(){ VC_SHOW=true; renderVoucher(); var d=document.querySelector("#page-voucher .vc-doc"); if(d)d.scrollIntoView({behavior:"smooth"}); }
+
+function vcSelectedBills(){ return vcBills().filter(function(b){ return VC_SEL[b.billNo]; }); }
+
+function vcDoc(){
+  var bills=vcSelectedBills();
+  if(!bills.length) return '<div class="empty vc-noprint">ยังไม่ได้เลือกบิล</div>';
+  var ac=Accounts.get(VC_SENDER)||{};
+  var today=new Date(); var dd=("0"+today.getDate()).slice(-2),mm=("0"+(today.getMonth()+1)).slice(-2),yy=(today.getFullYear()+543).toString().slice(-2);
+  var sumCOD=0,sumFee=0,sumNet=0;
+  var rows=bills.map(function(b){
+    var cod=getCOD(b),fee=codFee(b),net=codNet(b); sumCOD+=cod;sumFee+=fee;sumNet+=net;
+    return '<tr><td class="c">'+billDate(b)+'</td><td class="c">'+(b.billNo||"")+'</td>'+
+      '<td class="r">'+fmt(destFreight(b))+'</td><td class="c">'+(BILL_DRIVER[b.billNo]||"")+'</td>'+
+      '<td class="c">'+(fmtClear(BILL_CLEAR[b.billNo])||"")+'</td>'+
+      '<td class="r">'+fmt(cod)+'</td><td class="r">'+money(fee)+'</td><td class="r">'+money(net)+'</td></tr>';
+  }).join("");
+  var acctLine = (ac.bank||ac.accountNo)
+    ? (ac.accountName||VC_SENDER)+'   ธ.'+(ac.bank||'—')+'   เลขบัญชี '+(ac.accountNo||'—')
+    : '<span class="vc-note">⚠ ยังไม่ได้ตั้งบัญชีรับโอนของลูกค้ารายนี้ (ไปตั้งที่แท็บบัญชีรับโอน)</span>';
+  return '<div class="vc-doc">'+
+    '<div class="vc-title">ใบจ่ายเงิน COD</div>'+
+    '<div class="vc-head"><div><b>ชื่อผู้ส่ง</b>&nbsp;&nbsp;'+VC_SENDER+(Accounts.code(VC_SENDER)?'  ( '+Accounts.code(VC_SENDER)+' )':'')+'</div><div><b>วันที่จัดทำ</b>&nbsp;'+dd+'/'+mm+'/'+yy+'</div></div>'+
+    '<table class="vc-tb"><thead><tr><th>วันที่</th><th>เลขที่บิล</th><th>ค่าส่ง ปท.</th><th>พนักงานส่ง</th><th>วันเคลียร์เงิน</th><th>COD</th><th>3%</th><th>ยอดสุทธิ</th></tr></thead>'+
+    '<tbody>'+rows+
+    '<tr class="vc-tot"><td colspan="5" class="r">ยอดรวม</td><td class="r">'+fmt(sumCOD)+'</td><td class="r">'+money(sumFee)+'</td><td class="r vc-net">'+money(sumNet)+'</td></tr>'+
+    '</tbody></table>'+
+    '<div class="vc-acct"><b>รายละเอียดเลขบัญชี</b><br>'+acctLine+'</div>'+
+    '<div class="vc-sign"><div>____________________<br>ผู้จัดทำ</div><div>____________________<br>ผู้อนุมัติ</div></div>'+
+    '</div>';
+}
+
+function vcMarkPaid(){
+  var bills=vcSelectedBills();
+  if(!bills.length){ alert("ยังไม่ได้เลือกบิล"); return; }
+  var pend=bills.filter(function(b){ return !(b.codRemit&&b.codRemit.remitted); });
+  if(!pend.length){ alert("บิลที่เลือกถูกบันทึกว่าจ่ายแล้วทั้งหมด"); return; }
+  if(!confirm("บันทึกว่าจ่ายเงิน COD แล้ว "+pend.length+" บิล ของ "+VC_SENDER+" ?\nระบบจะตัดยอดออกจากยอดค้างโอนคืน")) return;
+  Promise.all(pend.map(function(b){ return setBillRemit(b.billNo, true); })).then(function(){
+    VC_SHOW=true; renderAll(); alert("✅ บันทึกแล้ว ตัดยอดเรียบร้อย");
+  });
+}
+
 /* ----- BILLS (flat) ----- */
 function renderBills(){
   var bills=codBillsFiltered().slice().sort(function(a,b){ return billDate(a)<billDate(b)?1:-1; });
@@ -528,18 +693,19 @@ function renderBills(){
   var rows=bills.map(function(b){
     var rm=b.codRemit&&b.codRemit.remitted;
     return '<tr><td>'+(b.billNo||"")+'</td><td>'+billDate(b)+'</td>'+
+      '<td>'+(BILL_DRIVER[b.billNo]||"—")+'</td>'+
       '<td>'+(getSender(b)||"—")+(isExempt(getSender(b))?'<span class="tag-exempt">ยกเว้น</span>':'')+'</td>'+
       '<td>'+(getReceiver(b)||"—")+'<div style="font-size:10px;color:#aaa">'+getDestProv(b)+'</div></td>'+
       '<td>'+(PAY_TH[getPay(b)]||getPay(b)||"—")+'</td>'+
       '<td class="r">'+fmt(destFreight(b))+'</td>'+
       '<td class="r">'+fmt(getCOD(b))+'</td>'+
-      '<td class="r" style="color:#B07400">'+fmt(codFee(b))+'</td>'+
-      '<td class="r"><b>'+fmt(codNet(b))+'</b></td>'+
+      '<td class="r" style="color:#B07400">'+money(codFee(b))+'</td>'+
+      '<td class="r"><b>'+money(codNet(b))+'</b></td>'+
       '<td>'+(ST_TH[b.status]||b.status||"—")+'</td>'+
       '<td>'+(rm?'<span class="badge b-green">โอนแล้ว</span>':'<button class="btn btn-ghost btn-sm" onclick="toggleBill(\''+(b.billNo||"")+'\')">โอนคืน</button>')+'</td></tr>';
   }).join("");
   document.getElementById("page-bills").innerHTML=
-    '<table><thead><tr><th>เลขบิล</th><th>วันที่</th><th>ต้นทาง</th><th>ปลายทาง</th><th>ชำระ</th><th class="r">ค่าส่งปลายทาง</th><th class="r">COD</th><th class="r">ธรรมเนียม</th><th class="r">โอนคืน</th><th>สถานะ</th><th></th></tr></thead><tbody>'+rows+'</tbody></table>';
+    '<table><thead><tr><th>เลขบิล</th><th>วันที่</th><th>คนรถ</th><th>ต้นทาง</th><th>ปลายทาง</th><th>ชำระ</th><th class="r">ค่าส่งปลายทาง</th><th class="r">COD</th><th class="r">ธรรมเนียม</th><th class="r">โอนคืน</th><th>สถานะ</th><th></th></tr></thead><tbody>'+rows+'</tbody></table>';
 }
 
 /* ============================================================
@@ -586,24 +752,42 @@ function renderAccounts(){
   var names=Object.keys(senders).sort();
   var box=document.getElementById("page-accounts");
   if(!names.length){ box.innerHTML='<div class="empty">ยังไม่มีลูกค้าต้นทางที่มีบิล COD</div>'; return; }
-  var nset=0;
+  var nset=0, ncoded=0;
   var rows=names.map(function(n){
     var a=Accounts.get(n);
     var has=a&&(a.bank||a.accountNo);
     if(has)nset++;
+    var cd=(a&&a.code)||"";
+    if(cd)ncoded++;
     var mismatch = has && a.accountName && a.accountName.trim()!==n.trim();
-    return '<tr><td><b>'+n+'</b>'+(isExempt(n)?'<span class="tag-exempt">ยกเว้น 3%</span>':'')+
+    return '<tr><td class="c">'+(cd?'<b style="color:#0F6E56">'+cd+'</b>':'<span style="color:#ccc">—</span>')+'</td>'+
+      '<td><b>'+n+'</b>'+(isExempt(n)?'<span class="tag-exempt">ยกเว้น 3%</span>':'')+
       (has?('<div class="acct-line">🔒 ผูกเมื่อ '+(a.updatedAt?a.updatedAt.slice(0,10):'—')+(a.history&&a.history.length?(' · เคยแก้ '+a.history.length+' ครั้ง'):'')+'</div>'):'')+
       '</td>'+
       '<td>'+(has?(a.bank||'—'):'<span class="badge b-amber">ยังไม่ตั้ง</span>')+'</td>'+
       '<td>'+(has?(a.accountNo||'—'):'')+'</td>'+
       '<td>'+(has?((a.accountName||'—')+(mismatch?'<span class="acct-line" style="color:#5B3FB3"> (≠ ชื่อบิล)</span>':'')):'')+'</td>'+
       '<td class="r">'+(senders[n]||0)+'</td>'+
-      '<td><button class="btn btn-ghost btn-sm" onclick="openAcct(\''+enc(n)+'\')">'+(has?'แก้ไข':'+ ตั้งบัญชี')+'</button></td></tr>';
+      '<td><button class="btn btn-ghost btn-sm" onclick="openAcct(\''+enc(n)+'\')">'+(has||cd?'แก้ไข':'+ เพิ่มข้อมูล')+'</button></td></tr>';
   }).join("");
   box.innerHTML=
-    '<div class="mini-note">ผูกบัญชีรับโอนคืน COD แบบ 1 ลูกค้าต้นทาง (ชื่อในบิล) = 1 บัญชี · เมื่อผูกแล้วระบบใช้บัญชีนี้ตลอดจนกว่าจะกดแก้ไข (และเก็บประวัติทุกครั้ง) · ชื่อบัญชีไม่จำเป็นต้องตรงกับชื่อในบิล · ตั้งครบ '+nset+'/'+names.length+' ราย</div>'+
-    '<table><thead><tr><th>ลูกค้าต้นทาง</th><th>ธนาคาร</th><th>เลขบัญชี</th><th>ชื่อบัญชี</th><th class="r">บิล COD</th><th></th></tr></thead><tbody>'+rows+'</tbody></table>';
+    '<div class="mini-note">รหัสลูกค้าออกอัตโนมัติ (C1, C2, …) · 1 ลูกค้าต้นทาง = 1 รหัส = 1 บัญชี · ผูกแล้วใช้ตลอดจนกว่าจะกดแก้ไข (เก็บประวัติ) · ออกรหัสแล้ว '+ncoded+'/'+names.length+' · ตั้งบัญชีแล้ว '+nset+'/'+names.length+' ราย</div>'+
+    '<div class="vc-noprint" style="margin-bottom:10px"><button class="btn btn-green" onclick="assignAllCodes()">⚡ ออกรหัสให้ทุกรายที่ยังไม่มี</button></div>'+
+    '<table><thead><tr><th class="c">รหัส</th><th>ลูกค้าต้นทาง</th><th>ธนาคาร</th><th>เลขบัญชี</th><th>ชื่อบัญชี</th><th class="r">บิล COD</th><th></th></tr></thead><tbody>'+rows+'</tbody></table>';
+}
+
+// ออกรหัสให้ผู้ส่งทุกรายที่ยังไม่มีรหัส (ไล่ทีละราย เลขต่อเนื่อง)
+function assignAllCodes(){
+  var senders={};
+  ALL_BILLS.forEach(function(b){ if(getCOD(b)>0){ var s=getSender(b); if(s) senders[s]=1; } });
+  Object.keys(ACCTS).forEach(function(n){ senders[n]=1; });
+  var need=Object.keys(senders).filter(function(n){ return !Accounts.code(n); }).sort();
+  if(!need.length){ alert("ทุกรายมีรหัสแล้ว"); return; }
+  if(!confirm("ออกรหัสอัตโนมัติให้ "+need.length+" รายที่ยังไม่มีรหัส?")) return;
+  (function run(i){
+    if(i>=need.length){ renderAll(); alert("✅ ออกรหัสครบ "+need.length+" ราย"); return; }
+    Accounts.ensureCode(need[i]).then(function(){ run(i+1); });
+  })(0);
 }
 
 var _acctName="";
@@ -612,6 +796,7 @@ function openAcct(encName){
   var a=Accounts.get(name)||{};
   var isNew=!(a.bank||a.accountNo||a.accountName);
   document.getElementById("ac-name").value=name;
+  document.getElementById("ac-code").value=a.code || (isNew ? Accounts.nextCode() : "");
   document.getElementById("ac-bank").value=a.bank||"";
   document.getElementById("ac-no").value=a.accountNo||"";
   // ส่วนใหญ่ชื่อบัญชีตรงกับชื่อในบิล → เติมให้อัตโนมัติเฉพาะรายใหม่ แล้วผู้ใช้แก้เฉพาะที่ไม่ตรง
@@ -623,7 +808,10 @@ function saveAcct(){
   if(!_acctName) return;
   var existed=Accounts.get(_acctName);
   var hadBinding=existed&&(existed.bank||existed.accountNo);
+  var codeVal=document.getElementById("ac-code").value.trim();
+  if(codeVal && Accounts.codeTaken(codeVal,_acctName)){ alert("รหัส \""+codeVal+"\" ถูกใช้กับลูกค้ารายอื่นแล้ว กรุณาใช้รหัสอื่น"); return; }
   var data={
+    code: codeVal,
     bank: document.getElementById("ac-bank").value.trim(),
     accountNo: document.getElementById("ac-no").value.trim(),
     accountName: document.getElementById("ac-acctname").value.trim()
