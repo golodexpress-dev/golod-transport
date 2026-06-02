@@ -25,6 +25,10 @@
   .topsel{display:flex;gap:8px;margin-top:10px}
   .topsel select{flex:1;border:none;border-radius:8px;padding:9px 8px;background:rgba(255,255,255,.16);color:#fff;font-weight:700}
   .topsel select option{color:#222}
+  .topinfo{display:flex;gap:8px;margin-top:10px;flex-wrap:wrap}
+  .chiplbl{background:rgba(255,255,255,.16);border-radius:8px;padding:7px 11px;font-size:13px;font-weight:600;color:#fff;display:flex;align-items:center;gap:6px}
+  .chiplbl b{font-weight:800}
+  .chipsel{border:none;background:rgba(255,255,255,.9);color:#222;border-radius:6px;padding:4px 6px;font-weight:700;margin-left:4px}
   .tabs{display:flex;gap:8px;padding:12px 16px 0}
   .tab{flex:1;text-align:center;padding:11px 6px;border-radius:10px 10px 0 0;background:#dfe9e2;color:var(--green-d);font-weight:800;font-size:15px;cursor:pointer;border:1px solid var(--line);border-bottom:none}
   .tab.on{background:#fff;color:var(--green);box-shadow:0 -2px 6px rgba(0,0,0,.05)}
@@ -121,9 +125,17 @@ function normalizeRec(r){
 }
 
 function App(){
-  let sBranch=BRANCHES[0], sClerk=CLERKS[0];
-  try{const s=GolodSession&&GolodSession.get&&GolodSession.get();
-      if(s){if(s.branch)sBranch=s.branch; if(s.username||s.staff)sClerk=(s.staff||s.username);}}catch(e){}
+  // ===== ระบุสาขา/ผู้กรอก อัตโนมัติจากบัญชีที่ล็อกอิน =====
+  let CU=null;
+  try{ CU=(typeof GolodSession!=="undefined"&&GolodSession.get)?GolodSession.get():null; }catch(e){}
+  const loggedIn=!!CU;
+  const branchMap={"กรุงเทพ":"กรุงเทพ","ปทุมธานี":"กรุงเทพ","นครราชสีมา":"นครราชสีมา","ศรีสะเกษ":"ศรีสะเกษ"};
+  const isAdmin=loggedIn?(CU.role==="admin"||CU.branch==="all"||CU.branch==="—"):false;
+  const lockedBranch=(loggedIn&&!isAdmin)?(branchMap[CU.branch]||CU.branch):"";
+  const clerkName=loggedIn?(CU.name||CU.clerkCode||CU.username||""):"";
+
+  const sBranch=loggedIn?(lockedBranch||BRANCHES[0]):BRANCHES[0];
+  const sClerk=loggedIn?clerkName:CLERKS[0];
 
   const [branch,setBranch]=useState(sBranch);
   const [clerk,setClerk]=useState(sClerk);
@@ -176,6 +188,7 @@ function App(){
     const isEdit=!!f.id;
     const rec={...f,
       createdBy:clerk, branch,
+      createdByCode:(CU&&(CU.clerkCode||CU.username))||"",
       ref:f.ref||genRef(),
       goods:(f.items||[]).filter(x=>x&&x.trim()).join(" / "),
       freight:parseFloat(f.freight)||0,
@@ -217,14 +230,25 @@ function App(){
     <header>
       <h1>📦 ฟอร์มรับงาน — เสมียน</h1>
       <div className="who">บันทึกงานล่วงหน้า แล้วดึงไปจ่ายให้คนรถวันจัดเที่ยว</div>
-      <div className="topsel">
-        <select value={branch} onChange={e=>setBranch(e.target.value)}>
-          {BRANCHES.map(b=><option key={b}>{b}</option>)}
-        </select>
-        <select value={clerk} onChange={e=>setClerk(e.target.value)}>
-          {CLERKS.map(c=><option key={c}>{c}</option>)}
-        </select>
-      </div>
+      {loggedIn
+        ? <div className="topinfo">
+            {isAdmin
+              ? <span className="chiplbl">📍 สาขา:
+                  <select className="chipsel" value={branch} onChange={e=>setBranch(e.target.value)}>
+                    {BRANCHES.map(b=><option key={b}>{b}</option>)}
+                  </select>
+                </span>
+              : <span className="chiplbl">📍 สาขา <b>{branch}</b></span>}
+            <span className="chiplbl">✍️ ผู้กรอก <b>{clerk}</b></span>
+          </div>
+        : <div className="topsel">
+            <select value={branch} onChange={e=>setBranch(e.target.value)}>
+              {BRANCHES.map(b=><option key={b}>{b}</option>)}
+            </select>
+            <select value={clerk} onChange={e=>setClerk(e.target.value)}>
+              {CLERKS.map(c=><option key={c}>{c}</option>)}
+            </select>
+          </div>}
     </header>
 
     {!hasDB && <div className="warn">⚠️ หน้านี้ต้องเปิดบนเว็บที่มีไฟล์ Firebase (github.io) — เปิดแบบ preview จะยังบันทึกไม่ได้</div>}
