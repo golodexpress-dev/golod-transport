@@ -327,6 +327,13 @@ function parseDate(v){
 }
 function toISO(v){ var d=parseDate(v); if(!d)return ""; var mm=("0"+(d.getMonth()+1)).slice(-2),dd=("0"+d.getDate()).slice(-2); return d.getFullYear()+"-"+mm+"-"+dd; }
 function billDate(b){ return toISO(b.date || (b.createdAt||"").slice(0,10)); }
+// วันที่ส่งสำเร็จ: ใช้ deliveredAt ถ้ามี, ถ้าไม่มีแต่สถานะส่งสำเร็จแล้ว fallback เป็น updatedAt (ประมาณ)
+function deliveredDate(b){
+  if(b.deliveredAt) return toISO(b.deliveredAt);
+  var st=b.status||"";
+  if(st==="ส่งสำเร็จ"||st==="delivered"||st==="success") return b.updatedAt?toISO(b.updatedAt):"";
+  return "";
+}
 // รูปแบบวันเคลียร์เงินแบบในใบจ่าย: 28/5(18.46)
 function fmtClear(v){
   if(!v) return "";
@@ -622,12 +629,13 @@ function renderVoucher(){
 
   // ตารางเลือกบิล
   var pick='<div class="vc-noprint" style="background:#fff;border-radius:10px;padding:4px;border:0.5px solid #eee;margin-bottom:12px">'+
-    '<table><thead><tr><th style="width:34px"></th><th>วันที่</th><th>เลขบิล</th><th>คนรถ</th><th>วันเคลียร์เงิน</th><th class="r">COD</th><th class="r">3%</th><th class="r">สุทธิ</th><th>สถานะ</th></tr></thead><tbody>'+
+    '<table><thead><tr><th style="width:34px"></th><th>วันที่</th><th>เลขบิล</th><th>คนรถ</th><th>วันที่ส่งสำเร็จ</th><th>วันเคลียร์เงิน</th><th class="r">COD</th><th class="r">3%</th><th class="r">สุทธิ</th><th>สถานะ</th></tr></thead><tbody>'+
     bills.map(function(b){
       var rm=b.codRemit&&b.codRemit.remitted;
       var ck=VC_SEL[b.billNo]?'checked':'';
       return '<tr><td class="c"><input type="checkbox" '+ck+' onchange="vcToggle(\''+(b.billNo||"")+'\')"></td>'+
         '<td>'+billDate(b)+'</td><td>'+(b.billNo||"")+'</td><td>'+(BILL_DRIVER[b.billNo]||"—")+'</td>'+
+        '<td>'+(deliveredDate(b)||"—")+'</td>'+
         '<td>'+(fmtClear(BILL_CLEAR[b.billNo])||"—")+'</td>'+
         '<td class="r">'+fmt(getCOD(b))+'</td><td class="r">'+money(codFee(b))+'</td><td class="r"><b>'+money(codNet(b))+'</b></td>'+
         '<td>'+(rm?'<span class="badge b-green">จ่ายแล้ว</span>':'<span class="badge b-gray">ยังไม่จ่าย</span>')+'</td></tr>';
@@ -657,6 +665,7 @@ function vcDoc(){
     var cod=getCOD(b),fee=codFee(b),net=codNet(b); sumCOD+=cod;sumFee+=fee;sumNet+=net;
     return '<tr><td class="c">'+billDate(b)+'</td><td class="c">'+(b.billNo||"")+'</td>'+
       '<td class="r">'+fmt(destFreight(b))+'</td><td class="c">'+(BILL_DRIVER[b.billNo]||"")+'</td>'+
+      '<td class="c">'+(deliveredDate(b)||"")+'</td>'+
       '<td class="c">'+(fmtClear(BILL_CLEAR[b.billNo])||"")+'</td>'+
       '<td class="r">'+fmt(cod)+'</td><td class="r">'+money(fee)+'</td><td class="r">'+money(net)+'</td></tr>';
   }).join("");
@@ -666,9 +675,9 @@ function vcDoc(){
   return '<div class="vc-doc">'+
     '<div class="vc-title">ใบจ่ายเงิน COD</div>'+
     '<div class="vc-head"><div><b>ชื่อผู้ส่ง</b>&nbsp;&nbsp;'+VC_SENDER+(Accounts.code(VC_SENDER)?'  ( '+Accounts.code(VC_SENDER)+' )':'')+'</div><div><b>วันที่จัดทำ</b>&nbsp;'+dd+'/'+mm+'/'+yy+'</div></div>'+
-    '<table class="vc-tb"><thead><tr><th>วันที่</th><th>เลขที่บิล</th><th>ค่าส่ง ปท.</th><th>พนักงานส่ง</th><th>วันเคลียร์เงิน</th><th>COD</th><th>3%</th><th>ยอดสุทธิ</th></tr></thead>'+
+    '<table class="vc-tb"><thead><tr><th>วันที่</th><th>เลขที่บิล</th><th>ค่าส่ง ปท.</th><th>พนักงานส่ง</th><th>วันที่ส่งสำเร็จ</th><th>วันเคลียร์เงิน</th><th>COD</th><th>3%</th><th>ยอดสุทธิ</th></tr></thead>'+
     '<tbody>'+rows+
-    '<tr class="vc-tot"><td colspan="5" class="r">ยอดรวม</td><td class="r">'+fmt(sumCOD)+'</td><td class="r">'+money(sumFee)+'</td><td class="r vc-net">'+money(sumNet)+'</td></tr>'+
+    '<tr class="vc-tot"><td colspan="6" class="r">ยอดรวม</td><td class="r">'+fmt(sumCOD)+'</td><td class="r">'+money(sumFee)+'</td><td class="r vc-net">'+money(sumNet)+'</td></tr>'+
     '</tbody></table>'+
     '<div class="vc-acct"><b>รายละเอียดเลขบัญชี</b><br>'+acctLine+'</div>'+
     '<div class="vc-sign"><div>____________________<br>ผู้จัดทำ</div><div>____________________<br>ผู้อนุมัติ</div></div>'+
@@ -694,6 +703,8 @@ function renderBills(){
     var rm=b.codRemit&&b.codRemit.remitted;
     return '<tr><td>'+(b.billNo||"")+'</td><td>'+billDate(b)+'</td>'+
       '<td>'+(BILL_DRIVER[b.billNo]||"—")+'</td>'+
+      '<td>'+(deliveredDate(b)||"—")+'</td>'+
+      '<td>'+(fmtClear(BILL_CLEAR[b.billNo])||"—")+'</td>'+
       '<td>'+(getSender(b)||"—")+(isExempt(getSender(b))?'<span class="tag-exempt">ยกเว้น</span>':'')+'</td>'+
       '<td>'+(getReceiver(b)||"—")+'<div style="font-size:10px;color:#aaa">'+getDestProv(b)+'</div></td>'+
       '<td>'+(PAY_TH[getPay(b)]||getPay(b)||"—")+'</td>'+
@@ -705,7 +716,7 @@ function renderBills(){
       '<td>'+(rm?'<span class="badge b-green">โอนแล้ว</span>':'<button class="btn btn-ghost btn-sm" onclick="toggleBill(\''+(b.billNo||"")+'\')">โอนคืน</button>')+'</td></tr>';
   }).join("");
   document.getElementById("page-bills").innerHTML=
-    '<table><thead><tr><th>เลขบิล</th><th>วันที่</th><th>คนรถ</th><th>ต้นทาง</th><th>ปลายทาง</th><th>ชำระ</th><th class="r">ค่าส่งปลายทาง</th><th class="r">COD</th><th class="r">ธรรมเนียม</th><th class="r">โอนคืน</th><th>สถานะ</th><th></th></tr></thead><tbody>'+rows+'</tbody></table>';
+    '<table><thead><tr><th>เลขบิล</th><th>วันที่</th><th>คนรถ</th><th>วันที่ส่งสำเร็จ</th><th>วันเคลียร์เงิน</th><th>ต้นทาง</th><th>ปลายทาง</th><th>ชำระ</th><th class="r">ค่าส่งปลายทาง</th><th class="r">COD</th><th class="r">ธรรมเนียม</th><th class="r">โอนคืน</th><th>สถานะ</th><th></th></tr></thead><tbody>'+rows+'</tbody></table>';
 }
 
 /* ============================================================
