@@ -2616,66 +2616,59 @@ function loadDoneBills(){
   var db;
   try{ db = firebase.firestore(); }catch(e){ renderApp(); return; }
 
-  var DONE_ST = ["ส่งสำเร็จ","ส่งไม่สำเร็จ","นำกลับสาขา","ลูกค้ารับกลับ","delivered","success"];
-  var cutoff = new Date();
-  cutoff.setDate(cutoff.getDate() - 14);
-  var cutoffISO = cutoff.toISOString();
+  var DONE_ST = ["ส่งสำเร็จ","ส่งไม่สำเร็จ","นำกลับสาขา","ลูกค้ารับกลับ","delivered","success","ติดต่อลูกค้าไม่ได้","ติดต่อไม่ได้","nocontact"];
+  var DONE_SET = {}; DONE_ST.forEach(function(s){ DONE_SET[s]=true; });
 
-  // ถ้ามี dateFrom ใช้นั้น ถ้าไม่มีใช้ 14 วัน
-  var fromISO = range.from ? new Date(range.from).toISOString() : cutoffISO;
+  // ดึงตามช่วงวันที่ (createdAt) — index ฟิลด์เดียว ได้บิล "ทุกสาขา" ไม่ใช่แค่ BB
+  // แล้วกรอง done-status ฝั่ง client
+  var days = (filterDateMode==="today"||filterDateMode==="yesterday") ? 2
+           : (filterDateMode==="week") ? 8
+           : (filterDateMode==="month") ? 32 : 120;
+  var cutoff = new Date(); cutoff.setDate(cutoff.getDate() - days);
+  var fromISO = range.from ? new Date(range.from+"T00:00:00").toISOString() : cutoff.toISOString();
+  var limitN = days<=2 ? 600 : days<=8 ? 1500 : 4000;
 
-  // limit ตาม range — ถ้าวันเดียวดึงแค่ 100, สัปดาห์ 300
-  var limitN = (filterDateMode==="today"||filterDateMode==="yesterday") ? 100
-             : (filterDateMode==="week") ? 300 : 500;
+  function finish(bills){
+    var seen={}, out=[];
+    bills.forEach(function(d){
+      if(d && d.billNo && DONE_SET[d.status] && !seen[d.billNo]){ seen[d.billNo]=true; out.push(d); }
+    });
+    DONE_BILLS_CACHE = out.map(function(b){
+      if(b.form&&typeof b.form==="string"){try{b.form=JSON.parse(b.form);}catch(e){b.form={};}}
+      if(!b.form)b.form={};
+      return b;
+    });
+    DONE_BILLS_LOADED = true;
+    renderDoneTab();
+  }
 
-  // query done status โดยตรง — เรียงตาม createdAt ล่าสุด เพื่อให้ได้บิลทุกสาขา
-  // (เดิม limit 200 เฉยๆ → Firestore คืนเรียงตาม billNo ทำให้ได้แต่ BB ใบแรกๆ สาขาอื่นหลุด)
-  var perStatus = (filterDateMode==="today"||filterDateMode==="yesterday") ? 200
-                : (filterDateMode==="week") ? 400 : 600;
-  var doneQueries = DONE_ST.map(function(st){
-    return db.collection("bills").where("status","==",st)
-             .orderBy("createdAt","desc").limit(perStatus).get()
-      .catch(function(){
-        // เผื่อไม่มี composite index (status+createdAt) → fallback ดึงแบบเดิมแต่เพิ่ม limit
-        return db.collection("bills").where("status","==",st).limit(perStatus).get()
+  db.collection("bills")
+    .where("createdAt", ">=", fromISO)
+    .orderBy("createdAt","desc")
+    .limit(limitN).get()
+    .then(function(snap){
+      var bills=[]; snap.forEach(function(doc){ bills.push(doc.data()); });
+      finish(bills);
+    })
+    .catch(function(e){
+      // fallback: ไม่มี index createdAt → ดึงทีละ done-status (เพิ่ม limit สูง)
+      console.warn("[loadDoneBills] range query failed, fallback per-status:", e.message);
+      var qs = DONE_ST.map(function(st){
+        return db.collection("bills").where("status","==",st).limit(800).get()
           .catch(function(){ return {forEach:function(){}}; });
       });
-  });
-
-  Promise.all(doneQueries)
-    .then(function(snaps){
-      var seen={}, bills=[];
-      snaps.forEach(function(snap){
-        snap.forEach(function(doc){
-          var d=doc.data();
-          if(!seen[d.billNo]){ seen[d.billNo]=true; bills.push(d); }
-        });
+      Promise.all(qs).then(function(snaps){
+        var bills=[];
+        snaps.forEach(function(snap){ snap.forEach(function(doc){ bills.push(doc.data()); }); });
+        // กรองวันที่ client-side
+        if(range.from||range.to){
+          bills=bills.filter(function(b){ var ds=billDateStr(b);
+            if(range.from&&ds<range.from)return false; if(range.to&&ds>range.to)return false; return true; });
+        }
+        finish(bills);
+      }).catch(function(e2){
+        document.getElementById("app").innerHTML='<div class="card"><div class="loading">❌ โหลดไม่สำเร็จ: '+e2.message+'<br><small>ลอง reload หรือตรวจสอบ Firestore index</small></div></div>';
       });
-      // normalize
-      DONE_BILLS_CACHE = bills.map(function(b){
-        if(b.form&&typeof b.form==="string"){try{b.form=JSON.parse(b.form);}catch(e){b.form={};}}
-        if(!b.form)b.form={};
-        return b;
-      });
-      // กรองวันที่ client-side
-      if(range.from || range.to){
-        bills = bills.filter(function(b){
-          var ds = billDateStr(b);
-          if(range.from && ds < range.from) return false;
-          if(range.to   && ds > range.to)   return false;
-          return true;
-        });
-      }
-      // normalize
-      DONE_BILLS_CACHE = bills.map(function(b){
-        if(b.form&&typeof b.form==="string"){try{b.form=JSON.parse(b.form);}catch(e){b.form={};}}
-        if(!b.form)b.form={};
-        return b;
-      });
-      DONE_BILLS_LOADED = true;
-      renderDoneTab();
-    }).catch(function(e){
-      document.getElementById("app").innerHTML='<div class="card"><div class="loading">❌ โหลดไม่สำเร็จ: '+e.message+'<br><small>ลอง reload หรือตรวจสอบ Firestore index</small></div></div>';
     });
 }
 
