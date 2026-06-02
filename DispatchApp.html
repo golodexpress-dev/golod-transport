@@ -1340,6 +1340,7 @@ function renderTripList(){
         +'</div>'
         +'<div style="display:flex;flex-direction:column;gap:4px;align-items:flex-end">'
           +'<button class="btn btn-gray" data-tid="'+t.id+'" onclick="editTrip(this.dataset.tid)">✏️ แก้ไข</button>'
+          +'<button class="btn" data-tid="'+t.id+'" onclick="pushTripToDriver(this.dataset.tid)" style="background:#0F6E56;color:#fff">🚚 ส่งให้คนรถ</button>'
           +'<button class="btn" data-tid="'+t.id+'" onclick="openTripVehiclePhoto(this.dataset.tid)" style="background:#34495e;color:#fff">📷 รูปรถ ('+((t.vehiclePhotos||[]).length)+')</button>'
           +(canClearTrip()?'<button class="btn btn-orange" data-tid="'+t.id+'" onclick="openClearTrip(this.dataset.tid)">💰 เคลียร์เที่ยว</button>':'')
           +(canClearTrip()?'<button class="btn btn-green" data-tid="'+t.id+'" onclick="closeTrip(this.dataset.tid)">✅ ปิดเที่ยว</button>':'')
@@ -1472,6 +1473,29 @@ function editTrip(tripId){
     });
   }
   renderTripForm(trip);
+}
+
+// ===== ส่งบิลทั้งเที่ยวให้คนรถเห็น (ใช้ billIds ของเที่ยวตรงๆ — กู้เที่ยวเก่าได้) =====
+function pushTripToDriver(tripId){
+  var t = (_tripState.openTrips||[]).find(function(x){ return x.id===tripId; });
+  if(!t){ alert("ไม่พบเที่ยว ลองรีเฟรช"); return; }
+  if(!t.driverUsername){ alert("เที่ยวนี้ยังไม่มีคนขับ — กดแก้ไขเพื่อเลือกคนขับก่อน"); return; }
+  if(!t.billIds || !t.billIds.length){ alert("เที่ยวนี้ไม่มีบิล"); return; }
+  if(!confirm("ส่ง "+t.billIds.length+" บิล ให้ "+(t.driverName||t.driverUsername)+" ?\nบิลจะเปลี่ยนเป็น \"กำลังวิ่งส่งลูกค้า\" และคนรถจะเห็นงานในแอป")) return;
+
+  var DONE_ST = ["ส่งสำเร็จ","delivered","ส่งไม่สำเร็จ","ส่งไม่ได้","ปิดงาน","cleared"];
+  var stMap = {};
+  (BILLS||[]).forEach(function(b){ if(b && b.billNo) stMap[b.billNo] = b.status; });
+
+  var ups = t.billIds.map(function(bn){
+    var upd = {tripId:t.id, driver:t.driverUsername, driverName:t.driverName||t.driverUsername, updatedAt:new Date().toISOString()};
+    if(DONE_ST.indexOf(stMap[bn]) < 0) upd.status = "กำลังวิ่งส่งลูกค้า";
+    return GolodDB.updateBill(bn, upd).catch(function(e){ console.warn("pushTripToDriver",bn,e.message); return null; });
+  });
+  Promise.all(ups).then(function(){
+    alert("✅ ส่งให้คนรถแล้ว "+t.billIds.length+" บิล — บอกคนรถกด 🔄 รีเฟรชในแอป");
+    renderTripTab();
+  }).catch(function(e){ alert("❌ "+e.message); });
 }
 
 function renderTripForm(existingTrip){
