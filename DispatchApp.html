@@ -2628,11 +2628,18 @@ function loadDoneBills(){
   var limitN = (filterDateMode==="today"||filterDateMode==="yesterday") ? 100
              : (filterDateMode==="week") ? 300 : 500;
 
-  // query done status โดยตรง ไม่ต้อง index createdAt
-  // ดึงแต่ละ status limit 200 ใบ ไม่ต้อง index
+  // query done status โดยตรง — เรียงตาม createdAt ล่าสุด เพื่อให้ได้บิลทุกสาขา
+  // (เดิม limit 200 เฉยๆ → Firestore คืนเรียงตาม billNo ทำให้ได้แต่ BB ใบแรกๆ สาขาอื่นหลุด)
+  var perStatus = (filterDateMode==="today"||filterDateMode==="yesterday") ? 200
+                : (filterDateMode==="week") ? 400 : 600;
   var doneQueries = DONE_ST.map(function(st){
-    return db.collection("bills").where("status","==",st).limit(200).get()
-      .catch(function(){ return {forEach:function(){}}; });
+    return db.collection("bills").where("status","==",st)
+             .orderBy("createdAt","desc").limit(perStatus).get()
+      .catch(function(){
+        // เผื่อไม่มี composite index (status+createdAt) → fallback ดึงแบบเดิมแต่เพิ่ม limit
+        return db.collection("bills").where("status","==",st).limit(perStatus).get()
+          .catch(function(){ return {forEach:function(){}}; });
+      });
   });
 
   Promise.all(doneQueries)

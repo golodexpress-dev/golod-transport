@@ -9,6 +9,7 @@
 <script src="firebase-app-compat.js"></script>
 <script src="firebase-firestore-compat.js"></script>
 <script src="golod-firebase.js?v=1779235612"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
 <script>try{GolodDB.init();}catch(e){}</script>
 <style>
 *{box-sizing:border-box;margin:0;padding:0}
@@ -379,44 +380,74 @@ function buildBillHTML(b){
   var addr     = pick("receiverAddr")||pick("destAddr")||"";
   var pay      = getBillPay(b);
   var net      = parseFloat(b.freightNet||0);
+  var disc     = parseFloat(b.discount||f.discount||0);
+  var gross    = net+disc;
   var cod      = parseFloat(b.codTotal||0);
+  var driverCollect = parseFloat(b.driverCollect||f.driverCollect||0);
   var items    = Array.isArray(b.items)?b.items:(Array.isArray(f.items)?f.items:[]);
-  var clerk    = pick("clerkName")||pick("staffName")||b.clerkCode||"";
-  var row=function(l,v){ return v?('<div style="display:flex;gap:6px;margin:2px 0"><span style="color:#666;min-width:54px;font-size:11px">'+l+'</span><span style="flex:1;font-weight:700">'+v+'</span></div>'):''; };
+  var clerk    = (pick("clerkName")||pick("staffName")||b.clerkCode||"").replace(/\s*\(.*?\)\s*/g,"").trim();
+  var note     = pick("note");
 
-  var itemRows = items.length
-    ? items.map(function(it,i){
-        var d=it.desc||it.name||("รายการ "+(i+1));
-        var q=it.qty?(" x"+it.qty):"";
-        var kg=it.kg?(" "+it.kg+"kg"):"";
-        return '<tr><td style="padding:2px 0">'+(i+1)+'. '+d+kg+q+'</td></tr>';
-      }).join("")
-    : '<tr><td style="padding:2px 0;color:#888">'+(pick("note")||"—")+'</td></tr>';
+  var rowKV=function(l,v){ return v?('<div style="display:flex;gap:5px;margin:1px 0"><span style="color:#555;min-width:42px;font-size:10px">'+l+'</span><span style="flex:1;font-weight:700;font-size:11px">'+v+'</span></div>'):''; };
+
+  // ตารางรายการของ: รายการ | กก. | ขนาด | Q
+  var itemRows = (items.length?items:[{desc:note||"—"}]).map(function(it,i){
+    var d=it.desc||it.name||("รายการ "+(i+1));
+    var kg=it.kg?(it.kg+""):"-";
+    var sz=(it.sumCm&&parseFloat(it.sumCm)>0)?it.sumCm:"-";
+    var q=it.qty||1;
+    return '<tr style="border-bottom:0.5px dotted #bbb">'
+      +'<td style="padding:2px 2px;font-size:10px;font-weight:700;border-right:0.5px solid #ccc;word-break:break-word">'+(i+1)+'. '+d+'</td>'
+      +'<td style="padding:2px 2px;text-align:center;font-size:11px;border-right:0.5px solid #ccc">'+kg+'</td>'
+      +'<td style="padding:2px 2px;text-align:center;font-size:11px;border-right:0.5px solid #ccc">'+sz+'</td>'
+      +'<td style="padding:2px 2px;text-align:center;font-size:11px">'+q+'</td>'
+      +'</tr>';
+  }).join("");
+
+  var qrId="qr_"+(b.billNo||Math.random().toString(36).slice(2)).replace(/[^a-zA-Z0-9]/g,"");
+  // วาด QR หลัง render
+  setTimeout(function(){
+    try{ var el=document.getElementById(qrId); if(el&&typeof QRCode!=="undefined"){ el.innerHTML=""; new QRCode(el,{text:(b.billNo||""),width:78,height:78,correctLevel:QRCode.CorrectLevel.L}); } }catch(e){}
+  },60);
+
+  var payTxt = pay==="dest"?"ปลายทาง":pay==="transfer"?"โอน":pay==="credit"?"เครดิต":"ต้นทาง";
 
   return ''
-    +'<div style="width:302px;box-sizing:border-box;padding:16px 16px 12px;font-family:Sarabun,sans-serif;font-size:12px;font-weight:700;line-height:1.7;color:#000">'
-    +'<div style="text-align:center;font-size:16px;font-weight:900">GOLOD TRANSPORT</div>'
-    +'<div style="text-align:center;font-size:11px;color:#444;margin-bottom:6px">โกโลด ทรานสปอร์ต</div>'
-    +'<div style="display:flex;justify-content:space-between;border-top:1.5px solid #000;border-bottom:1px dashed #555;padding:4px 0;margin-bottom:6px">'
-      +'<span style="font-weight:900">'+(b.billNo||"")+'</span>'
-      +'<span style="font-size:11px;color:#444">'+fmtBillDate(b)+'</span></div>'
-    +'<div style="font-size:11px;color:#0F6E56;font-weight:800;margin-bottom:2px">ผู้ส่ง</div>'
-    +row("ชื่อ",sender)+row("โทร",senderPh)+row("ต้นทาง",origin)
-    +'<div style="font-size:11px;color:#0F6E56;font-weight:800;margin:6px 0 2px">ผู้รับ</div>'
-    +row("ชื่อ",recv)+row("โทร",recvPh)
-    +row("ที่อยู่",addr)
-    +row("ปลายทาง",[tambon,amphoe,prov].filter(Boolean).join(" "))
-    +'<div style="font-size:11px;color:#0F6E56;font-weight:800;margin:6px 0 2px">รายการสินค้า</div>'
-    +'<table style="width:100%;font-size:12px;font-weight:700"><tbody>'+itemRows+'</tbody></table>'
-    +'<div style="border-top:1.5px solid #000;margin:6px 0 4px"></div>'
+    +'<div style="width:302px;box-sizing:border-box;padding:14px 16px 10px;font-family:Sarabun,sans-serif;font-size:12px;font-weight:700;line-height:1.55;color:#000">'
+    +'<div style="text-align:center;font-size:15px;font-weight:900">บจ.โกโลด ทรานสปอร์ต</div>'
+    +'<div style="text-align:center;font-size:9px;color:#444;line-height:1.4">527 ถ.ดินแดง แขวงดินแดง เขตดินแดง กรุงเทพฯ 10400<br>โทร 099-1875230, 086-0741212, 094-4721796, 098-4518141<br>เช็กสถานะที่ <b>@golexpress</b> · ลิขสิทธิ์รับงาน <b>@golod</b></div>'
+    +'<div style="border-top:1.5px solid #000;margin:5px 0"></div>'
+    +'<div style="display:flex;justify-content:space-between;align-items:baseline">'
+      +'<span style="font-weight:900;font-size:13px">บิลขนส่งเลขที่ '+(b.billNo||"")+'</span></div>'
+    +'<div style="font-size:10px;color:#444;border-bottom:1px dashed #777;padding-bottom:4px;margin-bottom:4px">'+fmtBillDate(b)+(origin?(" · "+origin):"")+'</div>'
+    +'<div style="font-size:10px;color:#0F6E56;font-weight:800">[ ผู้ส่ง ]</div>'
+    +rowKV("ชื่อ",sender)+rowKV("โทร",senderPh)
+    +'<div style="font-size:10px;color:#0F6E56;font-weight:800;margin-top:3px">[ ผู้รับ ]</div>'
+    +rowKV("ชื่อ",recv)+rowKV("โทร",recvPh)+rowKV("ที่อยู่",addr)
+    +rowKV("ปลายทาง",[tambon,amphoe,prov].filter(Boolean).join(" "))
+    +(note?('<div style="font-size:10px;color:#777;margin:2px 0">หมายเหตุ: '+note+'</div>'):'')
+    +'<div style="border-top:1px solid #000;margin:5px 0 3px"></div>'
+    +'<table style="width:100%;border-collapse:collapse">'
+      +'<thead><tr style="border-bottom:1px solid #000">'
+        +'<th style="text-align:left;font-size:10px;padding:1px 2px;border-right:0.5px solid #ccc">รายการของ</th>'
+        +'<th style="font-size:10px;padding:1px 2px;border-right:0.5px solid #ccc">กก.</th>'
+        +'<th style="font-size:10px;padding:1px 2px;border-right:0.5px solid #ccc">ขนาด</th>'
+        +'<th style="font-size:10px;padding:1px 2px">จำนวน</th>'
+      +'</tr></thead><tbody>'+itemRows+'</tbody></table>'
+    +'<div style="border-top:1px solid #000;margin:5px 0 3px"></div>'
+    +(disc>0?'<div style="display:flex;justify-content:space-between;font-size:11px"><span>ค่าขนส่งรวม</span><span>'+fmt(gross)+'.-</span></div>'
+            +'<div style="display:flex;justify-content:space-between;font-size:11px"><span>ส่วนลด</span><span>-'+fmt(disc)+'</span></div>':'')
     +'<div style="display:flex;justify-content:space-between;align-items:baseline;font-weight:900;font-size:13px;gap:6px">'
-      +'<span style="flex-shrink:0">ค่าขนส่ง ('+(PAY_LABEL[pay]||pay)+')</span>'
+      +'<span style="flex-shrink:0">ค่าขนส่งสุทธิ</span>'
       +'<span style="flex:1;text-align:right;min-width:0"><span style="white-space:nowrap">'+fmt(net)+'.-</span>'
       +'<span style="font-size:10px;font-weight:700;margin-left:4px;word-break:break-word">('+bahtTextTH(net)+')</span></span></div>'
-    +(cod>0?'<div style="display:flex;justify-content:space-between;font-weight:900;font-size:13px;color:#d8543f;margin-top:3px"><span>เก็บปลายทาง COD</span><span>'+fmt(cod)+'.-</span></div>':'')
-    +'<div style="border-top:1px dashed #555;margin:8px 0 4px"></div>'
-    +(clerk?'<div style="text-align:center;font-size:11px;color:#444">ผู้ออกบิล: '+clerk+'</div>':'')
-    +'<div style="text-align:center;font-size:10px;color:#888;margin-top:4px">เช็กสถานะ: line @golod</div>'
+    +'<div style="display:flex;justify-content:space-between;font-size:11px;margin-top:3px"><span>ชำระค่าขนส่ง</span><span style="font-weight:800">'+payTxt+'</span></div>'
+    +'<div style="display:flex;justify-content:space-between;font-size:11px"><span>COD รวม</span><span style="font-weight:800;color:'+(cod>0?"#d8543f":"#000")+'">'+(cod>0?fmt(cod)+".-":"-ไม่มี-")+'</span></div>'
+    +'<div style="display:flex;justify-content:space-between;font-size:11px"><span>คนขับต้องเก็บเงินก่อนผู้รับ</span><span style="font-weight:800">'+(driverCollect>0?fmt(driverCollect)+".-":"-ไม่มี-")+'</span></div>'
+    +'<div style="display:flex;justify-content:center;margin:8px 0 2px"><div id="'+qrId+'"></div></div>'
+    +'<div style="text-align:center;font-size:9px;color:#666">'+(b.billNo||"")+'</div>'
+    +'<div style="text-align:center;font-size:11px;margin-top:10px">ลงชื่อผู้รับเงิน ................................</div>'
+    +(clerk?'<div style="text-align:center;font-size:10px;color:#444;margin-top:6px">ผู้ออกบิล: '+clerk+'</div>':'')
     +'</div>';
 }
 
