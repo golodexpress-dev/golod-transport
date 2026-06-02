@@ -1340,6 +1340,7 @@ function renderTripList(){
         +'</div>'
         +'<div style="display:flex;flex-direction:column;gap:4px;align-items:flex-end">'
           +'<button class="btn btn-gray" data-tid="'+t.id+'" onclick="editTrip(this.dataset.tid)">✏️ แก้ไข</button>'
+          +'<button class="btn" data-tid="'+t.id+'" onclick="pushTripToDriver(this.dataset.tid)" style="background:#0F6E56;color:#fff">🚚 ส่งให้คนรถ</button>'
           +'<button class="btn" data-tid="'+t.id+'" onclick="openTripVehiclePhoto(this.dataset.tid)" style="background:#34495e;color:#fff">📷 รูปรถ ('+((t.vehiclePhotos||[]).length)+')</button>'
           +(canClearTrip()?'<button class="btn btn-orange" data-tid="'+t.id+'" onclick="openClearTrip(this.dataset.tid)">💰 เคลียร์เที่ยว</button>':'')
           +(canClearTrip()?'<button class="btn btn-green" data-tid="'+t.id+'" onclick="closeTrip(this.dataset.tid)">✅ ปิดเที่ยว</button>':'')
@@ -1472,6 +1473,29 @@ function editTrip(tripId){
     });
   }
   renderTripForm(trip);
+}
+
+// ===== ส่งบิลทั้งเที่ยวให้คนรถเห็น (ใช้ billIds ของเที่ยวตรงๆ — กู้เที่ยวเก่าได้) =====
+function pushTripToDriver(tripId){
+  var t = (_tripState.openTrips||[]).find(function(x){ return x.id===tripId; });
+  if(!t){ alert("ไม่พบเที่ยว ลองรีเฟรช"); return; }
+  if(!t.driverUsername){ alert("เที่ยวนี้ยังไม่มีคนขับ — กดแก้ไขเพื่อเลือกคนขับก่อน"); return; }
+  if(!t.billIds || !t.billIds.length){ alert("เที่ยวนี้ไม่มีบิล"); return; }
+  if(!confirm("ส่ง "+t.billIds.length+" บิล ให้ "+(t.driverName||t.driverUsername)+" ?\nบิลจะเปลี่ยนเป็น \"กำลังวิ่งส่งลูกค้า\" และคนรถจะเห็นงานในแอป")) return;
+
+  var DONE_ST = ["ส่งสำเร็จ","delivered","ส่งไม่สำเร็จ","ส่งไม่ได้","ปิดงาน","cleared"];
+  var stMap = {};
+  (BILLS||[]).forEach(function(b){ if(b && b.billNo) stMap[b.billNo] = b.status; });
+
+  var ups = t.billIds.map(function(bn){
+    var upd = {tripId:t.id, driver:t.driverUsername, driverName:t.driverName||t.driverUsername, updatedAt:new Date().toISOString()};
+    if(DONE_ST.indexOf(stMap[bn]) < 0) upd.status = "กำลังวิ่งส่งลูกค้า";
+    return GolodDB.updateBill(bn, upd).catch(function(e){ console.warn("pushTripToDriver",bn,e.message); return null; });
+  });
+  Promise.all(ups).then(function(){
+    alert("✅ ส่งให้คนรถแล้ว "+t.billIds.length+" บิล — บอกคนรถกด 🔄 รีเฟรชในแอป");
+    renderTripTab();
+  }).catch(function(e){ alert("❌ "+e.message); });
 }
 
 function renderTripForm(existingTrip){
@@ -1642,8 +1666,11 @@ function renderTripForm(existingTrip){
     +'<div id="tf-pickup-rows">'
     +pickupRowsHTML
     +'</div>'
-    +'<div style="display:flex;align-items:center;justify-content:space-between;margin-top:6px">'
+    +'<div style="display:flex;align-items:center;justify-content:space-between;margin-top:6px;flex-wrap:wrap;gap:6px">'
+    +'<div style="display:flex;gap:6px">'
     +'<button type="button" class="btn btn-gray" onclick="addTfPickupRow()">+ เพิ่มงานรับ</button>'
+    +'<button type="button" onclick="openPickupPicker()" style="padding:7px 12px;background:#0F6E56;color:#fff;border:none;border-radius:6px;font-size:13px;font-weight:700;cursor:pointer">📥 ดึงงานล่วงหน้า</button>'
+    +'</div>'
     +'<div id="tf-pickup-total" style="font-size:11px;font-weight:700;color:#b7950b"></div>'
     +'</div>'
     +'</div>'
@@ -1705,16 +1732,30 @@ function makeTfPickupRow(p){
   var freight = p.freight||"";
   var comm = p.commission||"";
   var paid = p.paidOnPickup ? "checked" : "";
-  return '<div class="tf-pu-row" style="background:#fff;border:1px solid #ffe082;border-radius:7px;padding:10px;margin-bottom:8px">'
+  var pid = p.pickupId || p.id || "";
+  var gi = (p.items && p.items.length) ? p.items : (p.goods ? String(p.goods).split(" / ") : []);
+  var g0=(gi[0]||""), g1=(gi[1]||""), g2=(gi[2]||"");
+  return '<div class="tf-pu-row" data-pickup-id="'+pid+'" style="background:#fff;border:1px solid #ffe082;border-radius:7px;padding:10px;margin-bottom:8px">'
+    +(pid?'<div style="font-size:10px;color:#0F6E56;font-weight:700;margin-bottom:4px">📥 ดึงจากคิวงานรับ'+(p.ref?(" · "+p.ref):"")+'</div>':'')
     +'<div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-bottom:6px">'
     +'<div><div style="font-size:10px;color:#888;margin-bottom:2px">รับที่ (สถานที่/ลูกค้า)</div>'
     +'<input class="pu-loc trip-inp" value="'+(p.location||"")+'" placeholder="เช่น บ.แมททีเรียล"></div>'
-    +'<div><div style="font-size:10px;color:#888;margin-bottom:2px">จังหวัดต้นทาง (ที่เข้ารับ)</div>'
-    +'<input class="pu-origin-prov trip-inp" value="'+(p.originProv||"")+'" placeholder="จังหวัดต้นทาง"></div>'
+    +'<div><div style="font-size:10px;color:#888;margin-bottom:2px">เบอร์ผู้ให้รับของ</div>'
+    +'<input class="pu-sender-phone trip-inp" value="'+(p.senderPhone||"")+'" placeholder="08x-xxxxxxx"></div>'
     +'</div>'
-    +'<div style="display:grid;grid-template-columns:1fr;gap:6px;margin-bottom:6px">'
-    +'<div><div style="font-size:10px;color:#888;margin-bottom:2px">สินค้า</div>'
-    +'<input class="pu-goods trip-inp" value="'+(p.goods||"")+'" placeholder="ประเภทสินค้า"></div>'
+    +'<div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:6px;margin-bottom:6px">'
+    +'<div><div style="font-size:10px;color:#888;margin-bottom:2px">จังหวัดต้นทาง</div>'
+    +'<input class="pu-origin-prov trip-inp" value="'+(p.originProv||"")+'" placeholder="จังหวัด"></div>'
+    +'<div><div style="font-size:10px;color:#888;margin-bottom:2px">อำเภอต้นทาง</div>'
+    +'<input class="pu-origin-amphoe trip-inp" value="'+(p.originAmphoe||"")+'" placeholder="อำเภอ"></div>'
+    +'<div><div style="font-size:10px;color:#888;margin-bottom:2px">ตำบลต้นทาง</div>'
+    +'<input class="pu-origin-tambon trip-inp" value="'+(p.originTambon||"")+'" placeholder="ตำบล"></div>'
+    +'</div>'
+    +'<div style="font-size:10px;color:#888;margin-bottom:2px">รายการของ (สูงสุด 3)</div>'
+    +'<div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:6px;margin-bottom:6px">'
+    +'<input class="pu-g0 trip-inp" value="'+g0+'" placeholder="รายการ 1">'
+    +'<input class="pu-g1 trip-inp" value="'+g1+'" placeholder="รายการ 2">'
+    +'<input class="pu-g2 trip-inp" value="'+g2+'" placeholder="รายการ 3">'
     +'</div>'
     +'<div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-bottom:6px">'
     +'<div><div style="font-size:10px;color:#888;margin-bottom:2px">ผู้รับปลายทาง</div>'
@@ -1760,6 +1801,90 @@ function addTfPickupRow(){
   container.appendChild(div.firstChild);
 }
 
+// ===== ดึงงานรับล่วงหน้าจากคิว (collection: pickups) =====
+var _pickupPickerData = [];
+function openPickupPicker(){
+  var ov = document.getElementById("pickup-picker-ov");
+  if(!ov){
+    ov = document.createElement("div");
+    ov.id = "pickup-picker-ov";
+    ov.style.cssText = "position:fixed;inset:0;background:rgba(0,0,0,.45);z-index:9999;display:flex;align-items:flex-end;justify-content:center";
+    ov.onclick = function(e){ if(e.target===ov) closePickupPicker(); };
+    ov.innerHTML = '<div style="background:#fff;width:100%;max-width:560px;border-radius:16px 16px 0 0;padding:16px;max-height:86vh;overflow:auto">'
+      +'<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px">'
+      +'<div style="font-size:16px;font-weight:800;color:#0F6E56">📥 ดึงงานรับล่วงหน้า</div>'
+      +'<button onclick="closePickupPicker()" style="background:#eee;border:none;border-radius:6px;padding:6px 12px;font-weight:700;cursor:pointer">ปิด</button>'
+      +'</div>'
+      +'<input id="pickup-picker-q" oninput="renderPickupPickerList()" placeholder="🔍 ค้นหา: ลูกค้า/จังหวัด/สินค้า" style="width:100%;padding:9px 11px;border:1px solid #ddd;border-radius:8px;font-size:14px;margin-bottom:10px">'
+      +'<div id="pickup-picker-list"><div style="padding:30px;text-align:center;color:#aaa">กำลังโหลด...</div></div>'
+      +'</div>';
+    document.body.appendChild(ov);
+  }
+  ov.style.display = "flex";
+  document.getElementById("pickup-picker-list").innerHTML = '<div style="padding:30px;text-align:center;color:#aaa">กำลังโหลด...</div>';
+  GolodDB.getPickups({status:"pending"}).then(function(list){
+    _pickupPickerData = list || [];
+    renderPickupPickerList();
+  }).catch(function(e){
+    document.getElementById("pickup-picker-list").innerHTML = '<div style="padding:20px;text-align:center;color:#c0392b">โหลดไม่สำเร็จ: '+e.message+'</div>';
+  });
+}
+function closePickupPicker(){
+  var ov = document.getElementById("pickup-picker-ov");
+  if(ov) ov.style.display = "none";
+}
+function _thD(iso){ if(!iso) return "-"; var a=iso.split("-"); return (+a[2])+"/"+(+a[1])+"/"+(+a[0]+543); }
+function renderPickupPickerList(){
+  var q = ((document.getElementById("pickup-picker-q")||{}).value||"").toLowerCase();
+  var arr = _pickupPickerData.filter(function(p){
+    if(!q) return true;
+    var s = ((p.location||"")+(p.originProv||"")+(p.destProv||"")+(p.goods||"")+(p.receiverName||"")+(p.ref||"")).toLowerCase();
+    return s.indexOf(q)>=0;
+  });
+  var el = document.getElementById("pickup-picker-list");
+  if(!arr.length){ el.innerHTML = '<div style="padding:30px;text-align:center;color:#aaa">— ไม่มีงานรับรอจ่าย —</div>'; return; }
+  el.innerHTML = arr.map(function(p){
+    return '<div style="border:1px solid #ffe082;border-left:5px solid #0F6E56;border-radius:10px;padding:11px 12px;margin-bottom:9px;background:#fffdf6">'
+      +'<div style="display:flex;justify-content:space-between;gap:8px;align-items:flex-start">'
+      +'<div><div style="font-weight:800;color:#0F6E56;font-size:15px">'+(p.location||"(ไม่ระบุ)")+'</div>'
+      +'<div style="font-size:11px;color:#999;font-weight:700">'+(p.ref||"")+' · '+(p.branch||"")+' · โดย '+(p.createdBy||"")+'</div></div>'
+      +'<button onclick="pullPickupToRow(\''+p.id+'\')" style="background:#0F6E56;color:#fff;border:none;border-radius:7px;padding:8px 14px;font-weight:800;font-size:13px;cursor:pointer;white-space:nowrap">เลือก →</button>'
+      +'</div>'
+      +'<div style="font-size:13px;color:#444;margin-top:6px;line-height:1.5">'
+      +'🗓️ นัดรับ <b>'+_thD(p.pickupDate)+'</b> · ต้นทาง <b>'+(p.originProv||"-")+'</b><br>'
+      +'📦 '+(p.goods||"-")+' → '+(p.destProv||"-")+' '+(p.destAmphoe||"")+'<br>'
+      +'💰 ค่าส่ง '+(p.freight||0)+' · ค่าจ้างรับ '+(p.commission||0)+' ('+(p.rate||15)+'%)'+(p.paidOnPickup?" · เก็บตอนรับ":"")
+      +(p.note?('<br>📝 '+p.note):"")
+      +'</div></div>';
+  }).join("");
+}
+function pullPickupToRow(pickupId){
+  var p = _pickupPickerData.find(function(x){ return x.id===pickupId; });
+  if(!p) return;
+  var container = document.getElementById("tf-pickup-rows");
+  if(!container){ alert("เปิดฟอร์มจัดเที่ยวก่อน"); return; }
+  // ถ้ามีแถวว่างแถวแรก (ไม่มี pickup-id และยังไม่กรอก) ให้ลบทิ้งเพื่อความสะอาด
+  var first = container.querySelector(".tf-pu-row");
+  if(first && !first.getAttribute("data-pickup-id") && !(first.querySelector(".pu-loc")||{}).value){
+    first.remove();
+  }
+  var pdata = {
+    pickupId: p.id, ref: p.ref,
+    location: p.location, originProv: p.originProv, originAmphoe: p.originAmphoe, originTambon: p.originTambon,
+    senderPhone: p.senderPhone, goods: p.goods, items: p.items,
+    receiverName: p.receiverName, receiverPhone: p.receiverPhone,
+    destProv: p.destProv, destAmphoe: p.destAmphoe, destTambon: p.destTambon,
+    freight: p.freight, rate: p.rate||15, commission: p.commission, paidOnPickup: p.paidOnPickup
+  };
+  var div = document.createElement("div");
+  div.innerHTML = makeTfPickupRow(pdata);
+  container.appendChild(div.firstChild);
+  calcTfPickupTotal();
+  // เอาออกจาก list ในจอ (กันเลือกซ้ำ) — สถานะจริงเปลี่ยนตอนบันทึกเที่ยว
+  _pickupPickerData = _pickupPickerData.filter(function(x){ return x.id!==pickupId; });
+  renderPickupPickerList();
+}
+
 function calcTfPickupTotal(){
   var rows = document.querySelectorAll("#tf-pickup-rows .tf-pu-row");
   var totalFreight=0, totalComm=0, totalPaid=0;
@@ -1799,7 +1924,11 @@ function getTfPickupData(){
   var pickups=[];
   rows.forEach(function(row){
     var loc=(row.querySelector(".pu-loc")||{}).value||"";
-    var goods=(row.querySelector(".pu-goods")||{}).value||"";
+    var g0=(row.querySelector(".pu-g0")||{}).value||"";
+    var g1=(row.querySelector(".pu-g1")||{}).value||"";
+    var g2=(row.querySelector(".pu-g2")||{}).value||"";
+    var items=[g0,g1,g2];
+    var goods=items.filter(function(x){return x&&x.trim();}).join(" / ");
     var freight=parseFloat((row.querySelector(".pu-freight")||{}).value||0);
     var rateEl=row.querySelector(".pu-rate");
     var rate=rateEl?parseFloat(rateEl.value||15):15;
@@ -1813,9 +1942,14 @@ function getTfPickupData(){
     var amphoe=(row.querySelector(".pu-amphoe")||{}).value||"";
     var tambon=(row.querySelector(".pu-tambon")||{}).value||"";
     var originProv=(row.querySelector(".pu-origin-prov")||{}).value||"";
+    var originAmphoe=(row.querySelector(".pu-origin-amphoe")||{}).value||"";
+    var originTambon=(row.querySelector(".pu-origin-tambon")||{}).value||"";
+    var senderPhone=(row.querySelector(".pu-sender-phone")||{}).value||"";
+    var pickupId=row.getAttribute("data-pickup-id")||"";
     if(loc||goods||freight>0||recv||prov){
-      pickups.push({location:loc,goods:goods,freight:freight,rate:rate,commission:comm,paidOnPickup:paid,
-        receiverName:recv,receiverPhone:recvPhone,destProv:prov,destAmphoe:amphoe,destTambon:tambon,originProv:originProv});
+      pickups.push({location:loc,goods:goods,items:items,freight:freight,rate:rate,commission:comm,paidOnPickup:paid,
+        receiverName:recv,receiverPhone:recvPhone,destProv:prov,destAmphoe:amphoe,destTambon:tambon,
+        originProv:originProv,originAmphoe:originAmphoe,originTambon:originTambon,senderPhone:senderPhone,pickupId:pickupId});
     }
   });
   return pickups;
@@ -1977,13 +2111,70 @@ function saveTrip(){
   // กรอง undefined ออกจากทุก field
   Object.keys(trip).forEach(function(k){ if(trip[k]===undefined) delete trip[k]; });
 
+  // เก็บ id งานรับที่ดึงมาจากคิว เพื่ออัปเดตสถานะหลังบันทึกเที่ยว
+  var pulledPickupIds = (trip.pickups||[])
+    .map(function(p){ return p.pickupId; })
+    .filter(function(id){ return id; });
+
+  var isEditTrip = !!trip.id;               // true = แก้ไขเที่ยวเดิม
+  var DONE_ST = ["ส่งสำเร็จ","delivered","ส่งไม่สำเร็จ","ส่งไม่ได้","ปิดงาน","cleared"];
+  var _savedTrip = null;
+
   GolodDB.saveTrip(trip).then(function(saved){
-    // ผูก tripId กับ bills
-    if(billIds.length > 0){
-      return GolodDB.assignBillsToTrip(billIds, saved.id);
+    _savedTrip = saved;
+    if(billIds.length === 0) return;
+    // map สถานะปัจจุบันของบิล (กันบิลที่ส่งเสร็จแล้วถูกรีเซ็ต)
+    var stMap = {};
+    selBills.forEach(function(b){ if(b && b.billNo) stMap[b.billNo] = b.status; });
+    // อัปเดตบิล: ผูก tripId + ใส่คนขับ + เปลี่ยนสถานะเป็น "กำลังวิ่งส่งลูกค้า"
+    // (เพื่อให้บิลโผล่ในแอปคนรถ — DriverApp ดึงจาก driver+status)
+    var ups = billIds.map(function(bn){
+      var upd = {tripId:saved.id, driver:driverUsername, driverName:driverName, updatedAt:new Date().toISOString()};
+      if(DONE_ST.indexOf(stMap[bn]) < 0) upd.status = "กำลังวิ่งส่งลูกค้า";
+      return GolodDB.updateBill(bn, upd);
+    });
+    return Promise.all(ups);
+  }).then(function(){
+    // เขียนประวัติจ่ายงาน (เฉพาะตอนสร้างเที่ยวใหม่ กันบันทึกซ้ำตอนแก้ไข)
+    if(!isEditTrip && GolodDB.saveDispatchLog && selBills.length > 0){
+      var totO=0,totD=0,totT=0,totC=0,totCOD=0,totF=0;
+      var snap = selBills.map(function(b){
+        var net=parseFloat(b.freightNet||0), cod=parseFloat(b.codTotal||0);
+        var pay=b.freightPay||(b.form&&b.form.freightPay)||"origin";
+        totF+=net; if(cod>0) totCOD+=cod;
+        if(pay==="dest")totD+=net; else if(pay==="transfer")totT+=net;
+        else if(pay==="credit")totC+=net; else totO+=net;
+        return {billNo:b.billNo,
+          receiverName:b.receiverName||(b.form&&b.form.receiverName)||"",
+          destProv:b.destProv||(b.form&&b.form.destProv)||"",
+          destAmphoe:b.destAmphoe||(b.form&&b.form.destAmphoe)||"",
+          freightNet:net, codTotal:cod, freightPay:pay};
+      });
+      return GolodDB.saveDispatchLog({
+        dispatchAt:new Date().toISOString(),
+        dispatchBy:(typeof CU!=="undefined"&&CU)?CU.username:"",
+        dispatchByName:(typeof CU!=="undefined"&&CU)?CU.name:"",
+        mode:"driver", targetId:driverUsername, targetName:driverName,
+        billCount:selBills.length, totalFreight:totF, totalOrigin:totO, totalDest:totD,
+        totalTransfer:totT, totalCredit:totC, totalCOD:totCOD,
+        tripId:(_savedTrip&&_savedTrip.id)||"", bills:snap, source:"trip"
+      }).catch(function(e){ console.warn("saveDispatchLog(trip):", e); });
     }
   }).then(function(){
-    alert("✅ "+(trip.id?"บันทึกเที่ยวแล้ว":"สร้างเที่ยวใหม่แล้ว")+"!");
+    // ตัดงานรับที่ดึงมาออกจากคิว → สถานะ "จ่ายแล้ว"
+    if(pulledPickupIds.length && GolodDB.updatePickup){
+      var who = (typeof CU!=="undefined" && CU) ? CU.username : "";
+      return Promise.all(pulledPickupIds.map(function(pid){
+        return GolodDB.updatePickup(pid, {
+          status:"dispatched",
+          tripId:(_savedTrip&&_savedTrip.id)||"",
+          dispatchedAt:new Date().toISOString(),
+          dispatchedBy:who
+        }).catch(function(e){ console.warn("updatePickup",pid,e); });
+      }));
+    }
+  }).then(function(){
+    alert("✅ "+(isEditTrip?"บันทึกเที่ยวแล้ว":"สร้างเที่ยวใหม่แล้ว")+"!");
     _tripState.mode = "list";
     _tripState.editId = null;
     _tripState.selectedBills = {};
@@ -2516,6 +2707,11 @@ function onDoneSearch(val){
         ? '<button class="btn btn-orange" style="font-size:11px" onclick="rescheduleReturn(\''+b.billNo+'\')">📋 รอจ่ายใหม่</button>'
         : '<button class="btn btn-gray" style="font-size:11px" onclick="openStatusModal(\''+b.billNo+'\')">อัปเดต</button>')
       : "";
+    var gItems=Array.isArray(b.items)?b.items:(b.form&&Array.isArray(b.form.items)?b.form.items:[]);
+    var gFirst=gItems[0]||{};
+    var gText=(gFirst.desc||b.note||"—").slice(0,16)+(gFirst.desc&&gFirst.desc.length>16?"…":"");
+    var gTitle=(gFirst.desc||"")+(gFirst.kg?" "+gFirst.kg+"kg":"")+(gFirst.qty>1?" x"+gFirst.qty:"");
+    var gQty=gItems.reduce(function(s,i){return s+(parseInt(i.qty)||1);},0)||1;
     return '<tr>'
       +'<td style="font-weight:600;white-space:nowrap">'+b.billNo+'</td>'
       +'<td style="white-space:nowrap;color:#888;font-size:11px">'+ds+'</td>'
@@ -2575,6 +2771,11 @@ function renderDoneTab(){
           ? '<button class="btn btn-orange" style="font-size:11px" onclick="rescheduleReturn(\''+b.billNo+'\')">📋 รอจ่ายใหม่</button>'
           : '<button class="btn btn-gray" style="font-size:11px" onclick="openStatusModal(\''+b.billNo+'\')">อัปเดต</button>')
       : "";
+    var gItems=Array.isArray(b.items)?b.items:(b.form&&Array.isArray(b.form.items)?b.form.items:[]);
+    var gFirst=gItems[0]||{};
+    var gText=(gFirst.desc||b.note||"—").slice(0,16)+(gFirst.desc&&gFirst.desc.length>16?"…":"");
+    var gTitle=(gFirst.desc||"")+(gFirst.kg?" "+gFirst.kg+"kg":"")+(gFirst.qty>1?" x"+gFirst.qty:"");
+    var gQty=gItems.reduce(function(s,i){return s+(parseInt(i.qty)||1);},0)||1;
     return '<tr>'
       +'<td style="font-weight:600;white-space:nowrap">'+b.billNo+'</td>'
       +'<td style="white-space:nowrap;color:#888;font-size:11px">'+ds+'</td>'
@@ -3724,11 +3925,6 @@ function confirmStatus(){
   var newStatus=document.getElementById("modal-status-sel").value;
   var note=document.getElementById("modal-status-note").value;
   var upd={status:newStatus, updatedAt:new Date().toISOString()};
-  // stamp วันที่ส่งสำเร็จ ครั้งแรกที่บิลถูกตั้งเป็น "ส่งสำเร็จ" (ไม่ทับของเดิมถ้าเคยมี)
-  if(newStatus==="ส่งสำเร็จ" || newStatus==="delivered" || newStatus==="success"){
-    var _bExist=BILLS.find(function(x){return x.billNo===statusTargetBill;});
-    if(!(_bExist && _bExist.deliveredAt)) upd.deliveredAt=new Date().toISOString();
-  }
   if(newStatus==="ส่งไม่สำเร็จ"){
     upd.failReason=document.getElementById("modal-fail-reason").value;
   }
