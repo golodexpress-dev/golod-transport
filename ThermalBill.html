@@ -4294,11 +4294,49 @@ function bahtText(n) {
   }
   return result;
 }
-function ReceiptPrint({ receipt }) {
-  const W = 298;
+// ===== ตั้งค่าขนาด/ขอบ ใบเสร็จ (ปรับได้ + จำค่าถาวร) =====
+var BILLCFG_DEFAULT = { scale:1.15, paperW:302, padT:18, padR:14, padB:14, padL:18 };
+var _billCfgCache = null;
+function getBillCfg(){
+  if(_billCfgCache) return _billCfgCache;
+  var c = null;
+  try{ c = JSON.parse(localStorage.getItem("golod_billcfg")||"null"); }catch(e){}
+  _billCfgCache = Object.assign({}, BILLCFG_DEFAULT, c||{});
+  return _billCfgCache;
+}
+function saveBillCfg(cfg){
+  _billCfgCache = Object.assign({}, BILLCFG_DEFAULT, cfg||{});
+  try{ localStorage.setItem("golod_billcfg", JSON.stringify(_billCfgCache)); }catch(e){}
+  // เก็บถาวรบน Firestore ด้วย (ใช้ร่วมทุกเครื่องในสาขา)
+  try{ if(typeof GolodDB!=="undefined" && GolodDB.saveSetting) GolodDB.saveSetting("billcfg", _billCfgCache); }catch(e){}
+  return _billCfgCache;
+}
+// โหลดค่าจาก Firestore ตอนเปิดแอป (ถ้ามี) ทับ localStorage
+try{
+  if(typeof GolodDB!=="undefined" && GolodDB.getSetting){
+    GolodDB.getSetting("billcfg").then(function(v){
+      if(v){ _billCfgCache = Object.assign({}, BILLCFG_DEFAULT, v);
+        try{ localStorage.setItem("golod_billcfg", JSON.stringify(_billCfgCache)); }catch(e){} }
+    }).catch(function(){});
+  }
+}catch(e){}
+
+function ReceiptPrint({ receipt, cfg }) {
+  cfg = cfg || (typeof getBillCfg==="function" ? getBillCfg() : BILLCFG_DEFAULT);
+  const paperW = cfg.paperW || 302;          // ความกว้างกระดาษ 80mm ≈ 302px
+  const sc = cfg.scale || 1;                  // ตัวคูณขนาดตัวอักษร
+  // ความกว้างเนื้อหา = กระดาษ − กั้นซ้าย − กั้นขวา แล้วหารด้วย scale
+  // หลัง zoom(scale) จะกว้างพอดี = paperW − L − R เสมอ (ตัวอักษรไม่ตกขอบ)
+  const innerW = Math.max(120, (paperW - (cfg.padL||0) - (cfg.padR||0)) / sc);
   const fmt = n => (n||0).toLocaleString("th-TH");
   return React.createElement("div", {
-    style:{ width:W, fontFamily:"'Sarabun',sans-serif", fontSize:12, fontWeight:700, background:"#fff", paddingTop:20, paddingBottom:8, paddingLeft:16, paddingRight:10, boxSizing:"border-box", lineHeight:1.8 }
+    style:{ width:paperW, background:"#fff", boxSizing:"border-box",
+            paddingTop:(cfg.padT||0), paddingBottom:(cfg.padB||0),
+            paddingLeft:(cfg.padL||0), paddingRight:(cfg.padR||0),
+            overflow:"hidden" }
+  },
+  React.createElement("div", {
+    style:{ width:innerW, zoom:sc, fontFamily:"'Sarabun',sans-serif", fontSize:12, fontWeight:700, lineHeight:1.8 }
   },
     // Header
     React.createElement("div",{style:{textAlign:"center",marginBottom:6}},
@@ -4371,7 +4409,7 @@ function ReceiptPrint({ receipt }) {
         (receipt.clerkName||"").replace(/\s*\(.*?\)\s*/g,"").trim(), " (", receipt.receiptNo&&receipt.receiptNo.slice(0,2), ")"
       )
     )
-  );
+  ));
 }
 
 // ========== MANUAL BILL (บิลมือ) ==========
@@ -4612,6 +4650,43 @@ function SlipUploadBtn({ bill, onUploaded, isDriver }) {
   );
 }
 
+// ===== แผงปรับขนาด/ขอบ ใบเสร็จ =====
+function BillCfgPanel({ cfg, upd, reset }){
+  const pct = Math.round((cfg.scale||1)*100);
+  const stepBtn = (label,onClick)=>React.createElement("button",{onClick,
+    style:{width:34,height:34,borderRadius:8,border:"1px solid #ccc",background:"#fff",fontSize:18,fontWeight:800,cursor:"pointer",lineHeight:1}},label);
+  const marginField = (lbl,key)=>React.createElement("div",{style:{display:"flex",flexDirection:"column",alignItems:"center",gap:3}},
+    React.createElement("div",{style:{fontSize:11,color:"#666",fontWeight:600}},lbl),
+    React.createElement("div",{style:{display:"flex",alignItems:"center",gap:3}},
+      React.createElement("button",{onClick:()=>upd(key,Math.max(0,(cfg[key]||0)-2)),style:{width:24,height:28,border:"1px solid #ddd",borderRadius:6,background:"#fff",cursor:"pointer",fontWeight:800}},"−"),
+      React.createElement("input",{type:"number",value:cfg[key]||0,onChange:e=>upd(key,Math.max(0,parseInt(e.target.value)||0)),
+        style:{width:46,textAlign:"center",border:"1px solid #ddd",borderRadius:6,padding:"5px 2px",fontSize:13,fontWeight:700}}),
+      React.createElement("button",{onClick:()=>upd(key,(cfg[key]||0)+2),style:{width:24,height:28,border:"1px solid #ddd",borderRadius:6,background:"#fff",cursor:"pointer",fontWeight:800}},"+")
+    )
+  );
+  return React.createElement("div",{className:"no-print",style:{background:"#F7FBF9",border:"1px solid #9FE1CB",borderRadius:10,padding:"12px 14px",marginBottom:12,maxWidth:360}},
+    // font size
+    React.createElement("div",{style:{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:12}},
+      React.createElement("div",{style:{fontSize:13,fontWeight:700,color:"#0F6E56"}},"🔤 ขนาดตัวอักษร"),
+      React.createElement("div",{style:{display:"flex",alignItems:"center",gap:8}},
+        stepBtn("−",()=>upd("scale",Math.max(0.7,Math.round(((cfg.scale||1)-0.05)*100)/100))),
+        React.createElement("div",{style:{minWidth:54,textAlign:"center",fontSize:15,fontWeight:800,color:"#0F6E56"}},pct+"%"),
+        stepBtn("+",()=>upd("scale",Math.min(1.8,Math.round(((cfg.scale||1)+0.05)*100)/100)))
+      )
+    ),
+    // margins
+    React.createElement("div",{style:{fontSize:13,fontWeight:700,color:"#0F6E56",marginBottom:8}},"📐 กั้นขอบกระดาษ (px)"),
+    React.createElement("div",{style:{display:"flex",justifyContent:"space-around",gap:6,marginBottom:10,flexWrap:"wrap"}},
+      marginField("บน","padT"), marginField("ล่าง","padB"),
+      marginField("ซ้าย","padL"), marginField("ขวา","padR")
+    ),
+    React.createElement("div",{style:{display:"flex",justifyContent:"space-between",alignItems:"center"}},
+      React.createElement("div",{style:{fontSize:11,color:"#888"}},"ตั้งแล้วจำค่าอัตโนมัติ ✓"),
+      React.createElement("button",{onClick:reset,style:{fontSize:12,padding:"5px 12px",background:"#fff",border:"1px solid #ccc",borderRadius:7,cursor:"pointer",color:"#666",fontWeight:600}},"↺ คืนค่าเริ่มต้น")
+    )
+  );
+}
+
 function ReceiptForm({ bills, staffCode, staffName }) {
   const fmt = n => (n||0).toLocaleString("th-TH");
   const printRef = React.useRef(null);
@@ -4619,6 +4694,9 @@ function ReceiptForm({ bills, staffCode, staffName }) {
     try{ return JSON.parse(localStorage.getItem("golod_receipts")||"[]"); }catch(e){ return []; }
   });
   const [mode, setMode] = React.useState("list"); // list | form | preview
+  const [billCfg, setBillCfg] = React.useState(()=>getBillCfg());
+  const [showCfg, setShowCfg] = React.useState(false);
+  const updCfg = (k,v)=>{ const nc=saveBillCfg(Object.assign({},billCfg,{[k]:v})); setBillCfg(Object.assign({},nc)); };
   const [selBill, setSelBill] = React.useState(null);
   const [search, setSearch] = React.useState("");
   const today = (()=>{ const d=new Date(); return String(d.getDate()).padStart(2,"0")+"/"+String(d.getMonth()+1).padStart(2,"0")+"/"+(d.getFullYear()+543); })();
@@ -4694,10 +4772,12 @@ function ReceiptForm({ bills, staffCode, staffName }) {
     React.createElement("div",{style:{display:"flex",gap:8,marginBottom:10,flexWrap:"wrap"}},
       React.createElement("button",{onClick:doPrint,style:{padding:"7px 16px",background:"#1D9E75",color:"#fff",border:"none",borderRadius:8,fontWeight:700,cursor:"pointer"}},"🖨 พิมพ์ใบเสร็จ"),
       React.createElement("button",{onClick:()=>{ setMode("form"); setForm(emptyForm()); setSelBill(null); },style:{padding:"7px 16px",background:"#eee",border:"none",borderRadius:8,cursor:"pointer"}},"+ ใบเสร็จใหม่"),
-      React.createElement("button",{onClick:()=>setMode("list"),style:{padding:"7px 14px",background:"#eee",border:"none",borderRadius:8,cursor:"pointer"}},"← รายการ")
+      React.createElement("button",{onClick:()=>setMode("list"),style:{padding:"7px 14px",background:"#eee",border:"none",borderRadius:8,cursor:"pointer"}},"← รายการ"),
+      React.createElement("button",{onClick:()=>setShowCfg(!showCfg),style:{padding:"7px 14px",background:showCfg?"#0F6E56":"#FFF3E0",color:showCfg?"#fff":"#E67E22",border:"0.5px solid "+(showCfg?"#0F6E56":"#E67E22"),borderRadius:8,fontWeight:700,cursor:"pointer"}},"⚙️ ปรับขนาด/ขอบ")
     ),
+    showCfg && React.createElement(BillCfgPanel,{cfg:billCfg,upd:updCfg,reset:()=>{const d=saveBillCfg(BILLCFG_DEFAULT);setBillCfg(Object.assign({},d));}}),
     React.createElement("div",{ref:printRef,style:{display:"inline-block",boxShadow:"0 2px 16px rgba(0,0,0,0.12)",borderRadius:4}},
-      React.createElement(ReceiptPrint,{receipt:previewRcpt})
+      React.createElement(ReceiptPrint,{receipt:previewRcpt,cfg:billCfg})
     )
   );
   if (mode==="form") return React.createElement("div",{style:{maxWidth:500}},
