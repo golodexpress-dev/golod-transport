@@ -1293,7 +1293,7 @@ function ThermalBill({
     }
   }, /*#__PURE__*/React.createElement(Row, {
     l: "\u0E04\u0E48\u0E32\u0E02\u0E19\u0E2A\u0E48\u0E07\u0E23\u0E27\u0E21",
-    r: `${(summary&&(summary.freightTotal||summary.freightNet)||0).toLocaleString("th-TH")} ฿`
+    r: `${(summary&&(summary.freightTotal||summary.freightNet)||0).toLocaleString("th-TH")}.-`
   }), /*#__PURE__*/React.createElement(Row, {
     l: "\u0E2A\u0E48\u0E27\u0E19\u0E25\u0E14",
     r: (summary&&summary.discount>0)?"-"+(summary.discount||0).toLocaleString("th-TH")+" \u0E3F":"\u2014"
@@ -1500,8 +1500,8 @@ function ItemRow({
             placeholder: String(autoUp||0),
             style: {width:60,padding:"2px 5px",border:"1px solid #ccc",borderRadius:5,fontSize:12,textAlign:"right",background:"#f8f8f8"}
           }),
-          " ฿/ชิ้น → ",
-          /*#__PURE__*/React.createElement("strong",null, lt.toLocaleString("th-TH"), " ฿")
+          ".-/ชิ้น → ",
+          /*#__PURE__*/React.createElement("strong",null, lt.toLocaleString("th-TH"), ".-")
         )
     ), canRemove && /*#__PURE__*/React.createElement("button", {
     onClick: () => onRemove(idx),
@@ -1875,7 +1875,7 @@ function BillList({
         fontWeight: (b.summary&&b.summary.codTotal) > 0 ? 800 : 400,
         whiteSpace: "nowrap"
       }
-    }, (b.summary&&b.summary.codTotal) > 0 ? ((b.summary&&b.summary.codTotal)||b.codTotal||0).toLocaleString("th-TH") + " ฿" : "—"), /*#__PURE__*/React.createElement("td", {
+    }, (b.summary&&b.summary.codTotal) > 0 ? ((b.summary&&b.summary.codTotal)||b.codTotal||0).toLocaleString("th-TH") + ".-" : "—"), /*#__PURE__*/React.createElement("td", {
       style: {
         padding: "7px 9px"
       }
@@ -3675,7 +3675,7 @@ function ThermalBillingApp() {
         style:{padding:"5px 9px",borderRadius:7,border:"0.5px solid #ccc",fontSize:12,background:"#FFF3E0"}
       },
         /*#__PURE__*/React.createElement("option",{value:0},"-- ค่าส่งขั้นต่ำ --"),
-        [300,500,1000,1500].map(v=>/*#__PURE__*/React.createElement("option",{key:v,value:v},v+" ฿"))
+        [300,500,1000,1500].map(v=>/*#__PURE__*/React.createElement("option",{key:v,value:v},v+".-"))
       )
     )
   ),
@@ -4377,18 +4377,18 @@ function ReceiptPrint({ receipt, cfg }) {
         (receipt.items||[]).map((it,i)=>
           React.createElement("tr",{key:i},
             React.createElement("td",{style:{padding:"4px 3px",lineHeight:1.8,fontWeight:700}},it.desc),
-            React.createElement("td",{style:{textAlign:"right",padding:"4px 3px",lineHeight:1.8,fontWeight:800}},fmt(it.amount)," ฿")
+            React.createElement("td",{style:{textAlign:"right",padding:"4px 3px",lineHeight:1.8,fontWeight:800}},fmt(it.amount),".-")
           )
         )
       )
     ),
     React.createElement("hr",{style:{border:"none",borderTop:"1.5px solid #000",margin:"4px 0"}}),
-    React.createElement("div",{style:{display:"flex",justifyContent:"space-between",fontWeight:900,fontSize:13}},
-      React.createElement("div",null,"รวมทั้งสิ้น"),
-      React.createElement("div",null,fmt(receipt.total)," ฿")
-    ),
-    React.createElement("div",{style:{fontSize:10,fontWeight:700,textAlign:"center",color:"#000",marginTop:2,marginBottom:2}},
-      "(",bahtText(receipt.total),")"
+    React.createElement("div",{style:{display:"flex",justifyContent:"space-between",alignItems:"baseline",fontWeight:900,fontSize:13,gap:6}},
+      React.createElement("div",{style:{flexShrink:0}},"รวมทั้งสิ้น"),
+      React.createElement("div",{style:{flex:1,minWidth:0,textAlign:"right"}},
+        React.createElement("span",{style:{whiteSpace:"nowrap"}},fmt(receipt.total),".-"),
+        React.createElement("span",{style:{fontSize:10,fontWeight:700,marginLeft:4,wordBreak:"break-word"}},"(",bahtText(receipt.total),")")
+      )
     ),
     React.createElement("hr",{style:{border:"none",borderTop:"1px dashed #333",margin:"4px 0"}}),
     React.createElement("div",{style:{fontSize:11,fontWeight:700,marginBottom:4}},
@@ -4543,7 +4543,7 @@ function ManualBillForm({ staffCode, staffName, onSave }) {
       ),
       React.createElement("div",{style:{display:"flex",justifyContent:"space-between",alignItems:"center",marginTop:8}},
         React.createElement("button",{onClick:()=>setItems([...items,blankItem()]),style:{fontSize:12,color:"#1D9E75",background:"none",border:"none",cursor:"pointer"}},"+ เพิ่มรายการ"),
-        React.createElement("div",{style:{fontWeight:700}},"รวม: ",totalFreight.toLocaleString("th-TH")," ฿")
+        React.createElement("div",{style:{fontWeight:700}},"รวม: ",totalFreight.toLocaleString("th-TH"),".-")
       )
     ),
     // การเงิน
@@ -4805,7 +4805,7 @@ function ReceiptForm({ bills, staffCode, staffName }) {
             }
           },
             React.createElement("strong",null,b.billNo)," | ",b.form&&b.form.senderName||"—"," → ",b.form&&b.form.destProv||"—",
-            " | ",fmt(b.summary&&b.summary.freightNet||0)," ฿"
+            " | ",fmt(b.summary&&b.summary.freightNet||0),".-"
           )
         )
       )
@@ -4884,7 +4884,7 @@ function ReceiptForm({ bills, staffCode, staffName }) {
       },"+ เพิ่มรายการ"),
       React.createElement("div",{style:{borderTop:"1px solid #eee",marginTop:8,paddingTop:8,display:"flex",justifyContent:"space-between",fontWeight:700}},
         React.createElement("span",null,"รวม"),
-        React.createElement("span",null,fmt(total)," ฿")
+        React.createElement("span",null,fmt(total),".-")
       )
     ),
     React.createElement("button",{
@@ -4918,7 +4918,7 @@ function ReceiptForm({ bills, staffCode, staffName }) {
                 React.createElement("td",{style:{padding:"6px 8px",color:"#666"}},r.date),
                 React.createElement("td",{style:{padding:"6px 8px"}},r.payerName||"—"),
                 React.createElement("td",{style:{padding:"6px 8px",color:"#888"}},r.refBillNo||"—"),
-                React.createElement("td",{style:{padding:"6px 8px",fontWeight:600}},fmt(r.total)," ฿"),
+                React.createElement("td",{style:{padding:"6px 8px",fontWeight:600}},fmt(r.total),".-"),
                 React.createElement("td",{style:{padding:"6px 8px"}},
                   React.createElement("button",{
                     onClick:()=>{ setPreviewRcpt(r); setMode("preview"); },
