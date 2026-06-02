@@ -890,6 +890,11 @@ var DONE_TAB_STATUS = [
   "ส่งไม่สำเร็จ","นำกลับสาขา","ลูกค้ารับกลับ"
 ];
 
+// บิลที่ "ส่งสำเร็จจริง" (งานจบ)
+var SUCCESS_STATUS = ["ส่งสำเร็จ","delivered","success"];
+// บิลที่ "ส่งไม่ได้ ต้องเอามาส่งใหม่"
+var REDO_STATUS = ["ส่งไม่สำเร็จ","นำกลับสาขา","ลูกค้ารับกลับ","ติดต่อลูกค้าไม่ได้","ติดต่อไม่ได้","nocontact"];
+
 // สถานะที่ถือว่า "ยังค้างอยู่" — ต้องโชว์ข้ามวันได้
 var ACTIVE_STATUS = [
   "ออกบิลรับของ","issued","",
@@ -1100,6 +1105,9 @@ function filterBills(tab){
       } else if(tab === "all"){
         // แท็บ all: กรองวันที่เสมอ
         if(ds && !inRange) return false;
+      } else if(tab === "redo"){
+        // แท็บรอส่งใหม่: บิลค้างงาน โชว์ข้ามวันเสมอ (ไม่กรองวันที่)
+        // ไม่ต้องทำอะไร
       } else {
         // แท็บ active (pending/branch/driving):
         // ถ้าบิลยัง active อยู่ → โชว์ข้ามวันได้ (ไม่กรองวันที่)
@@ -1112,11 +1120,11 @@ function filterBills(tab){
     var tabMatch;
     if(tab==="approve") tabMatch = st==="รออนุมัติ";
     else if(tab==="pending") tabMatch = st==="ออกบิลรับของ" || st==="issued" || st===""
-      || st==="ติดต่อลูกค้าไม่ได้" || st==="ติดต่อไม่ได้" || st==="nocontact" || st==="reschedule" || st==="นัดส่งใหม่"
-      || st==="ส่งไม่สำเร็จ";
+      || st==="reschedule" || st==="นัดส่งใหม่";
     else if(tab==="branch")  tabMatch = st==="ระหว่างนำส่งสาขา";
     else if(tab==="driving") tabMatch = st==="กำลังวิ่งส่งลูกค้า" || st==="นำส่งใหม่";
-    else if(tab==="done")    tabMatch = isDone;
+    else if(tab==="redo")    tabMatch = REDO_STATUS.indexOf(st) >= 0;
+    else if(tab==="done")    tabMatch = SUCCESS_STATUS.indexOf(st) >= 0;
     else tabMatch = true;
     if(!tabMatch) return false;
     return billMatchSearch(b, q);
@@ -1130,7 +1138,8 @@ function renderApp(){
     {k:"pending",  l:"รอจ่ายงาน"},
     {k:"branch",   l:"ระหว่างส่งสาขา"},
     {k:"driving",  l:"กำลังส่ง"},
-    {k:"done",     l:"สำเร็จ/ไม่สำเร็จ"},
+    {k:"redo",     l:"🔄 รอส่งใหม่"},
+    {k:"done",     l:"✅ ส่งสำเร็จ"},
     {k:"all",      l:"ทั้งหมด"},
     {k:"trip",     l:"🚛 จัดการเที่ยว"},
     ...(canViewMonthly()?[{k:"monthly",l:"📅 สรุปสิ้นเดือน"}]:[]),
@@ -1140,8 +1149,12 @@ function renderApp(){
   var tabHTML = tabs.map(function(t){
     var cnt;
     if(t.k==="done"){
-      cnt = DONE_BILLS_CACHE.length > 0 ? DONE_BILLS_CACHE.length
-          : BILLS.filter(function(b){return DONE_TAB_STATUS.indexOf(b.status||"")>=0;}).length;
+      // ส่งสำเร็จเท่านั้น — ใช้ DONE_BILLS_CACHE ถ้ามี ไม่งั้น BILLS
+      var src = DONE_BILLS_CACHE.length>0 ? DONE_BILLS_CACHE : BILLS;
+      cnt = src.filter(function(b){return SUCCESS_STATUS.indexOf(b.status||"")>=0;}).length;
+    } else if(t.k==="redo"){
+      // รอส่งใหม่ — นับจาก BILLS เสมอ (บิลค้าง active อยู่ใน BILLS)
+      cnt = BILLS.filter(function(b){return REDO_STATUS.indexOf(b.status||"")>=0 && billBelongsToUserBranch(b);}).length;
     } else if(t.k==="trip" || t.k==="history" || t.k==="monthly"){
       cnt = "";
     } else if(t.k==="all"){
@@ -1229,10 +1242,10 @@ function renderApp(){
       +'<td style="text-align:center;font-size:12px">'+sQty+'</td>'
       +'<td></td>'
       +'<td>'
-      +(canClearTrip()
-        ? '<button class="btn btn-gray" onclick="openStatusModal(\''+b.billNo+'\')">อัปเดต</button>'
-        : (isDoneStatus(b.status)
-          ? '<button class="btn btn-orange" style="font-size:11px" onclick="rescheduleReturn(\''+b.billNo+'\')">📋 รอจ่ายใหม่</button>'
+      +(isDoneStatus(b.status)
+        ? '<button class="btn btn-orange" style="font-size:11px" onclick="rescheduleReturn(\''+b.billNo+'\')">📋 รอจ่ายใหม่</button>'
+        : (canClearTrip()
+          ? '<button class="btn btn-gray" onclick="openStatusModal(\''+b.billNo+'\')">อัปเดต</button>'
           : ''))
       +'</td>'
       +'</tr>';
@@ -2622,12 +2635,12 @@ function loadDoneBills(){
 
   // ดึงตาม "สถานะ" โดยตรง — limit สูงพอให้ได้ทุกสาขา (ไม่กรอง createdAt
   // เพราะบิลบางสาขา/บิลเก่าไม่มี field createdAt จะถูกตัดทิ้ง)
-  // limit สูงพอครอบทุกใบทุกสาขา — Firestore คิดเงินตามจำนวนที่ดึงจริง ไม่ใช่เพดาน
-  // (ส่งสำเร็จมี ~1,850 ใบจากหลายรหัส BB/BG/BN/BP/BR/KD/PH ถ้า limit ต่ำ ปลายแถวหลุด)
-  var perStatus = 20000;
+  // limit 5000/สถานะ — ครอบทุกใบ (ส่งสำเร็จมี ~1,850) และอยู่ในระดับที่ Firestore รับได้
+  // (เคยตั้ง 20000 → query reject ทั้งหมด เลยเป็น 0)
+  var perStatus = 5000;
   var doneQueries = DONE_ST.map(function(st){
     return db.collection("bills").where("status","==",st).limit(perStatus).get()
-      .catch(function(){ return {forEach:function(){}}; });
+      .catch(function(e){ console.warn("[loadDoneBills] query fail:", st, e && e.message); return {forEach:function(){}}; });
   });
 
   Promise.all(doneQueries)
@@ -2755,11 +2768,8 @@ function renderDoneTab(){
   var q = _searchQuery || "";
   if(q) bills = bills.filter(function(b){ return billMatchSearch(b,q); });
 
-  // แยกกลุ่ม สำเร็จ / ไม่สำเร็จ
-  var failBills = bills.filter(function(b){ return isDoneStatus(b.status); });
-  var okBills   = bills.filter(function(b){ return !isDoneStatus(b.status); });
-  if(_doneSubTab!=="fail") _doneSubTab="ok";
-  bills = (_doneSubTab==="fail") ? failBills : okBills;
+  // แท็บนี้ = ส่งสำเร็จเท่านั้น (บิลส่งไม่สำเร็จไปอยู่แท็บ "รอส่งใหม่")
+  bills = bills.filter(function(b){ return SUCCESS_STATUS.indexOf(b.status||"")>=0; });
 
   var ZONE_COLOR={BKK:"#c0392b",West:"#d35400",South:"#27ae60",North:"#2471a3",East:"#8e44ad",Central:"#0f6e56",Korat:"#b7950b",LEsan:"#a93226",Esan:"#1a5276"};
   var rows = bills.map(function(b){
@@ -2814,17 +2824,11 @@ function renderDoneTab(){
   }
   dateBar+='</div>';
 
-  var subTabs='<div style="display:flex;gap:8px;margin-bottom:10px">'
-    +'<button onclick="setDoneSubTab(\'ok\')" style="flex:1;padding:9px;border-radius:8px;font-weight:800;font-size:13px;cursor:pointer;border:1.5px solid '+(_doneSubTab!=="fail"?"#0F6E56":"#ddd")+';background:'+(_doneSubTab!=="fail"?"#0F6E56":"#fff")+';color:'+(_doneSubTab!=="fail"?"#fff":"#666")+'">✅ ส่งสำเร็จ ('+okBills.length+')</button>'
-    +'<button onclick="setDoneSubTab(\'fail\')" style="flex:1;padding:9px;border-radius:8px;font-weight:800;font-size:13px;cursor:pointer;border:1.5px solid '+(_doneSubTab==="fail"?"#d8543f":"#ddd")+';background:'+(_doneSubTab==="fail"?"#d8543f":"#fff")+';color:'+(_doneSubTab==="fail"?"#fff":"#666")+'">❌ ส่งไม่สำเร็จ ('+failBills.length+')</button>'
-    +'</div>';
-
   var html='<div class="card">'
     +'<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px">'
-    +'<div class="card-title" style="margin:0">'+(_doneSubTab==="fail"?"❌ ส่งไม่สำเร็จ":"✅ ส่งสำเร็จ")+'</div>'
+    +'<div class="card-title" style="margin:0">✅ ส่งสำเร็จ</div>'
     +'<button class="btn btn-gray" onclick="loadDoneBills()">🔄 รีเฟรช</button>'
     +'</div>'
-    +subTabs
     +dateBar
     +'<div style="font-size:12px;color:#666;margin-bottom:8px">แสดง '+bills.length+' บิล</div>'
     +'<div style="margin-bottom:8px"><input type="text" id="q-inp-done" placeholder="ค้นหา: บิล/ชื่อ/จังหวัด/สินค้า/สถานะ" style="width:100%;max-width:360px;padding:7px 10px;border:1px solid #ddd;border-radius:7px;font-size:12px" value="'+(_searchQuery||"")+'" oninput="onDoneSearch(this.value)"></div>'
