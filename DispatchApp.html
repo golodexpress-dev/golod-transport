@@ -927,6 +927,7 @@ function getDateRange(mode){
   if(mode==="today")     { var s=fmt(now); return {from:s,to:s}; }
   if(mode==="yesterday") { var y=new Date(now); y.setDate(y.getDate()-1); var s=fmt(y); return {from:s,to:s}; }
   if(mode==="week")      { var w=new Date(now); w.setDate(w.getDate()-6); return {from:fmt(w),to:fmt(now)}; }
+  if(mode==="month")     { var mo=new Date(now); mo.setDate(mo.getDate()-29); return {from:fmt(mo),to:fmt(now)}; }
   if(mode==="all")       { return {from:"",to:""}; }
   return {from:filterDateFrom, to:filterDateTo}; // range
 }
@@ -2857,8 +2858,8 @@ function switchTab(t){
     renderMonthlyTab(); return;
   }
   if(t==="done" && typeof loadDoneBills==="function"){
-    // default done tab = 7 วัน (บิลส่งสำเร็จมักไม่ใช่วันนี้)
-    if(filterDateMode==="today") filterDateMode="week";
+    // default done tab = 30 วัน (บิลส่งสำเร็จ/ไม่สำเร็จ มักไม่ใช่วันนี้)
+    if(filterDateMode==="today"||filterDateMode==="yesterday"||filterDateMode==="week") filterDateMode="month";
     loadDoneBills();
   } else {
     renderApp();
