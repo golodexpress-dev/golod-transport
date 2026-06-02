@@ -2846,6 +2846,7 @@ function onDateModeChange(mode){
     filterDateFrom = r.from;
     filterDateTo   = r.to;
   }
+  if(currentTab==="done"){ loadDoneBills(); return; }
   renderApp();
 }
 
