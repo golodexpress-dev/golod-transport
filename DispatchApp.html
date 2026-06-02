@@ -2609,6 +2609,7 @@ function openHistoryDetail(docId){
 // โหลด done bills แยก — เร็วกว่าเพราะ query แค่ done status
 var DONE_BILLS_CACHE = [];
 var DONE_BILLS_LOADED = false;
+var _doneSubTab = "ok"; // ok = ส่งสำเร็จ, fail = ส่งไม่สำเร็จ
 
 function loadDoneBills(){
   document.getElementById("app").innerHTML = '<div class="card"><div class="loading">⏳ กำลังโหลดรายการส่งสำเร็จ...</div></div>';
@@ -2620,8 +2621,9 @@ function loadDoneBills(){
 
   // ดึงตาม "สถานะ" โดยตรง — limit สูงพอให้ได้ทุกสาขา (ไม่กรอง createdAt
   // เพราะบิลบางสาขา/บิลเก่าไม่มี field createdAt จะถูกตัดทิ้ง)
-  var perStatus = (filterDateMode==="today"||filterDateMode==="yesterday") ? 800
-                : (filterDateMode==="week") ? 1500 : 3000;
+  // limit สูงพอครอบทุกใบทุกสาขา — Firestore คิดเงินตามจำนวนที่ดึงจริง ไม่ใช่เพดาน
+  // (ส่งสำเร็จมี ~1,850 ใบจากหลายรหัส BB/BG/BN/BP/BR/KD/PH ถ้า limit ต่ำ ปลายแถวหลุด)
+  var perStatus = 20000;
   var doneQueries = DONE_ST.map(function(st){
     return db.collection("bills").where("status","==",st).limit(perStatus).get()
       .catch(function(){ return {forEach:function(){}}; });
@@ -2646,8 +2648,13 @@ function loadDoneBills(){
           return true;
         });
       }
-      // เรียงใหม่ล่าสุดอยู่บน
-      bills.sort(function(a,b){ return (billDateStr(b)||"").localeCompare(billDateStr(a)||""); });
+      // เรียง: บิลส่งสำเร็จอยู่บน → บิลไม่สำเร็จ (รอจ่ายใหม่) อยู่ล่างสุด
+      // ในแต่ละกลุ่มเรียงวันที่ล่าสุดก่อน
+      bills.sort(function(a,b){
+        var fa=isDoneStatus(a.status)?1:0, fb=isDoneStatus(b.status)?1:0;
+        if(fa!==fb) return fa-fb;
+        return (billDateStr(b)||"").localeCompare(billDateStr(a)||"");
+      });
       // normalize
       DONE_BILLS_CACHE = bills.map(function(b){
         if(b.form&&typeof b.form==="string"){try{b.form=JSON.parse(b.form);}catch(e){b.form={};}}
@@ -2662,6 +2669,13 @@ function loadDoneBills(){
 }
 
 function onDoneSearch(val){
+  _searchQuery = val;
+  renderDoneTab();
+  // คืน focus ให้ช่องค้นหา
+  var inp=document.getElementById("q-inp-done");
+  if(inp){ inp.focus(); try{ inp.setSelectionRange(val.length,val.length); }catch(e){} }
+}
+function _onDoneSearch_OLD(val){
   _searchQuery = val;
   // อัปเดตเฉพาะ table body ไม่ re-render ทั้งหน้า
   var tbody = document.getElementById("done-table-body");
@@ -2740,6 +2754,12 @@ function renderDoneTab(){
   var q = _searchQuery || "";
   if(q) bills = bills.filter(function(b){ return billMatchSearch(b,q); });
 
+  // แยกกลุ่ม สำเร็จ / ไม่สำเร็จ
+  var failBills = bills.filter(function(b){ return isDoneStatus(b.status); });
+  var okBills   = bills.filter(function(b){ return !isDoneStatus(b.status); });
+  if(_doneSubTab!=="fail") _doneSubTab="ok";
+  bills = (_doneSubTab==="fail") ? failBills : okBills;
+
   var ZONE_COLOR={BKK:"#c0392b",West:"#d35400",South:"#27ae60",North:"#2471a3",East:"#8e44ad",Central:"#0f6e56",Korat:"#b7950b",LEsan:"#a93226",Esan:"#1a5276"};
   var rows = bills.map(function(b){
     var stCls=stClass(b.status);
@@ -2793,11 +2813,17 @@ function renderDoneTab(){
   }
   dateBar+='</div>';
 
+  var subTabs='<div style="display:flex;gap:8px;margin-bottom:10px">'
+    +'<button onclick="setDoneSubTab(\'ok\')" style="flex:1;padding:9px;border-radius:8px;font-weight:800;font-size:13px;cursor:pointer;border:1.5px solid '+(_doneSubTab!=="fail"?"#0F6E56":"#ddd")+';background:'+(_doneSubTab!=="fail"?"#0F6E56":"#fff")+';color:'+(_doneSubTab!=="fail"?"#fff":"#666")+'">✅ ส่งสำเร็จ ('+okBills.length+')</button>'
+    +'<button onclick="setDoneSubTab(\'fail\')" style="flex:1;padding:9px;border-radius:8px;font-weight:800;font-size:13px;cursor:pointer;border:1.5px solid '+(_doneSubTab==="fail"?"#d8543f":"#ddd")+';background:'+(_doneSubTab==="fail"?"#d8543f":"#fff")+';color:'+(_doneSubTab==="fail"?"#fff":"#666")+'">❌ ส่งไม่สำเร็จ ('+failBills.length+')</button>'
+    +'</div>';
+
   var html='<div class="card">'
     +'<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px">'
-    +'<div class="card-title" style="margin:0">✅ สำเร็จ / ❌ ไม่สำเร็จ</div>'
+    +'<div class="card-title" style="margin:0">'+(_doneSubTab==="fail"?"❌ ส่งไม่สำเร็จ":"✅ ส่งสำเร็จ")+'</div>'
     +'<button class="btn btn-gray" onclick="loadDoneBills()">🔄 รีเฟรช</button>'
     +'</div>'
+    +subTabs
     +dateBar
     +'<div style="font-size:12px;color:#666;margin-bottom:8px">แสดง '+bills.length+' บิล</div>'
     +'<div style="margin-bottom:8px"><input type="text" id="q-inp-done" placeholder="ค้นหา: บิล/ชื่อ/จังหวัด/สินค้า/สถานะ" style="width:100%;max-width:360px;padding:7px 10px;border:1px solid #ddd;border-radius:7px;font-size:12px" value="'+(_searchQuery||"")+'" oninput="onDoneSearch(this.value)"></div>'
@@ -2806,6 +2832,11 @@ function renderDoneTab(){
     +rows
     +'</table></div></div></div>';
   document.getElementById("app").innerHTML=html;
+}
+
+function setDoneSubTab(t){
+  _doneSubTab = t;
+  renderDoneTab();
 }
 
 function onDateModeChange(mode){
