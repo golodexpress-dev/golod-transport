@@ -2765,8 +2765,25 @@ function ThermalBillingApp() {
             }
           } catch(e) { console.warn("admin sync error:", e.message); }
         }).catch(function(){});
+      } else {
+        // เสมียน: ดึงบิล "ของตัวเอง" จาก Firestore (ทุกบิล ไม่ใช่แค่เครื่องนี้)
+        var myCode = getStaffCode();
+        GolodDB.getBills && GolodDB.getBills(myCode, false).then(function(bills) {
+          try {
+            if (bills && bills.length > 0) {
+              var local2 = [];
+              try { local2 = JSON.parse(localStorage.getItem("golod_bills")||"[]"); } catch(e) {}
+              var map2 = {};
+              local2.forEach(function(b){ if(b.billNo) map2[b.billNo]=b; });
+              bills.forEach(function(b){ if(b.billNo) map2[b.billNo]=b; });
+              var merged2 = Object.values(map2);
+              setAllBills(merged2);
+              try { localStorage.setItem("golod_bills", JSON.stringify(merged2)); } catch(e) {}
+              console.log("[ThermalBill] clerk synced "+bills.length+" own bills");
+            }
+          } catch(e) { console.warn("clerk sync error:", e.message); }
+        }).catch(function(){});
       }
-      // clerk: ใช้แค่ localStorage ของเครื่องตัวเอง (บิลที่ออกจากเครื่องนี้)
     } catch(e) { console.warn("useEffect error:", e.message); }
   }, []);;
   // setBills: อัปเดต state และ save localStorage

@@ -105,6 +105,20 @@ tr.total-row td{background:#f0faf5;font-weight:700;border-top:2px solid #d0ede5}
   </div>
 </div>
 
+<!-- พรีวิวบิล 80mm -->
+<div class="zone-modal-bg" id="billprev-bg" onclick="closeBillPreview(event)">
+  <div id="billprev-card" onclick="event.stopPropagation()" style="background:#f4f6f5;border-radius:14px;max-width:380px;width:94%;max-height:90vh;overflow:auto;padding:14px">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px">
+      <span style="font-weight:800;color:#0F6E56">🧾 พรีวิวบิล</span>
+      <div style="display:flex;gap:6px">
+        <button onclick="printBillPreview()" style="padding:6px 12px;background:#2c5f8a;color:#fff;border:none;border-radius:7px;font-weight:700;cursor:pointer;font-size:13px">🖨 พิมพ์</button>
+        <button onclick="closeBillPreview()" style="padding:6px 12px;background:#eee;border:none;border-radius:7px;font-weight:700;cursor:pointer;font-size:13px">✕ ปิด</button>
+      </div>
+    </div>
+    <div id="billprev-paper" style="background:#fff;margin:0 auto;width:302px;box-shadow:0 2px 14px rgba(0,0,0,.14)"></div>
+  </div>
+</div>
+
 <script>
 // ===== SESSION CHECK =====
 (function(){
@@ -278,9 +292,9 @@ function openZoneModal(zone, zoneBills){
     var prov   = getBillProv(b);
     var amphoe = getBillAmphoe(b);
     var recv   = b.receiverName||(b.form&&b.form.receiverName)||"";
-    return '<tr>'
+    return '<tr style="cursor:pointer" onclick="openBillPreview('+i+')" title="คลิกดูพรีวิวบิล">'
       +'<td style="text-align:left;color:#aaa;font-size:11px">'+(i+1)+'</td>'
-      +'<td style="text-align:left;font-weight:700;white-space:nowrap">'+b.billNo+'</td>'
+      +'<td style="text-align:left;font-weight:700;white-space:nowrap;color:#0F6E56;text-decoration:underline">'+b.billNo+'</td>'
       +'<td style="text-align:left;color:#888;white-space:nowrap">'+fmtBillDate(b)+'</td>'
       +'<td style="text-align:left">'+recv+'</td>'
       +'<td style="text-align:left;white-space:nowrap">'+amphoe+'·'+prov+'</td>'
@@ -304,6 +318,106 @@ function closeZoneModal(e){
   if(!e || e.target===document.getElementById("zone-modal-bg")){
     document.getElementById("zone-modal-bg").classList.remove("show");
   }
+}
+
+// ===== พรีวิวบิล (80mm) =====
+function bahtTextTH(n){
+  n=Math.round((parseFloat(n)||0)*100)/100;
+  var num=["ศูนย์","หนึ่ง","สอง","สาม","สี่","ห้า","หก","เจ็ด","แปด","เก้า"];
+  var pos=["","สิบ","ร้อย","พัน","หมื่น","แสน","ล้าน"];
+  function conv(s){
+    var t="",L=s.length;
+    for(var i=0;i<L;i++){
+      var d=parseInt(s[i]),p=L-i-1;
+      if(d===0)continue;
+      if(p===1&&d===1)t+="สิบ";
+      else if(p===1&&d===2)t+="ยี่สิบ";
+      else if(p===0&&d===1&&L>1)t+="เอ็ด";
+      else t+=num[d]+pos[p];
+    }
+    return t;
+  }
+  var ba=Math.floor(n),st=Math.round((n-ba)*100),txt="";
+  if(ba===0)txt="ศูนย์บาท";
+  else{
+    var s=String(ba),out="";
+    if(s.length>6){ out=conv(s.slice(0,s.length-6))+"ล้าน"; s=s.slice(s.length-6); }
+    out+=conv(s); txt=out+"บาท";
+  }
+  if(st===0)txt+="ถ้วน"; else txt+=conv(String(st))+"สตางค์";
+  return txt;
+}
+
+function openBillPreview(idx){
+  var b=(_currentZoneBills||[])[idx];
+  if(!b) return;
+  document.getElementById("billprev-paper").innerHTML = buildBillHTML(b);
+  document.getElementById("billprev-bg").classList.add("show");
+}
+function closeBillPreview(e){
+  if(!e || e.target===document.getElementById("billprev-bg")){
+    document.getElementById("billprev-bg").classList.remove("show");
+  }
+}
+function printBillPreview(){
+  var html=document.getElementById("billprev-paper").innerHTML;
+  var w=window.open("","_print","width=320,height=600");
+  w.document.write('<html><head><title>บิล</title><style>@page{size:80mm auto;margin:0}body{margin:0;font-family:Sarabun,sans-serif}</style></head><body>'+html+'</body></html>');
+  w.document.close(); w.focus();
+  setTimeout(function(){ w.print(); w.close(); }, 300);
+}
+
+function buildBillHTML(b){
+  var f=(b.form&&typeof b.form==="object")?b.form:{};
+  var pick=function(k){ return b[k]||f[k]||""; };
+  var sender   = pick("senderName")||pick("sender");
+  var senderPh = pick("senderPhone");
+  var origin   = pick("originProv");
+  var recv     = pick("receiverName");
+  var recvPh   = pick("receiverPhone");
+  var prov     = getBillProv(b), amphoe=getBillAmphoe(b), tambon=pick("destTambon");
+  var addr     = pick("receiverAddr")||pick("destAddr")||"";
+  var pay      = getBillPay(b);
+  var net      = parseFloat(b.freightNet||0);
+  var cod      = parseFloat(b.codTotal||0);
+  var items    = Array.isArray(b.items)?b.items:(Array.isArray(f.items)?f.items:[]);
+  var clerk    = pick("clerkName")||pick("staffName")||b.clerkCode||"";
+  var row=function(l,v){ return v?('<div style="display:flex;gap:6px;margin:2px 0"><span style="color:#666;min-width:54px;font-size:11px">'+l+'</span><span style="flex:1;font-weight:700">'+v+'</span></div>'):''; };
+
+  var itemRows = items.length
+    ? items.map(function(it,i){
+        var d=it.desc||it.name||("รายการ "+(i+1));
+        var q=it.qty?(" x"+it.qty):"";
+        var kg=it.kg?(" "+it.kg+"kg"):"";
+        return '<tr><td style="padding:2px 0">'+(i+1)+'. '+d+kg+q+'</td></tr>';
+      }).join("")
+    : '<tr><td style="padding:2px 0;color:#888">'+(pick("note")||"—")+'</td></tr>';
+
+  return ''
+    +'<div style="width:302px;box-sizing:border-box;padding:16px 16px 12px;font-family:Sarabun,sans-serif;font-size:12px;font-weight:700;line-height:1.7;color:#000">'
+    +'<div style="text-align:center;font-size:16px;font-weight:900">GOLOD TRANSPORT</div>'
+    +'<div style="text-align:center;font-size:11px;color:#444;margin-bottom:6px">โกโลด ทรานสปอร์ต</div>'
+    +'<div style="display:flex;justify-content:space-between;border-top:1.5px solid #000;border-bottom:1px dashed #555;padding:4px 0;margin-bottom:6px">'
+      +'<span style="font-weight:900">'+(b.billNo||"")+'</span>'
+      +'<span style="font-size:11px;color:#444">'+fmtBillDate(b)+'</span></div>'
+    +'<div style="font-size:11px;color:#0F6E56;font-weight:800;margin-bottom:2px">ผู้ส่ง</div>'
+    +row("ชื่อ",sender)+row("โทร",senderPh)+row("ต้นทาง",origin)
+    +'<div style="font-size:11px;color:#0F6E56;font-weight:800;margin:6px 0 2px">ผู้รับ</div>'
+    +row("ชื่อ",recv)+row("โทร",recvPh)
+    +row("ที่อยู่",addr)
+    +row("ปลายทาง",[tambon,amphoe,prov].filter(Boolean).join(" "))
+    +'<div style="font-size:11px;color:#0F6E56;font-weight:800;margin:6px 0 2px">รายการสินค้า</div>'
+    +'<table style="width:100%;font-size:12px;font-weight:700"><tbody>'+itemRows+'</tbody></table>'
+    +'<div style="border-top:1.5px solid #000;margin:6px 0 4px"></div>'
+    +'<div style="display:flex;justify-content:space-between;align-items:baseline;font-weight:900;font-size:13px;gap:6px">'
+      +'<span style="flex-shrink:0">ค่าขนส่ง ('+(PAY_LABEL[pay]||pay)+')</span>'
+      +'<span style="flex:1;text-align:right;min-width:0"><span style="white-space:nowrap">'+fmt(net)+'.-</span>'
+      +'<span style="font-size:10px;font-weight:700;margin-left:4px;word-break:break-word">('+bahtTextTH(net)+')</span></span></div>'
+    +(cod>0?'<div style="display:flex;justify-content:space-between;font-weight:900;font-size:13px;color:#d8543f;margin-top:3px"><span>เก็บปลายทาง COD</span><span>'+fmt(cod)+'.-</span></div>':'')
+    +'<div style="border-top:1px dashed #555;margin:8px 0 4px"></div>'
+    +(clerk?'<div style="text-align:center;font-size:11px;color:#444">ผู้ออกบิล: '+clerk+'</div>':'')
+    +'<div style="text-align:center;font-size:10px;color:#888;margin-top:4px">เช็กสถานะ: line @golod</div>'
+    +'</div>';
 }
 
 // ===== RENDER SUMMARY =====
