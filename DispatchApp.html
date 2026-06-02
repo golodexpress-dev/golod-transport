@@ -2071,12 +2071,49 @@ function saveTrip(){
     .map(function(p){ return p.pickupId; })
     .filter(function(id){ return id; });
 
+  var isEditTrip = !!trip.id;               // true = แก้ไขเที่ยวเดิม
+  var DONE_ST = ["ส่งสำเร็จ","delivered","ส่งไม่สำเร็จ","ส่งไม่ได้","ปิดงาน","cleared"];
   var _savedTrip = null;
+
   GolodDB.saveTrip(trip).then(function(saved){
     _savedTrip = saved;
-    // ผูก tripId กับ bills
-    if(billIds.length > 0){
-      return GolodDB.assignBillsToTrip(billIds, saved.id);
+    if(billIds.length === 0) return;
+    // map สถานะปัจจุบันของบิล (กันบิลที่ส่งเสร็จแล้วถูกรีเซ็ต)
+    var stMap = {};
+    selBills.forEach(function(b){ if(b && b.billNo) stMap[b.billNo] = b.status; });
+    // อัปเดตบิล: ผูก tripId + ใส่คนขับ + เปลี่ยนสถานะเป็น "กำลังวิ่งส่งลูกค้า"
+    // (เพื่อให้บิลโผล่ในแอปคนรถ — DriverApp ดึงจาก driver+status)
+    var ups = billIds.map(function(bn){
+      var upd = {tripId:saved.id, driver:driverUsername, driverName:driverName, updatedAt:new Date().toISOString()};
+      if(DONE_ST.indexOf(stMap[bn]) < 0) upd.status = "กำลังวิ่งส่งลูกค้า";
+      return GolodDB.updateBill(bn, upd);
+    });
+    return Promise.all(ups);
+  }).then(function(){
+    // เขียนประวัติจ่ายงาน (เฉพาะตอนสร้างเที่ยวใหม่ กันบันทึกซ้ำตอนแก้ไข)
+    if(!isEditTrip && GolodDB.saveDispatchLog && selBills.length > 0){
+      var totO=0,totD=0,totT=0,totC=0,totCOD=0,totF=0;
+      var snap = selBills.map(function(b){
+        var net=parseFloat(b.freightNet||0), cod=parseFloat(b.codTotal||0);
+        var pay=b.freightPay||(b.form&&b.form.freightPay)||"origin";
+        totF+=net; if(cod>0) totCOD+=cod;
+        if(pay==="dest")totD+=net; else if(pay==="transfer")totT+=net;
+        else if(pay==="credit")totC+=net; else totO+=net;
+        return {billNo:b.billNo,
+          receiverName:b.receiverName||(b.form&&b.form.receiverName)||"",
+          destProv:b.destProv||(b.form&&b.form.destProv)||"",
+          destAmphoe:b.destAmphoe||(b.form&&b.form.destAmphoe)||"",
+          freightNet:net, codTotal:cod, freightPay:pay};
+      });
+      return GolodDB.saveDispatchLog({
+        dispatchAt:new Date().toISOString(),
+        dispatchBy:(typeof CU!=="undefined"&&CU)?CU.username:"",
+        dispatchByName:(typeof CU!=="undefined"&&CU)?CU.name:"",
+        mode:"driver", targetId:driverUsername, targetName:driverName,
+        billCount:selBills.length, totalFreight:totF, totalOrigin:totO, totalDest:totD,
+        totalTransfer:totT, totalCredit:totC, totalCOD:totCOD,
+        tripId:(_savedTrip&&_savedTrip.id)||"", bills:snap, source:"trip"
+      }).catch(function(e){ console.warn("saveDispatchLog(trip):", e); });
     }
   }).then(function(){
     // ตัดงานรับที่ดึงมาออกจากคิว → สถานะ "จ่ายแล้ว"
@@ -2092,7 +2129,7 @@ function saveTrip(){
       }));
     }
   }).then(function(){
-    alert("✅ "+(trip.id?"บันทึกเที่ยวแล้ว":"สร้างเที่ยวใหม่แล้ว")+"!");
+    alert("✅ "+(isEditTrip?"บันทึกเที่ยวแล้ว":"สร้างเที่ยวใหม่แล้ว")+"!");
     _tripState.mode = "list";
     _tripState.editId = null;
     _tripState.selectedBills = {};

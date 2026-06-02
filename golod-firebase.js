@@ -386,9 +386,18 @@ var GolodDB = (function() {
               logs.push(d);
             });
             // filter by date client-side (Firestore ไม่ต้องการ composite index เพิ่ม)
+            // ใช้วันที่ตามเวลาเครื่อง (ไทย UTC+7) ไม่ใช่ UTC — กันงานช่วงเช้ามืดหลุดวัน
             if(opts.dateFrom || opts.dateTo) {
+              var localDate = function(iso){
+                if(!iso) return "";
+                var dt = new Date(iso);
+                if(isNaN(dt.getTime())) return String(iso).slice(0,10);
+                return dt.getFullYear()+"-"
+                  +String(dt.getMonth()+1).padStart(2,"0")+"-"
+                  +String(dt.getDate()).padStart(2,"0");
+              };
               logs = logs.filter(function(l) {
-                var d = l.dispatchAt ? l.dispatchAt.slice(0,10) : "";
+                var d = localDate(l.dispatchAt);
                 if(opts.dateFrom && d < opts.dateFrom) return false;
                 if(opts.dateTo   && d > opts.dateTo)   return false;
                 return true;
