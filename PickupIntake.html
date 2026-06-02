@@ -102,11 +102,23 @@ function compress(file,cb){
 
 const blank=(branch,clerk)=>({
   id:"", ref:"", createdAt:"", createdBy:clerk, branch,
-  location:"", originProv:"", goods:"",
+  location:"", originProv:"", originAmphoe:"", originTambon:"", senderPhone:"",
+  items:["","",""], goods:"",
   receiverName:"", receiverPhone:"", destProv:"", destAmphoe:"", destTambon:"",
   freight:"", rate:15, commission:"", paidOnPickup:false,
   pickupDate:todayISO(), note:"", photos:[], status:"pending"
 });
+
+// แปลงข้อมูลเก่าให้มีฟิลด์ใหม่ครบ (กันฟอร์มพัง ตอนกดแก้ไขงานเก่า)
+function normalizeRec(r){
+  var items = Array.isArray(r.items)&&r.items.length ? r.items.slice(0,3) : (r.goods?[r.goods]:[]);
+  while(items.length<3) items.push("");
+  return Object.assign({}, r, {
+    items: items,
+    originAmphoe: r.originAmphoe||"", originTambon: r.originTambon||"",
+    senderPhone: r.senderPhone||"", photos: r.photos||[]
+  });
+}
 
 function App(){
   let sBranch=BRANCHES[0], sClerk=CLERKS[0];
@@ -165,6 +177,7 @@ function App(){
     const rec={...f,
       createdBy:clerk, branch,
       ref:f.ref||genRef(),
+      goods:(f.items||[]).filter(x=>x&&x.trim()).join(" / "),
       freight:parseFloat(f.freight)||0,
       rate:parseFloat(f.rate)||0,
       commission:parseFloat(f.commission)||0,
@@ -180,7 +193,8 @@ function App(){
     }).catch(e=>{setSaving(false);flash("บันทึกไม่สำเร็จ: "+e.message);});
   };
 
-  const edit=r=>{setF({...r});setTab("form");window.scrollTo(0,0);};
+  const edit=r=>{setF(normalizeRec(r));setTab("form");window.scrollTo(0,0);};
+  const setItem=(i,v)=>setF(p=>({...p,items:p.items.map((x,j)=>j===i?v:x)}));
   const del=r=>{if(!confirm(`ลบงานรับ ${r.ref}?`))return;
     GolodDB.deletePickup(r.id).then(()=>{flash("ลบแล้ว");loadList();});};
   const markDispatch=r=>{GolodDB.updatePickup(r.id,{status:"dispatched",dispatchedAt:new Date().toISOString(),dispatchedBy:clerk}).then(()=>{flash("ทำเครื่องหมาย จ่ายแล้ว");loadList();});};
@@ -228,14 +242,23 @@ function App(){
         <div className="row">
           <div className="fld"><label>รับที่ (สถานที่/ลูกค้า) <span className="req">*</span></label>
             <input type="text" value={f.location} onChange={e=>set("location",e.target.value)} placeholder="ชื่อร้าน/บริษัท"/></div>
+          <div className="fld"><label>เบอร์ผู้ให้รับของ</label>
+            <input type="tel" value={f.senderPhone} onChange={e=>set("senderPhone",e.target.value)} placeholder="08x-xxxxxxx"/></div>
         </div>
         <div className="row">
-          <div className="fld"><label>จังหวัดต้นทาง (ที่เข้ารับ) <span className="req">*</span></label>
-            <input type="text" value={f.originProv} onChange={e=>set("originProv",e.target.value)} placeholder="เช่น ฉะเชิงเทรา"/></div>
+          <div className="fld"><label>จังหวัดต้นทาง <span className="req">*</span></label>
+            <input type="text" value={f.originProv} onChange={e=>set("originProv",e.target.value)} placeholder="จังหวัด"/></div>
+          <div className="fld"><label>อำเภอ</label>
+            <input type="text" value={f.originAmphoe} onChange={e=>set("originAmphoe",e.target.value)} placeholder="อำเภอ"/></div>
+          <div className="fld"><label>ตำบล</label>
+            <input type="text" value={f.originTambon} onChange={e=>set("originTambon",e.target.value)} placeholder="ตำบล"/></div>
         </div>
         <div className="row">
-          <div className="fld"><label>สินค้า</label>
-            <input type="text" value={f.goods} onChange={e=>set("goods",e.target.value)} placeholder="รายละเอียด/จำนวน"/></div>
+          <div className="fld"><label>รายการของ (สูงสุด 3)</label>
+            <input type="text" value={f.items[0]} onChange={e=>setItem(0,e.target.value)} placeholder="รายการ 1" style={{marginBottom:8}}/>
+            <input type="text" value={f.items[1]} onChange={e=>setItem(1,e.target.value)} placeholder="รายการ 2" style={{marginBottom:8}}/>
+            <input type="text" value={f.items[2]} onChange={e=>setItem(2,e.target.value)} placeholder="รายการ 3"/>
+          </div>
         </div>
 
         <div className="sec">📍 ปลายทาง</div>
@@ -321,7 +344,7 @@ function App(){
               {r.status==="dispatched"?"จ่ายแล้ว":"รอจ่าย"}</span>
           </div>
           <div className="meta">
-            🗓️ นัดรับ <b>{thDate(r.pickupDate)}</b> · ต้นทาง <b>{r.originProv||"-"}</b><br/>
+            🗓️ นัดรับ <b>{thDate(r.pickupDate)}</b> · ต้นทาง <b>{r.originProv||"-"} {r.originAmphoe} {r.originTambon}</b>{r.senderPhone?(" ☎ "+r.senderPhone):""}<br/>
             📦 {r.goods||"-"} → {r.destProv||"-"} {r.destAmphoe} {r.destTambon}<br/>
             💰 ค่าส่ง {r.freight||0} · ค่าจ้างรับ {r.commission||0} ({r.rate}%)
             {r.paidOnPickup?" · เก็บตอนรับ":""}
