@@ -323,6 +323,29 @@ tr:hover td{background:#f8fffe}
       </div>
     </div>
 
+    <!-- หมายเหตุ / รายการปรับยอด (ต้องอนุมัติ) -->
+    <div style="background:#f3f0fa;border:1px solid #d6c7f0;border-radius:8px;padding:10px;margin-bottom:10px">
+      <div style="font-size:11px;font-weight:700;color:#6a3fb5;margin-bottom:6px">📝 หมายเหตุ / รายการปรับยอด <span style="font-weight:400;color:#999">(บิลไม่เข้าระบบ/หาไม่เจอ ฯลฯ — ต้องให้แอดมินอนุมัติ)</span></div>
+      <div id="ct-remarks-list" style="margin-bottom:8px"></div>
+      <div style="display:grid;grid-template-columns:1.1fr 0.9fr 1.6fr 0.9fr auto;gap:6px;align-items:end">
+        <div><div style="font-size:9px;color:#888">ประเภท</div>
+          <select id="ct-rmk-type" style="width:100%;padding:6px;border:1px solid #ddd;border-radius:6px;font-size:11px">
+            <option value="บิลไม่เข้าระบบ">บิลไม่เข้าระบบ</option>
+            <option value="หาบิลไม่เจอ">หาบิลไม่เจอ</option>
+            <option value="ยอดไม่ตรง">ยอดไม่ตรง</option>
+            <option value="อื่นๆ">อื่นๆ</option>
+          </select></div>
+        <div><div style="font-size:9px;color:#888">เลขบิล (ถ้ามี)</div>
+          <input id="ct-rmk-bill" style="width:100%;padding:6px;border:1px solid #ddd;border-radius:6px;font-size:11px"></div>
+        <div><div style="font-size:9px;color:#888">รายละเอียด</div>
+          <input id="ct-rmk-note" style="width:100%;padding:6px;border:1px solid #ddd;border-radius:6px;font-size:11px"></div>
+        <div><div style="font-size:9px;color:#888">ปรับยอด +/−</div>
+          <input id="ct-rmk-amount" type="number" placeholder="0" style="width:100%;padding:6px;border:1px solid #ddd;border-radius:6px;font-size:11px"></div>
+        <button class="btn" onclick="addClearRemark()" style="background:#6a3fb5;color:#fff;font-size:11px;white-space:nowrap">+ เพิ่ม</button>
+      </div>
+      <div style="font-size:9px;color:#999;margin-top:4px">💡 ยอด + = พขร.ต้องคืนเพิ่ม (เช่น เก็บเงินบิลนอกระบบ), − = ลดยอดต้องคืน</div>
+    </div>
+
     <!-- สรุป -->
     <div id="ct-summary" style="background:#0F6E56;color:#fff;border-radius:10px;padding:12px;margin-bottom:12px">
       <div style="font-size:10px;opacity:.8;margin-bottom:8px">📊 สรุปยอดเคลียร์</div>
@@ -1264,10 +1287,13 @@ function renderTripList(){
   var tripCardHTML = function(t){
     var s = t.summary||{};
     var fuelEst = t.fuelDist&&t.fuelRate&&t.fuelPrice ? Math.round((t.fuelDist/t.fuelRate)*t.fuelPrice) : 0;
+    var pendRmk = ((t.clearRemarks||(t.clearData&&t.clearData.remarks)||[]).filter(function(r){return r.status==="pending";})).length;
     return '<div class="trip-card">'
       +'<div class="trip-head">'
         +'<div style="flex:1">'
-          +'<div class="trip-driver">🚛 '+t.driverName+'</div>'
+          +'<div class="trip-driver">🚛 '+t.driverName
+            +(pendRmk>0?' <span style="background:#E67E22;color:#fff;font-size:10px;padding:2px 7px;border-radius:10px;font-weight:700">⏳ รออนุมัติหมายเหตุ '+pendRmk+'</span>':'')
+            +'</div>'
           +'<div class="trip-route">📍 '+(t.route||"—")+'</div>'
           +'<div style="font-size:10px;color:#aaa;margin-top:2px">วันที่ออก: '+(t.departDate||"—")+' | สร้างเมื่อ: '+fmtDT(t.createdAt)+'</div>'
         +'</div>'
@@ -3507,11 +3533,85 @@ function fetchTripBillsFromDB(trip){
   });
 }
 
+// ===== หมายเหตุ/รายการปรับยอด (ต้องอนุมัติ) =====
+var _clearRemarks = [];
+
+function renderClearRemarks(){
+  var el = document.getElementById("ct-remarks-list");
+  if(!el) return;
+  if(!_clearRemarks.length){ el.innerHTML='<div style="font-size:11px;color:#aaa">— ยังไม่มีรายการ —</div>'; return; }
+  var isAdmin = CU && CU.role==="admin";
+  el.innerHTML = _clearRemarks.map(function(r){
+    var stBadge = r.status==="approved" ? '<span style="color:#0F6E56;font-weight:700">✅ อนุมัติ</span>'
+                : r.status==="rejected" ? '<span style="color:#c0392b;font-weight:700">❌ ไม่อนุมัติ</span>'
+                : '<span style="color:#E67E22;font-weight:700">⏳ รออนุมัติ</span>';
+    var amtClr = r.amount>=0 ? "#0F6E56" : "#c0392b";
+    var adminBtns = (isAdmin && r.status==="pending")
+      ? ' <button onclick="approveRemark(\''+r.id+'\')" style="background:#0F6E56;color:#fff;border:none;border-radius:5px;padding:2px 8px;font-size:10px;cursor:pointer">อนุมัติ</button>'
+        +' <button onclick="rejectRemark(\''+r.id+'\')" style="background:#c0392b;color:#fff;border:none;border-radius:5px;padding:2px 8px;font-size:10px;cursor:pointer">ไม่อนุมัติ</button>'
+      : '';
+    var delBtn = (isAdmin || r.status==="pending")
+      ? ' <button onclick="deleteRemark(\''+r.id+'\')" style="background:#eee;border:none;border-radius:5px;padding:2px 7px;font-size:10px;cursor:pointer">🗑</button>' : '';
+    return '<div style="background:#fff;border:1px solid #e5dcf5;border-radius:6px;padding:6px 8px;margin-bottom:4px;font-size:11px">'
+      +'<div style="display:flex;justify-content:space-between;gap:8px;flex-wrap:wrap;align-items:center">'
+      +'<div><b>'+r.type+'</b>'+(r.billNo?' · '+r.billNo:'')+(r.note?' · '+r.note:'')+'</div>'
+      +'<div style="white-space:nowrap"><b style="color:'+amtClr+'">'+(r.amount>=0?"+":"")+Math.round(r.amount).toLocaleString("th-TH")+' ฿</b> '+stBadge+adminBtns+delBtn+'</div>'
+      +'</div>'
+      +'<div style="font-size:9px;color:#aaa;margin-top:2px">โดย '+(r.byName||r.by||"-")+(r.approvedByName?' · อนุมัติโดย '+r.approvedByName:'')+'</div>'
+      +'</div>';
+  }).join("");
+}
+
+function addClearRemark(){
+  var type=(document.getElementById("ct-rmk-type")||{}).value||"อื่นๆ";
+  var billNo=(document.getElementById("ct-rmk-bill")||{}).value||"";
+  var note=(document.getElementById("ct-rmk-note")||{}).value||"";
+  var amount=parseFloat((document.getElementById("ct-rmk-amount")||{}).value||0);
+  if(!note && !billNo){ alert("กรอกรายละเอียดหรือเลขบิลด้วยครับ"); return; }
+  var isAdmin = CU && CU.role==="admin";
+  _clearRemarks.push({
+    id: "rmk_"+Date.now()+"_"+Math.floor(Math.random()*1000),
+    type:type, billNo:billNo, note:note, amount:amount,
+    status: isAdmin?"approved":"pending",
+    by: CU?CU.username:"", byName: CU?(CU.name||CU.username):"",
+    at: new Date().toISOString(),
+    approvedBy: isAdmin?(CU.username):"", approvedByName: isAdmin?(CU.name||CU.username):""
+  });
+  document.getElementById("ct-rmk-bill").value="";
+  document.getElementById("ct-rmk-note").value="";
+  document.getElementById("ct-rmk-amount").value="";
+  renderClearRemarks(); calcClearTrip();
+}
+function approveRemark(id){
+  var r=_clearRemarks.find(function(x){return x.id===id;}); if(!r) return;
+  r.status="approved"; r.approvedBy=CU?CU.username:""; r.approvedByName=CU?(CU.name||CU.username):"";
+  renderClearRemarks(); calcClearTrip();
+}
+function rejectRemark(id){
+  var r=_clearRemarks.find(function(x){return x.id===id;}); if(!r) return;
+  r.status="rejected"; r.approvedBy=CU?CU.username:""; r.approvedByName=CU?(CU.name||CU.username):"";
+  renderClearRemarks(); calcClearTrip();
+}
+function deleteRemark(id){
+  if(!confirm("ลบรายการนี้?")) return;
+  _clearRemarks=_clearRemarks.filter(function(x){return x.id!==id;});
+  renderClearRemarks(); calcClearTrip();
+}
+function remarksApprovedSum(){
+  return _clearRemarks.filter(function(r){return r.status==="approved";})
+    .reduce(function(a,r){return a+parseFloat(r.amount||0);},0);
+}
+function remarksPendingSum(){
+  return _clearRemarks.filter(function(r){return r.status==="pending";})
+    .reduce(function(a,r){return a+parseFloat(r.amount||0);},0);
+}
+
 function openClearTrip(tripId){
   var trip = (_tripState.openTrips||[]).find(function(t){ return t.id===tripId; });
   if(!trip){ alert("ไม่พบข้อมูลเที่ยว"); return; }
   _clearTripId = tripId;
   _clearTripData = trip;
+  _clearRemarks = (trip.clearRemarks || (trip.clearData&&trip.clearData.remarks) || []).slice();
 
   // ===== ดึงยอดจากบิลจริงในเที่ยว (ปลายทาง / COD / งานรับ) =====
   // ดึงตรงจาก Firestore ด้วย billIds — รองรับเที่ยวที่วิ่งจบแล้ว (บิลหลุดจาก BILLS)
@@ -3574,6 +3674,7 @@ function openClearTrip(tripId){
     if(dbBills && dbBills.length) computeFromBills(dbBills);
   });
 
+  renderClearRemarks();
   calcClearTrip();
   document.getElementById("modal-clear-trip").style.display = "flex";
 }
@@ -3633,6 +3734,10 @@ function calcClearTrip(){
   //              − ค่าน้ำมันที่คำนวณ − (ทางด่วน + โรงแรม + จิปาถะ + w/t)
   var mustReturn = (codAmt + destAmt + pkDest + pkCash + fuelAdv + otherAdv + drawFee)
                  - fuelReal - (tollway + hotel + misc + wht);
+  // + รายการปรับยอดที่อนุมัติแล้ว
+  var adjApproved = remarksApprovedSum();
+  var adjPending  = remarksPendingSum();
+  mustReturn += adjApproved;
   var paid = clrCash + clrTrans;            // เงินที่ส่งจริง
   // นิยาม: + = พนักงานเป็นลูกหนี้ (ค้างบริษัท), − = บริษัทเป็นลูกหนี้พนักงาน (บริษัทต้องจ่าย)
   var netPay = mustReturn - paid;
@@ -3645,7 +3750,10 @@ function calcClearTrip(){
   sg("ct-must-pay", fmt(mustReturn)+" ฿");
   sg("ct-total-advance", fmt(paid)+" ฿");
   sg("ct-net", (Math.abs(netPay)<1?"✅ ครบพอดี 0":(netPay>0?"พขร.ค้างบริษัท +":"บริษัทต้องจ่าย พขร −")+fmt(Math.abs(netPay)))+" ฿");
-  sg("ct-fuel-diff", "น้ำมันจริง "+fmt(fuelReal)+" ฿ · หักค่าใช้จ่าย "+fmt(tollway+hotel+misc+wht)+" ฿"+(fine>0?" · ⚠️ ค่าปรับ "+fmt(fine)+" ฿":""));
+  sg("ct-fuel-diff", "น้ำมันจริง "+fmt(fuelReal)+" ฿ · หักค่าใช้จ่าย "+fmt(tollway+hotel+misc+wht)+" ฿"
+    +(adjApproved?" · ปรับยอด "+(adjApproved>0?"+":"")+fmt(adjApproved)+" ฿":"")
+    +(adjPending?" · ⏳ รออนุมัติ "+(adjPending>0?"+":"")+fmt(adjPending)+" ฿":"")
+    +(fine>0?" · ⚠️ ค่าปรับ "+fmt(fine)+" ฿":""));
 
   var sumEl = document.getElementById("ct-summary");
   if(sumEl) sumEl.style.background = netPay > 1 ? "#c0392b" : (netPay<-1?"#1565C0":"#0F6E56");
@@ -3689,7 +3797,7 @@ function saveClearTrip(){
   var wht     = parseFloat((document.getElementById("ct-wht")||{}).value||0);
 
   var mustReturn = (codAmt + destAmt + pkDest + pkCash + parseFloat(trip.fuelAdvance||0) + otherAdv + drawFee)
-                 - fuelReal - (tollway + hotel + misc + wht);
+                 - fuelReal - (tollway + hotel + misc + wht) + remarksApprovedSum();
   var paid = clrCash + clrTrans;
   var netPay = mustReturn - paid; // + = พขร.ค้างบริษัท, − = บริษัทต้องจ่าย พขร
   var fine = netPay >= 2500 ? Math.round(netPay*0.05)
@@ -3701,13 +3809,14 @@ function saveClearTrip(){
     pickupCash: pkCash, pickupDest: pkDest,
     tollway: tollway, hotel: hotel, misc: misc, miscNote: miscNote, wht: wht,
     mustReturn: mustReturn, paid: paid, netPay: netPay, fine: fine,
+    adjApproved: remarksApprovedSum(), adjPending: remarksPendingSum(), remarks: _clearRemarks,
     otherAdvance: otherAdv, drawRate: drawRate*100, drawFee: drawFee,
     mustPay: mustReturn, clrCash: clrCash, clrTrans: clrTrans,
     diff: netPay, clearedAt: new Date().toISOString(),
     clearedBy: CU ? CU.username : ""
   };
 
-  GolodDB.updateTrip(_clearTripId, {clearData: clearData, status:"cleared", fuelPrice:fuelPrice, fuelRate:fuelRate, odomEnd:odoEnd})
+  GolodDB.updateTrip(_clearTripId, {clearData: clearData, clearRemarks: _clearRemarks, status:"cleared", fuelPrice:fuelPrice, fuelRate:fuelRate, odomEnd:odoEnd})
     .then(function(){
       alert("✅ บันทึกการเคลียร์แล้ว");
       closeClearTrip();
