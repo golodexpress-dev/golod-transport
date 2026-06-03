@@ -1282,6 +1282,8 @@ function renderApp(){
 }
 
 // ===== TRIP TAB =====
+var _tripBranchTab = null; // แท็บสาขาที่แอดมินเลือกดูในหน้าจัดการเที่ยว
+function setTripBranchTab(lb){ _tripBranchTab = lb; renderTripList(); }
 var _tripState = {
   mode: "list",        // list | create | edit
   editId: null,
@@ -1384,24 +1386,29 @@ function renderTripList(){
   var openTrips = trips.filter(function(t){ return t.status!=="closed"; });
   var openCards;
   if(ub==="all"){
-    // ข้อ 1: แอดมินดูแยกตามสาขา
-    var groups={}; var order=[];
+    // ข้อ 1: แอดมินดูเป็น "แท็บสาขา" (ไม่มีสาขา All — ใบงานอยู่สาขาจริงเสมอ)
+    var groups={};
     openTrips.forEach(function(t){
       var lb=tripBranchLabel(t.branch);
-      if(!groups[lb]){ groups[lb]=[]; order.push(lb); }
-      groups[lb].push(t);
+      (groups[lb]=groups[lb]||[]).push(t);
     });
     var prefOrder=["กรุงเทพ","นครราชสีมา","ศรีสะเกษ"];
-    order.sort(function(a,b){
-      var ia=prefOrder.indexOf(a), ib=prefOrder.indexOf(b);
-      if(ia<0)ia=99; if(ib<0)ib=99; return ia-ib || a.localeCompare(b);
+    var brList=Object.keys(groups).sort(function(a,b){
+      var ia=prefOrder.indexOf(a),ib=prefOrder.indexOf(b); if(ia<0)ia=99; if(ib<0)ib=99; return ia-ib||a.localeCompare(b);
     });
-    openCards = order.map(function(lb){
-      return '<div style="margin:6px 0 4px;padding:6px 12px;background:#0F6E56;color:#fff;border-radius:8px;font-weight:800;font-size:14px">🏢 สาขา'+lb+' ('+groups[lb].length+' เที่ยว)</div>'
-        + groups[lb].map(tripCardHTML).join("");
-    }).join("");
+    // เผื่อสาขาหลักไม่มีเที่ยว ก็ยังแสดงแท็บไว้
+    prefOrder.forEach(function(p){ if(brList.indexOf(p)<0) brList.push(p); });
+    if(!_tripBranchTab || brList.indexOf(_tripBranchTab)<0) _tripBranchTab=brList[0];
+    var tabBar='<div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:12px">'
+      + brList.map(function(lb){
+          var active=lb===_tripBranchTab, n=(groups[lb]||[]).length;
+          return '<button onclick="setTripBranchTab(\''+lb.replace(/'/g,"")+'\')" style="padding:8px 16px;border-radius:8px;font-weight:800;font-size:13px;cursor:pointer;border:1.5px solid '+(active?"#0F6E56":"#ddd")+';background:'+(active?"#0F6E56":"#fff")+';color:'+(active?"#fff":"#666")+'">🏢 '+lb+' ('+n+')</button>';
+        }).join("")
+      +'</div>';
+    var cards=(groups[_tripBranchTab]||[]).map(tripCardHTML).join("");
+    openCards = tabBar + (cards||'<div style="text-align:center;padding:20px;color:#aaa">สาขานี้ไม่มีเที่ยวที่เปิดอยู่</div>');
   } else {
-    openCards = openTrips.map(tripCardHTML).join("");
+    openCards = openTrips.map(tripCardHTML).join("") || '<div style="text-align:center;padding:20px;color:#aaa">ไม่มีเที่ยวที่เปิดอยู่</div>';
   }
 
   var closedRows = trips.filter(function(t){ return t.status==="closed"; }).map(function(t){
@@ -2114,11 +2121,25 @@ function saveTrip(){
     if(b.status==="ออกบิลรับของ"||b.status==="issued") pickupCount++;
   });
 
+  // ===== กำหนดสาขาของเที่ยว (อย่าใช้ branch ของแอดมิน = all) =====
+  // แก้ไข: คงสาขาเดิมของเที่ยวไว้  |  สร้างใหม่: ใช้สาขาของคนขับที่เลือก
+  var tripBranch;
+  if(_tripState.editId){
+    var _exist=(_tripState.openTrips||[]).find(function(x){return x.id===_tripState.editId;});
+    tripBranch = _exist && _exist.branch ? _exist.branch : null;
+  }
+  if(!tripBranch){
+    var _drv=(_tripState.drivers||[]).find(function(d){return d.username===driverUsername;});
+    var _db=_drv?_drv.branch:"";
+    var _map={"กรุงเทพ":"กรุงเทพ","ปทุมธานี":"กรุงเทพ","นครราชสีมา":"นครราชสีมา","ศรีสะเกษ":"ศรีสะเกษ"};
+    tripBranch = _map[_db] || _db || (getUserBranch()==="all" ? "กรุงเทพ" : getUserBranch());
+  }
+
   var trip = {
     id: _tripState.editId || "",
     driverUsername: driverUsername,
     driverName: driverName,
-    branch: getUserBranch(),
+    branch: tripBranch,
     route: (document.getElementById("tf-route")||{}).value||"",
     departDate: (document.getElementById("tf-depart")||{}).value||"",
     days: parseInt((document.getElementById("tf-days")||{}).value||1),
@@ -3269,9 +3290,13 @@ function saveTripFromDispatch(bills, driverUsername, driverName){
 
 function _doSaveNewTrip(bills, driverUsername, driverName, billIds){
   // สร้าง trip เปล่าๆ — admin กรอกรายละเอียดใน "จัดการเที่ยว" ทีหลัง
+  var _dList = (_tripState&&_tripState.drivers)||[];
+  var _drv = _dList.find(function(d){return d.username===driverUsername;});
+  var _map={"กรุงเทพ":"กรุงเทพ","ปทุมธานี":"กรุงเทพ","นครราชสีมา":"นครราชสีมา","ศรีสะเกษ":"ศรีสะเกษ"};
+  var _tb = (_drv&&(_map[_drv.branch]||_drv.branch)) || (getUserBranch()==="all"?"กรุงเทพ":getUserBranch());
   var trip={
     driverUsername:driverUsername, driverName:driverName,
-    branch:getUserBranch(),
+    branch:_tb,
     route:"", departDate:new Date().toISOString().slice(0,10),
     days:1, baseFare:0, extraFare:0, hotelFare:0,
     fuelPriceBase:0, fuelPriceAddon:0, fuelPrice:0, fuelRate:8,
