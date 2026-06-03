@@ -297,6 +297,30 @@ tr:hover td{background:#f8fffe}
           <input id="ct-draw-rate" type="number" style="width:100%;padding:7px 10px;border:1px solid #ddd;border-radius:7px;font-size:12px" placeholder="0" step="0.1" oninput="calcClearTrip()">
         </div>
       </div>
+      <div style="border-top:1px dashed #f0b0b0;margin:8px 0 6px"></div>
+      <div style="font-size:10px;font-weight:700;color:#c0392b;margin-bottom:6px">ค่าใช้จ่ายจริงระหว่างทาง (บริษัทออกให้ พขร.)</div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">
+        <div>
+          <div style="font-size:10px;color:#888;margin-bottom:3px">🛣️ ค่าทางด่วน (฿)</div>
+          <input id="ct-tollway" type="number" style="width:100%;padding:7px 10px;border:1px solid #ddd;border-radius:7px;font-size:12px" placeholder="0" oninput="calcClearTrip()">
+        </div>
+        <div>
+          <div style="font-size:10px;color:#888;margin-bottom:3px">🏨 ค่าโรงแรมจริง (฿)</div>
+          <input id="ct-hotel-real" type="number" style="width:100%;padding:7px 10px;border:1px solid #ddd;border-radius:7px;font-size:12px" placeholder="0" oninput="calcClearTrip()">
+        </div>
+      </div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:6px">
+        <div>
+          <div style="font-size:10px;color:#888;margin-bottom:3px">🔧 จิปาถะ ปะยาง/ซ่อม (฿)</div>
+          <input id="ct-misc" type="number" style="width:100%;padding:7px 10px;border:1px solid #ddd;border-radius:7px;font-size:12px" placeholder="0" oninput="calcClearTrip()">
+          <input id="ct-misc-note" type="text" placeholder="ระบุรายการ (ถ้ามี)" style="width:100%;margin-top:4px;padding:5px 8px;border:1px solid #eee;border-radius:6px;font-size:11px">
+        </div>
+        <div>
+          <div style="font-size:10px;color:#888;margin-bottom:3px">📋 ภาษีหัก ณ ที่จ่าย w/t (฿)</div>
+          <input id="ct-wht" type="number" style="width:100%;padding:7px 10px;border:1px solid #ddd;border-radius:7px;font-size:12px" placeholder="0" oninput="calcClearTrip()">
+          <div style="font-size:9px;color:#aaa;margin-top:2px">ลูกค้าปลายทางหักไว้ (ไม่ใช่ทุกราย) — กรอกเอง</div>
+        </div>
+      </div>
     </div>
 
     <!-- สรุป -->
@@ -304,22 +328,22 @@ tr:hover td{background:#f8fffe}
       <div style="font-size:10px;opacity:.8;margin-bottom:8px">📊 สรุปยอดเคลียร์</div>
       <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">
         <div>
-          <div style="font-size:10px;opacity:.8">ต้องเคลียร์</div>
+          <div style="font-size:10px;opacity:.8">บ.ต้องจ่าย พขร (A)</div>
           <div id="ct-must-pay" style="font-size:18px;font-weight:800">—</div>
         </div>
         <div>
-          <div style="font-size:10px;opacity:.8">เบิกรวม+ค่าเบิก</div>
+          <div style="font-size:10px;opacity:.8">พขร.ต้องส่ง (B)</div>
           <div id="ct-total-advance" style="font-size:18px;font-weight:800">—</div>
         </div>
       </div>
       <div style="border-top:1px solid rgba(255,255,255,.3);margin:8px 0;padding-top:8px;display:grid;grid-template-columns:1fr 1fr;gap:8px">
         <div>
-          <div style="font-size:10px;opacity:.8">ยอดต้องคืน/รับคืน</div>
+          <div style="font-size:10px;opacity:.8">สรุป (A−B−ภาษี)</div>
           <div id="ct-net" style="font-size:20px;font-weight:800">—</div>
         </div>
         <div>
-          <div style="font-size:10px;opacity:.8">ค่าน้ำมันจริง</div>
-          <div id="ct-fuel-diff" style="font-size:14px;font-weight:700;opacity:.9">—</div>
+          <div style="font-size:10px;opacity:.8">รายละเอียด</div>
+          <div id="ct-fuel-diff" style="font-size:12px;font-weight:700;opacity:.9">—</div>
         </div>
       </div>
     </div>
@@ -3438,6 +3462,11 @@ function openClearTrip(tripId){
   }
   g("ct-other-advance", trip.clearData&&trip.clearData.otherAdvance||"");
   g("ct-draw-rate", trip.clearData&&trip.clearData.drawRate||"");
+  g("ct-tollway", trip.clearData&&trip.clearData.tollway||"");
+  g("ct-hotel-real", trip.clearData&&trip.clearData.hotel||"");
+  g("ct-misc", trip.clearData&&trip.clearData.misc||"");
+  g("ct-misc-note", trip.clearData&&trip.clearData.miscNote||"");
+  g("ct-wht", trip.clearData&&trip.clearData.wht!=null?trip.clearData.wht:"");
   g("ct-clr-cash", trip.clearData&&trip.clearData.clrCash||"");
   g("ct-clr-trans", trip.clearData&&trip.clearData.clrTrans||"");
 
@@ -3481,32 +3510,41 @@ function calcClearTrip(){
   var fe = document.getElementById("ct-fuel-real");
   if(fe) fe.value = fuelReal > 0 ? fuelReal.toLocaleString("th-TH")+" ฿" : "—";
 
-  // ต้องเคลียร์ = ปลายทาง + COD + งานรับเก็บปลาย (ดึงจากบิลจริง)
+  // ===== สูตรตามใบจ่ายงานจริง =====
   var destAmt   = parseFloat(trip._liveDest!=null?trip._liveDest:(s.destTotal||0));
   var codAmt    = parseFloat(trip._liveCod!=null?trip._liveCod:(s.codTotal||0));
+  var pkCash    = parseFloat((document.getElementById("ct-pickup-cash")||{}).value||0);
   var pkDest    = parseFloat((document.getElementById("ct-pickup-dest")||{}).value||0);
-  var mustPay   = destAmt + codAmt + pkDest;
-
-  // เงินเบิกรวม = เบิกน้ำมัน + เบิกอื่น + ค่าเบิก
   var fuelAdv   = parseFloat(trip.fuelAdvance||0);
   var otherAdv  = parseFloat((document.getElementById("ct-other-advance")||{}).value||0);
   var drawRate  = parseFloat((document.getElementById("ct-draw-rate")||{}).value||0)/100;
-  var totalAdv  = fuelAdv + otherAdv;
-  var drawFee   = Math.round(totalAdv * drawRate);
-  var totalAdvWithFee = totalAdv + drawFee;
+  var drawFee   = Math.round((fuelAdv+otherAdv) * drawRate);
 
-  // ยอดต้องคืน = เบิกรวม+ค่าเบิก - ต้องเคลียร์
-  // ถ้า + → คนรถต้องคืน, ถ้า - → บริษัทคืนคนรถ
-  var netPay = totalAdvWithFee - mustPay;
+  // ค่าใช้จ่ายจริงระหว่างทาง (บริษัทออกให้ พขร — ฝั่ง พขร.ต้องส่ง)
+  var tollway = parseFloat((document.getElementById("ct-tollway")||{}).value||0);
+  var hotel   = parseFloat((document.getElementById("ct-hotel-real")||{}).value||0);
+  var misc    = parseFloat((document.getElementById("ct-misc")||{}).value||0);
+
+  // หักภาษี ณ ที่จ่าย (w/t ที่ลูกค้าปลายทางหักไว้ — กรอกเอง ไม่ใช่ทุกราย)
+  var wht = parseFloat((document.getElementById("ct-wht")||{}).value||0);
+
+  var clrCash = parseFloat((document.getElementById("ct-clr-cash")||{}).value||0);
+  var clrTrans= parseFloat((document.getElementById("ct-clr-trans")||{}).value||0);
+
+  // ฝั่ง A: บ.ต้องจ่าย พขร = เก็บปลายทาง + งานรับสด + งานรับเก็บปลาย + COD + เบิกน้ำมันล่วงหน้า + เบิกอื่น + ค่าเบิก
+  var companyPays = destAmt + pkCash + pkDest + codAmt + fuelAdv + otherAdv + drawFee;
+  // ฝั่ง B: พขร.ต้องส่ง = ส่งเงิน(สด+โอน) + น้ำมันจริง + ทางด่วน + โรงแรม + จิปาถะ
+  var driverReturns = clrCash + clrTrans + fuelReal + tollway + hotel + misc;
+  // สรุป = A - B - ภาษีหัก ณ ที่จ่าย  (+ = บริษัทจ่ายให้ พขร, - = พขร.ค้างบริษัท)
+  var netPay = companyPays - driverReturns - wht;
 
   var fmt = function(n){ return (Math.round(n)||0).toLocaleString("th-TH"); };
   var sg = function(id, val){ var el=document.getElementById(id); if(el)el.textContent=val; };
-  sg("ct-must-pay", fmt(mustPay)+" ฿");
-  sg("ct-total-advance", fmt(totalAdvWithFee)+" ฿"+(drawFee>0?" (รวมค่าเบิก "+fmt(drawFee)+"฿)":""));
-  sg("ct-net", (netPay>=0?"+":"")+fmt(netPay)+" ฿");
-  sg("ct-fuel-diff", "น้ำมันจริง "+fmt(fuelReal)+" ฿ (เบิกล่วงหน้า "+fmt(fuelAdv)+" ฿)");
+  sg("ct-must-pay", fmt(companyPays)+" ฿");
+  sg("ct-total-advance", fmt(driverReturns)+" ฿");
+  sg("ct-net", (netPay>=0?"บ.จ่าย พขร +":"พขร.ค้าง ")+fmt(Math.abs(netPay))+" ฿");
+  sg("ct-fuel-diff", "น้ำมันจริง "+fmt(fuelReal)+" ฿ · หักภาษี "+fmt(wht)+" ฿"+(tollway+hotel+misc>0?" · ค่าใช้จ่าย "+fmt(tollway+hotel+misc)+" ฿":""));
 
-  // สีสรุป
   var sumEl = document.getElementById("ct-summary");
   if(sumEl) sumEl.style.background = netPay < 0 ? "#1565C0" : "#0F6E56";
 
@@ -3514,8 +3552,6 @@ function calcClearTrip(){
 }
 
 function calcClearDiff(){
-  var trip = _clearTripData||{};
-  var s = trip.summary||{};
   var trip = _clearTripData||{};
   var s = trip.summary||{};
   var destAmt = parseFloat(trip._liveDest!=null?trip._liveDest:(s.destTotal||0));
@@ -3563,21 +3599,27 @@ function saveClearTrip(){
   var drawFee = Math.round(totalAdv * drawRate);
   var destAmt = parseFloat(trip._liveDest!=null?trip._liveDest:(s.destTotal||0));
   var codAmt  = parseFloat(trip._liveCod!=null?trip._liveCod:(s.codTotal||0));
-  var mustPay = destAmt + codAmt + pkDest;
   var clrCash = parseFloat((document.getElementById("ct-clr-cash")||{}).value||0);
   var clrTrans= parseFloat((document.getElementById("ct-clr-trans")||{}).value||0);
-  var diff    = (clrCash + clrTrans) - mustPay;
-  var fine    = diff < 0
-    ? (Math.abs(diff)>=2500 ? Math.round(Math.abs(diff)*0.05)
-    : Math.abs(diff)>=1200 ? Math.round(Math.abs(diff)*0.03) : 0) : 0;
+  var tollway = parseFloat((document.getElementById("ct-tollway")||{}).value||0);
+  var hotel   = parseFloat((document.getElementById("ct-hotel-real")||{}).value||0);
+  var misc    = parseFloat((document.getElementById("ct-misc")||{}).value||0);
+  var miscNote= (document.getElementById("ct-misc-note")||{}).value||"";
+  var wht     = parseFloat((document.getElementById("ct-wht")||{}).value||0);
+
+  var companyPays   = destAmt + pkCash + pkDest + codAmt + parseFloat(trip.fuelAdvance||0) + otherAdv + drawFee;
+  var driverReturns = clrCash + clrTrans + fuelReal + tollway + hotel + misc;
+  var netPay = companyPays - driverReturns - wht;
 
   var clearData = {
     odomEnd: odoEnd, distReal: distReal, fuelReal: fuelReal,
     fuelPrice: fuelPrice, fuelRate: fuelRate, fuelAddon: fuelAddon, fuelEff: fuelEff,
     pickupCash: pkCash, pickupDest: pkDest,
+    tollway: tollway, hotel: hotel, misc: misc, miscNote: miscNote, wht: wht,
+    companyPays: companyPays, driverReturns: driverReturns, netPay: netPay,
     otherAdvance: otherAdv, drawRate: drawRate*100, drawFee: drawFee,
-    mustPay: mustPay, clrCash: clrCash, clrTrans: clrTrans,
-    diff: diff, fine: fine, clearedAt: new Date().toISOString(),
+    mustPay: companyPays, clrCash: clrCash, clrTrans: clrTrans,
+    diff: netPay, clearedAt: new Date().toISOString(),
     clearedBy: CU ? CU.username : ""
   };
 
