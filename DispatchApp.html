@@ -1331,7 +1331,10 @@ function renderTripList(){
       +'<td style="text-align:right;color:#E67E22">'+fmt(s.destTotal||0)+'</td>'
       +'<td style="text-align:right;color:#c0392b">'+fmt(s.codTotal||0)+'</td>'
       +'<td style="text-align:right;color:#0F6E56">'+fmt(t.baseFare||0)+'</td>'
-      +'<td><button class="btn btn-gray" data-tid="'+t.id+'" onclick="printTripSummary(this.dataset.tid)">🖨</button></td>'
+      +'<td style="white-space:nowrap">'
+        +'<button class="btn btn-gray" data-tid="'+t.id+'" onclick="printTripSummary(this.dataset.tid)">🖨</button>'
+        +(canClearTrip()?' <button class="btn" data-tid="'+t.id+'" onclick="reopenTrip(this.dataset.tid)" style="background:#E67E22;color:#fff">↩️ เปิดอีกครั้ง</button>':'')
+      +'</td>'
       +'</tr>';
   }).join("");
 
@@ -2158,8 +2161,23 @@ function saveTrip(){
 }
 
 function closeTrip(tripId){
-  if(!confirm("ปิดเที่ยวนี้?")) return;
+  var t = (_tripState.openTrips||[]).find(function(x){ return x.id===tripId; });
+  var cleared = t && (t.status==="cleared" || (t.clearData && t.clearData.clearedAt));
+  var msg = cleared
+    ? "ปิดเที่ยวนี้? (เคลียร์เงินแล้ว)\nปิดแล้วจะย้ายไปตารางเที่ยวที่ปิดแล้ว"
+    : "⚠️ เที่ยวนี้ยังไม่ได้เคลียร์เงิน!\nควรกด 💰 เคลียร์เที่ยว ก่อนปิด\n\nยืนยันปิดเลยหรือไม่?";
+  if(!confirm(msg)) return;
   GolodDB.updateTrip(tripId, {status:"closed", closedAt: new Date().toISOString()})
+    .then(function(){ renderTripTab(); })
+    .catch(function(e){ alert("❌ "+e.message); });
+}
+
+function reopenTrip(tripId){
+  if(!confirm("เปิดเที่ยวนี้กลับมาแก้ไข/เคลียร์อีกครั้ง?")) return;
+  // ถ้าเคยเคลียร์แล้วให้กลับเป็น cleared ไม่งั้นเป็น open
+  var t = (_tripState.openTrips||[]).find(function(x){ return x.id===tripId; });
+  var back = (t && t.clearData && t.clearData.clearedAt) ? "cleared" : "open";
+  GolodDB.updateTrip(tripId, {status:back, closedAt: null})
     .then(function(){ renderTripTab(); })
     .catch(function(e){ alert("❌ "+e.message); });
 }
