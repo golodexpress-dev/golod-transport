@@ -352,14 +352,14 @@ tr:hover td{background:#f8fffe}
     <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:10px">
       <div>
         <div style="font-size:10px;color:#888;margin-bottom:3px">เคลียร์เงินสด (฿)</div>
-        <input id="ct-clr-cash" type="number" style="width:100%;padding:8px 10px;border:2px solid #0F6E56;border-radius:7px;font-size:13px;font-weight:600" placeholder="0" oninput="calcClearDiff()">
+        <input id="ct-clr-cash" type="number" style="width:100%;padding:8px 10px;border:2px solid #0F6E56;border-radius:7px;font-size:13px;font-weight:600" placeholder="0" oninput="calcClearTrip()">
       </div>
       <div>
         <div style="font-size:10px;color:#888;margin-bottom:3px">เคลียร์โอน (฿)</div>
-        <input id="ct-clr-trans" type="number" style="width:100%;padding:8px 10px;border:2px solid #0F6E56;border-radius:7px;font-size:13px;font-weight:600" placeholder="0" oninput="calcClearDiff()">
+        <input id="ct-clr-trans" type="number" style="width:100%;padding:8px 10px;border:2px solid #0F6E56;border-radius:7px;font-size:13px;font-weight:600" placeholder="0" oninput="calcClearTrip()">
       </div>
     </div>
-    <div id="ct-diff-row" style="text-align:center;font-size:16px;font-weight:800;padding:8px;border-radius:8px;margin-bottom:10px;display:none"></div>
+    <div id="ct-diff-row" style="display:none"></div>
 
     <div class="btn-row">
       <button class="btn btn-gray" onclick="closeClearTrip()">ยกเลิก</button>
@@ -3554,30 +3554,9 @@ function calcClearTrip(){
 }
 
 function calcClearDiff(){
-  var trip = _clearTripData||{};
-  var s = trip.summary||{};
-  var destAmt = parseFloat(trip._liveDest!=null?trip._liveDest:(s.destTotal||0));
-  var codAmt  = parseFloat(trip._liveCod!=null?trip._liveCod:(s.codTotal||0));
-  var pkDest  = parseFloat((document.getElementById("ct-pickup-dest")||{}).value||0);
-  var mustPay = destAmt + codAmt + pkDest;
-  var clrCash = parseFloat((document.getElementById("ct-clr-cash")||{}).value||0);
-  var clrTrans= parseFloat((document.getElementById("ct-clr-trans")||{}).value||0);
-  var diff = (clrCash + clrTrans) - mustPay;
+  // เลิกใช้แล้ว — รวมเข้ากล่องสรุปหลักด้านบน (พขร.ต้องนำเงินมาคืน / ส่งจริง / สรุป)
   var el = document.getElementById("ct-diff-row");
-  if(!el) return;
-  if(mustPay === 0){ el.style.display="none"; return; }
-  el.style.display = "block";
-  var fine = diff < 0
-    ? (Math.abs(diff)>=2500 ? Math.round(Math.abs(diff)*0.05)
-    : Math.abs(diff)>=1200 ? Math.round(Math.abs(diff)*0.03) : 0)
-    : 0;
-  var txt = diff >= 0
-    ? "✅ เกิน " + diff.toLocaleString("th-TH") + " ฿"
-    : "❌ ขาด " + Math.abs(diff).toLocaleString("th-TH") + " ฿"
-      + (fine>0 ? " | ค่าปรับ " + fine.toLocaleString("th-TH") + " ฿" : "");
-  el.textContent = txt;
-  el.style.background = diff >= 0 ? "#e8f5e9" : "#ffebee";
-  el.style.color = diff >= 0 ? "#1B5E20" : "#B71C1C";
+  if(el){ el.style.display="none"; el.textContent=""; }
 }
 
 function saveClearTrip(){
