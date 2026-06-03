@@ -2293,7 +2293,7 @@ function renderMonthlyTab(){
   });
 }
 
-function renderMonthlyView(drivers, allTrips, selMonth, selDriver){
+function renderMonthlyView(drivers, allTrips, selMonth, selDriver, dateFrom, dateTo){
   var ub = getUserBranch();
   var isAdmin = CU && CU.role==="admin";
   var fmt = function(n){ return n?Math.round(n).toLocaleString("th-TH"):"-"; };
@@ -2302,9 +2302,13 @@ function renderMonthlyView(drivers, allTrips, selMonth, selDriver){
   var trips = allTrips.filter(function(t){
     if(ub!=="all" && t.branch!==ub) return false;
     if(selDriver && t.driverUsername!==selDriver) return false;
-    if(selMonth){
-      var dp = (t.departDate||t.createdAt||"").slice(0,7);
-      if(dp!==selMonth) return false;
+    var dp = (t.departDate||t.createdAt||"").slice(0,10);
+    if(dateFrom || dateTo){
+      // โหมดช่วงวันที่ (มีผลเหนือกว่าเดือน)
+      if(dateFrom && dp < dateFrom) return false;
+      if(dateTo && dp > dateTo) return false;
+    } else if(selMonth){
+      if(dp.slice(0,7)!==selMonth) return false;
     }
     return true;
   });
@@ -2361,7 +2365,9 @@ function renderMonthlyView(drivers, allTrips, selMonth, selDriver){
       var status = t.status==="cleared"?'<span style="color:#0F6E56;font-weight:700">✅</span>'
                  : t.status==="open"?'<span style="color:#EF9F27">🟡</span>':'';
       var diffClr = diff<0?"color:#c0392b":"color:#0F6E56";
-      return '<tr style="border-bottom:1px solid #f0f0f0">'
+      var rowClick = canClearTrip()? ' onclick="openClearTripFromMonthly(\''+t.id+'\')" style="border-bottom:1px solid #f0f0f0;cursor:pointer" title="คลิกเพื่อแก้ไข/เคลียร์เที่ยวนี้"'
+                                   : ' style="border-bottom:1px solid #f0f0f0"';
+      return '<tr'+rowClick+'>'
         +'<td style="text-align:center;color:#888;font-size:10px">'+(i+1)+'</td>'
         +'<td style="text-align:center">'+status+'</td>'
         +'<td style="font-size:11px;color:#888">'+((t.departDate||"").slice(5)||"—")+'</td>'
@@ -2418,7 +2424,7 @@ function renderMonthlyView(drivers, allTrips, selMonth, selDriver){
         +'<div style="opacity:.5">+</div>'
         +'<div><div style="font-size:9px;opacity:.8">เบี้ย+ค่าโทร</div><div style="font-weight:800">'+fmt(bonus+phone)+'</div></div>'
         +'<div style="opacity:.5">−</div>'
-        +'<div><div style="font-size:9px;opacity:.8">เบิก/เกินรวม</div><div style="font-weight:800">'+fmt(tot.diff)+'</div></div>'
+        +'<div><div style="font-size:9px;opacity:.8">พขร.ค้าง(+)/บ.จ่าย(−)</div><div style="font-weight:800">'+fmt(tot.diff)+'</div></div>'
         +'<div style="opacity:.5">−</div>'
         +'<div><div style="font-size:9px;opacity:.8">ประกัน+เบิกร้าน</div><div style="font-weight:800">'+fmt(insurD+drawCash)+'</div></div>'
         +'<div style="background:rgba(255,255,255,.2);border-radius:6px;padding:6px 12px;margin-left:auto">'
@@ -2430,7 +2436,7 @@ function renderMonthlyView(drivers, allTrips, selMonth, selDriver){
     var hCols = '<th>⬛</th><th>สถานะ</th><th>วันที่</th><th>เส้นทาง</th><th>น้ำมัน</th>'
       +(isAdmin?'<th>ค่าเที่ยว</th><th>โรงแรม</th><th>ค่าแรง</th><th>รวมเที่ยว</th>':'')
       +'<th>ปลายทาง</th><th>COD</th><th>รับสด</th><th>รับปลาย</th>'
-      +'<th>ต้องเคลียร์</th><th>เคลียร์สด</th><th>เคลียร์โอน</th><th>ขาด/เกิน</th><th>ปรับ</th>';
+      +'<th>ต้องเคลียร์</th><th>เคลียร์สด</th><th>เคลียร์โอน</th><th>ค้าง(+)/จ่าย(−)</th><th>ปรับ</th>';
 
     tables += '<div class="card" style="margin-bottom:12px">'
       +'<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px">'
@@ -2450,12 +2456,18 @@ function renderMonthlyView(drivers, allTrips, selMonth, selDriver){
   var html = '<div class="card" style="margin-bottom:10px">'
     +'<div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap">'
     +'<div class="card-title" style="margin:0">📅 สรุปสิ้นเดือน</div>'
-    +'<input type="month" value="'+selMonth+'" style="padding:6px 10px;border:1px solid #ddd;border-radius:7px;font-size:12px" '
-    +'onchange="reloadMonthly(this.value, document.getElementById(\'monthly-driver\').value)">'
+    +'<input type="month" id="monthly-month" value="'+(selMonth||"")+'" style="padding:6px 10px;border:1px solid #ddd;border-radius:7px;font-size:12px" '
+    +'onchange="reloadMonthly(this.value, document.getElementById(\'monthly-driver\').value, \'\', \'\')">'
+    +'<span style="font-size:11px;color:#888">หรือช่วงวันที่:</span>'
+    +'<input type="date" id="monthly-from" value="'+(dateFrom||"")+'" style="padding:6px 8px;border:1px solid #ddd;border-radius:7px;font-size:12px" onchange="reloadMonthlyRange()">'
+    +'<span style="color:#aaa">–</span>'
+    +'<input type="date" id="monthly-to" value="'+(dateTo||"")+'" style="padding:6px 8px;border:1px solid #ddd;border-radius:7px;font-size:12px" onchange="reloadMonthlyRange()">'
+    +((dateFrom||dateTo)?'<button class="btn btn-gray" onclick="reloadMonthly(document.getElementById(\'monthly-month\').value||\''+ (selMonth||"") +'\', document.getElementById(\'monthly-driver\').value, \'\', \'\')">✕ ล้างช่วง</button>':'')
     +'<select id="monthly-driver" style="padding:6px 10px;border:1px solid #ddd;border-radius:7px;font-size:12px" '
-    +'onchange="reloadMonthly(document.querySelector(\'input[type=month]\').value,this.value)">'
+    +'onchange="reloadMonthlyRange()">'
     +'<option value="">-- ทุกคน --</option>'+driverOpts+'</select>'
     +'<button class="btn btn-gray" onclick="renderMonthlyTab()">🔄</button>'
+    +(isAdmin?'<span style="font-size:10px;color:#aaa;margin-left:auto">💡 คลิกแถวเที่ยวเพื่อแก้ไข/เคลียร์</span>':'')
     +'</div></div>'
     +tables;
 
@@ -2464,12 +2476,31 @@ function renderMonthlyView(drivers, allTrips, selMonth, selDriver){
   document.getElementById("app").innerHTML = html;
 }
 
-function reloadMonthly(month, driver){
+function reloadMonthly(month, driver, from, to){
   if(window._monthlyCtx){
-    renderMonthlyView(window._monthlyCtx.drivers, window._monthlyCtx.allTrips, month, driver);
+    renderMonthlyView(window._monthlyCtx.drivers, window._monthlyCtx.allTrips, month, driver, from||"", to||"");
   } else {
     renderMonthlyTab();
   }
+}
+
+function reloadMonthlyRange(){
+  var from=(document.getElementById("monthly-from")||{}).value||"";
+  var to=(document.getElementById("monthly-to")||{}).value||"";
+  var month=(document.getElementById("monthly-month")||{}).value||"";
+  var driver=(document.getElementById("monthly-driver")||{}).value||"";
+  renderMonthlyView(window._monthlyCtx.drivers, window._monthlyCtx.allTrips, month, driver, from, to);
+}
+
+// เปิดเคลียร์เที่ยวจากหน้าสรุปสิ้นเดือน (admin คลิกแถว)
+function openClearTripFromMonthly(tripId){
+  if(!canClearTrip()){ return; }
+  var ctx=window._monthlyCtx; if(!ctx) return;
+  var t=(ctx.allTrips||[]).find(function(x){return x.id===tripId;});
+  if(!t){ alert("ไม่พบข้อมูลเที่ยว"); return; }
+  _tripState.openTrips = _tripState.openTrips||[];
+  if(!_tripState.openTrips.find(function(x){return x.id===tripId;})) _tripState.openTrips.push(t);
+  openClearTrip(tripId);
 }
 
 // ===== HISTORY TAB =====
