@@ -1342,10 +1342,10 @@ function renderTripList(){
   // ป้ายสาขาของเที่ยว
   var tripBranchLabel = function(tb){
     tb=tb||"";
-    if(["bkk","ptm","กรุงเทพ","ปทุมธานี","กทม"].indexOf(tb)>=0) return "กรุงเทพ";
+    if(["bkk","ptm","กรุงเทพ","ปทุมธานี","กทม","all",""].indexOf(tb)>=0) return "กรุงเทพ";
     if(["krt","นครราชสีมา","สาขานครราชสีมา","โคราช"].indexOf(tb)>=0) return "นครราชสีมา";
     if(["ssk","ศรีสะเกษ","สาขาศรีสะเกษ"].indexOf(tb)>=0) return "ศรีสะเกษ";
-    return tb||"ไม่ระบุสาขา";
+    return "กรุงเทพ"; // ค่าอื่นที่ไม่รู้จัก รวมไว้กรุงเทพ (ไม่ให้มีแท็บแปลกปลอม)
   };
   // ข้อ 2: เรียงตาม createdAt คงที่ (แก้ไขแล้วลำดับไม่กระโดด เพราะ createdAt ไม่เปลี่ยน)
   trips = trips.slice().sort(function(a,b){
