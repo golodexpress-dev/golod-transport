@@ -328,17 +328,17 @@ tr:hover td{background:#f8fffe}
       <div style="font-size:10px;opacity:.8;margin-bottom:8px">📊 สรุปยอดเคลียร์</div>
       <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">
         <div>
-          <div style="font-size:10px;opacity:.8">บ.ต้องจ่าย พขร (A)</div>
+          <div style="font-size:10px;opacity:.8">พขร.ต้องนำเงินมาคืน</div>
           <div id="ct-must-pay" style="font-size:18px;font-weight:800">—</div>
         </div>
         <div>
-          <div style="font-size:10px;opacity:.8">พขร.ต้องส่ง (B)</div>
+          <div style="font-size:10px;opacity:.8">ส่งจริง (สด+โอน)</div>
           <div id="ct-total-advance" style="font-size:18px;font-weight:800">—</div>
         </div>
       </div>
       <div style="border-top:1px solid rgba(255,255,255,.3);margin:8px 0;padding-top:8px;display:grid;grid-template-columns:1fr 1fr;gap:8px">
         <div>
-          <div style="font-size:10px;opacity:.8">สรุป (A−B−ภาษี)</div>
+          <div style="font-size:10px;opacity:.8">สรุป (+ พขร.ค้าง / − บ.จ่าย)</div>
           <div id="ct-net" style="font-size:20px;font-weight:800">—</div>
         </div>
         <div>
@@ -3531,22 +3531,24 @@ function calcClearTrip(){
   var clrCash = parseFloat((document.getElementById("ct-clr-cash")||{}).value||0);
   var clrTrans= parseFloat((document.getElementById("ct-clr-trans")||{}).value||0);
 
-  // ฝั่ง A: บ.ต้องจ่าย พขร = เก็บปลายทาง + งานรับสด + งานรับเก็บปลาย + COD + เบิกน้ำมันล่วงหน้า + เบิกอื่น + ค่าเบิก
-  var companyPays = destAmt + pkCash + pkDest + codAmt + fuelAdv + otherAdv + drawFee;
-  // ฝั่ง B: พขร.ต้องส่ง = ส่งเงิน(สด+โอน) + น้ำมันจริง + ทางด่วน + โรงแรม + จิปาถะ
-  var driverReturns = clrCash + clrTrans + fuelReal + tollway + hotel + misc;
-  // สรุป = A - B - ภาษีหัก ณ ที่จ่าย  (+ = บริษัทจ่ายให้ พขร, - = พขร.ค้างบริษัท)
-  var netPay = companyPays - driverReturns - wht;
+  // ===== สูตรเงินที่พนักงานต้องนำมาคืน =====
+  // พขร.ต้องคืน = COD(เงินสด) + เก็บปลายทาง + รับของจ่ายต้นทาง + เบิกน้ำมันล่วงหน้า
+  //              − ค่าน้ำมันที่คำนวณ − (ทางด่วน + โรงแรม + จิปาถะ + w/t)
+  var mustReturn = (codAmt + destAmt + pkDest + pkCash + fuelAdv + otherAdv + drawFee)
+                 - fuelReal - (tollway + hotel + misc + wht);
+  var paid = clrCash + clrTrans;            // เงินที่ส่งจริง
+  // นิยาม: + = พนักงานเป็นลูกหนี้ (ค้างบริษัท), − = บริษัทเป็นลูกหนี้พนักงาน (บริษัทต้องจ่าย)
+  var netPay = mustReturn - paid;
 
   var fmt = function(n){ return (Math.round(n)||0).toLocaleString("th-TH"); };
   var sg = function(id, val){ var el=document.getElementById(id); if(el)el.textContent=val; };
-  sg("ct-must-pay", fmt(companyPays)+" ฿");
-  sg("ct-total-advance", fmt(driverReturns)+" ฿");
-  sg("ct-net", (netPay>=0?"บ.จ่าย พขร +":"พขร.ค้าง ")+fmt(Math.abs(netPay))+" ฿");
-  sg("ct-fuel-diff", "น้ำมันจริง "+fmt(fuelReal)+" ฿ · หักภาษี "+fmt(wht)+" ฿"+(tollway+hotel+misc>0?" · ค่าใช้จ่าย "+fmt(tollway+hotel+misc)+" ฿":""));
+  sg("ct-must-pay", fmt(mustReturn)+" ฿");
+  sg("ct-total-advance", fmt(paid)+" ฿");
+  sg("ct-net", (Math.abs(netPay)<1?"✅ ครบพอดี 0":(netPay>0?"พขร.ค้างบริษัท +":"บริษัทต้องจ่าย พขร −")+fmt(Math.abs(netPay)))+" ฿");
+  sg("ct-fuel-diff", "น้ำมันจริง "+fmt(fuelReal)+" ฿ · หักค่าใช้จ่าย "+fmt(tollway+hotel+misc+wht)+" ฿");
 
   var sumEl = document.getElementById("ct-summary");
-  if(sumEl) sumEl.style.background = netPay < 0 ? "#1565C0" : "#0F6E56";
+  if(sumEl) sumEl.style.background = netPay > 1 ? "#c0392b" : (netPay<-1?"#1565C0":"#0F6E56");
 
   calcClearDiff();
 }
@@ -3607,18 +3609,19 @@ function saveClearTrip(){
   var miscNote= (document.getElementById("ct-misc-note")||{}).value||"";
   var wht     = parseFloat((document.getElementById("ct-wht")||{}).value||0);
 
-  var companyPays   = destAmt + pkCash + pkDest + codAmt + parseFloat(trip.fuelAdvance||0) + otherAdv + drawFee;
-  var driverReturns = clrCash + clrTrans + fuelReal + tollway + hotel + misc;
-  var netPay = companyPays - driverReturns - wht;
+  var mustReturn = (codAmt + destAmt + pkDest + pkCash + parseFloat(trip.fuelAdvance||0) + otherAdv + drawFee)
+                 - fuelReal - (tollway + hotel + misc + wht);
+  var paid = clrCash + clrTrans;
+  var netPay = mustReturn - paid; // + = พขร.ค้างบริษัท, − = บริษัทต้องจ่าย พขร
 
   var clearData = {
     odomEnd: odoEnd, distReal: distReal, fuelReal: fuelReal,
     fuelPrice: fuelPrice, fuelRate: fuelRate, fuelAddon: fuelAddon, fuelEff: fuelEff,
     pickupCash: pkCash, pickupDest: pkDest,
     tollway: tollway, hotel: hotel, misc: misc, miscNote: miscNote, wht: wht,
-    companyPays: companyPays, driverReturns: driverReturns, netPay: netPay,
+    mustReturn: mustReturn, paid: paid, netPay: netPay,
     otherAdvance: otherAdv, drawRate: drawRate*100, drawFee: drawFee,
-    mustPay: companyPays, clrCash: clrCash, clrTrans: clrTrans,
+    mustPay: mustReturn, clrCash: clrCash, clrTrans: clrTrans,
     diff: netPay, clearedAt: new Date().toISOString(),
     clearedBy: CU ? CU.username : ""
   };
