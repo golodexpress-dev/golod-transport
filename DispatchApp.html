@@ -2416,9 +2416,9 @@ function renderMonthlyView(drivers, allTrips, selMonth, selDriver, dateFrom, dat
       var bonus   = dTrips.reduce(function(a,t){ return a+parseFloat(t.bonusFare||0); },0);
       var phone   = dTrips.reduce(function(a,t){ return a+parseFloat(t.phoneFare||0); },0);
       var insurD  = dTrips.reduce(function(a,t){ return a+parseFloat(t.insurDeduct||0); },0);
-      var drawCash= dTrips.reduce(function(a,t){ return a+parseFloat(t.drawCash||0); },0);
+      // หมายเหตุ: ไม่หัก drawCash/เบิกน้ำมันล่วงหน้าซ้ำ — ถูกหักในขั้นเคลียร์ (tot.diff) แล้ว
       var incomeTotal = tot.fareTotal + bonus + phone;
-      var netIncome   = incomeTotal - tot.diff - insurD - drawCash;
+      var netIncome   = incomeTotal - tot.diff - tot.fine - insurD;
       netSummary = '<div style="background:#0F6E56;color:#fff;border-radius:8px;padding:10px 14px;margin-top:8px;display:flex;gap:16px;flex-wrap:wrap;align-items:center">'
         +'<div><div style="font-size:9px;opacity:.8">ค่าเที่ยวรวม</div><div style="font-weight:800">'+fmt(tot.fareTotal)+'</div></div>'
         +'<div style="opacity:.5">+</div>'
@@ -2426,7 +2426,9 @@ function renderMonthlyView(drivers, allTrips, selMonth, selDriver, dateFrom, dat
         +'<div style="opacity:.5">−</div>'
         +'<div><div style="font-size:9px;opacity:.8">พขร.ค้าง(+)/บ.จ่าย(−)</div><div style="font-weight:800">'+fmt(tot.diff)+'</div></div>'
         +'<div style="opacity:.5">−</div>'
-        +'<div><div style="font-size:9px;opacity:.8">ประกัน+เบิกร้าน</div><div style="font-weight:800">'+fmt(insurD+drawCash)+'</div></div>'
+        +'<div><div style="font-size:9px;opacity:.8">ค่าปรับ</div><div style="font-weight:800">'+fmt(tot.fine)+'</div></div>'
+        +'<div style="opacity:.5">−</div>'
+        +'<div><div style="font-size:9px;opacity:.8">ประกัน</div><div style="font-weight:800">'+fmt(insurD)+'</div></div>'
         +'<div style="background:rgba(255,255,255,.2);border-radius:6px;padding:6px 12px;margin-left:auto">'
         +'<div style="font-size:10px;opacity:.8">รายได้สุทธิ</div>'
         +'<div style="font-size:18px;font-weight:800">'+fmt(netIncome)+' ฿</div>'
@@ -3588,13 +3590,16 @@ function calcClearTrip(){
   var paid = clrCash + clrTrans;            // เงินที่ส่งจริง
   // นิยาม: + = พนักงานเป็นลูกหนี้ (ค้างบริษัท), − = บริษัทเป็นลูกหนี้พนักงาน (บริษัทต้องจ่าย)
   var netPay = mustReturn - paid;
+  // ค่าปรับกรณีส่งขาด (พขร.ค้าง): ≥2,500 → 5%, ≥1,200 → 3%, ต่ำกว่านั้นไม่ปรับ
+  var fine = netPay >= 2500 ? Math.round(netPay*0.05)
+           : netPay >= 1200 ? Math.round(netPay*0.03) : 0;
 
   var fmt = function(n){ return (Math.round(n)||0).toLocaleString("th-TH"); };
   var sg = function(id, val){ var el=document.getElementById(id); if(el)el.textContent=val; };
   sg("ct-must-pay", fmt(mustReturn)+" ฿");
   sg("ct-total-advance", fmt(paid)+" ฿");
   sg("ct-net", (Math.abs(netPay)<1?"✅ ครบพอดี 0":(netPay>0?"พขร.ค้างบริษัท +":"บริษัทต้องจ่าย พขร −")+fmt(Math.abs(netPay)))+" ฿");
-  sg("ct-fuel-diff", "น้ำมันจริง "+fmt(fuelReal)+" ฿ · หักค่าใช้จ่าย "+fmt(tollway+hotel+misc+wht)+" ฿");
+  sg("ct-fuel-diff", "น้ำมันจริง "+fmt(fuelReal)+" ฿ · หักค่าใช้จ่าย "+fmt(tollway+hotel+misc+wht)+" ฿"+(fine>0?" · ⚠️ ค่าปรับ "+fmt(fine)+" ฿":""));
 
   var sumEl = document.getElementById("ct-summary");
   if(sumEl) sumEl.style.background = netPay > 1 ? "#c0392b" : (netPay<-1?"#1565C0":"#0F6E56");
@@ -3641,13 +3646,15 @@ function saveClearTrip(){
                  - fuelReal - (tollway + hotel + misc + wht);
   var paid = clrCash + clrTrans;
   var netPay = mustReturn - paid; // + = พขร.ค้างบริษัท, − = บริษัทต้องจ่าย พขร
+  var fine = netPay >= 2500 ? Math.round(netPay*0.05)
+           : netPay >= 1200 ? Math.round(netPay*0.03) : 0;
 
   var clearData = {
     odomEnd: odoEnd, distReal: distReal, fuelReal: fuelReal,
     fuelPrice: fuelPrice, fuelRate: fuelRate, fuelAddon: fuelAddon, fuelEff: fuelEff,
     pickupCash: pkCash, pickupDest: pkDest,
     tollway: tollway, hotel: hotel, misc: misc, miscNote: miscNote, wht: wht,
-    mustReturn: mustReturn, paid: paid, netPay: netPay,
+    mustReturn: mustReturn, paid: paid, netPay: netPay, fine: fine,
     otherAdvance: otherAdv, drawRate: drawRate*100, drawFee: drawFee,
     mustPay: mustReturn, clrCash: clrCash, clrTrans: clrTrans,
     diff: netPay, clearedAt: new Date().toISOString(),
