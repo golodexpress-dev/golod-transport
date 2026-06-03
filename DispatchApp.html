@@ -1627,12 +1627,14 @@ function renderTripForm(existingTrip){
       +'<div><div class="trip-lbl">เบี้ยขยัน (฿)</div>'
       +'<input class="trip-inp" readonly value="'+(t.bonusFare||"—")+'" style="background:#f5f5f5;color:#888"></div>'
       +'</div>')
-    +'<div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:10px">'
-    +'<label style="font-size:12px;display:flex;align-items:center;gap:4px"><input type="checkbox" id="tf-x1" '+(t.extras&&t.extras.overweight?"checked":"")+' '+(isAdmin?'':'disabled')+'>น้ำหนักเกิน</label>'
-    +'<label style="font-size:12px;display:flex;align-items:center;gap:4px"><input type="checkbox" id="tf-x2" '+(t.extras&&t.extras.openTail?"checked":"")+' '+(isAdmin?'':'disabled')+'>เปิดท้าย</label>'
-    +'<label style="font-size:12px;display:flex;align-items:center;gap:4px"><input type="checkbox" id="tf-x3" '+(t.extras&&t.extras.longLoad?"checked":"")+' '+(isAdmin?'':'disabled')+'>ยื่นยาว</label>'
-    +'<label style="font-size:12px;display:flex;align-items:center;gap:4px"><input type="checkbox" id="tf-x4" '+(t.extras&&t.extras.overHeight?"checked":"")+' '+(isAdmin?'':'disabled')+'>สูงเกิน</label>'
+    +'<div class="trip-section-title">💪 ค่าแรงค่าตร. (กรอกเงินแต่ละเงื่อนไข)</div>'
+    +'<div class="trip-form-grid cols2" style="margin-bottom:6px">'
+    +'<div><div class="trip-lbl">แบกน้ำหนัก (฿)</div><input id="tf-x1" type="number" class="trip-inp" placeholder="0" value="'+(t.extras&&t.extras.overweight||"")+'" '+(isAdmin?'':'readonly')+' oninput="calcTotalFare()"></div>'
+    +'<div><div class="trip-lbl">เปิดท้าย (฿)</div><input id="tf-x2" type="number" class="trip-inp" placeholder="0" value="'+(t.extras&&t.extras.openTail||"")+'" '+(isAdmin?'':'readonly')+' oninput="calcTotalFare()"></div>'
+    +'<div><div class="trip-lbl">ยื่นยาว (฿)</div><input id="tf-x3" type="number" class="trip-inp" placeholder="0" value="'+(t.extras&&t.extras.longLoad||"")+'" '+(isAdmin?'':'readonly')+' oninput="calcTotalFare()"></div>'
+    +'<div><div class="trip-lbl">สูงเกิน (฿)</div><input id="tf-x4" type="number" class="trip-inp" placeholder="0" value="'+(t.extras&&t.extras.overHeight||"")+'" '+(isAdmin?'':'readonly')+' oninput="calcTotalFare()"></div>'
     +'</div>'
+    +'<div style="font-size:11px;color:#888;margin-bottom:10px">รวมค่าแรงค่าตร.: <b id="tf-labor-sum" style="color:#0F6E56">0</b> ฿</div>'
 
     +'<div class="trip-section-title">⛽ ค่าน้ำมัน</div>'
     +'<div class="trip-form-grid cols3">'
@@ -1689,8 +1691,14 @@ function calcTotalFare(){
   var ratePerBill = parseFloat((document.getElementById("tf-rate-per-bill")||{}).value||0);
   var billCount = parseInt(((document.getElementById("tf-bill-count-disp")||{}).value||"0"))||0;
   var rateTotal = ratePerBill * billCount;
+  // ค่าแรงค่าตร. = ผลรวมเงื่อนไข แบกน้ำหนัก/เปิดท้าย/ยื่นยาว/สูงเกิน
+  var laborSum = parseFloat((document.getElementById("tf-x1")||{}).value||0)
+               + parseFloat((document.getElementById("tf-x2")||{}).value||0)
+               + parseFloat((document.getElementById("tf-x3")||{}).value||0)
+               + parseFloat((document.getElementById("tf-x4")||{}).value||0);
+  var lsEl=document.getElementById("tf-labor-sum"); if(lsEl) lsEl.textContent=laborSum.toLocaleString("th-TH");
   var fareTotal = base + extra + hotel;
-  var incomeTotal = fareTotal + phone + bonus + rateTotal;
+  var incomeTotal = fareTotal + phone + bonus + rateTotal + laborSum;
 
   // ประกัน
   var insurCarry  = parseFloat((document.getElementById("tf-insur-carry")||{}).value||0);
@@ -2048,13 +2056,20 @@ function saveTrip(){
 
   // คำนวณ summary
   var destTotal=0, codTotal=0, pickupCount=0;
+  var revOrigin=0, revTransfer=0, revCredit=0, revDestCash=0, revDestTransfer=0;
   selBills.forEach(function(b){
     var form=b.form||{};
     var pay=b.freightPay||form.freightPay||"origin";
     var net=parseFloat(b.freightNet||0);
     var cod=parseFloat(b.codTotal||0);
-    if(pay==="dest") destTotal+=net;
+    if(pay==="dest"||pay==="dest_cash") destTotal+=net;
     if(cod>0) codTotal+=cod;
+    // แยกรายได้ตามวิธีจ่าย
+    if(pay==="origin") revOrigin+=net;
+    else if(pay==="transfer") revTransfer+=net;
+    else if(pay==="credit") revCredit+=net;
+    else if(pay==="dest_transfer") revDestTransfer+=net;
+    else if(pay==="dest"||pay==="dest_cash") revDestCash+=net;
     // งานรับ = บิลที่ยัง ออกบิลรับของ (ต้องไปรับของ)
     if(b.status==="ออกบิลรับของ"||b.status==="issued") pickupCount++;
   });
@@ -2098,17 +2113,18 @@ function saveTrip(){
     insurDraw: parseFloat((document.getElementById("tf-insur-draw")||{}).value||0),
     drawCash: parseFloat((document.getElementById("tf-draw-cash")||{}).value||0),
     extras: {
-      overweight: !!(document.getElementById("tf-x1")||{}).checked,
-      openTail:   !!(document.getElementById("tf-x2")||{}).checked,
-      longLoad:   !!(document.getElementById("tf-x3")||{}).checked,
-      overHeight: !!(document.getElementById("tf-x4")||{}).checked
+      overweight: parseFloat((document.getElementById("tf-x1")||{}).value||0),
+      openTail:   parseFloat((document.getElementById("tf-x2")||{}).value||0),
+      longLoad:   parseFloat((document.getElementById("tf-x3")||{}).value||0),
+      overHeight: parseFloat((document.getElementById("tf-x4")||{}).value||0)
     },
     billIds: billIds,
     pickups: getTfPickupData(),
     status: "open",
     createdAt: _tripState.editId ? undefined : new Date().toISOString(),
     createdBy: CU ? CU.username : "",
-    summary: {billCount:billIds.length, destTotal:destTotal, codTotal:codTotal, pickupCount:pickupCount}
+    summary: {billCount:billIds.length, destTotal:destTotal, codTotal:codTotal, pickupCount:pickupCount,
+      revOrigin:revOrigin, revTransfer:revTransfer, revCredit:revCredit, revDestCash:revDestCash, revDestTransfer:revDestTransfer}
   };
   if(!trip.id) delete trip.id;
   if(trip.createdAt === undefined) delete trip.createdAt;
@@ -2363,14 +2379,22 @@ function renderMonthlyView(drivers, allTrips, selMonth, selDriver, dateFrom, dat
     var tot = {fare:0,hotel:0,labor:0,fareTotal:0,fuel:0,
                dest:0,cod:0,pkCash:0,pkDest:0,
                mustPay:0,advance:0,drawFee:0,
-               clrCash:0,clrTrans:0,diff:0,fine:0};
+               clrCash:0,clrTrans:0,diff:0,fine:0,
+               rOrigin:0,rTransfer:0,rCredit:0,rDestTransfer:0,
+               delivered:0,failed:0,workFee:0};
 
     var rows = dTrips.map(function(t,i){
       var s = t.summary||{};
       var cd = t.clearData||{};
+      var rev = cd.rev || {origin:s.revOrigin,transfer:s.revTransfer,credit:s.revCredit,destTransfer:s.revDestTransfer};
+      var rOrigin=parseFloat(rev.origin||0), rTransfer=parseFloat(rev.transfer||0), rCredit=parseFloat(rev.credit||0), rDestTransfer=parseFloat(rev.destTransfer||0);
       var fare = parseFloat(t.baseFare||0)+parseFloat(t.extraFare||0);
       var hotel = parseFloat(t.hotelFare||0);
-      var labor = parseFloat(t.ratePerBill||0)*(s.billCount||0);
+      var ex = t.extras||{};
+      var labor = (parseFloat(ex.overweight)||0)+(parseFloat(ex.openTail)||0)+(parseFloat(ex.longLoad)||0)+(parseFloat(ex.overHeight)||0);
+      var delivered = cd.deliveredCount!=null?cd.deliveredCount:null;
+      var failed    = cd.failedCount!=null?cd.failedCount:null;
+      var workFee   = cd.workFee!=null?parseFloat(cd.workFee): (delivered!=null?parseFloat(t.ratePerBill||0)*delivered:0);
       var fareTotal = fare+hotel+labor;
       var fuel = parseFloat(cd.fuelReal||t.fuelEst||0);
       var dest = parseFloat(s.destTotal||0);
@@ -2389,6 +2413,8 @@ function renderMonthlyView(drivers, allTrips, selMonth, selDriver, dateFrom, dat
       tot.pkCash+=pkC; tot.pkDest+=pkD; tot.mustPay+=mustP;
       tot.advance+=adv; tot.drawFee+=drawF;
       tot.clrCash+=clrC; tot.clrTrans+=clrT; tot.diff+=diff; tot.fine+=fine;
+      tot.rOrigin+=rOrigin; tot.rTransfer+=rTransfer; tot.rCredit+=rCredit; tot.rDestTransfer+=rDestTransfer;
+      tot.delivered+=(delivered||0); tot.failed+=(failed||0); tot.workFee+=(workFee||0);
 
       var status = t.status==="cleared"?'<span style="color:#0F6E56;font-weight:700">✅</span>'
                  : t.status==="open"?'<span style="color:#EF9F27">🟡</span>':'';
@@ -2400,11 +2426,18 @@ function renderMonthlyView(drivers, allTrips, selMonth, selDriver, dateFrom, dat
         +'<td style="text-align:center">'+status+'</td>'
         +'<td style="font-size:11px;color:#888">'+((t.departDate||"").slice(5)||"—")+'</td>'
         +'<td style="font-size:11px">'+((t.route||"—").slice(0,10))+'</td>'
+        +'<td style="text-align:center;font-size:11px;color:#0F6E56;font-weight:700">'+(delivered!=null?delivered:"-")+'</td>'
+        +'<td style="text-align:center;font-size:11px;color:#c0392b">'+(failed!=null?failed:"-")+'</td>'
         +'<td style="text-align:right;font-size:11px;color:#b7950b">'+fmt(fuel)+'</td>'
         +(isAdmin?'<td style="text-align:right;font-size:11px">'+fmt(fare)+'</td>'
           +'<td style="text-align:right;font-size:11px">'+fmt(hotel)+'</td>'
           +'<td style="text-align:right;font-size:11px">'+fmt(labor)+'</td>'
-          +'<td style="text-align:right;font-size:11px;font-weight:700;color:#0F6E56">'+fmt(fareTotal)+'</td>':'')
+          +'<td style="text-align:right;font-size:11px;color:#0F6E56">'+fmt(workFee)+'</td>'
+          +'<td style="text-align:right;font-size:11px;font-weight:700;color:#0F6E56">'+fmt(fareTotal)+'</td>'
+          +'<td style="text-align:right;font-size:11px;color:#1565C0">'+fmt(rOrigin)+'</td>'
+          +'<td style="text-align:right;font-size:11px;color:#1565C0">'+fmt(rTransfer)+'</td>'
+          +'<td style="text-align:right;font-size:11px;color:#8e44ad">'+fmt(rCredit)+'</td>'
+          +'<td style="text-align:right;font-size:11px;color:#00838f">'+fmt(rDestTransfer)+'</td>':'')
         +'<td style="text-align:right;font-size:11px">'+fmt(dest)+'</td>'
         +'<td style="text-align:right;font-size:11px;color:#c0392b">'+fmt(cod)+'</td>'
         +'<td style="text-align:right;font-size:11px">'+fmt(pkC)+'</td>'
@@ -2422,11 +2455,18 @@ function renderMonthlyView(drivers, allTrips, selMonth, selDriver, dateFrom, dat
     var totDiffClr = totDiff<0?"color:#c0392b":"color:#0F6E56";
     var sumRow = '<tr style="background:#f0faf5;font-weight:700;font-size:11px">'
       +'<td colspan="4" style="text-align:right;color:#0F6E56">รวม</td>'
+      +'<td style="text-align:center;color:#0F6E56">'+tot.delivered+'</td>'
+      +'<td style="text-align:center;color:#c0392b">'+tot.failed+'</td>'
       +'<td style="text-align:right;color:#b7950b">'+fmt(tot.fuel)+'</td>'
       +(isAdmin?'<td style="text-align:right">'+fmt(tot.fare)+'</td>'
         +'<td style="text-align:right">'+fmt(tot.hotel)+'</td>'
         +'<td style="text-align:right">'+fmt(tot.labor)+'</td>'
-        +'<td style="text-align:right;color:#0F6E56">'+fmt(tot.fareTotal)+'</td>':'')
+        +'<td style="text-align:right;color:#0F6E56">'+fmt(tot.workFee)+'</td>'
+        +'<td style="text-align:right;color:#0F6E56">'+fmt(tot.fareTotal)+'</td>'
+        +'<td style="text-align:right;color:#1565C0">'+fmt(tot.rOrigin)+'</td>'
+        +'<td style="text-align:right;color:#1565C0">'+fmt(tot.rTransfer)+'</td>'
+        +'<td style="text-align:right;color:#8e44ad">'+fmt(tot.rCredit)+'</td>'
+        +'<td style="text-align:right;color:#00838f">'+fmt(tot.rDestTransfer)+'</td>':'')
       +'<td style="text-align:right">'+fmt(tot.dest)+'</td>'
       +'<td style="text-align:right;color:#c0392b">'+fmt(tot.cod)+'</td>'
       +'<td style="text-align:right">'+fmt(tot.pkCash)+'</td>'
@@ -2454,7 +2494,7 @@ function renderMonthlyView(drivers, allTrips, selMonth, selDriver, dateFrom, dat
       var insCarryOut = insCarry + insDeduct - insDraw;
       var capReached = insCap>0 && insCarry>=insCap;
 
-      var incomeTotal = tot.fareTotal + bonus + phone;
+      var incomeTotal = tot.fareTotal + bonus + phone + tot.workFee;
       var netIncome   = incomeTotal - tot.diff - tot.fine - insDeduct;
 
       var insPanel = '<div style="background:#fff8e1;border:1px solid #ffe082;border-radius:8px;padding:10px;margin-top:8px">'
@@ -2474,6 +2514,8 @@ function renderMonthlyView(drivers, allTrips, selMonth, selDriver, dateFrom, dat
         +'<div><div style="font-size:9px;opacity:.8">ค่าเที่ยวรวม</div><div style="font-weight:800">'+fmt(tot.fareTotal)+'</div></div>'
         +'<div style="opacity:.5">+</div>'
         +'<div><div style="font-size:9px;opacity:.8">เบี้ย+ค่าโทร</div><div style="font-weight:800">'+fmt(bonus+phone)+'</div></div>'
+        +'<div style="opacity:.5">+</div>'
+        +'<div><div style="font-size:9px;opacity:.8">ค่าส่งงาน</div><div style="font-weight:800">'+fmt(tot.workFee)+'</div></div>'
         +'<div style="opacity:.5">−</div>'
         +'<div><div style="font-size:9px;opacity:.8">พขร.ค้าง(+)/บ.จ่าย(−)</div><div style="font-weight:800">'+fmt(tot.diff)+'</div></div>'
         +'<div style="opacity:.5">−</div>'
@@ -2487,8 +2529,8 @@ function renderMonthlyView(drivers, allTrips, selMonth, selDriver, dateFrom, dat
         + insPanel;
     }
 
-    var hCols = '<th>⬛</th><th>สถานะ</th><th>วันที่</th><th>เส้นทาง</th><th>น้ำมัน</th>'
-      +(isAdmin?'<th>ค่าเที่ยว</th><th>โรงแรม</th><th>ค่าแรง</th><th>รวมเที่ยว</th>':'')
+    var hCols = '<th>⬛</th><th>สถานะ</th><th>วันที่</th><th>เส้นทาง</th><th>ส่งได้</th><th>ส่งไม่ได้</th><th>น้ำมัน</th>'
+      +(isAdmin?'<th>ค่าเที่ยว</th><th>โรงแรม</th><th>ค่าแรงค่าตร.</th><th>ค่าส่งงาน</th><th>รวมเที่ยว</th><th>ต้นทาง</th><th>โอน</th><th>เครดิต</th><th>ปลายทางโอน</th>':'')
       +'<th>ปลายทาง</th><th>COD</th><th>รับสด</th><th>รับปลาย</th>'
       +'<th>ต้องเคลียร์</th><th>เคลียร์สด</th><th>เคลียร์โอน</th><th>ค้าง(+)/จ่าย(−)</th><th>ปรับ</th>';
 
@@ -3333,7 +3375,7 @@ function _doSaveNewTrip(bills, driverUsername, driverName, billIds){
     days:1, baseFare:0, extraFare:0, hotelFare:0,
     fuelPriceBase:0, fuelPriceAddon:0, fuelPrice:0, fuelRate:8,
     fuelAdvance:0, odomStart:0,
-    extras:{overweight:false,openTail:false,longLoad:false,overHeight:false},
+    extras:{overweight:0,openTail:0,longLoad:0,overHeight:0},
     billIds:billIds,
     status:"open",
     createdAt:new Date().toISOString(),
@@ -3617,15 +3659,28 @@ function openClearTrip(tripId){
   // ดึงตรงจาก Firestore ด้วย billIds — รองรับเที่ยวที่วิ่งจบแล้ว (บิลหลุดจาก BILLS)
   function computeFromBills(tb){
     var liveDest=0, liveCod=0, pkCash=0, pkDest=0;
+    var rOrigin=0, rTransfer=0, rCredit=0, rDestCash=0, rDestTransfer=0;
+    var delivered=0, failed=0;
     tb.forEach(function(b){
       var pay=b.freightPay||(b.form&&b.form.freightPay)||"origin";
       var net=parseFloat(b.freightNet||0), cod=parseFloat(b.codTotal||0);
       var isPickup=(b.status==="ออกบิลรับของ"||b.status==="issued"||b.status==="");
-      if(pay==="dest"){ if(isPickup) pkDest+=net; else liveDest+=net; }
+      if(pay==="dest"||pay==="dest_cash"){ if(isPickup) pkDest+=net; else liveDest+=net; }
       if(cod>0) liveCod+=cod;
-      if(isPickup && pay!=="dest") pkCash+=net;
+      if(isPickup && pay!=="dest" && pay!=="dest_cash") pkCash+=net;
+      // แยกรายได้ตามวิธีจ่าย
+      if(pay==="origin") rOrigin+=net;
+      else if(pay==="transfer") rTransfer+=net;
+      else if(pay==="credit") rCredit+=net;
+      else if(pay==="dest_transfer") rDestTransfer+=net;
+      else if(pay==="dest"||pay==="dest_cash") rDestCash+=net;
+      // นับส่งได้/ส่งไม่ได้
+      if(SUCCESS_STATUS.indexOf(b.status||"")>=0) delivered++;
+      else if(REDO_STATUS.indexOf(b.status||"")>=0) failed++;
     });
     trip._liveDest=liveDest; trip._liveCod=liveCod;
+    trip._rev={origin:rOrigin,transfer:rTransfer,credit:rCredit,destCash:rDestCash,destTransfer:rDestTransfer};
+    trip._delivered=delivered; trip._failed=failed;
     var gg=function(id,val){var el=document.getElementById(id);if(el)el.value=(val!=null&&val!=="")?val:"";};
     gg("ct-dest-amt", liveDest.toLocaleString("th-TH"));
     gg("ct-cod-amt", liveCod.toLocaleString("th-TH"));
@@ -3810,6 +3865,10 @@ function saveClearTrip(){
     tollway: tollway, hotel: hotel, misc: misc, miscNote: miscNote, wht: wht,
     mustReturn: mustReturn, paid: paid, netPay: netPay, fine: fine,
     adjApproved: remarksApprovedSum(), adjPending: remarksPendingSum(), remarks: _clearRemarks,
+    rev: (trip._rev||null),
+    deliveredCount: (trip._delivered!=null?trip._delivered:null),
+    failedCount: (trip._failed!=null?trip._failed:null),
+    workFee: (trip._delivered!=null? parseFloat(trip.ratePerBill||0)*trip._delivered : null),
     otherAdvance: otherAdv, drawRate: drawRate*100, drawFee: drawFee,
     mustPay: mustReturn, clrCash: clrCash, clrTrans: clrTrans,
     diff: netPay, clearedAt: new Date().toISOString(),
