@@ -2280,13 +2280,15 @@ function renderMonthlyTab(){
   var now = new Date();
   var defMonth = now.getFullYear()+"-"+String(now.getMonth()+1).padStart(2,"0");
 
-  // โหลด drivers + trips
+  // โหลด drivers + trips + ข้อมูลประกันรายเดือน
   Promise.all([
     GolodDB.getUsers ? GolodDB.getUsers() : Promise.resolve([]),
-    GolodDB.getTrips ? GolodDB.getTrips({limitN:500}) : Promise.resolve([])
+    GolodDB.getTrips ? GolodDB.getTrips({limitN:500}) : Promise.resolve([]),
+    (GolodDB.getSetting ? GolodDB.getSetting("insuranceMonthly") : Promise.resolve(null))
   ]).then(function(results){
     var drivers = (results[0]||[]).filter(function(u){ return u.role==="driver"; });
     var allTrips = results[1]||[];
+    window._insurData = results[2] && typeof results[2]==="object" ? results[2] : {};
     renderMonthlyView(drivers, allTrips, defMonth, "");
   }).catch(function(e){
     app.innerHTML = '<div class="card"><div class="loading">❌ '+e.message+'</div></div>';
@@ -2415,10 +2417,33 @@ function renderMonthlyView(drivers, allTrips, selMonth, selDriver, dateFrom, dat
     if(isAdmin){
       var bonus   = dTrips.reduce(function(a,t){ return a+parseFloat(t.bonusFare||0); },0);
       var phone   = dTrips.reduce(function(a,t){ return a+parseFloat(t.phoneFare||0); },0);
-      var insurD  = dTrips.reduce(function(a,t){ return a+parseFloat(t.insurDeduct||0); },0);
-      // หมายเหตุ: ไม่หัก drawCash/เบิกน้ำมันล่วงหน้าซ้ำ — ถูกหักในขั้นเคลียร์ (tot.diff) แล้ว
+      // ===== เงินประกัน (ลงตอนสรุปสิ้นเดือน) =====
+      var uname = (dTrips[0]&&dTrips[0].driverUsername)||dData.name;
+      var insKey = uname + "_" + (selMonth || (dateFrom||"").slice(0,7) || "x");
+      var insRec = (window._insurData&&window._insurData[insKey]) || {};
+      var insCarry = parseFloat(insRec.carryIn||0);
+      var insCap   = parseFloat(insRec.cap||0);
+      var insDeduct= parseFloat(insRec.deduct||0);
+      var insDraw  = dTrips.reduce(function(a,t){ return a+parseFloat(t.insurDraw||0); },0);
+      var insCarryOut = insCarry + insDeduct - insDraw;
+      var capReached = insCap>0 && insCarry>=insCap;
+
       var incomeTotal = tot.fareTotal + bonus + phone;
-      var netIncome   = incomeTotal - tot.diff - tot.fine - insurD;
+      var netIncome   = incomeTotal - tot.diff - tot.fine - insDeduct;
+
+      var insPanel = '<div style="background:#fff8e1;border:1px solid #ffe082;border-radius:8px;padding:10px;margin-top:8px">'
+        +'<div style="font-size:11px;font-weight:700;color:#b7950b;margin-bottom:6px">🛡️ เงินประกัน (เดือน '+(selMonth||(dateFrom?dateFrom.slice(0,7):"-"))+')</div>'
+        +'<div style="display:flex;gap:8px;flex-wrap:wrap;align-items:flex-end">'
+        +'<div><div style="font-size:9px;color:#888">ยอดยกมา</div><input id="ins-carry-'+uname+'" type="number" value="'+(insRec.carryIn!=null?insRec.carryIn:"")+'" placeholder="0" style="width:90px;padding:5px 8px;border:1px solid #ddd;border-radius:6px;font-size:12px"></div>'
+        +'<div><div style="font-size:9px;color:#888">เพดาน (2หมื่น/3หมื่น)</div><input id="ins-cap-'+uname+'" type="number" value="'+(insRec.cap!=null?insRec.cap:"")+'" placeholder="20000" style="width:90px;padding:5px 8px;border:1px solid #ddd;border-radius:6px;font-size:12px"></div>'
+        +'<div><div style="font-size:9px;color:#888">+ หักเข้ากองทุน</div><input id="ins-deduct-'+uname+'" type="number" value="'+(insRec.deduct!=null?insRec.deduct:"")+'" placeholder="0" style="width:90px;padding:5px 8px;border:1px solid '+(capReached?"#e0a0a0":"#0F6E56")+';border-radius:6px;font-size:12px"></div>'
+        +'<div><div style="font-size:9px;color:#888">− เบิกประกัน(รายเที่ยว)</div><div style="font-weight:700;color:#c0392b;padding:5px 0">'+fmt(insDraw)+'</div></div>'
+        +'<div><div style="font-size:9px;color:#888">= ยกไป</div><div style="font-weight:800;color:#0F6E56;padding:5px 0">'+fmt(insCarryOut)+'</div></div>'
+        +'<button class="btn btn-green" onclick="saveInsuranceMonthly(\''+uname+'\',\''+(selMonth||(dateFrom?dateFrom.slice(0,7):""))+'\','+insDraw+')" style="font-size:11px">💾 บันทึกประกัน</button>'
+        +'</div>'
+        +(capReached?'<div style="font-size:10px;color:#c0392b;margin-top:4px">⚠️ ยอดยกมาถึงเพดาน '+fmt(insCap)+' แล้ว — ปกติไม่ต้องหักเข้ากองทุนอีก</div>':'')
+        +'</div>';
+
       netSummary = '<div style="background:#0F6E56;color:#fff;border-radius:8px;padding:10px 14px;margin-top:8px;display:flex;gap:16px;flex-wrap:wrap;align-items:center">'
         +'<div><div style="font-size:9px;opacity:.8">ค่าเที่ยวรวม</div><div style="font-weight:800">'+fmt(tot.fareTotal)+'</div></div>'
         +'<div style="opacity:.5">+</div>'
@@ -2428,11 +2453,12 @@ function renderMonthlyView(drivers, allTrips, selMonth, selDriver, dateFrom, dat
         +'<div style="opacity:.5">−</div>'
         +'<div><div style="font-size:9px;opacity:.8">ค่าปรับ</div><div style="font-weight:800">'+fmt(tot.fine)+'</div></div>'
         +'<div style="opacity:.5">−</div>'
-        +'<div><div style="font-size:9px;opacity:.8">ประกัน</div><div style="font-weight:800">'+fmt(insurD)+'</div></div>'
+        +'<div><div style="font-size:9px;opacity:.8">หักเข้ากองทุนประกัน</div><div style="font-weight:800">'+fmt(insDeduct)+'</div></div>'
         +'<div style="background:rgba(255,255,255,.2);border-radius:6px;padding:6px 12px;margin-left:auto">'
         +'<div style="font-size:10px;opacity:.8">รายได้สุทธิ</div>'
         +'<div style="font-size:18px;font-weight:800">'+fmt(netIncome)+' ฿</div>'
-        +'</div></div>';
+        +'</div></div>'
+        + insPanel;
     }
 
     var hCols = '<th>⬛</th><th>สถานะ</th><th>วันที่</th><th>เส้นทาง</th><th>น้ำมัน</th>'
@@ -2484,6 +2510,26 @@ function reloadMonthly(month, driver, from, to){
   } else {
     renderMonthlyTab();
   }
+}
+
+function saveInsuranceMonthly(uname, month, insDraw){
+  if(!month){ alert("เลือกเดือนก่อนบันทึกประกัน"); return; }
+  var carryIn = parseFloat((document.getElementById("ins-carry-"+uname)||{}).value||0);
+  var cap     = parseFloat((document.getElementById("ins-cap-"+uname)||{}).value||0);
+  var deduct  = parseFloat((document.getElementById("ins-deduct-"+uname)||{}).value||0);
+  if(cap>0 && carryIn>=cap && deduct>0){
+    if(!confirm("ยอดยกมา ("+carryIn.toLocaleString()+") ถึงเพดาน ("+cap.toLocaleString()+") แล้ว\nยังจะหักเข้ากองทุนอีก "+deduct.toLocaleString()+" หรือไม่?")) return;
+  }
+  window._insurData = window._insurData||{};
+  var key = uname+"_"+month;
+  window._insurData[key] = {carryIn:carryIn, cap:cap, deduct:deduct,
+    drawSum:parseFloat(insDraw||0), carryOut:carryIn+deduct-parseFloat(insDraw||0),
+    savedAt:new Date().toISOString(), savedBy:CU?CU.username:""};
+  if(!GolodDB.saveSetting){ alert("golod-firebase.js ยังไม่อัปเดต"); return; }
+  GolodDB.saveSetting("insuranceMonthly", window._insurData).then(function(){
+    alert("✅ บันทึกเงินประกันของ "+uname+" เดือน "+month+" แล้ว\nยอดยกไป = "+(carryIn+deduct-parseFloat(insDraw||0)).toLocaleString());
+    reloadMonthlyRange();
+  }).catch(function(e){ alert("❌ "+e.message); });
 }
 
 function reloadMonthlyRange(){
