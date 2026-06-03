@@ -3359,18 +3359,30 @@ function getTripBills(trip){
   return ids.map(function(id){ return pool[id]; }).filter(Boolean);
 }
 
-// ดึงบิลของเที่ยวตรงจาก Firestore ด้วย billNo (เที่ยวที่วิ่งจบแล้ว บิลหลุดจาก BILLS)
-function fetchTripBillsFromDB(billIds){
-  if(!billIds || !billIds.length) return Promise.resolve([]);
+// ดึงบิลของเที่ยวตรงจาก Firestore — โดย doc id (=billNo) และ query tripId
+function fetchTripBillsFromDB(trip){
   var db; try{ db=firebase.firestore(); }catch(e){ return Promise.resolve([]); }
-  var chunks=[]; for(var i=0;i<billIds.length;i+=10) chunks.push(billIds.slice(i,i+10));
-  var qs=chunks.map(function(ch){
-    return db.collection("bills").where("billNo","in",ch).get()
-      .then(function(snap){ var a=[]; snap.forEach(function(d){a.push(d.data());}); return a; })
-      .catch(function(){ return []; });
+  var ids=(trip&&trip.billIds)||[];
+  var tasks=[];
+  // 1) ดึงตาม doc id (billNo เป็น docId)
+  ids.forEach(function(id){
+    tasks.push(db.collection("bills").doc(String(id)).get()
+      .then(function(d){ return d.exists?d.data():null; }).catch(function(){ return null; }));
   });
-  return Promise.all(qs).then(function(parts){
-    var out=[]; parts.forEach(function(p){ out=out.concat(p); }); return out;
+  // 2) เผื่อ billIds ไม่ครบ → ดึงด้วย tripId
+  if(trip && trip.id){
+    tasks.push(db.collection("bills").where("tripId","==",trip.id).get()
+      .then(function(snap){ var a=[]; snap.forEach(function(d){a.push(d.data());}); return a; })
+      .catch(function(){ return []; }));
+  }
+  return Promise.all(tasks).then(function(parts){
+    var seen={}, out=[];
+    parts.forEach(function(p){
+      if(!p) return;
+      var arr=Array.isArray(p)?p:[p];
+      arr.forEach(function(b){ if(b&&b.billNo&&!seen[b.billNo]){ seen[b.billNo]=true; out.push(b); } });
+    });
+    return out;
   });
 }
 
@@ -3431,7 +3443,8 @@ function openClearTrip(tripId){
 
   // ดึงยอดบิล: local ก่อน (เร็ว) แล้ว sync จาก Firestore (ครบ)
   computeFromBills(getTripBills(trip));
-  fetchTripBillsFromDB(trip.billIds||[]).then(function(dbBills){
+  fetchTripBillsFromDB(trip).then(function(dbBills){
+    console.log("[clearTrip] bills from DB:", (dbBills||[]).length, "for trip", trip.id, "billIds:", (trip.billIds||[]).length);
     if(dbBills && dbBills.length) computeFromBills(dbBills);
   });
 
