@@ -412,6 +412,12 @@ tr:hover td{background:#f8fffe}
       </select>
     </div>
     <textarea id="modal-status-note" placeholder="หมายเหตุ" rows="2" style="width:100%;padding:8px;border:1px solid #ddd;border-radius:7px;font-family:inherit;font-size:13px;margin-bottom:10px"></textarea>
+    <div id="modal-slip-wrap" style="display:none;margin-bottom:10px;background:#fff8e1;border:1px solid #ffe082;border-radius:8px;padding:10px">
+      <div style="font-size:12px;font-weight:700;color:#b7950b;margin-bottom:6px">📎 ต้องแนบหลักฐานการส่ง (บังคับ)</div>
+      <div id="modal-slip-existing" style="font-size:11px;color:#0F6E56;margin-bottom:6px;display:none">✅ บิลนี้มีสลิป/หลักฐานแล้ว</div>
+      <input type="file" id="modal-slip-file" accept="image/*" capture="environment" style="font-size:12px;width:100%" onchange="onStatusSlipPick(this)">
+      <div id="modal-slip-preview" style="margin-top:6px"></div>
+    </div>
     <div class="btn-row">
       <button class="btn btn-gray" onclick="closeStatusModal()">ยกเลิก</button>
       <button class="btn btn-green" onclick="confirmStatus()">บันทึก</button>
@@ -787,28 +793,6 @@ tr:hover td{background:#f8fffe}
   </div>
 </div>
 
-<div class="modal-bg" id="modal-status">
-  <div class="modal">
-    <h3>อัปเดตสถานะ</h3>
-    <div id="modal-status-bill" style="font-size:12px;color:#666;margin-bottom:10px"></div>
-    <select id="modal-status-sel"></select>
-    <div id="modal-fail-wrap" style="display:none;margin-bottom:10px">
-      <div style="font-size:11px;color:#666;margin-bottom:4px">สาเหตุที่ส่งไม่สำเร็จ:</div>
-      <select id="modal-fail-reason">
-        <option value="ติดต่อไม่ได้">ติดต่อไม่ได้</option>
-        <option value="ลูกค้าหยุด">ลูกค้าหยุด</option>
-        <option value="ลูกค้าไม่รับของ">ลูกค้าไม่รับของ</option>
-        <option value="ของชำรุด">ของชำรุด</option>
-      </select>
-    </div>
-    <textarea id="modal-status-note" placeholder="หมายเหตุ" rows="2" style="width:100%;padding:8px;border:1px solid #ddd;border-radius:7px;font-family:inherit;font-size:13px;margin-bottom:10px"></textarea>
-    <div class="btn-row">
-      <button class="btn btn-gray" onclick="closeStatusModal()">ยกเลิก</button>
-      <button class="btn btn-green" onclick="confirmStatus()">บันทึก</button>
-    </div>
-  </div>
-</div>
-
 <script>
 // ===== SESSION =====
 var CU = null;
@@ -913,6 +897,8 @@ var selectedBills  = {};
 var currentTab     = "pending";
 var dispatchMode   = "";
 var statusTargetBill = null;
+var _statusBill = null;
+var _statusNewSlip = null;
 
 // ============================================================
 // FIX 2: Date filter — default วันนี้, user เลือกช่วงได้
@@ -1088,7 +1074,17 @@ function filterBills(tab){
   var range = getDateRange(filterDateMode);
   var q = _searchQuery || (document.getElementById("q-inp")||{}).value || "";
 
-  return BILLS.filter(function(b){
+  // แท็บ "ทั้งหมด" และ "ส่งสำเร็จ" ต้องเห็นบิลใน DONE_BILLS_CACHE ด้วย
+  // (BILLS ดึงบิลส่งสำเร็จมาจำกัด แต่ DONE_BILLS_CACHE ครบกว่า)
+  var source = BILLS;
+  if((tab==="all" || tab==="done") && DONE_BILLS_CACHE.length>0){
+    var seen={}; source=[];
+    BILLS.concat(DONE_BILLS_CACHE).forEach(function(b){
+      if(b.billNo && !seen[b.billNo]){ seen[b.billNo]=true; source.push(b); }
+    });
+  }
+
+  return source.filter(function(b){
     var st = b.status || "";
     var isActive = ACTIVE_STATUS.indexOf(st) >= 0;
     var isDone   = DONE_TAB_STATUS.indexOf(st) >= 0;
@@ -2676,7 +2672,7 @@ function loadDoneBills(){
         return b;
       });
       DONE_BILLS_LOADED = true;
-      renderDoneTab();
+      if(currentTab==="done") renderDoneTab(); else renderApp();
     }).catch(function(e){
       document.getElementById("app").innerHTML='<div class="card"><div class="loading">❌ โหลดไม่สำเร็จ: '+e.message+'<br><small>ลอง reload หรือตรวจสอบ Firestore index</small></div></div>';
     });
@@ -2864,6 +2860,9 @@ function switchTab(t){
   if(t==="done" && typeof loadDoneBills==="function"){
     // default done tab = 30 วัน (บิลส่งสำเร็จ/ไม่สำเร็จ มักไม่ใช่วันนี้)
     if(filterDateMode==="today"||filterDateMode==="yesterday"||filterDateMode==="week") filterDateMode="month";
+    loadDoneBills();
+  } else if(t==="all" && typeof loadDoneBills==="function" && DONE_BILLS_CACHE.length===0){
+    // แท็บรวม: โหลดบิลส่งจบเข้ามาด้วย (ครั้งแรก) เพื่อให้เห็นครบ แล้ว renderApp
     loadDoneBills();
   } else {
     renderApp();
@@ -3922,27 +3921,65 @@ function rescheduleReturn(billNo){
 // ===== STATUS MODAL =====
 function openStatusModal(billNo){
   // บิล DR- ที่รออนุมัติ → เปิด modal Approve แทน
-  var b=BILLS.find(function(x){return x.billNo===billNo;});
+  var b=BILLS.find(function(x){return x.billNo===billNo;}) || DONE_BILLS_CACHE.find(function(x){return x.billNo===billNo;});
   if(b && b.status==="รออนุมัติ"){
     approveBill(billNo);
     return;
   }
   statusTargetBill=billNo;
+  _statusBill = b || null;
+  _statusNewSlip = null;
   document.getElementById("modal-status-bill").textContent="บิล "+billNo+(b?" — "+(b.destProv||""):"");
+  // ใครกด "ส่งสำเร็จ" ได้: admin / คนขับเจ้าของบิล เท่านั้น
+  var canMarkSuccess = canMarkDelivered(b);
   var sel=document.getElementById("modal-status-sel");
   sel.innerHTML="";
   STATUS_LIST.forEach(function(s){
+    // ซ่อนตัวเลือก "ส่งสำเร็จ" ถ้าไม่มีสิทธิ์ (เว้นแต่บิลนี้สำเร็จอยู่แล้ว)
+    if(SUCCESS_STATUS.indexOf(s.v)>=0 && !canMarkSuccess && !(b&&b.status===s.v)) return;
     var opt=document.createElement("option");
     opt.value=s.v; opt.text=s.l;
     if(b&&b.status===s.v) opt.selected=true;
     sel.appendChild(opt);
   });
+  var existingSlip = b ? (b.slipUrl||b.slip1||(b.form&&(b.form.slipUrl||b.form.slip1))||"") : "";
   sel.onchange=function(){
     document.getElementById("modal-fail-wrap").style.display=sel.value==="ส่งไม่สำเร็จ"?"block":"none";
+    // ต้องแนบสลิปถ้าจะกดส่งสำเร็จ และยังไม่มีสลิปเดิม
+    var needSlip = SUCCESS_STATUS.indexOf(sel.value)>=0;
+    document.getElementById("modal-slip-wrap").style.display = needSlip ? "block" : "none";
+    document.getElementById("modal-slip-existing").style.display = (needSlip && existingSlip) ? "block" : "none";
   };
   document.getElementById("modal-fail-wrap").style.display="none";
+  document.getElementById("modal-slip-wrap").style.display="none";
+  document.getElementById("modal-slip-existing").style.display="none";
+  document.getElementById("modal-slip-preview").innerHTML="";
+  var sf=document.getElementById("modal-slip-file"); if(sf) sf.value="";
   document.getElementById("modal-status-note").value="";
+  sel.onchange(); // เผื่อค่าเริ่มต้นเป็นส่งสำเร็จ
   document.getElementById("modal-status").classList.add("show");
+}
+
+// สิทธิ์กด "ส่งสำเร็จ": admin หรือ คนขับที่รับบิลใบนั้น
+function canMarkDelivered(b){
+  if(!CU) return false;
+  if(CU.role==="admin") return true;
+  // คนขับเจ้าของบิล (driver ตรงกับ username)
+  if(b && (b.driver===CU.username || b.driverName===CU.name)) return true;
+  // หัวหน้าสาขาที่เคลียร์เที่ยวได้
+  if(CLEAR_ALLOWED_USERS.indexOf(CU.username) >= 0) return true;
+  return false;
+}
+
+// เก็บรูปสลิปที่เลือกใน modal (base64)
+function onStatusSlipPick(input){
+  var f=input.files&&input.files[0]; if(!f) return;
+  var rd=new FileReader();
+  rd.onload=function(){
+    _statusNewSlip=rd.result;
+    document.getElementById("modal-slip-preview").innerHTML='<img src="'+rd.result+'" style="max-width:120px;border-radius:6px;border:1px solid #ddd">';
+  };
+  rd.readAsDataURL(f);
 }
 
 function closeStatusModal(){ document.getElementById("modal-status").classList.remove("show"); }
@@ -3950,21 +3987,53 @@ function closeStatusModal(){ document.getElementById("modal-status").classList.r
 function confirmStatus(){
   var newStatus=document.getElementById("modal-status-sel").value;
   var note=document.getElementById("modal-status-note").value;
-  var upd={status:newStatus, updatedAt:new Date().toISOString()};
+  var b=_statusBill;
+  var isSuccess = SUCCESS_STATUS.indexOf(newStatus)>=0;
+
+  // 1) สิทธิ์: กดส่งสำเร็จได้เฉพาะ admin/คนขับเจ้าของบิล
+  if(isSuccess && !canMarkDelivered(b)){
+    alert("❌ คุณไม่มีสิทธิ์เปลี่ยนเป็น 'ส่งสำเร็จ' — เฉพาะคนขับที่รับบิลนี้ หรือแอดมินเท่านั้น");
+    return;
+  }
+  // 2) บังคับแนบสลิปก่อนกดส่งสำเร็จ (ถ้ายังไม่มีสลิปเดิม และไม่ได้แนบใหม่)
+  var existingSlip = b ? (b.slipUrl||b.slip1||(b.form&&(b.form.slipUrl||b.form.slip1))||"") : "";
+  if(isSuccess && !existingSlip && !_statusNewSlip){
+    alert("📎 ต้องแนบรูปหลักฐานการส่ง (สลิป/รูปลายเซ็น) ก่อนจึงจะกด 'ส่งสำเร็จ' ได้");
+    return;
+  }
+
+  // 3) บันทึกผู้เปลี่ยนสถานะ (audit)
+  var who = CU?(CU.name||CU.username):"";
+  var whoCode = CU?CU.username:"";
+  var upd={
+    status:newStatus,
+    updatedAt:new Date().toISOString(),
+    statusBy: whoCode, statusByName: who, statusAt: new Date().toISOString()
+  };
   if(newStatus==="ส่งไม่สำเร็จ"){
     upd.failReason=document.getElementById("modal-fail-reason").value;
   }
   if(note) upd.note=note;
+  if(isSuccess && _statusNewSlip){ upd.slipUrl=_statusNewSlip; upd.deliveredBy=whoCode; upd.deliveredByName=who; }
 
   GolodDB.updateBill(statusTargetBill,upd).then(function(){
-    var b=BILLS.find(function(x){return x.billNo===statusTargetBill;});
-    if(b){
-      b.status=newStatus;
-      if(upd.failReason) b.failReason=upd.failReason;
-    }
+    [BILLS,DONE_BILLS_CACHE].forEach(function(arr){
+      var bb=arr.find(function(x){return x.billNo===statusTargetBill;});
+      if(bb){ bb.status=newStatus; if(upd.failReason)bb.failReason=upd.failReason;
+        bb.statusBy=whoCode; bb.statusByName=who; if(upd.slipUrl)bb.slipUrl=upd.slipUrl; }
+    });
+    // เขียน log การเปลี่ยนสถานะ (ตรวจย้อนได้)
+    try{
+      if(GolodDB.saveDispatchLog) GolodDB.saveDispatchLog({
+        type:"status", billNo:statusTargetBill, newStatus:newStatus,
+        by:whoCode, byName:who, at:new Date().toISOString(),
+        hasSlip: !!(existingSlip||_statusNewSlip), note:note||""
+      }).catch(function(){});
+    }catch(e){}
+    _statusNewSlip=null; _statusBill=null;
     closeStatusModal();
-    alert("✅ อัปเดตสถานะแล้ว");
-    renderApp();
+    alert("✅ อัปเดตสถานะแล้ว (โดย "+who+")");
+    if(currentTab==="done") renderDoneTab(); else renderApp();
   }).catch(function(e){ alert("❌ "+e.message); });
 }
 
