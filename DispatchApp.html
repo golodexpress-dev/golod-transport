@@ -631,7 +631,7 @@ tr:hover td{background:#f8fffe}
 <div class="topbar">
   <span class="title">🚛 จัดการขนส่ง</span>
   <span id="session-info" style="font-size:11px;opacity:.8"></span>
-  <span style="font-size:10px;opacity:.65;margin-left:auto">build 2026-06-03e</span>
+  <span style="font-size:10px;opacity:.65;margin-left:auto">build 2026-06-03f</span>
   <a href="GolodApp.html" style="margin-left:10px">← หน้าหลัก</a>
 </div>
 <div class="container">
@@ -1455,8 +1455,8 @@ function editTrip(tripId){
   _tripState.mode = "edit";
   _tripState.editId = tripId;
   _tripState.selectedBills = {};
-  // โหลด bills ของเที่ยวนี้
   var trip = (_tripState.openTrips||[]).find(function(t){ return t.id===tripId; });
+  // โหลด bills ที่อยู่ใน BILLS ก่อน (เร็ว)
   if(trip && trip.billIds){
     trip.billIds.forEach(function(bno){
       var b = BILLS.find(function(x){ return x.billNo===bno; });
@@ -1464,6 +1464,18 @@ function editTrip(tripId){
     });
   }
   renderTripForm(trip);
+  // เที่ยวที่วิ่งจริง/ส่งจบ บิลหลุดจาก BILLS → ดึงตรงจาก Firestore แล้ว render ใหม่
+  if(trip && typeof fetchTripBillsFromDB==="function"){
+    fetchTripBillsFromDB(trip).then(function(dbBills){
+      if(!dbBills || !dbBills.length) return;
+      var added=0;
+      dbBills.forEach(function(b){
+        if(b && b.billNo && !_tripState.selectedBills[b.billNo]){ _tripState.selectedBills[b.billNo]=b; added++; }
+      });
+      // เฉพาะตอนยังอยู่หน้าแก้ไขเที่ยวเดิม
+      if(_tripState.mode==="edit" && _tripState.editId===tripId && added>0) renderTripForm(trip);
+    }).catch(function(){});
+  }
 }
 
 // ===== ส่งบิลทั้งเที่ยวให้คนรถเห็น (ใช้ billIds ของเที่ยวตรงๆ — กู้เที่ยวเก่าได้) =====
@@ -1594,7 +1606,7 @@ function renderTripForm(existingTrip){
       +'<option value="5"'+(t.ratePerBill===5?" selected":"")+'>5 ฿/บิล</option>'
       +'</select></div>'
       +'<div><div class="trip-lbl">จำนวนบิลในเที่ยว</div>'
-      +'<input id="tf-bill-count-disp" class="trip-inp" readonly value="'+(Object.keys(_tripState.selectedBills).length||t.summary&&t.summary.billCount||0)+' ใบ" style="background:#f5f5f5;font-weight:700"></div>'
+      +'<input id="tf-bill-count-disp" class="trip-inp" readonly value="'+(Object.keys(_tripState.selectedBills).length || (t&&t.billIds&&t.billIds.length) || (t&&t.summary&&t.summary.billCount) || 0)+' ใบ" style="background:#f5f5f5;font-weight:700"></div>'
       +'<div><div class="trip-lbl">ค่าส่งงาน (฿)</div>'
       +'<input id="tf-rate-total" class="trip-inp" readonly style="background:#f0faf5;color:#0F6E56;font-weight:700"></div>'
       +'<div><div class="trip-lbl">รายได้รวม (฿)</div>'
