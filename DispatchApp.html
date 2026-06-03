@@ -225,12 +225,28 @@ tr:hover td{background:#f8fffe}
       <div style="font-size:11px;font-weight:700;color:#b7950b;margin-bottom:8px">⛽ ค่าน้ำมันจริง</div>
       <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px">
         <div>
-          <div style="font-size:10px;color:#888;margin-bottom:3px">ราคา/ลิตร (฿)</div>
+          <div style="font-size:10px;color:#888;margin-bottom:3px">ราคาน้ำมัน/ลิตร (฿)</div>
           <input id="ct-fuel-price" type="number" step="0.01" oninput="calcClearTrip()" style="width:100%;padding:7px 10px;border:1px solid #0F6E56;border-radius:7px;font-size:12px">
         </div>
         <div>
-          <div style="font-size:10px;color:#888;margin-bottom:3px">อัตราสิ้นเปลือง (กม./ลิตร)</div>
+          <div style="font-size:10px;color:#888;margin-bottom:3px">บวกเพิ่ม/ลิตร (฿)</div>
+          <select id="ct-fuel-addon" onchange="onFuelAddonChange()" style="width:100%;padding:7px 6px;border:1px solid #0F6E56;border-radius:7px;font-size:12px">
+            <option value="0">+0</option>
+            <option value="0.2">+0.2</option>
+            <option value="0.3">+0.3</option>
+            <option value="custom">กำหนดเอง</option>
+          </select>
+          <input id="ct-fuel-addon-custom" type="number" step="0.01" placeholder="ระบุ +" oninput="calcClearTrip()" style="display:none;width:100%;margin-top:4px;padding:6px 10px;border:1px solid #ffb74d;border-radius:7px;font-size:12px">
+        </div>
+        <div>
+          <div style="font-size:10px;color:#888;margin-bottom:3px">อัตราสิ้นเปลือง (กม./ล.)</div>
           <input id="ct-fuel-rate" type="number" step="0.1" oninput="calcClearTrip()" style="width:100%;padding:7px 10px;border:1px solid #0F6E56;border-radius:7px;font-size:12px">
+        </div>
+      </div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:8px">
+        <div>
+          <div style="font-size:10px;color:#888;margin-bottom:3px">ราคารวม/ลิตร (฿)</div>
+          <input id="ct-fuel-eff" readonly style="width:100%;padding:7px 10px;border:1px solid #ddd;border-radius:7px;font-size:12px;background:#f5f5f5;font-weight:700;color:#0F6E56">
         </div>
         <div>
           <div style="font-size:10px;color:#b7950b;margin-bottom:3px">ค่าน้ำมันจริง (฿)</div>
@@ -3329,11 +3345,33 @@ function getPickupData(){
 var _clearTripId = null;
 var _clearTripData = null;
 
+function onFuelAddonChange(){
+  var sel=(document.getElementById("ct-fuel-addon")||{}).value;
+  var ci=document.getElementById("ct-fuel-addon-custom");
+  if(ci) ci.style.display = (sel==="custom") ? "block" : "none";
+  calcClearTrip();
+}
+
 function getTripBills(trip){
   var ids=(trip&&trip.billIds)||[];
   var pool={};
   BILLS.concat(DONE_BILLS_CACHE).forEach(function(b){ if(b.billNo) pool[b.billNo]=b; });
   return ids.map(function(id){ return pool[id]; }).filter(Boolean);
+}
+
+// ดึงบิลของเที่ยวตรงจาก Firestore ด้วย billNo (เที่ยวที่วิ่งจบแล้ว บิลหลุดจาก BILLS)
+function fetchTripBillsFromDB(billIds){
+  if(!billIds || !billIds.length) return Promise.resolve([]);
+  var db; try{ db=firebase.firestore(); }catch(e){ return Promise.resolve([]); }
+  var chunks=[]; for(var i=0;i<billIds.length;i+=10) chunks.push(billIds.slice(i,i+10));
+  var qs=chunks.map(function(ch){
+    return db.collection("bills").where("billNo","in",ch).get()
+      .then(function(snap){ var a=[]; snap.forEach(function(d){a.push(d.data());}); return a; })
+      .catch(function(){ return []; });
+  });
+  return Promise.all(qs).then(function(parts){
+    var out=[]; parts.forEach(function(p){ out=out.concat(p); }); return out;
+  });
 }
 
 function openClearTrip(tripId){
@@ -3343,17 +3381,25 @@ function openClearTrip(tripId){
   _clearTripData = trip;
 
   // ===== ดึงยอดจากบิลจริงในเที่ยว (ปลายทาง / COD / งานรับ) =====
-  var tb = getTripBills(trip);
-  var liveDest=0, liveCod=0, pkCash=0, pkDest=0;
-  tb.forEach(function(b){
-    var pay=b.freightPay||(b.form&&b.form.freightPay)||"origin";
-    var net=parseFloat(b.freightNet||0), cod=parseFloat(b.codTotal||0);
-    var isPickup=(b.status==="ออกบิลรับของ"||b.status==="issued"||b.status==="");
-    if(pay==="dest"){ if(isPickup) pkDest+=net; else liveDest+=net; }
-    if(cod>0) liveCod+=cod;
-    if(isPickup && pay!=="dest") pkCash+=net;
-  });
-  trip._liveDest=liveDest; trip._liveCod=liveCod;
+  // ดึงตรงจาก Firestore ด้วย billIds — รองรับเที่ยวที่วิ่งจบแล้ว (บิลหลุดจาก BILLS)
+  function computeFromBills(tb){
+    var liveDest=0, liveCod=0, pkCash=0, pkDest=0;
+    tb.forEach(function(b){
+      var pay=b.freightPay||(b.form&&b.form.freightPay)||"origin";
+      var net=parseFloat(b.freightNet||0), cod=parseFloat(b.codTotal||0);
+      var isPickup=(b.status==="ออกบิลรับของ"||b.status==="issued"||b.status==="");
+      if(pay==="dest"){ if(isPickup) pkDest+=net; else liveDest+=net; }
+      if(cod>0) liveCod+=cod;
+      if(isPickup && pay!=="dest") pkCash+=net;
+    });
+    trip._liveDest=liveDest; trip._liveCod=liveCod;
+    var gg=function(id,val){var el=document.getElementById(id);if(el)el.value=(val!=null&&val!=="")?val:"";};
+    gg("ct-dest-amt", liveDest.toLocaleString("th-TH"));
+    gg("ct-cod-amt", liveCod.toLocaleString("th-TH"));
+    if(!(trip.clearData&&trip.clearData.pickupCash)) gg("ct-pickup-cash", pkCash||"");
+    if(!(trip.clearData&&trip.clearData.pickupDest)) gg("ct-pickup-dest", pkDest||"");
+    calcClearTrip();
+  }
 
   // แสดงข้อมูลเที่ยว
   var s = trip.summary||{};
@@ -3370,14 +3416,24 @@ function openClearTrip(tripId){
   g("ct-fuel-price", trip.fuelPrice||40);
   g("ct-fuel-rate", trip.fuelRate||8);
   g("ct-fuel-advance", trip.fuelAdvance||0);
-  g("ct-dest-amt", liveDest.toLocaleString("th-TH"));
-  g("ct-cod-amt", liveCod.toLocaleString("th-TH"));
-  g("ct-pickup-cash", (trip.clearData&&trip.clearData.pickupCash) || (pkCash||""));
-  g("ct-pickup-dest", (trip.clearData&&trip.clearData.pickupDest) || (pkDest||""));
+  // คืนค่าบวกราคาน้ำมัน
+  var cd=trip.clearData||{};
+  var addonEl=document.getElementById("ct-fuel-addon");
+  if(addonEl){
+    var av=cd.fuelAddon!=null?String(cd.fuelAddon):"0";
+    if(["0","0.2","0.3"].indexOf(av)>=0){ addonEl.value=av; document.getElementById("ct-fuel-addon-custom").style.display="none"; }
+    else { addonEl.value="custom"; var ci=document.getElementById("ct-fuel-addon-custom"); ci.style.display="block"; ci.value=av; }
+  }
   g("ct-other-advance", trip.clearData&&trip.clearData.otherAdvance||"");
   g("ct-draw-rate", trip.clearData&&trip.clearData.drawRate||"");
   g("ct-clr-cash", trip.clearData&&trip.clearData.clrCash||"");
   g("ct-clr-trans", trip.clearData&&trip.clearData.clrTrans||"");
+
+  // ดึงยอดบิล: local ก่อน (เร็ว) แล้ว sync จาก Firestore (ครบ)
+  computeFromBills(getTripBills(trip));
+  fetchTripBillsFromDB(trip.billIds||[]).then(function(dbBills){
+    if(dbBills && dbBills.length) computeFromBills(dbBills);
+  });
 
   calcClearTrip();
   document.getElementById("modal-clear-trip").style.display = "flex";
@@ -3392,17 +3448,23 @@ function calcClearTrip(){
   var trip = _clearTripData||{};
   var s = trip.summary||{};
   var fuelPrice = parseFloat((document.getElementById("ct-fuel-price")||{}).value||trip.fuelPrice||40);
+  var addonSel = (document.getElementById("ct-fuel-addon")||{}).value||"0";
+  var fuelAddon = addonSel==="custom"
+    ? parseFloat((document.getElementById("ct-fuel-addon-custom")||{}).value||0)
+    : parseFloat(addonSel||0);
+  var fuelEff = fuelPrice + fuelAddon;
   var fuelRate  = parseFloat((document.getElementById("ct-fuel-rate")||{}).value||trip.fuelRate||8);
   var odoStart  = parseFloat(trip.odomStart||0);
   var odoEnd    = parseFloat((document.getElementById("ct-odo-end")||{}).value||0);
+  var _eff=document.getElementById("ct-fuel-eff"); if(_eff) _eff.value=fuelEff.toLocaleString("th-TH");
 
   // ระยะทางจริง
   var distReal = odoEnd > odoStart ? odoEnd - odoStart : 0;
   var el = document.getElementById("ct-dist-real");
   if(el) el.value = distReal > 0 ? distReal.toLocaleString("th-TH")+" กม." : "—";
 
-  // ค่าน้ำมันจริง
-  var fuelReal = fuelRate > 0 ? Math.round((distReal/fuelRate)*fuelPrice) : 0;
+  // ค่าน้ำมันจริง (ใช้ราคารวม = ฐาน + บวกเพิ่ม)
+  var fuelReal = fuelRate > 0 ? Math.round((distReal/fuelRate)*fuelEff) : 0;
   var fe = document.getElementById("ct-fuel-real");
   if(fe) fe.value = fuelReal > 0 ? fuelReal.toLocaleString("th-TH")+" ฿" : "—";
 
@@ -3441,8 +3503,10 @@ function calcClearTrip(){
 function calcClearDiff(){
   var trip = _clearTripData||{};
   var s = trip.summary||{};
-  var destAmt = parseFloat(s.destTotal||0);
-  var codAmt  = parseFloat(s.codTotal||0);
+  var trip = _clearTripData||{};
+  var s = trip.summary||{};
+  var destAmt = parseFloat(trip._liveDest!=null?trip._liveDest:(s.destTotal||0));
+  var codAmt  = parseFloat(trip._liveCod!=null?trip._liveCod:(s.codTotal||0));
   var pkDest  = parseFloat((document.getElementById("ct-pickup-dest")||{}).value||0);
   var mustPay = destAmt + codAmt + pkDest;
   var clrCash = parseFloat((document.getElementById("ct-clr-cash")||{}).value||0);
@@ -3470,11 +3534,14 @@ function saveClearTrip(){
   var trip = _clearTripData||{};
   var s = trip.summary||{};
   var fuelPrice = parseFloat((document.getElementById("ct-fuel-price")||{}).value||trip.fuelPrice||40);
+  var addonSel = (document.getElementById("ct-fuel-addon")||{}).value||"0";
+  var fuelAddon = addonSel==="custom" ? parseFloat((document.getElementById("ct-fuel-addon-custom")||{}).value||0) : parseFloat(addonSel||0);
+  var fuelEff = fuelPrice + fuelAddon;
   var fuelRate  = parseFloat((document.getElementById("ct-fuel-rate")||{}).value||trip.fuelRate||8);
   var odoEnd = parseFloat((document.getElementById("ct-odo-end")||{}).value||0);
   var odoStart = parseFloat(trip.odomStart||0);
   var distReal = odoEnd > odoStart ? odoEnd - odoStart : parseFloat(trip.fuelDist||0);
-  var fuelReal = fuelRate>0 ? Math.round((distReal/fuelRate)*fuelPrice) : 0;
+  var fuelReal = fuelRate>0 ? Math.round((distReal/fuelRate)*fuelEff) : 0;
   var pkCash  = parseFloat((document.getElementById("ct-pickup-cash")||{}).value||0);
   var pkDest  = parseFloat((document.getElementById("ct-pickup-dest")||{}).value||0);
   var otherAdv= parseFloat((document.getElementById("ct-other-advance")||{}).value||0);
@@ -3493,7 +3560,7 @@ function saveClearTrip(){
 
   var clearData = {
     odomEnd: odoEnd, distReal: distReal, fuelReal: fuelReal,
-    fuelPrice: fuelPrice, fuelRate: fuelRate,
+    fuelPrice: fuelPrice, fuelRate: fuelRate, fuelAddon: fuelAddon, fuelEff: fuelEff,
     pickupCash: pkCash, pickupDest: pkDest,
     otherAdvance: otherAdv, drawRate: drawRate*100, drawFee: drawFee,
     mustPay: mustPay, clrCash: clrCash, clrTrans: clrTrans,
