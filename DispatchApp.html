@@ -226,11 +226,11 @@ tr:hover td{background:#f8fffe}
       <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px">
         <div>
           <div style="font-size:10px;color:#888;margin-bottom:3px">ราคา/ลิตร (฿)</div>
-          <input id="ct-fuel-price" readonly style="width:100%;padding:7px 10px;border:1px solid #ddd;border-radius:7px;font-size:12px;background:#f5f5f5;color:#888">
+          <input id="ct-fuel-price" type="number" step="0.01" oninput="calcClearTrip()" style="width:100%;padding:7px 10px;border:1px solid #0F6E56;border-radius:7px;font-size:12px">
         </div>
         <div>
-          <div style="font-size:10px;color:#888;margin-bottom:3px">อัตราสิ้นเปลือง</div>
-          <input id="ct-fuel-rate" readonly style="width:100%;padding:7px 10px;border:1px solid #ddd;border-radius:7px;font-size:12px;background:#f5f5f5;color:#888">
+          <div style="font-size:10px;color:#888;margin-bottom:3px">อัตราสิ้นเปลือง (กม./ลิตร)</div>
+          <input id="ct-fuel-rate" type="number" step="0.1" oninput="calcClearTrip()" style="width:100%;padding:7px 10px;border:1px solid #0F6E56;border-radius:7px;font-size:12px">
         </div>
         <div>
           <div style="font-size:10px;color:#b7950b;margin-bottom:3px">ค่าน้ำมันจริง (฿)</div>
@@ -592,137 +592,6 @@ tr:hover td{background:#f8fffe}
 
 <!-- Modal อัปเดตสถานะ -->
 <!-- Modal เคลียร์เที่ยว -->
-<div class="modal-bg" id="modal-clear-trip" style="display:none">
-  <div class="modal" style="max-width:520px;max-height:92vh;overflow-y:auto">
-    <h3 style="color:#0F6E56;margin-bottom:4px">💰 เคลียร์เที่ยว</h3>
-    <div id="ct-trip-info" style="font-size:11px;color:#888;margin-bottom:12px"></div>
-
-    <!-- ไมล์จบ + ระยะทางจริง -->
-    <div style="background:#f8fffe;border:1px solid #d0ede5;border-radius:8px;padding:10px;margin-bottom:10px">
-      <div style="font-size:11px;font-weight:700;color:#0F6E56;margin-bottom:8px">🚗 ระยะทาง</div>
-      <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px">
-        <div>
-          <div style="font-size:10px;color:#888;margin-bottom:3px">ไมล์เริ่ม</div>
-          <input id="ct-odo-start" readonly style="width:100%;padding:7px 10px;border:1px solid #ddd;border-radius:7px;font-size:12px;background:#f5f5f5;color:#888">
-        </div>
-        <div>
-          <div style="font-size:10px;color:#888;margin-bottom:3px">ไมล์จบ (กรอก)</div>
-          <input id="ct-odo-end" type="number" style="width:100%;padding:7px 10px;border:1px solid #0F6E56;border-radius:7px;font-size:12px" placeholder="เลขไมล์จบ" oninput="calcClearTrip()">
-        </div>
-        <div>
-          <div style="font-size:10px;color:#0F6E56;margin-bottom:3px">ระยะทางจริง (กม.)</div>
-          <input id="ct-dist-real" readonly style="width:100%;padding:7px 10px;border:1px solid #d0ede5;border-radius:7px;font-size:12px;background:#f0faf5;font-weight:700;color:#0F6E56">
-        </div>
-      </div>
-    </div>
-
-    <!-- ค่าน้ำมันจริง -->
-    <div style="background:#fff8e1;border:1px solid #ffe082;border-radius:8px;padding:10px;margin-bottom:10px">
-      <div style="font-size:11px;font-weight:700;color:#b7950b;margin-bottom:8px">⛽ ค่าน้ำมันจริง</div>
-      <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px">
-        <div>
-          <div style="font-size:10px;color:#888;margin-bottom:3px">ราคา/ลิตร (฿)</div>
-          <input id="ct-fuel-price" readonly style="width:100%;padding:7px 10px;border:1px solid #ddd;border-radius:7px;font-size:12px;background:#f5f5f5;color:#888">
-        </div>
-        <div>
-          <div style="font-size:10px;color:#888;margin-bottom:3px">อัตราสิ้นเปลือง</div>
-          <input id="ct-fuel-rate" readonly style="width:100%;padding:7px 10px;border:1px solid #ddd;border-radius:7px;font-size:12px;background:#f5f5f5;color:#888">
-        </div>
-        <div>
-          <div style="font-size:10px;color:#b7950b;margin-bottom:3px">ค่าน้ำมันจริง (฿)</div>
-          <input id="ct-fuel-real" readonly style="width:100%;padding:7px 10px;border:1px solid #ffe082;border-radius:7px;font-size:12px;background:#fff8e1;font-weight:700;color:#b7950b">
-        </div>
-      </div>
-    </div>
-
-    <!-- เงินรับ -->
-    <div style="background:#f8fffe;border:1px solid #d0ede5;border-radius:8px;padding:10px;margin-bottom:10px">
-      <div style="font-size:11px;font-weight:700;color:#0F6E56;margin-bottom:8px">💵 เงินที่ได้รับ</div>
-      <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:6px">
-        <div>
-          <div style="font-size:10px;color:#888;margin-bottom:3px">ปลายทาง (฿) — จากบิล</div>
-          <input id="ct-dest-amt" readonly style="width:100%;padding:7px 10px;border:1px solid #ddd;border-radius:7px;font-size:12px;background:#f5f5f5;color:#0F6E56;font-weight:700">
-        </div>
-        <div>
-          <div style="font-size:10px;color:#888;margin-bottom:3px">COD (฿) — จากบิล</div>
-          <input id="ct-cod-amt" readonly style="width:100%;padding:7px 10px;border:1px solid #ddd;border-radius:7px;font-size:12px;background:#f5f5f5;color:#c0392b;font-weight:700">
-        </div>
-      </div>
-      <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">
-        <div>
-          <div style="font-size:10px;color:#888;margin-bottom:3px">งานรับ-รับสดต้นทาง (฿)</div>
-          <input id="ct-pickup-cash" type="number" style="width:100%;padding:7px 10px;border:1px solid #ddd;border-radius:7px;font-size:12px" placeholder="0" oninput="calcClearTrip()">
-        </div>
-        <div>
-          <div style="font-size:10px;color:#888;margin-bottom:3px">งานรับ-เก็บปลายทาง (฿)</div>
-          <input id="ct-pickup-dest" type="number" style="width:100%;padding:7px 10px;border:1px solid #ddd;border-radius:7px;font-size:12px" placeholder="0" oninput="calcClearTrip()">
-        </div>
-      </div>
-    </div>
-
-    <!-- เงินเบิก -->
-    <div style="background:#fdf2f2;border:1px solid #f5c6c6;border-radius:8px;padding:10px;margin-bottom:10px">
-      <div style="font-size:11px;font-weight:700;color:#c0392b;margin-bottom:8px">📤 เงินเบิก</div>
-      <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px">
-        <div>
-          <div style="font-size:10px;color:#888;margin-bottom:3px">เบิกน้ำมันล่วงหน้า (฿)</div>
-          <input id="ct-fuel-advance" readonly style="width:100%;padding:7px 10px;border:1px solid #ddd;border-radius:7px;font-size:12px;background:#f5f5f5;color:#c0392b;font-weight:700">
-        </div>
-        <div>
-          <div style="font-size:10px;color:#888;margin-bottom:3px">เบิกอื่นๆ (฿) <span style="color:#aaa">กรอก</span></div>
-          <input id="ct-other-advance" type="number" style="width:100%;padding:7px 10px;border:1px solid #ddd;border-radius:7px;font-size:12px" placeholder="0" oninput="calcClearTrip()">
-        </div>
-        <div>
-          <div style="font-size:10px;color:#888;margin-bottom:3px">ค่าเบิก % <span style="color:#aaa">เรท</span></div>
-          <input id="ct-draw-rate" type="number" style="width:100%;padding:7px 10px;border:1px solid #ddd;border-radius:7px;font-size:12px" placeholder="0" step="0.1" oninput="calcClearTrip()">
-        </div>
-      </div>
-    </div>
-
-    <!-- สรุป -->
-    <div id="ct-summary" style="background:#0F6E56;color:#fff;border-radius:10px;padding:12px;margin-bottom:12px">
-      <div style="font-size:10px;opacity:.8;margin-bottom:8px">📊 สรุปยอดเคลียร์</div>
-      <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">
-        <div>
-          <div style="font-size:10px;opacity:.8">ต้องเคลียร์</div>
-          <div id="ct-must-pay" style="font-size:18px;font-weight:800">—</div>
-        </div>
-        <div>
-          <div style="font-size:10px;opacity:.8">เบิกรวม+ค่าเบิก</div>
-          <div id="ct-total-advance" style="font-size:18px;font-weight:800">—</div>
-        </div>
-      </div>
-      <div style="border-top:1px solid rgba(255,255,255,.3);margin:8px 0;padding-top:8px;display:grid;grid-template-columns:1fr 1fr;gap:8px">
-        <div>
-          <div style="font-size:10px;opacity:.8">ยอดต้องคืน/รับคืน</div>
-          <div id="ct-net" style="font-size:20px;font-weight:800">—</div>
-        </div>
-        <div>
-          <div style="font-size:10px;opacity:.8">ค่าน้ำมันจริง</div>
-          <div id="ct-fuel-diff" style="font-size:14px;font-weight:700;opacity:.9">—</div>
-        </div>
-      </div>
-    </div>
-
-    <!-- เงินเคลียร์จริง -->
-    <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:10px">
-      <div>
-        <div style="font-size:10px;color:#888;margin-bottom:3px">เคลียร์เงินสด (฿)</div>
-        <input id="ct-clr-cash" type="number" style="width:100%;padding:8px 10px;border:2px solid #0F6E56;border-radius:7px;font-size:13px;font-weight:600" placeholder="0" oninput="calcClearDiff()">
-      </div>
-      <div>
-        <div style="font-size:10px;color:#888;margin-bottom:3px">เคลียร์โอน (฿)</div>
-        <input id="ct-clr-trans" type="number" style="width:100%;padding:8px 10px;border:2px solid #0F6E56;border-radius:7px;font-size:13px;font-weight:600" placeholder="0" oninput="calcClearDiff()">
-      </div>
-    </div>
-    <div id="ct-diff-row" style="text-align:center;font-size:16px;font-weight:800;padding:8px;border-radius:8px;margin-bottom:10px;display:none"></div>
-
-    <div class="btn-row">
-      <button class="btn btn-gray" onclick="closeClearTrip()">ยกเลิก</button>
-      <button class="btn btn-orange" onclick="saveClearTrip()">💾 บันทึกเคลียร์</button>
-    </div>
-  </div>
-</div>
 
 <!-- Modal Approve บิล DR- -->
 <div class="modal-bg" id="modal-approve" style="display:none">
@@ -3460,11 +3329,31 @@ function getPickupData(){
 var _clearTripId = null;
 var _clearTripData = null;
 
+function getTripBills(trip){
+  var ids=(trip&&trip.billIds)||[];
+  var pool={};
+  BILLS.concat(DONE_BILLS_CACHE).forEach(function(b){ if(b.billNo) pool[b.billNo]=b; });
+  return ids.map(function(id){ return pool[id]; }).filter(Boolean);
+}
+
 function openClearTrip(tripId){
   var trip = (_tripState.openTrips||[]).find(function(t){ return t.id===tripId; });
   if(!trip){ alert("ไม่พบข้อมูลเที่ยว"); return; }
   _clearTripId = tripId;
   _clearTripData = trip;
+
+  // ===== ดึงยอดจากบิลจริงในเที่ยว (ปลายทาง / COD / งานรับ) =====
+  var tb = getTripBills(trip);
+  var liveDest=0, liveCod=0, pkCash=0, pkDest=0;
+  tb.forEach(function(b){
+    var pay=b.freightPay||(b.form&&b.form.freightPay)||"origin";
+    var net=parseFloat(b.freightNet||0), cod=parseFloat(b.codTotal||0);
+    var isPickup=(b.status==="ออกบิลรับของ"||b.status==="issued"||b.status==="");
+    if(pay==="dest"){ if(isPickup) pkDest+=net; else liveDest+=net; }
+    if(cod>0) liveCod+=cod;
+    if(isPickup && pay!=="dest") pkCash+=net;
+  });
+  trip._liveDest=liveDest; trip._liveCod=liveCod;
 
   // แสดงข้อมูลเที่ยว
   var s = trip.summary||{};
@@ -3481,10 +3370,10 @@ function openClearTrip(tripId){
   g("ct-fuel-price", trip.fuelPrice||40);
   g("ct-fuel-rate", trip.fuelRate||8);
   g("ct-fuel-advance", trip.fuelAdvance||0);
-  g("ct-dest-amt", (s.destTotal||0).toLocaleString("th-TH"));
-  g("ct-cod-amt", (s.codTotal||0).toLocaleString("th-TH"));
-  g("ct-pickup-cash", trip.clearData&&trip.clearData.pickupCash||"");
-  g("ct-pickup-dest", trip.clearData&&trip.clearData.pickupDest||"");
+  g("ct-dest-amt", liveDest.toLocaleString("th-TH"));
+  g("ct-cod-amt", liveCod.toLocaleString("th-TH"));
+  g("ct-pickup-cash", (trip.clearData&&trip.clearData.pickupCash) || (pkCash||""));
+  g("ct-pickup-dest", (trip.clearData&&trip.clearData.pickupDest) || (pkDest||""));
   g("ct-other-advance", trip.clearData&&trip.clearData.otherAdvance||"");
   g("ct-draw-rate", trip.clearData&&trip.clearData.drawRate||"");
   g("ct-clr-cash", trip.clearData&&trip.clearData.clrCash||"");
@@ -3502,8 +3391,8 @@ function closeClearTrip(){
 function calcClearTrip(){
   var trip = _clearTripData||{};
   var s = trip.summary||{};
-  var fuelPrice = parseFloat(trip.fuelPrice||40);
-  var fuelRate  = parseFloat(trip.fuelRate||8);
+  var fuelPrice = parseFloat((document.getElementById("ct-fuel-price")||{}).value||trip.fuelPrice||40);
+  var fuelRate  = parseFloat((document.getElementById("ct-fuel-rate")||{}).value||trip.fuelRate||8);
   var odoStart  = parseFloat(trip.odomStart||0);
   var odoEnd    = parseFloat((document.getElementById("ct-odo-end")||{}).value||0);
 
@@ -3517,9 +3406,9 @@ function calcClearTrip(){
   var fe = document.getElementById("ct-fuel-real");
   if(fe) fe.value = fuelReal > 0 ? fuelReal.toLocaleString("th-TH")+" ฿" : "—";
 
-  // ต้องเคลียร์ = ปลายทาง + COD + งานรับเก็บปลาย
-  var destAmt   = parseFloat(s.destTotal||0);
-  var codAmt    = parseFloat(s.codTotal||0);
+  // ต้องเคลียร์ = ปลายทาง + COD + งานรับเก็บปลาย (ดึงจากบิลจริง)
+  var destAmt   = parseFloat(trip._liveDest!=null?trip._liveDest:(s.destTotal||0));
+  var codAmt    = parseFloat(trip._liveCod!=null?trip._liveCod:(s.codTotal||0));
   var pkDest    = parseFloat((document.getElementById("ct-pickup-dest")||{}).value||0);
   var mustPay   = destAmt + codAmt + pkDest;
 
@@ -3580,17 +3469,21 @@ function saveClearTrip(){
   if(!_clearTripId) return;
   var trip = _clearTripData||{};
   var s = trip.summary||{};
+  var fuelPrice = parseFloat((document.getElementById("ct-fuel-price")||{}).value||trip.fuelPrice||40);
+  var fuelRate  = parseFloat((document.getElementById("ct-fuel-rate")||{}).value||trip.fuelRate||8);
   var odoEnd = parseFloat((document.getElementById("ct-odo-end")||{}).value||0);
   var odoStart = parseFloat(trip.odomStart||0);
   var distReal = odoEnd > odoStart ? odoEnd - odoStart : parseFloat(trip.fuelDist||0);
-  var fuelReal = trip.fuelRate>0 ? Math.round((distReal/trip.fuelRate)*trip.fuelPrice) : 0;
+  var fuelReal = fuelRate>0 ? Math.round((distReal/fuelRate)*fuelPrice) : 0;
   var pkCash  = parseFloat((document.getElementById("ct-pickup-cash")||{}).value||0);
   var pkDest  = parseFloat((document.getElementById("ct-pickup-dest")||{}).value||0);
   var otherAdv= parseFloat((document.getElementById("ct-other-advance")||{}).value||0);
   var drawRate= parseFloat((document.getElementById("ct-draw-rate")||{}).value||0)/100;
   var totalAdv= parseFloat(trip.fuelAdvance||0) + otherAdv;
   var drawFee = Math.round(totalAdv * drawRate);
-  var mustPay = parseFloat(s.destTotal||0) + parseFloat(s.codTotal||0) + pkDest;
+  var destAmt = parseFloat(trip._liveDest!=null?trip._liveDest:(s.destTotal||0));
+  var codAmt  = parseFloat(trip._liveCod!=null?trip._liveCod:(s.codTotal||0));
+  var mustPay = destAmt + codAmt + pkDest;
   var clrCash = parseFloat((document.getElementById("ct-clr-cash")||{}).value||0);
   var clrTrans= parseFloat((document.getElementById("ct-clr-trans")||{}).value||0);
   var diff    = (clrCash + clrTrans) - mustPay;
@@ -3600,6 +3493,7 @@ function saveClearTrip(){
 
   var clearData = {
     odomEnd: odoEnd, distReal: distReal, fuelReal: fuelReal,
+    fuelPrice: fuelPrice, fuelRate: fuelRate,
     pickupCash: pkCash, pickupDest: pkDest,
     otherAdvance: otherAdv, drawRate: drawRate*100, drawFee: drawFee,
     mustPay: mustPay, clrCash: clrCash, clrTrans: clrTrans,
@@ -3607,7 +3501,7 @@ function saveClearTrip(){
     clearedBy: CU ? CU.username : ""
   };
 
-  GolodDB.updateTrip(_clearTripId, {clearData: clearData, status:"cleared"})
+  GolodDB.updateTrip(_clearTripId, {clearData: clearData, status:"cleared", fuelPrice:fuelPrice, fuelRate:fuelRate, odomEnd:odoEnd})
     .then(function(){
       alert("✅ บันทึกการเคลียร์แล้ว");
       closeClearTrip();
@@ -4099,6 +3993,20 @@ function confirmStatus(){
 
 // ===== INIT =====
 GolodDB.ready(loadData);
+</script>
+<script>
+// กันค่าตัวเลขเพี้ยนจากการเลื่อนเมาส์ (เช่น 4000→3999) + ซ่อนลูกศร spinner
+(function(){
+  try{
+    var st=document.createElement("style");
+    st.textContent="input[type=number]::-webkit-inner-spin-button,input[type=number]::-webkit-outer-spin-button{-webkit-appearance:none!important;margin:0}input[type=number]{-moz-appearance:textfield}";
+    document.head.appendChild(st);
+    document.addEventListener("wheel",function(e){
+      var el=document.activeElement;
+      if(el&&el.type==="number"&&el===e.target){ el.blur(); }
+    },{passive:true});
+  }catch(e){}
+})();
 </script>
 </body>
 </html>
