@@ -1337,8 +1337,20 @@ function renderTripList(){
     var d=new Date(iso);
     return d.getDate()+"/"+(d.getMonth()+1)+"/"+(d.getFullYear())+" "+String(d.getHours()).padStart(2,"0")+":"+String(d.getMinutes()).padStart(2,"0");
   };
+  // ป้ายสาขาของเที่ยว
+  var tripBranchLabel = function(tb){
+    tb=tb||"";
+    if(["bkk","ptm","กรุงเทพ","ปทุมธานี","กทม"].indexOf(tb)>=0) return "กรุงเทพ";
+    if(["krt","นครราชสีมา","สาขานครราชสีมา","โคราช"].indexOf(tb)>=0) return "นครราชสีมา";
+    if(["ssk","ศรีสะเกษ","สาขาศรีสะเกษ"].indexOf(tb)>=0) return "ศรีสะเกษ";
+    return tb||"ไม่ระบุสาขา";
+  };
+  // ข้อ 2: เรียงตาม createdAt คงที่ (แก้ไขแล้วลำดับไม่กระโดด เพราะ createdAt ไม่เปลี่ยน)
+  trips = trips.slice().sort(function(a,b){
+    return String(b.createdAt||"").localeCompare(String(a.createdAt||""));
+  });
 
-  var openCards = trips.filter(function(t){ return t.status!=="closed"; }).map(function(t){
+  var tripCardHTML = function(t){
     var s = t.summary||{};
     var fuelEst = t.fuelDist&&t.fuelRate&&t.fuelPrice ? Math.round((t.fuelDist/t.fuelRate)*t.fuelPrice) : 0;
     return '<div class="trip-card">'
@@ -1367,7 +1379,30 @@ function renderTripList(){
         +(t.fuelAdvance?' | เบิกล่วงหน้า: '+fmt(t.fuelAdvance)+' ฿':'')
       +'</div>'
     +'</div>';
-  }).join("");
+  };
+
+  var openTrips = trips.filter(function(t){ return t.status!=="closed"; });
+  var openCards;
+  if(ub==="all"){
+    // ข้อ 1: แอดมินดูแยกตามสาขา
+    var groups={}; var order=[];
+    openTrips.forEach(function(t){
+      var lb=tripBranchLabel(t.branch);
+      if(!groups[lb]){ groups[lb]=[]; order.push(lb); }
+      groups[lb].push(t);
+    });
+    var prefOrder=["กรุงเทพ","นครราชสีมา","ศรีสะเกษ"];
+    order.sort(function(a,b){
+      var ia=prefOrder.indexOf(a), ib=prefOrder.indexOf(b);
+      if(ia<0)ia=99; if(ib<0)ib=99; return ia-ib || a.localeCompare(b);
+    });
+    openCards = order.map(function(lb){
+      return '<div style="margin:6px 0 4px;padding:6px 12px;background:#0F6E56;color:#fff;border-radius:8px;font-weight:800;font-size:14px">🏢 สาขา'+lb+' ('+groups[lb].length+' เที่ยว)</div>'
+        + groups[lb].map(tripCardHTML).join("");
+    }).join("");
+  } else {
+    openCards = openTrips.map(tripCardHTML).join("");
+  }
 
   var closedRows = trips.filter(function(t){ return t.status==="closed"; }).map(function(t){
     var s = t.summary||{};
