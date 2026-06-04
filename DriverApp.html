@@ -818,6 +818,18 @@ function submitStatus(result){
     if(uploadedUrls.extra)     upd.extraUrl     = uploadedUrls.extra;
     if(uploadedUrls.signature) upd.signatureUrl = uploadedUrls.signature;
     if(failReason)             upd.failReason   = failReason;
+    // บันทึก "คนส่งจริง" (คนที่กดส่ง ณ ตอนนี้ อาจไม่ใช่คนรถที่ถูกมอบหมาย)
+    if(typeof CU!=="undefined" && CU){
+      upd.deliveredBy = CU.username||"";
+      upd.deliveredByName = CU.name||CU.username||"";
+    }
+    // ต่อท้ายประวัติสถานะ (timeline เวลาจริง)
+    var _drv = (typeof CU!=="undefined" && CU) ? (CU.name||CU.username||"") : "";
+    var _loc = currentBill ? (currentBill.destAmphoe||(currentBill.form&&currentBill.form.destAmphoe)||"") : "";
+    upd.statusHistory = ((currentBill&&currentBill.statusHistory)||[]).concat([{
+      status:newStatus, at:now, loc:_loc, note:(failReason||""), by:_drv,
+      hasPhoto: !!(upd.photoUrl), hasSig: !!(upd.signatureUrl)
+    }]);
 
     return GolodDB.updateBill(billNo, upd);
   }).then(function(){

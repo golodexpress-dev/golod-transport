@@ -631,7 +631,7 @@ tr:hover td{background:#f8fffe}
 <div class="topbar">
   <span class="title">🚛 จัดการขนส่ง</span>
   <span id="session-info" style="font-size:11px;opacity:.8"></span>
-  <span style="font-size:10px;opacity:.65;margin-left:auto">build 2026-06-03k</span>
+  <span style="font-size:10px;opacity:.65;margin-left:auto">build 2026-06-03m</span>
   <a href="GolodApp.html" style="margin-left:10px">← หน้าหลัก</a>
 </div>
 <div class="container">
@@ -1545,6 +1545,7 @@ function removeTripBill(billNo){
   if(!(CU&&CU.role==="admin")){ requestRemoveTripBill(billNo); return; }
   if(!confirm("เอาบิล "+billNo+" ออกจากเที่ยวนี้?")) return;
   delete _tripState.selectedBills[billNo];
+  if(GolodDB.updateBill) GolodDB.updateBill(billNo, {tripId:""}).catch(function(){});
   _persistTripBillIds();
   _refreshCurrentBills();
 }
@@ -1571,6 +1572,7 @@ function approveRemoveTripBill(billNo){
   if(!(CU&&CU.role==="admin")) return;
   if(!confirm("อนุมัติเอาบิล "+billNo+" ออกจากเที่ยว?")) return;
   delete _tripState.selectedBills[billNo];
+  if(GolodDB.updateBill) GolodDB.updateBill(billNo, {tripId:""}).catch(function(){});
   _tripState.removalReqs = (_tripState.removalReqs||[]).filter(function(r){ return r.billNo!==billNo; });
   _persistTripBillIds(); _persistRemovalReqs(); _refreshCurrentBills();
 }
@@ -3382,9 +3384,13 @@ function confirmDispatch(){
   btn.disabled=true; btn.textContent="กำลังบันทึก...";
 
   var promises=ids.map(function(id){
-    var upd={status:newStatus, updatedAt:new Date().toISOString()};
+    var now=new Date().toISOString();
+    var upd={status:newStatus, updatedAt:now};
     if(dispatchMode==="branch"){ upd.targetBranch=target; upd.targetBranchLabel=targetText; }
     else { upd.driver=target; upd.driverName=targetText; }
+    var cur=BILLS.find(function(x){return x.billNo===id;})||{};
+    var loc = dispatchMode==="branch" ? "ระหว่างนำส่ง" : (cur.destAmphoe||(cur.form&&cur.form.destAmphoe)||"");
+    upd.statusHistory=(cur.statusHistory||[]).concat([{status:newStatus, at:now, loc:loc, by:(CU?(CU.name||CU.username):"")}]);
     return GolodDB.updateBill(id,upd);
   });
 
@@ -4460,16 +4466,21 @@ function confirmStatus(){
   // 3) บันทึกผู้เปลี่ยนสถานะ (audit)
   var who = CU?(CU.name||CU.username):"";
   var whoCode = CU?CU.username:"";
+  var nowISO = new Date().toISOString();
   var upd={
     status:newStatus,
-    updatedAt:new Date().toISOString(),
-    statusBy: whoCode, statusByName: who, statusAt: new Date().toISOString()
+    updatedAt:nowISO,
+    statusBy: whoCode, statusByName: who, statusAt: nowISO
   };
   if(newStatus==="ส่งไม่สำเร็จ"){
     upd.failReason=document.getElementById("modal-fail-reason").value;
   }
   if(note) upd.note=note;
   if(isSuccess && _statusNewSlip){ upd.slipUrl=_statusNewSlip; upd.deliveredBy=whoCode; upd.deliveredByName=who; }
+  if(isSuccess) upd.deliveredAt=nowISO;
+  // ต่อท้ายประวัติสถานะ (สำหรับ timeline เวลาจริง)
+  var loc = b ? (b.destAmphoe||(b.form&&b.form.destAmphoe)||"") : "";
+  upd.statusHistory=((b&&b.statusHistory)||[]).concat([{status:newStatus, at:nowISO, loc:loc, note:note||(upd.failReason||""), by:who}]);
 
   GolodDB.updateBill(statusTargetBill,upd).then(function(){
     [BILLS,DONE_BILLS_CACHE].forEach(function(arr){

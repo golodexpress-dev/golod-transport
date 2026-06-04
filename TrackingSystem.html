@@ -301,14 +301,33 @@ function firestoreBillToTracking(b){
   var sameTime = !b.updatedAt || createdDt === updatedDt;
   // issued = เวลาออกบิล (createdAt) เสมอ
   var timeline=[{status:"issued", dt:createdDt, loc:(b.senderProv||"กรุงเทพมหานคร"), note:"รับสินค้าจากผู้ส่ง", photo:false, sig:false}];
-  // แสดง "สถานะปัจจุบัน" 1 รายการ ตามเวลาจริงที่อัปเดต (ไม่สร้างขั้นกลางเวลาซ้ำกัน)
-  if(st!=="issued"){
+
+  // ถ้ามีประวัติสถานะจริง (statusHistory) → ใช้สร้าง timeline ครบทุกขั้น พร้อมเวลาจริง
+  var hist = Array.isArray(b.statusHistory) ? b.statusHistory : [];
+  if(hist.length){
+    var sortable = hist.slice().sort(function(a,c){ return new Date(a.at)-new Date(c.at); });
+    sortable.forEach(function(h){
+      var hs = statusMap[h.status] || h.status; // map → key ของ TrackingSystem
+      if(hs==="issued") return; // มี issued อยู่แล้ว
+      var entry = {status:(hs==="out"?"transit":hs), dt:fmtISO(h.at), loc:(h.loc||b.destAmphoe||form.destAmphoe||""), note:h.note||"", photo:false, sig:false, by:(h.by||"")};
+      if(hs==="delivered"){
+        entry.note = h.note || "ส่งถึงมือผู้รับแล้ว";
+        entry.photo = !!b.photoUrl; entry.photoUrl = b.photoUrl||"";
+        entry.sig = !!b.signatureUrl; entry.signatureUrl = b.signatureUrl||"";
+      } else if(hs==="hub"){ entry.note = h.note||"กำลังนำส่งสาขา"; }
+      else if(hs==="out"){ entry.note = h.note||"กำลังวิ่งส่งลูกค้า"; }
+      else if(hs==="nocontact"){ entry.note = h.note||"ส่งไม่สำเร็จ"; }
+      else if(hs==="returned"){ entry.note = h.note||"นำกลับสาขา"; }
+      timeline.push(entry);
+    });
+  } else if(st!=="issued"){
+    // ไม่มีประวัติ (บิลเก่า) → แสดง issued + สถานะปัจจุบัน 1 รายการ ตามเวลาที่อัปเดต
     if(st==="hub"){
       timeline.push({status:"hub", dt:updatedDt, loc:"ระหว่างนำส่ง", note:"กำลังนำส่งสาขา", photo:false, sig:false});
     } else if(st==="out"){
       timeline.push({status:"transit", dt:updatedDt, loc:(b.destAmphoe||form.destAmphoe||""), note:"กำลังวิ่งส่งลูกค้า", photo:false, sig:false});
     } else if(st==="delivered"){
-      timeline.push({status:"delivered", dt:fmtISO(b.deliveredAt||b.updatedAt), loc:(b.destAmphoe||form.destAmphoe||""), note:"ส่งถึงมือผู้รับแล้ว", photo:!!b.photoUrl, sig:!!b.signatureUrl, photoUrl:b.photoUrl||"", signatureUrl:b.signatureUrl||""});
+      timeline.push({status:"delivered", dt:fmtISO(b.deliveredAt||b.updatedAt), loc:(b.destAmphoe||form.destAmphoe||""), note:"ส่งถึงมือผู้รับแล้ว", photo:!!b.photoUrl, sig:!!b.signatureUrl, photoUrl:b.photoUrl||"", signatureUrl:b.signatureUrl||"", by:(b.deliveredByName||b.statusByName||"")});
     } else if(st==="nocontact"){
       timeline.push({status:"nocontact", dt:fmtISO(b.updatedAt), loc:(b.destAmphoe||form.destAmphoe||""), note:b.failReason||"ส่งไม่สำเร็จ", photo:false, sig:false});
     } else if(st==="returned"){
@@ -510,6 +529,7 @@ function doTrack(){
         </div>
         <div class="tl-note">${ev.note||""}</div>
         ${ev.loc?`<div class="tl-loc">📍 ${ev.loc}</div>`:""}
+        ${ev.by?`<div class="tl-loc">🧑‍✈️ ส่งโดย ${ev.by}</div>`:""}
         ${ev.photo&&ev.photoUrl?`<div style="margin-top:6px"><img src="${ev.photoUrl}" style="max-width:100%;border-radius:8px;border:0.5px solid #ddd" loading="lazy"/></div>`
           :ev.photo?`<div class="photo-box">📷 รูปภาพการส่งสินค้า</div>`:""}
         ${ev.sig&&ev.signatureUrl?`<div class="sig-box">✍️ ลายเซ็นผู้รับ<img src="${ev.signatureUrl}" style="max-width:100%;margin-top:4px;border-radius:6px;border:0.5px solid #ccc" loading="lazy"/></div>`

@@ -403,9 +403,15 @@ function loadData(){
       BILL_MAP = {};
       ALL_BILLS.forEach(function(b){ if(b.billNo) BILL_MAP[b.billNo]=b; });
       BILL_DRIVER = {}; BILL_CLEAR = {};
+      // คนถูกมอบหมาย (จาก trip) เป็นค่าตั้งต้น
       ALL_TRIPS.forEach(function(t){
         var clr=(t.clearData&&t.clearData.clearedAt)||"";
         (t.billIds||[]).forEach(function(id){ if(t.driverName) BILL_DRIVER[id]=t.driverName; if(clr) BILL_CLEAR[id]=clr; });
+      });
+      // คนส่งจริง (จากบิล) มาก่อนเสมอ — กัน driverName ค้างผิดเวลาส่งแทนกัน
+      ALL_BILLS.forEach(function(b){
+        var real = b.deliveredByName || b.statusByName || "";
+        if(real) BILL_DRIVER[b.billNo] = real;
       });
       var codN = ALL_BILLS.filter(function(b){return getCOD(b)>0;}).length;
       setStatus("✓ โหลดแล้ว "+ALL_BILLS.length+" บิล ("+codN+" บิลมี COD) · "+ALL_TRIPS.length+" เที่ยว","");
