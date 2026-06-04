@@ -631,7 +631,7 @@ tr:hover td{background:#f8fffe}
 <div class="topbar">
   <span class="title">🚛 จัดการขนส่ง</span>
   <span id="session-info" style="font-size:11px;opacity:.8"></span>
-  <span style="font-size:10px;opacity:.65;margin-left:auto">build 2026-06-03j</span>
+  <span style="font-size:10px;opacity:.65;margin-left:auto">build 2026-06-03k</span>
   <a href="GolodApp.html" style="margin-left:10px">← หน้าหลัก</a>
 </div>
 <div class="container">
@@ -1289,11 +1289,13 @@ function renderTripList(){
     var s = t.summary||{};
     var fuelEst = t.fuelDist&&t.fuelRate&&t.fuelPrice ? Math.round((t.fuelDist/t.fuelRate)*t.fuelPrice) : 0;
     var pendRmk = ((t.clearRemarks||(t.clearData&&t.clearData.remarks)||[]).filter(function(r){return r.status==="pending";})).length;
+    var pendDel = ((t.billRemovalRequests||[]).filter(function(r){return r.status==="pending";})).length;
     return '<div class="trip-card">'
       +'<div class="trip-head">'
         +'<div style="flex:1">'
           +'<div class="trip-driver">🚛 '+t.driverName
             +(pendRmk>0?' <span style="background:#E67E22;color:#fff;font-size:10px;padding:2px 7px;border-radius:10px;font-weight:700">⏳ รออนุมัติหมายเหตุ '+pendRmk+'</span>':'')
+            +(pendDel>0?' <span style="background:#c0392b;color:#fff;font-size:10px;padding:2px 7px;border-radius:10px;font-weight:700">⏳ ขอเอาบิลออก '+pendDel+'</span>':'')
             +'</div>'
           +'<div class="trip-route">📍 '+(t.route||"—")+'</div>'
           +'<div style="font-size:10px;color:#aaa;margin-top:2px">วันที่ออก: '+(t.departDate||"—")+' | สร้างเมื่อ: '+fmtDT(t.createdAt)+'</div>'
@@ -1456,6 +1458,7 @@ function editTrip(tripId){
   _tripState.editId = tripId;
   _tripState.selectedBills = {};
   var trip = (_tripState.openTrips||[]).find(function(t){ return t.id===tripId; });
+  _tripState.removalReqs = (trip && trip.billRemovalRequests) ? trip.billRemovalRequests.slice() : [];
   // โหลด bills ที่อยู่ใน BILLS ก่อน (เร็ว)
   if(trip && trip.billIds){
     trip.billIds.forEach(function(bno){
@@ -1504,29 +1507,97 @@ function pushTripToDriver(tripId){
 function renderCurrentTripBills(){
   var bills = Object.keys(_tripState.selectedBills).map(function(k){ return _tripState.selectedBills[k]; });
   if(!bills.length) return '<div style="font-size:11px;color:#aaa;padding:6px">— ยังไม่มีบิลในเที่ยว —</div>';
+  var isAdmin = CU && CU.role==="admin";
+  var reqs = _tripState.removalReqs || [];
   var STMAP={"ส่งสำเร็จ":"✅","delivered":"✅","success":"✅","ส่งไม่สำเร็จ":"❌","นำกลับสาขา":"↩️","กำลังวิ่งส่งลูกค้า":"🚚","ออกบิลรับของ":"📦"};
-  return '<div style="border:1px solid #e0e0e0;border-radius:8px;max-height:200px;overflow-y:auto">'
+  return '<div style="border:1px solid #e0e0e0;border-radius:8px;max-height:220px;overflow-y:auto">'
     + bills.map(function(b){
       var st=b.status||"";
       var ic=STMAP[st]||"•";
-      return '<div style="display:flex;align-items:center;gap:8px;padding:6px 10px;border-bottom:1px solid #f5f5f5;font-size:12px">'
+      var req=reqs.find(function(r){return r.billNo===b.billNo && r.status==="pending";});
+      var btn;
+      if(isAdmin){
+        btn = req
+          ? '<span style="color:#E67E22;font-size:10px">⏳ '+(req.byName||"")+' ขอเอาออก</span>'
+            +' <button onclick="approveRemoveTripBill(\''+b.billNo+'\')" style="background:#0F6E56;color:#fff;border:none;border-radius:5px;padding:2px 8px;cursor:pointer;font-size:11px">อนุมัติเอาออก</button>'
+            +' <button onclick="rejectRemoveTripBill(\''+b.billNo+'\')" style="background:#eee;border:none;border-radius:5px;padding:2px 7px;cursor:pointer;font-size:11px">ปฏิเสธ</button>'
+          : '<button onclick="removeTripBill(\''+b.billNo+'\')" style="background:#fdecea;color:#c0392b;border:none;border-radius:5px;padding:2px 8px;cursor:pointer;font-size:11px">✕ เอาออก</button>';
+      } else {
+        btn = req
+          ? '<span style="color:#E67E22;font-size:10px">⏳ รออนุมัติเอาออก</span>'
+            +' <button onclick="cancelRemoveTripBill(\''+b.billNo+'\')" style="background:#eee;border:none;border-radius:5px;padding:2px 7px;cursor:pointer;font-size:10px">ยกเลิกคำขอ</button>'
+          : '<button onclick="requestRemoveTripBill(\''+b.billNo+'\')" style="background:#fff3e0;color:#E67E22;border:1px solid #ffd599;border-radius:5px;padding:2px 8px;cursor:pointer;font-size:11px">ขอเอาออก</button>';
+      }
+      return '<div style="display:flex;align-items:center;gap:8px;padding:6px 10px;border-bottom:1px solid #f5f5f5;font-size:12px'+(req?';background:#fff8ef':'')+'">'
         +'<span>'+ic+'</span>'
         +'<span style="font-weight:600;min-width:90px">'+b.billNo+'</span>'
         +'<span style="flex:1;color:#666">'+(b.receiverName||"")+' · '+(b.destProv||"")+'</span>'
-        +'<span style="color:#888;font-size:10px">'+st+'</span>'
-        +'<button onclick="removeTripBill(\''+b.billNo+'\')" style="background:#fdecea;color:#c0392b;border:none;border-radius:5px;padding:2px 8px;cursor:pointer;font-size:11px">✕ เอาออก</button>'
+        +'<span style="white-space:nowrap">'+btn+'</span>'
         +'</div>';
     }).join("")
-    + '</div>';
+    + '</div>'
+    + (reqs.filter(function(r){return r.status==="pending";}).length && !isAdmin
+       ? '<div style="font-size:10px;color:#E67E22;margin-top:4px">⏳ มีคำขอเอาบิลออก รอแอดมินอนุมัติ — บิลจะยังอยู่ในเที่ยวจนกว่าจะอนุมัติ</div>':'');
 }
 
+// แอดมินลบได้เลย
 function removeTripBill(billNo){
+  if(!(CU&&CU.role==="admin")){ requestRemoveTripBill(billNo); return; }
   if(!confirm("เอาบิล "+billNo+" ออกจากเที่ยวนี้?")) return;
   delete _tripState.selectedBills[billNo];
+  _persistTripBillIds();
+  _refreshCurrentBills();
+}
+
+// เสมียนขอเอาออก → เข้าคิวรออนุมัติ (บิลยังอยู่)
+function requestRemoveTripBill(billNo){
+  var reason = prompt("เหตุผลที่ขอเอาบิล "+billNo+" ออกจากเที่ยว (เช่น คนละเส้นทาง/ใส่ผิดคน):","");
+  if(reason===null) return;
+  _tripState.removalReqs = _tripState.removalReqs || [];
+  if(_tripState.removalReqs.find(function(r){return r.billNo===billNo&&r.status==="pending";})){ _refreshCurrentBills(); return; }
+  _tripState.removalReqs.push({billNo:billNo, reason:reason, status:"pending",
+    by:CU?CU.username:"", byName:CU?(CU.name||CU.username):"", at:new Date().toISOString()});
+  _persistRemovalReqs();
+  _refreshCurrentBills();
+  alert("ส่งคำขอเอาบิลออกแล้ว รอแอดมินอนุมัติ");
+}
+
+function cancelRemoveTripBill(billNo){
+  _tripState.removalReqs = (_tripState.removalReqs||[]).filter(function(r){ return !(r.billNo===billNo&&r.status==="pending"); });
+  _persistRemovalReqs(); _refreshCurrentBills();
+}
+
+function approveRemoveTripBill(billNo){
+  if(!(CU&&CU.role==="admin")) return;
+  if(!confirm("อนุมัติเอาบิล "+billNo+" ออกจากเที่ยว?")) return;
+  delete _tripState.selectedBills[billNo];
+  _tripState.removalReqs = (_tripState.removalReqs||[]).filter(function(r){ return r.billNo!==billNo; });
+  _persistTripBillIds(); _persistRemovalReqs(); _refreshCurrentBills();
+}
+
+function rejectRemoveTripBill(billNo){
+  if(!(CU&&CU.role==="admin")) return;
+  _tripState.removalReqs = (_tripState.removalReqs||[]).map(function(r){
+    if(r.billNo===billNo&&r.status==="pending"){ r.status="rejected"; r.approvedBy=CU.username; }
+    return r;
+  }).filter(function(r){ return r.status==="pending"; });
+  _persistRemovalReqs(); _refreshCurrentBills();
+}
+
+function _refreshCurrentBills(){
   var el=document.getElementById("tf-current-bills"); if(el) el.innerHTML=renderCurrentTripBills();
-  var cnt=document.getElementById("tf-bill-count"); if(cnt) cnt.textContent=Object.keys(_tripState.selectedBills).length;
-  var disp=document.getElementById("tf-bill-count-disp"); if(disp) disp.value=Object.keys(_tripState.selectedBills).length+" ใบ";
+  var n=Object.keys(_tripState.selectedBills).length;
+  var cnt=document.getElementById("tf-bill-count"); if(cnt) cnt.textContent=n;
+  var disp=document.getElementById("tf-bill-count-disp"); if(disp) disp.value=n+" ใบ";
   if(typeof calcTotalFare==="function") calcTotalFare();
+}
+function _persistTripBillIds(){
+  if(!_tripState.editId || !GolodDB.updateTrip) return;
+  GolodDB.updateTrip(_tripState.editId, {billIds: Object.keys(_tripState.selectedBills)}).catch(function(){});
+}
+function _persistRemovalReqs(){
+  if(!_tripState.editId || !GolodDB.updateTrip) return;
+  GolodDB.updateTrip(_tripState.editId, {billRemovalRequests: _tripState.removalReqs||[]}).catch(function(){});
 }
 
 function renderTripForm(existingTrip){
