@@ -631,7 +631,7 @@ tr:hover td{background:#f8fffe}
 <div class="topbar">
   <span class="title">🚛 จัดการขนส่ง</span>
   <span id="session-info" style="font-size:11px;opacity:.8"></span>
-  <span style="font-size:10px;opacity:.65;margin-left:auto">build 2026-06-03h</span>
+  <span style="font-size:10px;opacity:.65;margin-left:auto">build 2026-06-03j</span>
   <a href="GolodApp.html" style="margin-left:10px">← หน้าหลัก</a>
 </div>
 <div class="container">
@@ -1501,6 +1501,34 @@ function pushTripToDriver(tripId){
   }).catch(function(e){ alert("❌ "+e.message); });
 }
 
+function renderCurrentTripBills(){
+  var bills = Object.keys(_tripState.selectedBills).map(function(k){ return _tripState.selectedBills[k]; });
+  if(!bills.length) return '<div style="font-size:11px;color:#aaa;padding:6px">— ยังไม่มีบิลในเที่ยว —</div>';
+  var STMAP={"ส่งสำเร็จ":"✅","delivered":"✅","success":"✅","ส่งไม่สำเร็จ":"❌","นำกลับสาขา":"↩️","กำลังวิ่งส่งลูกค้า":"🚚","ออกบิลรับของ":"📦"};
+  return '<div style="border:1px solid #e0e0e0;border-radius:8px;max-height:200px;overflow-y:auto">'
+    + bills.map(function(b){
+      var st=b.status||"";
+      var ic=STMAP[st]||"•";
+      return '<div style="display:flex;align-items:center;gap:8px;padding:6px 10px;border-bottom:1px solid #f5f5f5;font-size:12px">'
+        +'<span>'+ic+'</span>'
+        +'<span style="font-weight:600;min-width:90px">'+b.billNo+'</span>'
+        +'<span style="flex:1;color:#666">'+(b.receiverName||"")+' · '+(b.destProv||"")+'</span>'
+        +'<span style="color:#888;font-size:10px">'+st+'</span>'
+        +'<button onclick="removeTripBill(\''+b.billNo+'\')" style="background:#fdecea;color:#c0392b;border:none;border-radius:5px;padding:2px 8px;cursor:pointer;font-size:11px">✕ เอาออก</button>'
+        +'</div>';
+    }).join("")
+    + '</div>';
+}
+
+function removeTripBill(billNo){
+  if(!confirm("เอาบิล "+billNo+" ออกจากเที่ยวนี้?")) return;
+  delete _tripState.selectedBills[billNo];
+  var el=document.getElementById("tf-current-bills"); if(el) el.innerHTML=renderCurrentTripBills();
+  var cnt=document.getElementById("tf-bill-count"); if(cnt) cnt.textContent=Object.keys(_tripState.selectedBills).length;
+  var disp=document.getElementById("tf-bill-count-disp"); if(disp) disp.value=Object.keys(_tripState.selectedBills).length+" ใบ";
+  if(typeof calcTotalFare==="function") calcTotalFare();
+}
+
 function renderTripForm(existingTrip){
   var t = existingTrip || {};
   var isEdit = _tripState.mode === "edit";
@@ -1661,6 +1689,8 @@ function renderTripForm(existingTrip){
     +'</div>'
 
     +'<div class="trip-section-title">▶ บิลในเที่ยว (<span id="tf-bill-count">'+selCount+'</span> บิล)</div>'
+    +'<div id="tf-current-bills" style="margin-bottom:10px">'+renderCurrentTripBills()+'</div>'
+    +'<div style="font-size:11px;color:#888;margin-bottom:4px">➕ เพิ่มบิลที่พร้อมส่ง:</div>'
     +'<div style="margin-bottom:8px"><input type="text" class="trip-inp" placeholder="ค้นหาเลขบิล..." oninput="filterTripBills(this.value)" style="max-width:240px"></div>'
     +'<div class="bill-pick-list" id="tf-bill-list">'+(billRows||'<div style="padding:20px;text-align:center;color:#aaa">ไม่มีบิลที่พร้อมส่ง</div>')+'</div>'
     +'</div>'
@@ -3578,13 +3608,14 @@ function fetchTripBillsFromDB(trip){
   var db; try{ db=firebase.firestore(); }catch(e){ return Promise.resolve([]); }
   var ids=(trip&&trip.billIds)||[];
   var tasks=[];
-  // 1) ดึงตาม doc id (billNo เป็น docId)
-  ids.forEach(function(id){
-    tasks.push(db.collection("bills").doc(String(id)).get()
-      .then(function(d){ return d.exists?d.data():null; }).catch(function(){ return null; }));
-  });
-  // 2) เผื่อ billIds ไม่ครบ → ดึงด้วย tripId
-  if(trip && trip.id){
+  if(ids.length){
+    // มี billIds → ดึงเฉพาะตาม billIds เท่านั้น (รายการบิลในเที่ยวที่เป็นทางการ)
+    ids.forEach(function(id){
+      tasks.push(db.collection("bills").doc(String(id)).get()
+        .then(function(d){ return d.exists?d.data():null; }).catch(function(){ return null; }));
+    });
+  } else if(trip && trip.id){
+    // ไม่มี billIds → fallback ดึงด้วย tripId
     tasks.push(db.collection("bills").where("tripId","==",trip.id).get()
       .then(function(snap){ var a=[]; snap.forEach(function(d){a.push(d.data());}); return a; })
       .catch(function(){ return []; }));
