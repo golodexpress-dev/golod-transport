@@ -369,8 +369,8 @@ function App(){
           </div>
           <div className="meta">
             🗓️ นัดรับ <b>{thDate(r.pickupDate)}</b> · ต้นทาง <b>{r.originProv||"-"} {r.originAmphoe} {r.originTambon}</b>{r.senderPhone?(" ☎ "+r.senderPhone):""}<br/>
-            📦 {r.goods||"-"} → {r.destProv||"-"} {r.destAmphoe} {r.destTambon}<br/>
-            💰 ค่าส่ง {r.freight||0} · ค่าจ้างรับ {r.commission||0} ({r.rate}%)
+            📦 {r.goods||"-"} → ส่งไปที่ {r.destProv||"-"} {r.destAmphoe} {r.destTambon}<br/>
+            💰 ค่าส่ง {r.freight||0}
             {r.paidOnPickup?" · เก็บตอนรับ":""}
             {r.receiverName?<span><br/>👤 {r.receiverName} {r.receiverPhone}</span>:null}
             {r.note?<span><br/>📝 {r.note}</span>:null}

@@ -631,7 +631,7 @@ tr:hover td{background:#f8fffe}
 <div class="topbar">
   <span class="title">🚛 จัดการขนส่ง</span>
   <span id="session-info" style="font-size:11px;opacity:.8"></span>
-  <span style="font-size:10px;opacity:.65;margin-left:auto">build 2026-06-03f</span>
+  <span style="font-size:10px;opacity:.65;margin-left:auto">build 2026-06-03h</span>
   <a href="GolodApp.html" style="margin-left:10px">← หน้าหลัก</a>
 </div>
 <div class="container">
@@ -1555,6 +1555,7 @@ function renderTripForm(existingTrip){
     +'<div style="display:flex;align-items:center;gap:10px;margin-bottom:14px">'
     +'<button class="btn btn-gray" onclick="cancelTripForm()">← กลับ</button>'
     +'<div class="card-title" style="margin:0">'+(isEdit?"✏️ แก้ไขเที่ยว":"+ สร้างเที่ยวใหม่")+'</div>'
+    +(isEdit?'<button class="btn" onclick="openTripVehiclePhoto(\''+(t.id||"")+'\')" style="background:#34495e;color:#fff;margin-left:auto">📷 รูปรถ ('+((t.vehiclePhotos||[]).length)+') '+((t.vehiclePhotos||[]).length<2?'⚠️ต้อง≥2':'✓')+'</button>':'')
     +'</div>'
     +'<div class="trip-form">'
     +'<div class="trip-section-title">▶ คนขับ & เส้นทาง</div>'
@@ -1640,12 +1641,12 @@ function renderTripForm(existingTrip){
       +'<div><div class="trip-lbl">เบี้ยขยัน (฿)</div>'
       +'<input class="trip-inp" readonly value="'+(t.bonusFare||"—")+'" style="background:#f5f5f5;color:#888"></div>'
       +'</div>')
-    +'<div class="trip-section-title">💪 ค่าแรงค่าตร. (กรอกเงินแต่ละเงื่อนไข)</div>'
+    +'<div class="trip-section-title">💪 ค่าแรงค่าตร. <span style="font-size:10px;color:#aaa">(ติ๊กเงื่อนไข — เงินกรอกโดยแอดมิน)</span></div>'
     +'<div class="trip-form-grid cols2" style="margin-bottom:6px">'
-    +'<div><div class="trip-lbl">แบกน้ำหนัก (฿)</div><input id="tf-x1" type="number" class="trip-inp" placeholder="0" value="'+(t.extras&&t.extras.overweight||"")+'" '+(isAdmin?'':'readonly')+' oninput="calcTotalFare()"></div>'
-    +'<div><div class="trip-lbl">เปิดท้าย (฿)</div><input id="tf-x2" type="number" class="trip-inp" placeholder="0" value="'+(t.extras&&t.extras.openTail||"")+'" '+(isAdmin?'':'readonly')+' oninput="calcTotalFare()"></div>'
-    +'<div><div class="trip-lbl">ยื่นยาว (฿)</div><input id="tf-x3" type="number" class="trip-inp" placeholder="0" value="'+(t.extras&&t.extras.longLoad||"")+'" '+(isAdmin?'':'readonly')+' oninput="calcTotalFare()"></div>'
-    +'<div><div class="trip-lbl">สูงเกิน (฿)</div><input id="tf-x4" type="number" class="trip-inp" placeholder="0" value="'+(t.extras&&t.extras.overHeight||"")+'" '+(isAdmin?'':'readonly')+' oninput="calcTotalFare()"></div>'
+    +'<div style="display:flex;align-items:center;gap:6px"><label style="display:flex;align-items:center;gap:4px;font-size:12px;white-space:nowrap"><input type="checkbox" id="tf-c1" '+(t.extras&&(t.extras.overweightChk||(parseFloat(t.extras.overweight)>0))?"checked":"")+' style="accent-color:#0F6E56">แบกน้ำหนัก</label><input id="tf-x1" type="number" class="trip-inp" placeholder="฿" value="'+(t.extras&&t.extras.overweight||"")+'" '+(isAdmin?'':'readonly style="background:#f5f5f5;color:#888"')+' oninput="calcTotalFare()"></div>'
+    +'<div style="display:flex;align-items:center;gap:6px"><label style="display:flex;align-items:center;gap:4px;font-size:12px;white-space:nowrap"><input type="checkbox" id="tf-c2" '+(t.extras&&(t.extras.openTailChk||(parseFloat(t.extras.openTail)>0))?"checked":"")+' style="accent-color:#0F6E56">เปิดท้าย</label><input id="tf-x2" type="number" class="trip-inp" placeholder="฿" value="'+(t.extras&&t.extras.openTail||"")+'" '+(isAdmin?'':'readonly style="background:#f5f5f5;color:#888"')+' oninput="calcTotalFare()"></div>'
+    +'<div style="display:flex;align-items:center;gap:6px"><label style="display:flex;align-items:center;gap:4px;font-size:12px;white-space:nowrap"><input type="checkbox" id="tf-c3" '+(t.extras&&(t.extras.longLoadChk||(parseFloat(t.extras.longLoad)>0))?"checked":"")+' style="accent-color:#0F6E56">ยื่นยาว</label><input id="tf-x3" type="number" class="trip-inp" placeholder="฿" value="'+(t.extras&&t.extras.longLoad||"")+'" '+(isAdmin?'':'readonly style="background:#f5f5f5;color:#888"')+' oninput="calcTotalFare()"></div>'
+    +'<div style="display:flex;align-items:center;gap:6px"><label style="display:flex;align-items:center;gap:4px;font-size:12px;white-space:nowrap"><input type="checkbox" id="tf-c4" '+(t.extras&&(t.extras.overHeightChk||(parseFloat(t.extras.overHeight)>0))?"checked":"")+' style="accent-color:#0F6E56">สูงเกิน</label><input id="tf-x4" type="number" class="trip-inp" placeholder="฿" value="'+(t.extras&&t.extras.overHeight||"")+'" '+(isAdmin?'':'readonly style="background:#f5f5f5;color:#888"')+' oninput="calcTotalFare()"></div>'
     +'</div>'
     +'<div style="font-size:11px;color:#888;margin-bottom:10px">รวมค่าแรงค่าตร.: <b id="tf-labor-sum" style="color:#0F6E56">0</b> ฿</div>'
 
@@ -2129,7 +2130,11 @@ function saveTrip(){
       overweight: parseFloat((document.getElementById("tf-x1")||{}).value||0),
       openTail:   parseFloat((document.getElementById("tf-x2")||{}).value||0),
       longLoad:   parseFloat((document.getElementById("tf-x3")||{}).value||0),
-      overHeight: parseFloat((document.getElementById("tf-x4")||{}).value||0)
+      overHeight: parseFloat((document.getElementById("tf-x4")||{}).value||0),
+      overweightChk: !!(document.getElementById("tf-c1")||{}).checked,
+      openTailChk:   !!(document.getElementById("tf-c2")||{}).checked,
+      longLoadChk:   !!(document.getElementById("tf-c3")||{}).checked,
+      overHeightChk: !!(document.getElementById("tf-c4")||{}).checked
     },
     billIds: billIds,
     pickups: getTfPickupData(),
@@ -2407,6 +2412,8 @@ function renderMonthlyView(drivers, allTrips, selMonth, selDriver, dateFrom, dat
       var labor = (parseFloat(ex.overweight)||0)+(parseFloat(ex.openTail)||0)+(parseFloat(ex.longLoad)||0)+(parseFloat(ex.overHeight)||0);
       var delivered = cd.deliveredCount!=null?cd.deliveredCount:null;
       var failed    = cd.failedCount!=null?cd.failedCount:null;
+      var billCount = (s.billCount!=null?s.billCount:(t.billIds?t.billIds.length:0));
+      var phoneT    = parseFloat(t.phoneFare||0);
       var workFee   = cd.workFee!=null?parseFloat(cd.workFee): (delivered!=null?parseFloat(t.ratePerBill||0)*delivered:0);
       var fareTotal = fare+hotel+labor;
       var fuel = parseFloat(cd.fuelReal||t.fuelEst||0);
@@ -2428,6 +2435,7 @@ function renderMonthlyView(drivers, allTrips, selMonth, selDriver, dateFrom, dat
       tot.clrCash+=clrC; tot.clrTrans+=clrT; tot.diff+=diff; tot.fine+=fine;
       tot.rOrigin+=rOrigin; tot.rTransfer+=rTransfer; tot.rCredit+=rCredit; tot.rDestTransfer+=rDestTransfer;
       tot.delivered+=(delivered||0); tot.failed+=(failed||0); tot.workFee+=(workFee||0);
+      tot.billCount=(tot.billCount||0)+(billCount||0); tot.phone=(tot.phone||0)+phoneT;
 
       var status = t.status==="cleared"?'<span style="color:#0F6E56;font-weight:700">✅</span>'
                  : t.status==="open"?'<span style="color:#EF9F27">🟡</span>':'';
@@ -2439,12 +2447,14 @@ function renderMonthlyView(drivers, allTrips, selMonth, selDriver, dateFrom, dat
         +'<td style="text-align:center">'+status+'</td>'
         +'<td style="font-size:11px;color:#888">'+((t.departDate||"").slice(5)||"—")+'</td>'
         +'<td style="font-size:11px">'+((t.route||"—").slice(0,10))+'</td>'
+        +'<td style="text-align:center;font-size:11px;color:#555">'+(billCount||"-")+'</td>'
         +'<td style="text-align:center;font-size:11px;color:#0F6E56;font-weight:700">'+(delivered!=null?delivered:"-")+'</td>'
         +'<td style="text-align:center;font-size:11px;color:#c0392b">'+(failed!=null?failed:"-")+'</td>'
         +'<td style="text-align:right;font-size:11px;color:#b7950b">'+fmt(fuel)+'</td>'
         +(isAdmin?'<td style="text-align:right;font-size:11px">'+fmt(fare)+'</td>'
           +'<td style="text-align:right;font-size:11px">'+fmt(hotel)+'</td>'
           +'<td style="text-align:right;font-size:11px">'+fmt(labor)+'</td>'
+          +'<td style="text-align:right;font-size:11px;color:#555">'+fmt(phoneT)+'</td>'
           +'<td style="text-align:right;font-size:11px;color:#0F6E56">'+fmt(workFee)+'</td>'
           +'<td style="text-align:right;font-size:11px;font-weight:700;color:#0F6E56">'+fmt(fareTotal)+'</td>'
           +'<td style="text-align:right;font-size:11px;color:#1565C0">'+fmt(rOrigin)+'</td>'
@@ -2468,12 +2478,14 @@ function renderMonthlyView(drivers, allTrips, selMonth, selDriver, dateFrom, dat
     var totDiffClr = totDiff<0?"color:#c0392b":"color:#0F6E56";
     var sumRow = '<tr style="background:#f0faf5;font-weight:700;font-size:11px">'
       +'<td colspan="4" style="text-align:right;color:#0F6E56">รวม</td>'
+      +'<td style="text-align:center;color:#555">'+(tot.billCount||0)+'</td>'
       +'<td style="text-align:center;color:#0F6E56">'+tot.delivered+'</td>'
       +'<td style="text-align:center;color:#c0392b">'+tot.failed+'</td>'
       +'<td style="text-align:right;color:#b7950b">'+fmt(tot.fuel)+'</td>'
       +(isAdmin?'<td style="text-align:right">'+fmt(tot.fare)+'</td>'
         +'<td style="text-align:right">'+fmt(tot.hotel)+'</td>'
         +'<td style="text-align:right">'+fmt(tot.labor)+'</td>'
+        +'<td style="text-align:right;color:#555">'+fmt(tot.phone||0)+'</td>'
         +'<td style="text-align:right;color:#0F6E56">'+fmt(tot.workFee)+'</td>'
         +'<td style="text-align:right;color:#0F6E56">'+fmt(tot.fareTotal)+'</td>'
         +'<td style="text-align:right;color:#1565C0">'+fmt(tot.rOrigin)+'</td>'
@@ -2542,8 +2554,8 @@ function renderMonthlyView(drivers, allTrips, selMonth, selDriver, dateFrom, dat
         + insPanel;
     }
 
-    var hCols = '<th>⬛</th><th>สถานะ</th><th>วันที่</th><th>เส้นทาง</th><th>ส่งได้</th><th>ส่งไม่ได้</th><th>น้ำมัน</th>'
-      +(isAdmin?'<th>ค่าเที่ยว</th><th>โรงแรม</th><th>ค่าแรงค่าตร.</th><th>ค่าส่งงาน</th><th>รวมเที่ยว</th><th>ต้นทาง</th><th>โอน</th><th>เครดิต</th><th>ปลายทางโอน</th>':'')
+    var hCols = '<th>⬛</th><th>สถานะ</th><th>วันที่</th><th>เส้นทาง</th><th>บิล</th><th>ส่งได้</th><th>ส่งไม่ได้</th><th>น้ำมัน</th>'
+      +(isAdmin?'<th>ค่าเที่ยว</th><th>โรงแรม</th><th>ค่าแรงค่าตร.</th><th>ค่าโทร</th><th>ค่าส่งงาน</th><th>รวมเที่ยว</th><th>ต้นทาง</th><th>โอน</th><th>เครดิต</th><th>ปลายทางโอน</th>':'')
       +'<th>ปลายทาง</th><th>COD</th><th>รับสด</th><th>รับปลาย</th>'
       +'<th>ต้องเคลียร์</th><th>เคลียร์สด</th><th>เคลียร์โอน</th><th>ค้าง(+)/จ่าย(−)</th><th>ปรับ</th>';
 
