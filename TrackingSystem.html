@@ -299,24 +299,21 @@ function firestoreBillToTracking(b){
   var updatedDt = fmtISO(b.updatedAt);
   // ถ้า updatedAt เท่ากับ createdAt = ยังไม่มีการอัปเดตจริง
   var sameTime = !b.updatedAt || createdDt === updatedDt;
+  // issued = เวลาออกบิล (createdAt) เสมอ
   var timeline=[{status:"issued", dt:createdDt, loc:(b.senderProv||"กรุงเทพมหานคร"), note:"รับสินค้าจากผู้ส่ง", photo:false, sig:false}];
-  if(st==="hub"){
-    if(!sameTime) timeline.push({status:"hub", dt:updatedDt, loc:"ระหว่างนำส่ง", note:"กำลังนำส่งสาขา", photo:false, sig:false});
-  } else if(["transit","out","delivered","nocontact","returned"].includes(st)){
-    // แสดง transit เฉพาะเมื่อมีการอัปเดตจริง (updatedAt ต่างจาก createdAt)
-    if(!sameTime) timeline.push({status:"transit", dt:updatedDt, loc:"ระหว่างนำส่ง", note:"กำลังนำส่ง", photo:false, sig:false});
-  }
-  if(["out","delivered","nocontact","returned"].includes(st)){
-    if(!sameTime) timeline.push({status:"out", dt:updatedDt, loc:(b.destAmphoe||form.destAmphoe||""), note:"กำลังวิ่งส่งลูกค้า", photo:false, sig:false});
-  }
-  if(st==="delivered"){
-    timeline.push({status:"delivered", dt:fmtISO(b.deliveredAt||b.updatedAt), loc:(b.destAmphoe||form.destAmphoe||""), note:"ส่งถึงมือผู้รับแล้ว", photo:!!b.photoUrl, sig:!!b.signatureUrl, photoUrl:b.photoUrl||"", signatureUrl:b.signatureUrl||""});
-  }
-  if(st==="nocontact"){
-    timeline.push({status:"nocontact", dt:fmtISO(b.updatedAt), loc:(b.destAmphoe||form.destAmphoe||""), note:b.failReason||"ส่งไม่สำเร็จ", photo:false, sig:false});
-  }
-  if(st==="returned"){
-    timeline.push({status:"returned", dt:fmtISO(b.updatedAt), loc:(b.destAmphoe||form.destAmphoe||""), note:"นำกลับสาขา", photo:false, sig:false});
+  // แสดง "สถานะปัจจุบัน" 1 รายการ ตามเวลาจริงที่อัปเดต (ไม่สร้างขั้นกลางเวลาซ้ำกัน)
+  if(st!=="issued"){
+    if(st==="hub"){
+      timeline.push({status:"hub", dt:updatedDt, loc:"ระหว่างนำส่ง", note:"กำลังนำส่งสาขา", photo:false, sig:false});
+    } else if(st==="out"){
+      timeline.push({status:"transit", dt:updatedDt, loc:(b.destAmphoe||form.destAmphoe||""), note:"กำลังวิ่งส่งลูกค้า", photo:false, sig:false});
+    } else if(st==="delivered"){
+      timeline.push({status:"delivered", dt:fmtISO(b.deliveredAt||b.updatedAt), loc:(b.destAmphoe||form.destAmphoe||""), note:"ส่งถึงมือผู้รับแล้ว", photo:!!b.photoUrl, sig:!!b.signatureUrl, photoUrl:b.photoUrl||"", signatureUrl:b.signatureUrl||""});
+    } else if(st==="nocontact"){
+      timeline.push({status:"nocontact", dt:fmtISO(b.updatedAt), loc:(b.destAmphoe||form.destAmphoe||""), note:b.failReason||"ส่งไม่สำเร็จ", photo:false, sig:false});
+    } else if(st==="returned"){
+      timeline.push({status:"returned", dt:fmtISO(b.updatedAt), loc:(b.destAmphoe||form.destAmphoe||""), note:"นำกลับสาขา", photo:false, sig:false});
+    }
   }
   return {
     billNo: b.billNo,

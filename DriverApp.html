@@ -521,13 +521,10 @@ function renderBillListWithTrip(tripBillIds){
     pickupsHtml = '<div style="background:#fffbe6;border:1px solid #ffe082;border-radius:10px;padding:12px;margin-bottom:10px">'
       +'<div style="font-size:12px;font-weight:800;color:#b7950b;margin-bottom:8px">📦 งานต้องไปรับ ('+selTrip.pickups.length+')</div>';
     selTrip.pickups.forEach(function(p,i){
-      var _pk=_pickupKey(p), _done=_pickupConsumed(_pk);
       pickupsHtml += '<div style="background:#fff;border:1px solid #ffe6a0;border-radius:8px;padding:10px;margin-bottom:6px">'
         +'<div style="font-size:13px;font-weight:700;color:#333">'+(p.location||"ไม่ระบุสถานที่")+'</div>'
         +'<div style="font-size:12px;color:#666;margin:2px 0">'+(p.goods||"-")+(p.freight>0?' · ฿'+p.freight.toLocaleString("th-TH"):"")+'</div>'
-        +(_done
-          ? '<button disabled style="margin-top:4px;padding:6px 14px;background:#e0e0e0;color:#888;border:none;border-radius:7px;font-size:12px;font-weight:700">✅ ออกบิลแล้ว</button>'
-          : '<button onclick="openPickupFromTrip('+i+')" style="margin-top:4px;padding:6px 14px;background:#EF9F27;color:#fff;border:none;border-radius:7px;font-size:12px;font-weight:700;cursor:pointer">📝 ออกบิลงานนี้</button>')
+        +'<button onclick="openPickupFromTrip('+i+')" style="margin-top:4px;padding:6px 14px;background:#EF9F27;color:#fff;border:none;border-radius:7px;font-size:12px;font-weight:700;cursor:pointer">📝 ออกบิลงานนี้</button>'
         +'</div>';
     });
     pickupsHtml += '</div>';
@@ -759,6 +756,16 @@ function submitStatus(result){
     if(!failReason){ showToast("กรุณาเลือกสาเหตุ","red"); return; }
   }
 
+  // ส่งสำเร็จต้องมีรูปถ่ายยืนยันการส่ง (ป้องกันบิลส่งสำเร็จไม่มีรูป)
+  if(result === "success"){
+    var hasNewPhoto = !!uploadedUrls["_file_photo"];
+    var hasOldPhoto = currentBill && currentBill.photoUrl;
+    if(!hasNewPhoto && !hasOldPhoto){
+      showToast("📷 ต้องถ่ายรูปการส่งก่อนกดส่งสำเร็จ","red");
+      return;
+    }
+  }
+
   showUploading("กำลังอัปโหลดรูปภาพ...");
 
   // collect upload tasks
@@ -790,6 +797,13 @@ function submitStatus(result){
 
   Promise.all(tasks).then(function(){
     setUploadingMsg("กำลังบันทึกสถานะ...");
+
+    // ถ้าส่งสำเร็จและมีไฟล์รูปแต่ดันอัปไม่ได้ url → หยุด ไม่ให้บันทึกสำเร็จแบบไม่มีรูป
+    if(result === "success" && uploadedUrls["_file_photo"] && !uploadedUrls.photo && !(currentBill&&currentBill.photoUrl)){
+      hideUploading();
+      showToast("❌ อัปโหลดรูปไม่สำเร็จ ลองใหม่อีกครั้ง","red");
+      throw new Error("photo upload failed");
+    }
 
     var now = new Date().toISOString();
     var newStatus = result === "success" ? "ส่งสำเร็จ" : "ส่งไม่สำเร็จ";
@@ -997,11 +1011,6 @@ function saveDriverClearTrip(){
 
 // ====== PICKUP BILL ======
 var _pbBillNo = null;
-var _pbSubmitting = false;
-var _pbFromTripRef = null;
-function _pickupKey(p){ return p.ref || p.id || ((p.location||"")+"|"+(p.goods||"")+"|"+(p.freight||"")); }
-function _pickupConsumed(k){ try{ return (JSON.parse(localStorage.getItem("dr_consumed_pickups")||"[]")).indexOf(k)>=0; }catch(e){ return false; } }
-function _markPickupConsumed(k){ try{ var a=JSON.parse(localStorage.getItem("dr_consumed_pickups")||"[]"); if(a.indexOf(k)<0){ a.push(k); localStorage.setItem("dr_consumed_pickups",JSON.stringify(a)); } }catch(e){} }
 
 function genPickupBillNo(){
   var now = new Date();
@@ -1016,10 +1025,7 @@ function openPickupFromTrip(idx){
   var selTrip = DRIVER_TRIPS.find(function(t){ return t.id===SELECTED_TRIP_ID; });
   if(!selTrip || !selTrip.pickups || !selTrip.pickups[idx]){ openPickupBill(); return; }
   var p = selTrip.pickups[idx];
-  var _pk=_pickupKey(p);
-  if(_pickupConsumed(_pk) && !confirm("งานรับนี้ออกบิลไปแล้ว ต้องการออกบิลซ้ำอีกใบหรือไม่?")) return;
   openPickupBill();
-  _pbFromTripRef = _pk;  // จำว่ามาจากงานรับใบไหน (ตั้งหลัง openPickupBill เพราะ openPickupBill ล้างค่า)
   // เติมข้อมูลจากงานรับ
   setTimeout(function(){
     var senderEl = document.getElementById("pb-sender-name");
@@ -1048,7 +1054,6 @@ function openPickupFromTrip(idx){
 }
 
 function openPickupBill(){
-  _pbFromTripRef = null;
   _pbBillNo = genPickupBillNo();
   document.getElementById("pb-bill-no").textContent = "เลขบิล: "+_pbBillNo+" | คนรถ: "+(CU?CU.name:"");
   ["pb-sender-name","pb-sender-prov","pb-receiver-name","pb-receiver-phone","pb-dest-prov","pb-dest-amphoe","pb-dest-tambon","pb-freight"]
@@ -1248,7 +1253,6 @@ function startVoice(fieldId, label){
 }
 
 function submitPickupBill(){
-  if(_pbSubmitting) return;  // กันกดซ้ำ/บันทึกซ้ำ
   var g = function(id){ return (document.getElementById(id)||{}).value||""; };
   if(!g("pb-receiver-name")){ alert("กรุณากรอกชื่อผู้รับ"); return; }
   if(!g("pb-dest-prov")){ alert("กรุณากรอกจังหวัดปลายทาง"); return; }
@@ -1315,20 +1319,13 @@ function submitPickupBill(){
 
   var btn = document.querySelector("#pickup-bill-modal button:last-of-type");
   if(btn){ btn.disabled=true; btn.textContent="⏳ กำลังบันทึก..."; }
-  _pbSubmitting = true;
 
   function doSaveBill(photoUrls){
     if(photoUrls && photoUrls.length>0) bill.pickupPhotos = photoUrls;
     GolodDB.saveBill(bill).then(function(){
-      // มาจากงานรับในเที่ยว → ทำเครื่องหมายว่าออกบิลแล้ว กันออกซ้ำ
-      if(_pbFromTripRef){ _markPickupConsumed(_pbFromTripRef); _pbFromTripRef=null; }
-      _pbSubmitting = false;
       closePickupBill();
       showPickupSuccess(bill.billNo||_pbBillNo, bill.receiverName, bill.destProv, bill.items||[], bill.freightNet||0, bill.freightPay||'origin');
-      // refresh หน้าให้ปุ่มงานรับที่ออกบิลแล้วเปลี่ยนเป็น "ออกบิลแล้ว"
-      try{ if(typeof switchTrip==="function" && SELECTED_TRIP_ID) switchTrip(SELECTED_TRIP_ID); }catch(e){}
     }).catch(function(e){
-      _pbSubmitting = false;
       if(btn){ btn.disabled=false; btn.textContent="💾 บันทึกบิลรับงาน"; }
       alert("❌ "+e.message);
     });
