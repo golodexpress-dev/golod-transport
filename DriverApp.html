@@ -175,16 +175,21 @@ body{font-family:'Sarabun',Arial,sans-serif;background:#f0f4f0;min-height:100vh;
 
     <!-- upload section -->
     <div class="action-section">
-      <div class="action-title">📎 เอกสาร / หลักฐาน</div>
-      <div class="upload-grid">
-        <!-- รูปถ่าย -->
-        <div class="upload-box" onclick="triggerUpload('photo')">
-          <div class="ico">📷</div>
-          <div class="lbl">ถ่ายรูป<br>สินค้า</div>
+      <!-- รูปส่งงาน (แยกออกมา บังคับ) -->
+      <div class="action-title">📷 รูปส่งงาน <span style="color:#c0392b;font-size:11px">(บังคับ ก่อนกดส่งสำเร็จ)</span></div>
+      <div style="margin-bottom:6px">
+        <div class="upload-box" onclick="triggerUpload('photo')" style="width:100%;min-height:120px;border:2px solid #0F6E56;background:#f3fbf8">
+          <div class="ico" style="font-size:34px">📷</div>
+          <div class="lbl" style="font-weight:700;color:#0F6E56">ถ่ายรูปส่งงาน<br>(ของถึงมือผู้รับ)</div>
           <div class="done-badge" id="badge-photo" style="display:none">✓</div>
           <img id="prev-photo" style="display:none">
           <input type="file" id="file-photo" accept="image/*" capture="environment" onchange="handleFile('photo',this)">
         </div>
+        <div style="font-size:10px;color:#888;margin-top:4px">💡 รูปนี้จะแสดงให้ลูกค้าเห็นในหน้าติดตามสถานะ</div>
+      </div>
+
+      <div class="action-title">📎 เอกสาร / หลักฐานเพิ่มเติม</div>
+      <div class="upload-grid">
         <!-- สลิปโอน -->
         <div class="upload-box" onclick="triggerUpload('slip')">
           <div class="ico">🧾</div>
@@ -756,12 +761,10 @@ function submitStatus(result){
     if(!failReason){ showToast("กรุณาเลือกสาเหตุ","red"); return; }
   }
 
-  // ส่งสำเร็จต้องมีรูปถ่ายยืนยันการส่ง (ป้องกันบิลส่งสำเร็จไม่มีรูป)
+  // ส่งสำเร็จต้องมี "รูปส่งงาน" (ช่อง photo) เพื่อให้แสดงในหน้าติดตามของลูกค้า
   if(result === "success"){
-    var hasNewPhoto = !!uploadedUrls["_file_photo"];
-    var hasOldPhoto = currentBill && currentBill.photoUrl;
-    if(!hasNewPhoto && !hasOldPhoto){
-      showToast("📷 ต้องถ่ายรูปการส่งก่อนกดส่งสำเร็จ","red");
+    if(!uploadedUrls["_file_photo"] && !(currentBill && currentBill.photoUrl)){
+      showToast("📷 กรุณาถ่าย 'รูปส่งงาน' (ช่องสีเขียว) ก่อนกดส่งสำเร็จ","red");
       return;
     }
   }
