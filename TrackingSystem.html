@@ -375,11 +375,11 @@ function loadAllBillsFromFirestore(callback){
         "นำส่งใหม่","ติดต่อลูกค้าไม่ได้","ส่งไม่สำเร็จ","รออนุมัติ","นำกลับสาขา"
       ];
       var queries = activeStatus.map(function(st){
-        return db.collection("bills").where("status","==",st).limit(200)
+        return db.collection("bills").where("status","==",st).limit(800)
           .get().catch(function(){ return {forEach:function(){}}; });
       });
       // ดึงบิลส่งสำเร็จล่าสุด 100 ใบแยก (ไม่ใช้ orderBy เพื่อหลีก index)
-      var doneQ = db.collection("bills").where("status","==","ส่งสำเร็จ").limit(100)
+      var doneQ = db.collection("bills").where("status","==","ส่งสำเร็จ").limit(400)
         .get().catch(function(){ return {forEach:function(){}}; });
       queries.push(doneQ);
 
