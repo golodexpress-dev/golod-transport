@@ -14,7 +14,7 @@
   <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
 </head><body>
 <div class="golod-bar no-print">
-  <h1>โกโลด ทรานสปอร์ต — ออกบิล Thermal 80mm <span style="font-size:11px;font-weight:400;opacity:.6">build 2026-06-06·b2</span></h1>
+  <h1>โกโลด ทรานสปอร์ต — ออกบิล Thermal 80mm <span style="font-size:11px;font-weight:400;opacity:.6">build 2026-06-06·b4</span></h1>
   <div id="golod-chip"></div>
   <a href="GolodApp.html" style="font-size:11px;color:#9FE1CB;background:rgba(255,255,255,.15);padding:3px 10px;border-radius:20px;text-decoration:none">← หน้าหลัก</a>
   <a href="DailyReport.html" style="font-size:11px;color:#FFE082;background:rgba(255,255,255,.15);padding:3px 10px;border-radius:20px;text-decoration:none">📊 รายงานสิ้นวัน</a>
@@ -2838,46 +2838,48 @@ function ThermalBillingApp() {
   const [viewBill, setViewBill] = useState(null);
   // เปิดจากปุ่ม "พริ้นบิล" (DispatchApp) → ?print=เลขบิล → หาบิลแล้วเปิดหน้าพิมพ์เลย (ไม่ใช่ฟอร์มใหม่)
   const [_printDone, _setPrintDone] = useState(false);
+  // สร้างข้อมูลบิลสำหรับหน้าพิมพ์ + แก้ราคาต่อชิ้นให้ตรงยอดรวม (ใช้ได้ทั้งบิลในชุดและบิลที่ดึงจาก Firestore)
+  const _buildPrintBill = function(raw){
+    var fb = raw;
+    if(fb.form && typeof fb.form === "string"){ try{ fb = Object.assign({}, raw, {form: JSON.parse(raw.form)}); }catch(e){} }
+    if(!fb.form) fb = Object.assign({}, fb, {form: {}});
+    if(!fb.items || !Array.isArray(fb.items)) fb = Object.assign({}, fb, {items: (fb.form && Array.isArray(fb.form.items)) ? fb.form.items : []});
+    var fr = parseFloat(fb.freightNet)||0;
+    var its = fb.items || [];
+    if(fr > 0 && its.length > 0){
+      var hasPrice = its.some(function(it){ return it && it.customPrice !== undefined && it.customPrice !== ""; });
+      if(!hasPrice){
+        fb = Object.assign({}, fb, {items: its.map(function(it,i){ return Object.assign({}, it, {customPrice: i===0?String(fr):"0"}); })});
+      }
+    }
+    if(!fb.summary) fb = Object.assign({}, fb, {summary: {freightNet: fr, freightTotal: fr, codTotal: parseFloat(fb.codTotal)||0, discount: 0}});
+    if(!fb.date) fb = Object.assign({}, fb, {date: fb.billDate || fb.date || ""});
+    return fb;
+  };
   useEffect(function(){
     if(_printDone) return;
     var p;
-    try{ p = new URLSearchParams(location.search).get("print"); }catch(e){ p=null; }
+    try{ p = new URLSearchParams(location.search).get("print"); }catch(e){ p = null; }
     if(!p) return;
+    // 1) หาในชุดที่โหลดมา (บิลล่าสุด) — รอจน allBills โหลดเสร็จก่อน
+    var found = (allBills||[]).find(function(b){ return b && b.billNo === p; });
+    if(found){ _setPrintDone(true); setViewBill(_buildPrintBill(found)); setView("preview"); return; }
+    // 2) ถ้าชุดยังว่าง (กำลังโหลด) → แสดงรายการระหว่างรอ ยังไม่ค้น Firestore/ยังไม่ล็อก
     if(!allBills || allBills.length === 0){ setView("list"); return; }
-    var found = allBills.find(function(b){ return b && b.billNo === p; });
-    if(found){
-      var fb = found;
-      if(fb.form && typeof fb.form === "string"){ try{ fb = Object.assign({}, found, {form: JSON.parse(found.form)}); }catch(e){} }
-      if(!fb.form) fb = Object.assign({}, fb, {form: {}});
-      // เติมข้อมูลที่หน้าพิมพ์ต้องใช้ เผื่อบิลคนรถไม่มี summary/items ครบ
-      if(!fb.items || !Array.isArray(fb.items)) fb = Object.assign({}, fb, {items: (fb.form && Array.isArray(fb.form.items)) ? fb.form.items : []});
-      // ถ้าบิลมียอดรวม (freightNet) แต่รายการไม่มีราคาต่อชิ้น → ใส่ยอดรวมลงแถวแรก ให้ราคาต่อแถวตรงกับยอดรวม (กันบิล DR-/บิลมือ โชว์ราคาต่อชิ้นเพี้ยน)
-      (function(){
-        var fr = parseFloat(fb.freightNet)||0;
-        var its = fb.items || [];
-        if(fr > 0 && its.length > 0){
-          var hasPrice = its.some(function(it){ return it && it.customPrice !== undefined && it.customPrice !== ""; });
-          if(!hasPrice){
-            var newItems = its.map(function(it, i){
-              return Object.assign({}, it, {customPrice: i === 0 ? String(fr) : "0"});
-            });
-            fb = Object.assign({}, fb, {items: newItems});
-          }
-        }
-      })();
-      if(!fb.summary) fb = Object.assign({}, fb, {summary: {
-        freightNet: parseFloat(fb.freightNet)||0,
-        freightTotal: parseFloat(fb.freightNet)||0,
-        codTotal: parseFloat(fb.codTotal)||0,
-        discount: 0
-      }});
-      if(!fb.date) fb = Object.assign({}, fb, {date: fb.billDate || fb.date || ""});
-      setViewBill(fb);
-      setView("preview");
-      _setPrintDone(true);
-    } else {
-      setView("list"); // ยังหาไม่เจอ → ค้างที่รายการ (ช่องค้นหาจะกรองด้วยเลขบิลให้)
-    }
+    // 3) ชุดโหลดแล้วแต่ไม่เจอ → บิลเก่า → ค้นตรงจาก Firestore ด้วย field billNo (ไม่อิง doc id)
+    var db = null;
+    try{ db = (typeof firebase!=="undefined" && firebase.firestore) ? firebase.firestore() : null; }catch(e){ db = null; }
+    if(!db){ setView("list"); return; }
+    _setPrintDone(true);
+    setView("list");
+    db.collection("bills").where("billNo","==",p).limit(1).get().then(function(snap){
+      var doc = (snap && !snap.empty) ? snap.docs[0] : null;
+      if(doc){ setViewBill(_buildPrintBill(doc.data())); setView("preview"); return null; }
+      // เผื่อ doc id = เลขบิล
+      return db.collection("bills").doc(p).get().then(function(d){
+        if(d && d.exists){ setViewBill(_buildPrintBill(d.data())); setView("preview"); }
+      });
+    }).catch(function(){});
   }, [allBills, _printDone]);
   const [form, setForm] = useState(() => {
     // ถ้ามีบิลที่ต้องการแก้ไข
