@@ -254,7 +254,7 @@ var GolodDB = (function() {
   function getBillsNew(limitN) {
     return new Promise(function(resolve, reject) {
       ready(function() {
-        db.collection("bills").limit(limitN || 3000).get()
+        db.collection("bills").orderBy("createdAt","desc").limit(limitN || 3000).get()
           .then(function(snap) {
             var bills = [];
             snap.forEach(function(doc) { bills.push(doc.data()); });
@@ -386,18 +386,9 @@ var GolodDB = (function() {
               logs.push(d);
             });
             // filter by date client-side (Firestore ไม่ต้องการ composite index เพิ่ม)
-            // ใช้วันที่ตามเวลาเครื่อง (ไทย UTC+7) ไม่ใช่ UTC — กันงานช่วงเช้ามืดหลุดวัน
             if(opts.dateFrom || opts.dateTo) {
-              var localDate = function(iso){
-                if(!iso) return "";
-                var dt = new Date(iso);
-                if(isNaN(dt.getTime())) return String(iso).slice(0,10);
-                return dt.getFullYear()+"-"
-                  +String(dt.getMonth()+1).padStart(2,"0")+"-"
-                  +String(dt.getDate()).padStart(2,"0");
-              };
               logs = logs.filter(function(l) {
-                var d = localDate(l.dispatchAt);
+                var d = l.dispatchAt ? l.dispatchAt.slice(0,10) : "";
                 if(opts.dateFrom && d < opts.dateFrom) return false;
                 if(opts.dateTo   && d > opts.dateTo)   return false;
                 return true;
@@ -503,88 +494,8 @@ var GolodDB = (function() {
     });
   }
 
-  // ===================================================
-  // ===== PICKUPS (งานรับล่วงหน้าของเสมียน) =====
-  // collection: pickups
-  // doc: { id, ref, createdAt, createdBy, branch,
-  //        location, originProv, goods,
-  //        receiverName, receiverPhone, destProv, destAmphoe, destTambon,
-  //        freight, rate, commission, paidOnPickup,
-  //        pickupDate, note, photos:[dataUrl],
-  //        status:"pending"|"dispatched", tripId, dispatchedAt, dispatchedBy }
-  // ===================================================
-  function savePickup(p) {
-    return new Promise(function(resolve, reject) {
-      ready(function() {
-        var ref = p.id ? db.collection("pickups").doc(p.id) : db.collection("pickups").doc();
-        if(!p.id) p.id = ref.id;
-        if(!p.createdAt) p.createdAt = new Date().toISOString();
-        p.updatedAt = new Date().toISOString();
-        Object.keys(p).forEach(function(k){ if(p[k]===undefined) delete p[k]; });
-        ref.set(p, {merge:true})
-          .then(function(){ resolve(p); })
-          .catch(reject);
-      });
-    });
-  }
-
-  function getPickups(opts) {
-    opts = opts || {};
-    return new Promise(function(resolve) {
-      ready(function() {
-        var q;
-        if(opts.status) {
-          // ใช้ where อย่างเดียว (เลี่ยง composite index) แล้ว sort ฝั่ง client
-          q = db.collection("pickups").where("status","==",opts.status).limit(opts.limitN||400);
-        } else {
-          q = db.collection("pickups").orderBy("pickupDate","asc").limit(opts.limitN||400);
-        }
-        q.get().then(function(snap){
-          var arr=[];
-          snap.forEach(function(doc){ arr.push(doc.data()); });
-          if(opts.branch) arr = arr.filter(function(x){ return x.branch===opts.branch; });
-          arr.sort(function(a,b){
-            return (a.pickupDate||"").localeCompare(b.pickupDate||"")
-                || (a.createdAt||"").localeCompare(b.createdAt||"");
-          });
-          resolve(arr);
-        }).catch(function(e){ console.warn("[getPickups]", e); resolve([]); });
-      });
-    });
-  }
-
-  function updatePickup(id, updates) {
-    return new Promise(function(resolve, reject) {
-      ready(function() {
-        updates.updatedAt = new Date().toISOString();
-        db.collection("pickups").doc(id).update(updates).then(resolve).catch(reject);
-      });
-    });
-  }
-
-  function deletePickup(id) {
-    return new Promise(function(resolve, reject) {
-      ready(function() {
-        db.collection("pickups").doc(id).delete().then(resolve).catch(reject);
-      });
-    });
-  }
-
-  function listenPickups(status, callback) {
-    var q = status
-      ? db.collection("pickups").where("status","==",status).limit(400)
-      : db.collection("pickups").limit(400);
-    return q.onSnapshot(function(snap){
-      var arr=[];
-      snap.forEach(function(doc){ arr.push(doc.data()); });
-      arr.sort(function(a,b){ return (a.pickupDate||"").localeCompare(b.pickupDate||""); });
-      callback(arr);
-    });
-  }
-
   return {
     init, ready,
-    savePickup, getPickups, updatePickup, deletePickup, listenPickups,
     saveBill, getBills, updateBill,
     saveContact, getContacts,
     saveUser, getUsers,

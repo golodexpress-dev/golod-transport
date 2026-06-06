@@ -67,7 +67,7 @@ tr.total-row td{background:#f0faf5;font-weight:700;border-top:2px solid #d0ede5}
 </head>
 <body>
 <div class="topbar">
-  <span class="title">📊 รายงานยอดขาย — โกโลด ทรานสปอร์ต <span style="font-size:10px;opacity:.7;font-weight:400">build 2026-06-06·b4</span></span>
+  <span class="title">📊 รายงานยอดขาย — โกโลด ทรานสปอร์ต <span style="font-size:10px;opacity:.7;font-weight:400">build 2026-06-06·b5</span></span>
   <a href="GolodApp.html">← หน้าหลัก</a>
   <button onclick="window.print()" style="padding:5px 12px;background:rgba(255,255,255,.2);color:#fff;border:1px solid rgba(255,255,255,.4);border-radius:6px;cursor:pointer;font-size:12px">🖨 พิมพ์</button>
 </div>
@@ -674,7 +674,7 @@ function toggleMode(){
 function loadData(){
   document.getElementById("report-wrap").innerHTML='<div class="loading">⏳ กำลังดึงข้อมูลจาก Firestore...</div>';
   function doLoad(){
-    GolodDB.getBillsNew(3000).then(function(bills){
+    GolodDB.getBillsNew(8000).then(function(bills){
       allBills=bills;
       var el=document.getElementById("bill-count");
       if(el) el.textContent="โหลดแล้ว "+bills.length+" บิล";
