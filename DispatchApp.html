@@ -3756,22 +3756,38 @@ function addClearRemark(){
   document.getElementById("ct-rmk-bill").value="";
   document.getElementById("ct-rmk-note").value="";
   document.getElementById("ct-rmk-amount").value="";
+  persistRemarks();
   renderClearRemarks(); calcClearTrip();
 }
 function approveRemark(id){
   var r=_clearRemarks.find(function(x){return x.id===id;}); if(!r) return;
   r.status="approved"; r.approvedBy=CU?CU.username:""; r.approvedByName=CU?(CU.name||CU.username):"";
+  persistRemarks();
   renderClearRemarks(); calcClearTrip();
 }
 function rejectRemark(id){
   var r=_clearRemarks.find(function(x){return x.id===id;}); if(!r) return;
   r.status="rejected"; r.approvedBy=CU?CU.username:""; r.approvedByName=CU?(CU.name||CU.username):"";
+  persistRemarks();
   renderClearRemarks(); calcClearTrip();
 }
 function deleteRemark(id){
   if(!confirm("ลบรายการนี้?")) return;
   _clearRemarks=_clearRemarks.filter(function(x){return x.id!==id;});
+  persistRemarks();
   renderClearRemarks(); calcClearTrip();
+}
+// เซฟ remarks ลง Firestore ทันที (ไม่ต้องรอกดบันทึกเคลียร์) — กันอนุมัติแล้วค้าง "รออนุมัติ" ฝั่งเสมียน
+function persistRemarks(){
+  if(!_clearTripId) return;
+  var snapshot = _clearRemarks.slice();
+  // อัปเดต object ในหน่วยความจำ เพื่อให้ badge/หน้าอื่นอัปเดตทันที
+  if(_clearTripData){ _clearTripData.clearRemarks = snapshot; }
+  var t=(_tripState&&_tripState.openTrips||[]).find(function(x){return x.id===_clearTripId;});
+  if(t){ t.clearRemarks = snapshot; }
+  if(typeof GolodDB!=="undefined" && GolodDB.updateTrip){
+    GolodDB.updateTrip(_clearTripId, {clearRemarks: snapshot}).catch(function(e){ console.warn("persistRemarks:", e&&e.message); });
+  }
 }
 function remarksApprovedSum(){
   return _clearRemarks.filter(function(r){return r.status==="approved";})
