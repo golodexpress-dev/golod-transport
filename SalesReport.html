@@ -67,7 +67,7 @@ tr.total-row td{background:#f0faf5;font-weight:700;border-top:2px solid #d0ede5}
 </head>
 <body>
 <div class="topbar">
-  <span class="title">📊 รายงานยอดขาย — โกโลด ทรานสปอร์ต <span style="font-size:10px;opacity:.7;font-weight:400">build 2026-06-06·b3</span></span>
+  <span class="title">📊 รายงานยอดขาย — โกโลด ทรานสปอร์ต <span style="font-size:10px;opacity:.7;font-weight:400">build 2026-06-06·b4</span></span>
   <a href="GolodApp.html">← หน้าหลัก</a>
   <button onclick="window.print()" style="padding:5px 12px;background:rgba(255,255,255,.2);color:#fff;border:1px solid rgba(255,255,255,.4);border-radius:6px;cursor:pointer;font-size:12px">🖨 พิมพ์</button>
 </div>
@@ -170,6 +170,13 @@ function getZone(prov, amphoe) {
   return "Other";
 }
 
+// ดึงรหัสเสมียน = ตัวอักษรนำหน้าเลขบิล (เช่น PH0606-07 → PH) เพราะ field clerkCode มักว่าง
+function _clerkCodeOf(b){
+  var raw = b.billNo || (b.form&&b.form.billNo) || b.clerkCode || (b.form&&b.form.clerkCode) || b.staff || (b.form&&b.form.staff) || "";
+  var m = String(raw).toUpperCase().match(/[A-Z]+/);
+  return m ? m[0] : "";
+}
+
 function getBranch(b){
   function norm(s){
     s=String(s||"");
@@ -183,8 +190,8 @@ function getBranch(b){
   // 1) จากชื่อสาขาที่ออกบิล (originBranch / branch)
   var byName = norm(b.originBranch || (b.form&&b.form.originBranch) || b.branch);
   if(byName) return byName;
-  // 2) เดาจากรหัสเสมียน แบบ prefix (P→ปทุม, K→โคราช, S/H→ศรีสะเกษ, ที่เหลือ→กทม)
-  var cc=(b.clerkCode || (b.form&&b.form.clerkCode) || b.staff || (b.form&&b.form.staff) || "").toUpperCase();
+  // 2) เดาจากรหัสเสมียน (prefix เลขบิล): P→ปทุม, K→โคราช, S/H→ศรีสะเกษ, ที่เหลือ→กทม
+  var cc=_clerkCodeOf(b);
   if(cc.indexOf("P")===0) return "ptm";
   if(cc.indexOf("K")===0) return "krt";
   if(cc.indexOf("S")===0||cc.indexOf("H")===0) return "ssk";
@@ -415,7 +422,7 @@ function buildBillHTML(b){
   var items    = Array.isArray(b.items)?b.items:(Array.isArray(f.items)?f.items:[]);
   var clerk    = (pick("clerkName")||pick("staffName")||b.clerkCode||"").replace(/\s*\(.*?\)\s*/g,"").trim();
   var note     = pick("note");
-  var _issBranch = pick("originBranch") || _brFromClerk(pick("clerkCode")||pick("staff")||b.clerkCode);
+  var _issBranch = pick("originBranch") || _brFromClerk(_clerkCodeOf(b));
   var _brInfo    = _BR_ADDR[_issBranch] || _BR_ADDR["กรุงเทพ"];
 
   var rowKV=function(l,v){ return v?('<div style="display:flex;gap:5px;margin:1px 0"><span style="color:#555;min-width:42px;font-size:10px">'+l+'</span><span style="flex:1;font-weight:700;font-size:11px">'+v+'</span></div>'):''; };
