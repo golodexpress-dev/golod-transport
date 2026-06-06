@@ -631,7 +631,7 @@ tr:hover td{background:#f8fffe}
 <div class="topbar">
   <span class="title">🚛 จัดการขนส่ง</span>
   <span id="session-info" style="font-size:11px;opacity:.8"></span>
-  <span style="font-size:10px;opacity:.65;margin-left:auto">build 2026-06-03m</span>
+  <span style="font-size:10px;opacity:.65;margin-left:auto">build 2026-06-06·b2</span>
   <a href="GolodApp.html" style="margin-left:10px">← หน้าหลัก</a>
 </div>
 <div class="container">
@@ -4349,6 +4349,9 @@ function confirmApprove(){
     var goodsList2 = goods.split(/[\n]+/).map(function(s){return s.trim();}).filter(Boolean);
     upd.items = goodsList2.map(function(d){return {desc:d,kg:"0",qty:1,sumCm:"0",hasCOD:false,codAmount:""};});
     if(upd.items.length===0) upd.items=[{desc:goods,kg:"0",qty:1,sumCm:"0",hasCOD:false,codAmount:""}];
+    // ใส่ค่าขนส่งรวมลงแถวแรก เพื่อให้ราคาต่อแถวตรงกับยอดรวม (กันโชว์ราคาต่อชิ้นเพี้ยนตอนพิมพ์)
+    var _fr = parseFloat(g("ap-freight"))||0;
+    if(_fr>0){ upd.items.forEach(function(it,i){ it.customPrice = i===0 ? String(_fr) : "0"; }); }
   }
   GolodDB.updateBill(billNo, upd).then(function(){
     updateLocalBillStatus(billNo,"ออกบิลรับของ");

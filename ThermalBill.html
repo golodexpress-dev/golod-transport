@@ -14,7 +14,7 @@
   <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
 </head><body>
 <div class="golod-bar no-print">
-  <h1>โกโลด ทรานสปอร์ต — ออกบิล Thermal 80mm</h1>
+  <h1>โกโลด ทรานสปอร์ต — ออกบิล Thermal 80mm <span style="font-size:11px;font-weight:400;opacity:.6">build 2026-06-06·b2</span></h1>
   <div id="golod-chip"></div>
   <a href="GolodApp.html" style="font-size:11px;color:#9FE1CB;background:rgba(255,255,255,.15);padding:3px 10px;border-radius:20px;text-decoration:none">← หน้าหลัก</a>
   <a href="DailyReport.html" style="font-size:11px;color:#FFE082;background:rgba(255,255,255,.15);padding:3px 10px;border-radius:20px;text-decoration:none">📊 รายงานสิ้นวัน</a>
@@ -2851,6 +2851,20 @@ function ThermalBillingApp() {
       if(!fb.form) fb = Object.assign({}, fb, {form: {}});
       // เติมข้อมูลที่หน้าพิมพ์ต้องใช้ เผื่อบิลคนรถไม่มี summary/items ครบ
       if(!fb.items || !Array.isArray(fb.items)) fb = Object.assign({}, fb, {items: (fb.form && Array.isArray(fb.form.items)) ? fb.form.items : []});
+      // ถ้าบิลมียอดรวม (freightNet) แต่รายการไม่มีราคาต่อชิ้น → ใส่ยอดรวมลงแถวแรก ให้ราคาต่อแถวตรงกับยอดรวม (กันบิล DR-/บิลมือ โชว์ราคาต่อชิ้นเพี้ยน)
+      (function(){
+        var fr = parseFloat(fb.freightNet)||0;
+        var its = fb.items || [];
+        if(fr > 0 && its.length > 0){
+          var hasPrice = its.some(function(it){ return it && it.customPrice !== undefined && it.customPrice !== ""; });
+          if(!hasPrice){
+            var newItems = its.map(function(it, i){
+              return Object.assign({}, it, {customPrice: i === 0 ? String(fr) : "0"});
+            });
+            fb = Object.assign({}, fb, {items: newItems});
+          }
+        }
+      })();
       if(!fb.summary) fb = Object.assign({}, fb, {summary: {
         freightNet: parseFloat(fb.freightNet)||0,
         freightTotal: parseFloat(fb.freightNet)||0,
