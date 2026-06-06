@@ -1046,6 +1046,23 @@ function ThermalBill({
   const zoneLabel = zone === "near" ? "ใกล้" : zone === "far" ? "ไกล" : "พิเศษ";
   const freightLabel = ((_FREIGHT_PAY$find = FREIGHT_PAY.find(f => f.id === form.freightPay)) === null || _FREIGHT_PAY$find === void 0 ? void 0 : _FREIGHT_PAY$find.label) || "—";
   const branchLabel = ((_BRANCHES$find = BRANCHES.find(b => b.id === form.branch)) === null || _BRANCHES$find === void 0 ? void 0 : _BRANCHES$find.label) || "";
+  // ===== ที่อยู่ตามสาขาที่ออกบิล =====
+  const _BR_ADDR = {
+    "กรุงเทพ":       {label:"สาขากรุงเทพ",    a:"527 ถ.ลัดนิ่มไสว แขวงทวีวัฒนา เขตทวีวัฒนา", b:"กรุงเทพฯ 10170  Tax ID: 0105556152968", phones:["099-1875230","086-0741212","094-4721796","098-4518141"]},
+    "กรุงเทพมหานคร": {label:"สาขากรุงเทพ",    a:"527 ถ.ลัดนิ่มไสว แขวงทวีวัฒนา เขตทวีวัฒนา", b:"กรุงเทพฯ 10170  Tax ID: 0105556152968", phones:["099-1875230","086-0741212","094-4721796","098-4518141"]},
+    "ปทุมธานี":      {label:"สาขาปทุมธานี",   a:"145/7 ถนนทางหลวง 345 ต.บ้านใหม่", b:"อ.เมือง จ.ปทุมธานี 12000  Tax ID: 0105556152968", phones:["062-4304185","085-1703547"]},
+    "นครราชสีมา":    {label:"สาขานครราชสีมา", a:"44 หมู่ 5 ต.หนองบัวน้อย", b:"อ.สีคิ้ว จ.นครราชสีมา 30140  Tax ID: 0105556152968", phones:["080-9904835","095-6195161","085-2242533"]},
+    "ศรีสะเกษ":      {label:"สาขาศรีสะเกษ",   a:"49 หมู่ 1 ถ.กันทรลักษ์-วารินชำราบ ต.น้ำอ้อม", b:"อ.กันทรลักษ์ จ.ศรีสะเกษ 33110  Tax ID: 0105556152968", phones:["087-9589918"]}
+  };
+  const _brFromClerk = function(cc){
+    cc = (cc||"").toUpperCase();
+    if(cc.indexOf("P")===0) return "ปทุมธานี";
+    if(cc.indexOf("K")===0) return "นครราชสีมา";
+    if(cc.indexOf("S")===0||cc.indexOf("H")===0) return "ศรีสะเกษ";
+    return "กรุงเทพ";
+  };
+  const _issBranch = form.originBranch || _brFromClerk(form.staff||form.clerkCode);
+  const _brInfo = _BR_ADDR[_issBranch] || _BR_ADDR["กรุงเทพ"];
   const isGTM = form.destProv === "กรุงเทพมหานคร";
   const isSGTM = form.senderProv === "กรุงเทพมหานคร";
   const bars = Array.from({
@@ -1132,13 +1149,13 @@ function ThermalBill({
     }
   }, ""), /*#__PURE__*/React.createElement("div", {
     style: { fontSize: 10, fontWeight: 700 }
-  }, "527 \u0E16.\u0E25\u0E31\u0E14\u0E19\u0E34\u0E48\u0E21\u0E44\u0E2A\u0E27 \u0E41\u0E02\u0E27\u0E07\u0E17\u0E27\u0E35\u0E27\u0E31\u0E12\u0E19\u0E32 \u0E40\u0E02\u0E15\u0E17\u0E27\u0E35\u0E27\u0E31\u0E12\u0E19\u0E32", /*#__PURE__*/React.createElement("br",null), "\u0E01\u0E23\u0E38\u0E07\u0E40\u0E17\u0E1E\u0E2F 10170  Tax ID: 0105556152968"), /*#__PURE__*/React.createElement("div", {
+  }, _brInfo.a, /*#__PURE__*/React.createElement("br",null), _brInfo.b), /*#__PURE__*/React.createElement("div", {
     style: { fontSize: 12, fontWeight: 800 }
-  }, "\u0E42\u0E17\u0E23 099-1875230, 086-0741212"), /*#__PURE__*/React.createElement("div", {
+  }, "\u0E42\u0E17\u0E23 " + ((_brInfo.phones||[]).slice(0,2).join(", "))), ((_brInfo.phones||[]).length>2 ? /*#__PURE__*/React.createElement("div", {
     style: { fontSize: 12, fontWeight: 800 }
-  }, "094-4721796, 098-4518141"), /*#__PURE__*/React.createElement("div", {
+  }, (_brInfo.phones||[]).slice(2).join(", ")) : null), /*#__PURE__*/React.createElement("div", {
     style: { fontSize: 12, fontWeight: 900 }
-  }, "\u0E40\u0E0A\u0E47\u0E04\u0E2A\u0E16\u0E32\u0E19\u0E17\u0E35\u0E48 @glexpress"), /*#__PURE__*/React.createElement("div", {
+  }, "\u0E40\u0E0A\u0E47\u0E04\u0E2A\u0E16\u0E32\u0E19\u0E30\u0E02\u0E2D\u0E07\u0E44\u0E14\u0E49\u0E17\u0E35\u0E48 @glexpress"), /*#__PURE__*/React.createElement("div", {
     style: { fontSize: 12, fontWeight: 900 }
   }, "\u0E15\u0E35\u0E23\u0E32\u0E04\u0E32\u0E23\u0E31\u0E1A\u0E07\u0E32\u0E19 @golod")), /*#__PURE__*/React.createElement(Div, null), /*#__PURE__*/React.createElement("div", {
     style: {
@@ -1153,7 +1170,7 @@ function ThermalBill({
     }
   }, "บิลขนส่งเลขที่  ", billNo), /*#__PURE__*/React.createElement("div", {
     style: { fontSize: 10, fontWeight: 700, marginTop: 1 }
-  }, printDate, " ", nowStr(), " \u0E19. | ", branchLabel)), /*#__PURE__*/React.createElement(Div, {
+  }, printDate, " ", nowStr(), " \u0E19. | ", _brInfo.label)), /*#__PURE__*/React.createElement(Div, {
     dashed: true
   }), /*#__PURE__*/React.createElement("div", {
     style: { marginBottom: 2, textAlign:"left" }
@@ -1293,7 +1310,7 @@ function ThermalBill({
     }
   }, /*#__PURE__*/React.createElement(Row, {
     l: "\u0E04\u0E48\u0E32\u0E02\u0E19\u0E2A\u0E48\u0E07\u0E23\u0E27\u0E21",
-    r: `${(summary&&(summary.freightTotal||summary.freightNet)||0).toLocaleString("th-TH")}.-`
+    r: `${(summary&&(summary.freightTotal||summary.freightNet)||0).toLocaleString("th-TH")} ฿`
   }), /*#__PURE__*/React.createElement(Row, {
     l: "\u0E2A\u0E48\u0E27\u0E19\u0E25\u0E14",
     r: (summary&&summary.discount>0)?"-"+(summary.discount||0).toLocaleString("th-TH")+" \u0E3F":"\u2014"
@@ -1493,15 +1510,20 @@ function ItemRow({
       marginLeft: "auto"
     }
   }, /*#__PURE__*/React.createElement("span", {style:{display:"flex",alignItems:"center",gap:4}},
+          (item.customPrice === undefined || item.customPrice === "") && size.id !== "custom"
+            ? /*#__PURE__*/React.createElement("span", {style:{fontSize:10,fontWeight:700,color:"#fff",background:"#EF9F27",padding:"1px 6px",borderRadius:10}}, "อัตโนมัติ")
+            : null,
           /*#__PURE__*/React.createElement("input", {
             type: "number",
             value: item.customPrice !== undefined ? item.customPrice : "",
             onChange: e => u("customPrice", e.target.value),
             placeholder: String(autoUp||0),
-            style: {width:60,padding:"2px 5px",border:"1px solid #ccc",borderRadius:5,fontSize:12,textAlign:"right",background:"#f8f8f8"}
+            style: (item.customPrice === undefined || item.customPrice === "") && size.id !== "custom"
+              ? {width:60,padding:"2px 5px",border:"2px solid #EF9F27",borderRadius:5,fontSize:12,textAlign:"right",background:"#FFF6E9"}
+              : {width:60,padding:"2px 5px",border:"1px solid #ccc",borderRadius:5,fontSize:12,textAlign:"right",background:"#f8f8f8"}
           }),
-          ".-/ชิ้น → ",
-          /*#__PURE__*/React.createElement("strong",null, lt.toLocaleString("th-TH"), ".-")
+          " ฿/ชิ้น → ",
+          /*#__PURE__*/React.createElement("strong",null, lt.toLocaleString("th-TH"), " ฿")
         )
     ), canRemove && /*#__PURE__*/React.createElement("button", {
     onClick: () => onRemove(idx),
@@ -1729,6 +1751,13 @@ function BillList({
   onView
 }) {
   const [q, setQ] = useState("");
+  // เปิดจากปุ่ม "พริ้นบิล" (DispatchApp) → ?print=เลขบิล → ค้นให้อัตโนมัติ
+  useEffect(function(){
+    try{
+      var p = new URLSearchParams(location.search).get("print");
+      if(p) setQ(p);
+    }catch(e){}
+  }, []);
   // normalize form field — ถ้าเป็น string ให้ parse เป็น object
   const normalizedBills = bills.filter(function(b){ return b && b.billNo; }).map(function(b) {
     if (b.form && typeof b.form === "string") {
@@ -1875,7 +1904,7 @@ function BillList({
         fontWeight: (b.summary&&b.summary.codTotal) > 0 ? 800 : 400,
         whiteSpace: "nowrap"
       }
-    }, (b.summary&&b.summary.codTotal) > 0 ? ((b.summary&&b.summary.codTotal)||b.codTotal||0).toLocaleString("th-TH") + ".-" : "—"), /*#__PURE__*/React.createElement("td", {
+    }, (b.summary&&b.summary.codTotal) > 0 ? ((b.summary&&b.summary.codTotal)||b.codTotal||0).toLocaleString("th-TH") + " ฿" : "—"), /*#__PURE__*/React.createElement("td", {
       style: {
         padding: "7px 9px"
       }
@@ -2766,22 +2795,24 @@ function ThermalBillingApp() {
           } catch(e) { console.warn("admin sync error:", e.message); }
         }).catch(function(){});
       } else {
-        // เสมียน: ดึงบิล "ของตัวเอง" จาก Firestore (ทุกบิล ไม่ใช่แค่เครื่องนี้)
-        var myCode = getStaffCode();
-        GolodDB.getBills && GolodDB.getBills(myCode, false).then(function(bills) {
+        // เสมียน: นอกจากบิลของเครื่องตัวเอง ให้ดึง "บิลที่คนรถออก / บิลรออนุมัติ" จาก Firestore มาด้วย เพื่อให้พริ้นได้
+        GolodDB.getBillsNew && GolodDB.getBillsNew(500).then(function(bills) {
           try {
             if (bills && bills.length > 0) {
-              var local2 = [];
-              try { local2 = JSON.parse(localStorage.getItem("golod_bills")||"[]"); } catch(e) {}
-              var map2 = {};
-              local2.forEach(function(b){ if(b.billNo) map2[b.billNo]=b; });
-              bills.forEach(function(b){ if(b.billNo) map2[b.billNo]=b; });
-              var merged2 = Object.values(map2);
-              setAllBills(merged2);
-              try { localStorage.setItem("golod_bills", JSON.stringify(merged2)); } catch(e) {}
-              console.log("[ThermalBill] clerk synced "+bills.length+" own bills");
+              var driverBills = bills.filter(function(b){ return b && b.billNo && (b.isDriverBill || b.status==="รออนุมัติ"); });
+              if (driverBills.length > 0) {
+                var local = [];
+                try { local = JSON.parse(localStorage.getItem("golod_bills")||"[]"); } catch(e) {}
+                var map = {};
+                local.forEach(function(b){ if(b.billNo) map[b.billNo]=b; });
+                driverBills.forEach(function(b){ map[b.billNo]=b; });
+                var merged = Object.values(map);
+                setAllBills(merged);
+                try { localStorage.setItem("golod_bills", JSON.stringify(merged)); } catch(e) {}
+                console.log("[ThermalBill] clerk loaded "+driverBills.length+" driver bills for printing");
+              }
             }
-          } catch(e) { console.warn("clerk sync error:", e.message); }
+          } catch(e) { console.warn("clerk driver-bill sync error:", e.message); }
         }).catch(function(){});
       }
     } catch(e) { console.warn("useEffect error:", e.message); }
@@ -3199,6 +3230,24 @@ function ThermalBillingApp() {
     }
   }, "\u0E22\u0E01\u0E40\u0E25\u0E34\u0E01")) : null;
   const handleSubmit = () => {
+    // เตือนถ้ามีรายการที่ยังใช้ "ราคาอัตโนมัติ" (เสมียนไม่ได้พิมพ์ราคาเอง) — กันคิดราคาเกิน/ขาด
+    try {
+      const autoRows = items.map((it, i) => {
+        const scA = parseFloat(it.sumCm) || (parseFloat(it.w)||0)+(parseFloat(it.l)||0)+(parseFloat(it.h)||0);
+        const szA = calcSize(it.kg, scA);
+        const isAuto = (it.customPrice === undefined || it.customPrice === "") && szA.id !== "custom";
+        const autoP = getSizePrice(szA, zone, it.cpN, it.cpF);
+        return isAuto ? { n: i+1, desc: it.desc || "(ไม่มีชื่อ)", price: autoP, size: szA.label } : null;
+      }).filter(Boolean);
+      if (autoRows.length > 0) {
+        const lines = autoRows.map(r => `• รายการ ${r.n} (${r.desc}): ${r.size} = ${r.price}฿/ชิ้น (อัตโนมัติ)`).join("\n");
+        const ok = window.confirm(
+          "⚠️ มีรายการที่ใช้ราคาอัตโนมัติ (ยังไม่ได้พิมพ์ราคาเอง):\n\n" + lines +
+          "\n\nถ้าราคาถูกต้องแล้ว กด ตกลง เพื่อออกบิล\nถ้าต้องการแก้ราคา กด ยกเลิก แล้วพิมพ์ราคาในช่องสีส้ม"
+        );
+        if (!ok) return;
+      }
+    } catch(e) {}
     // บันทึก contacts สำหรับ autocomplete
     saveContact("senders", {
       name: form.senderName,
@@ -3261,6 +3310,7 @@ function ThermalBillingApp() {
       receiverAddr: form.receiverAddr || "",
       hidePrice: form.hidePrice || false,
       branch: form.branch || "bkk",
+      originBranch: (function(){ try{ return JSON.parse(localStorage.getItem("golod_session")||"{}").branch || ""; }catch(e){ return ""; } })(),
       clerkCode: form.staff || staffCode,
       freightPay: form.freightPay || "origin",
       freightNet: summary.freightNet || 0,
@@ -3692,7 +3742,7 @@ function ThermalBillingApp() {
         style:{padding:"5px 9px",borderRadius:7,border:"0.5px solid #ccc",fontSize:12,background:"#FFF3E0"}
       },
         /*#__PURE__*/React.createElement("option",{value:0},"-- ค่าส่งขั้นต่ำ --"),
-        [300,500,1000,1500].map(v=>/*#__PURE__*/React.createElement("option",{key:v,value:v},v+".-"))
+        [300,500,1000,1500].map(v=>/*#__PURE__*/React.createElement("option",{key:v,value:v},v+" ฿"))
       )
     )
   ),
@@ -4311,49 +4361,11 @@ function bahtText(n) {
   }
   return result;
 }
-// ===== ตั้งค่าขนาด/ขอบ ใบเสร็จ (ปรับได้ + จำค่าถาวร) =====
-var BILLCFG_DEFAULT = { scale:1.15, paperW:302, padT:18, padR:14, padB:14, padL:18 };
-var _billCfgCache = null;
-function getBillCfg(){
-  if(_billCfgCache) return _billCfgCache;
-  var c = null;
-  try{ c = JSON.parse(localStorage.getItem("golod_billcfg")||"null"); }catch(e){}
-  _billCfgCache = Object.assign({}, BILLCFG_DEFAULT, c||{});
-  return _billCfgCache;
-}
-function saveBillCfg(cfg){
-  _billCfgCache = Object.assign({}, BILLCFG_DEFAULT, cfg||{});
-  try{ localStorage.setItem("golod_billcfg", JSON.stringify(_billCfgCache)); }catch(e){}
-  // เก็บถาวรบน Firestore ด้วย (ใช้ร่วมทุกเครื่องในสาขา)
-  try{ if(typeof GolodDB!=="undefined" && GolodDB.saveSetting) GolodDB.saveSetting("billcfg", _billCfgCache); }catch(e){}
-  return _billCfgCache;
-}
-// โหลดค่าจาก Firestore ตอนเปิดแอป (ถ้ามี) ทับ localStorage
-try{
-  if(typeof GolodDB!=="undefined" && GolodDB.getSetting){
-    GolodDB.getSetting("billcfg").then(function(v){
-      if(v){ _billCfgCache = Object.assign({}, BILLCFG_DEFAULT, v);
-        try{ localStorage.setItem("golod_billcfg", JSON.stringify(_billCfgCache)); }catch(e){} }
-    }).catch(function(){});
-  }
-}catch(e){}
-
-function ReceiptPrint({ receipt, cfg }) {
-  cfg = cfg || (typeof getBillCfg==="function" ? getBillCfg() : BILLCFG_DEFAULT);
-  const paperW = cfg.paperW || 302;          // ความกว้างกระดาษ 80mm ≈ 302px
-  const sc = cfg.scale || 1;                  // ตัวคูณขนาดตัวอักษร
-  // ความกว้างเนื้อหา = กระดาษ − กั้นซ้าย − กั้นขวา แล้วหารด้วย scale
-  // หลัง zoom(scale) จะกว้างพอดี = paperW − L − R เสมอ (ตัวอักษรไม่ตกขอบ)
-  const innerW = Math.max(120, (paperW - (cfg.padL||0) - (cfg.padR||0)) / sc);
+function ReceiptPrint({ receipt }) {
+  const W = 298;
   const fmt = n => (n||0).toLocaleString("th-TH");
   return React.createElement("div", {
-    style:{ width:paperW, background:"#fff", boxSizing:"border-box",
-            paddingTop:(cfg.padT||0), paddingBottom:(cfg.padB||0),
-            paddingLeft:(cfg.padL||0), paddingRight:(cfg.padR||0),
-            overflow:"hidden" }
-  },
-  React.createElement("div", {
-    style:{ width:innerW, zoom:sc, fontFamily:"'Sarabun',sans-serif", fontSize:12, fontWeight:700, lineHeight:1.8 }
+    style:{ width:W, fontFamily:"'Sarabun',sans-serif", fontSize:12, fontWeight:700, background:"#fff", paddingTop:20, paddingBottom:8, paddingLeft:16, paddingRight:10, boxSizing:"border-box", lineHeight:1.8 }
   },
     // Header
     React.createElement("div",{style:{textAlign:"center",marginBottom:6}},
@@ -4394,18 +4406,18 @@ function ReceiptPrint({ receipt, cfg }) {
         (receipt.items||[]).map((it,i)=>
           React.createElement("tr",{key:i},
             React.createElement("td",{style:{padding:"4px 3px",lineHeight:1.8,fontWeight:700}},it.desc),
-            React.createElement("td",{style:{textAlign:"right",padding:"4px 3px",lineHeight:1.8,fontWeight:800}},fmt(it.amount),".-")
+            React.createElement("td",{style:{textAlign:"right",padding:"4px 3px",lineHeight:1.8,fontWeight:800}},fmt(it.amount)," ฿")
           )
         )
       )
     ),
     React.createElement("hr",{style:{border:"none",borderTop:"1.5px solid #000",margin:"4px 0"}}),
-    React.createElement("div",{style:{display:"flex",justifyContent:"space-between",alignItems:"baseline",fontWeight:900,fontSize:13,gap:6}},
-      React.createElement("div",{style:{flexShrink:0}},"รวมทั้งสิ้น"),
-      React.createElement("div",{style:{flex:1,minWidth:0,textAlign:"right"}},
-        React.createElement("span",{style:{whiteSpace:"nowrap"}},fmt(receipt.total),".-"),
-        React.createElement("span",{style:{fontSize:10,fontWeight:700,marginLeft:4,wordBreak:"break-word"}},"(",bahtText(receipt.total),")")
-      )
+    React.createElement("div",{style:{display:"flex",justifyContent:"space-between",fontWeight:900,fontSize:13}},
+      React.createElement("div",null,"รวมทั้งสิ้น"),
+      React.createElement("div",null,fmt(receipt.total)," ฿")
+    ),
+    React.createElement("div",{style:{fontSize:10,fontWeight:700,textAlign:"center",color:"#000",marginTop:2,marginBottom:2}},
+      "(",bahtText(receipt.total),")"
     ),
     React.createElement("hr",{style:{border:"none",borderTop:"1px dashed #333",margin:"4px 0"}}),
     React.createElement("div",{style:{fontSize:11,fontWeight:700,marginBottom:4}},
@@ -4426,7 +4438,7 @@ function ReceiptPrint({ receipt, cfg }) {
         (receipt.clerkName||"").replace(/\s*\(.*?\)\s*/g,"").trim(), " (", receipt.receiptNo&&receipt.receiptNo.slice(0,2), ")"
       )
     )
-  ));
+  );
 }
 
 // ========== MANUAL BILL (บิลมือ) ==========
@@ -4560,7 +4572,7 @@ function ManualBillForm({ staffCode, staffName, onSave }) {
       ),
       React.createElement("div",{style:{display:"flex",justifyContent:"space-between",alignItems:"center",marginTop:8}},
         React.createElement("button",{onClick:()=>setItems([...items,blankItem()]),style:{fontSize:12,color:"#1D9E75",background:"none",border:"none",cursor:"pointer"}},"+ เพิ่มรายการ"),
-        React.createElement("div",{style:{fontWeight:700}},"รวม: ",totalFreight.toLocaleString("th-TH"),".-")
+        React.createElement("div",{style:{fontWeight:700}},"รวม: ",totalFreight.toLocaleString("th-TH")," ฿")
       )
     ),
     // การเงิน
@@ -4667,43 +4679,6 @@ function SlipUploadBtn({ bill, onUploaded, isDriver }) {
   );
 }
 
-// ===== แผงปรับขนาด/ขอบ ใบเสร็จ =====
-function BillCfgPanel({ cfg, upd, reset }){
-  const pct = Math.round((cfg.scale||1)*100);
-  const stepBtn = (label,onClick)=>React.createElement("button",{onClick,
-    style:{width:34,height:34,borderRadius:8,border:"1px solid #ccc",background:"#fff",fontSize:18,fontWeight:800,cursor:"pointer",lineHeight:1}},label);
-  const marginField = (lbl,key)=>React.createElement("div",{style:{display:"flex",flexDirection:"column",alignItems:"center",gap:3}},
-    React.createElement("div",{style:{fontSize:11,color:"#666",fontWeight:600}},lbl),
-    React.createElement("div",{style:{display:"flex",alignItems:"center",gap:3}},
-      React.createElement("button",{onClick:()=>upd(key,Math.max(0,(cfg[key]||0)-2)),style:{width:24,height:28,border:"1px solid #ddd",borderRadius:6,background:"#fff",cursor:"pointer",fontWeight:800}},"−"),
-      React.createElement("input",{type:"number",value:cfg[key]||0,onChange:e=>upd(key,Math.max(0,parseInt(e.target.value)||0)),
-        style:{width:46,textAlign:"center",border:"1px solid #ddd",borderRadius:6,padding:"5px 2px",fontSize:13,fontWeight:700}}),
-      React.createElement("button",{onClick:()=>upd(key,(cfg[key]||0)+2),style:{width:24,height:28,border:"1px solid #ddd",borderRadius:6,background:"#fff",cursor:"pointer",fontWeight:800}},"+")
-    )
-  );
-  return React.createElement("div",{className:"no-print",style:{background:"#F7FBF9",border:"1px solid #9FE1CB",borderRadius:10,padding:"12px 14px",marginBottom:12,maxWidth:360}},
-    // font size
-    React.createElement("div",{style:{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:12}},
-      React.createElement("div",{style:{fontSize:13,fontWeight:700,color:"#0F6E56"}},"🔤 ขนาดตัวอักษร"),
-      React.createElement("div",{style:{display:"flex",alignItems:"center",gap:8}},
-        stepBtn("−",()=>upd("scale",Math.max(0.7,Math.round(((cfg.scale||1)-0.05)*100)/100))),
-        React.createElement("div",{style:{minWidth:54,textAlign:"center",fontSize:15,fontWeight:800,color:"#0F6E56"}},pct+"%"),
-        stepBtn("+",()=>upd("scale",Math.min(1.8,Math.round(((cfg.scale||1)+0.05)*100)/100)))
-      )
-    ),
-    // margins
-    React.createElement("div",{style:{fontSize:13,fontWeight:700,color:"#0F6E56",marginBottom:8}},"📐 กั้นขอบกระดาษ (px)"),
-    React.createElement("div",{style:{display:"flex",justifyContent:"space-around",gap:6,marginBottom:10,flexWrap:"wrap"}},
-      marginField("บน","padT"), marginField("ล่าง","padB"),
-      marginField("ซ้าย","padL"), marginField("ขวา","padR")
-    ),
-    React.createElement("div",{style:{display:"flex",justifyContent:"space-between",alignItems:"center"}},
-      React.createElement("div",{style:{fontSize:11,color:"#888"}},"ตั้งแล้วจำค่าอัตโนมัติ ✓"),
-      React.createElement("button",{onClick:reset,style:{fontSize:12,padding:"5px 12px",background:"#fff",border:"1px solid #ccc",borderRadius:7,cursor:"pointer",color:"#666",fontWeight:600}},"↺ คืนค่าเริ่มต้น")
-    )
-  );
-}
-
 function ReceiptForm({ bills, staffCode, staffName }) {
   const fmt = n => (n||0).toLocaleString("th-TH");
   const printRef = React.useRef(null);
@@ -4711,9 +4686,6 @@ function ReceiptForm({ bills, staffCode, staffName }) {
     try{ return JSON.parse(localStorage.getItem("golod_receipts")||"[]"); }catch(e){ return []; }
   });
   const [mode, setMode] = React.useState("list"); // list | form | preview
-  const [billCfg, setBillCfg] = React.useState(()=>getBillCfg());
-  const [showCfg, setShowCfg] = React.useState(false);
-  const updCfg = (k,v)=>{ const nc=saveBillCfg(Object.assign({},billCfg,{[k]:v})); setBillCfg(Object.assign({},nc)); };
   const [selBill, setSelBill] = React.useState(null);
   const [search, setSearch] = React.useState("");
   const today = (()=>{ const d=new Date(); return String(d.getDate()).padStart(2,"0")+"/"+String(d.getMonth()+1).padStart(2,"0")+"/"+(d.getFullYear()+543); })();
@@ -4789,12 +4761,10 @@ function ReceiptForm({ bills, staffCode, staffName }) {
     React.createElement("div",{style:{display:"flex",gap:8,marginBottom:10,flexWrap:"wrap"}},
       React.createElement("button",{onClick:doPrint,style:{padding:"7px 16px",background:"#1D9E75",color:"#fff",border:"none",borderRadius:8,fontWeight:700,cursor:"pointer"}},"🖨 พิมพ์ใบเสร็จ"),
       React.createElement("button",{onClick:()=>{ setMode("form"); setForm(emptyForm()); setSelBill(null); },style:{padding:"7px 16px",background:"#eee",border:"none",borderRadius:8,cursor:"pointer"}},"+ ใบเสร็จใหม่"),
-      React.createElement("button",{onClick:()=>setMode("list"),style:{padding:"7px 14px",background:"#eee",border:"none",borderRadius:8,cursor:"pointer"}},"← รายการ"),
-      React.createElement("button",{onClick:()=>setShowCfg(!showCfg),style:{padding:"7px 14px",background:showCfg?"#0F6E56":"#FFF3E0",color:showCfg?"#fff":"#E67E22",border:"0.5px solid "+(showCfg?"#0F6E56":"#E67E22"),borderRadius:8,fontWeight:700,cursor:"pointer"}},"⚙️ ปรับขนาด/ขอบ")
+      React.createElement("button",{onClick:()=>setMode("list"),style:{padding:"7px 14px",background:"#eee",border:"none",borderRadius:8,cursor:"pointer"}},"← รายการ")
     ),
-    showCfg && React.createElement(BillCfgPanel,{cfg:billCfg,upd:updCfg,reset:()=>{const d=saveBillCfg(BILLCFG_DEFAULT);setBillCfg(Object.assign({},d));}}),
     React.createElement("div",{ref:printRef,style:{display:"inline-block",boxShadow:"0 2px 16px rgba(0,0,0,0.12)",borderRadius:4}},
-      React.createElement(ReceiptPrint,{receipt:previewRcpt,cfg:billCfg})
+      React.createElement(ReceiptPrint,{receipt:previewRcpt})
     )
   );
   if (mode==="form") return React.createElement("div",{style:{maxWidth:500}},
@@ -4822,7 +4792,7 @@ function ReceiptForm({ bills, staffCode, staffName }) {
             }
           },
             React.createElement("strong",null,b.billNo)," | ",b.form&&b.form.senderName||"—"," → ",b.form&&b.form.destProv||"—",
-            " | ",fmt(b.summary&&b.summary.freightNet||0),".-"
+            " | ",fmt(b.summary&&b.summary.freightNet||0)," ฿"
           )
         )
       )
@@ -4901,7 +4871,7 @@ function ReceiptForm({ bills, staffCode, staffName }) {
       },"+ เพิ่มรายการ"),
       React.createElement("div",{style:{borderTop:"1px solid #eee",marginTop:8,paddingTop:8,display:"flex",justifyContent:"space-between",fontWeight:700}},
         React.createElement("span",null,"รวม"),
-        React.createElement("span",null,fmt(total),".-")
+        React.createElement("span",null,fmt(total)," ฿")
       )
     ),
     React.createElement("button",{
@@ -4935,7 +4905,7 @@ function ReceiptForm({ bills, staffCode, staffName }) {
                 React.createElement("td",{style:{padding:"6px 8px",color:"#666"}},r.date),
                 React.createElement("td",{style:{padding:"6px 8px"}},r.payerName||"—"),
                 React.createElement("td",{style:{padding:"6px 8px",color:"#888"}},r.refBillNo||"—"),
-                React.createElement("td",{style:{padding:"6px 8px",fontWeight:600}},fmt(r.total),".-"),
+                React.createElement("td",{style:{padding:"6px 8px",fontWeight:600}},fmt(r.total)," ฿"),
                 React.createElement("td",{style:{padding:"6px 8px"}},
                   React.createElement("button",{
                     onClick:()=>{ setPreviewRcpt(r); setMode("preview"); },

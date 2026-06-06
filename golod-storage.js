@@ -15,9 +15,14 @@ var GolodStorage = (function() {
 
   // อัปโหลดไฟล์ไปยัง Firebase Storage
   function uploadFile(path, file) {
+    // กันการเรียกสลับลำดับ uploadFile(file, path) — ถ้า path เป็นไฟล์ และ file เป็น string ให้สลับกลับ
+    if (path && typeof path !== "string" && (typeof Blob !== "undefined" && path instanceof Blob || path.name !== undefined) && typeof file === "string") {
+      var _tmp = path; path = file; file = _tmp;
+    }
     return new Promise(function(resolve, reject) {
       var storage = getStorage();
       if (!storage) { reject(new Error("Storage not ready")); return; }
+      if (typeof path !== "string" || !path) { reject(new Error("path ไม่ถูกต้อง")); return; }
       var ref = storage.ref(path);
       var task = ref.put(file);
       task.then(function(snapshot) {
