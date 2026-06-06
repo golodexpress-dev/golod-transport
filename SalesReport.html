@@ -67,7 +67,7 @@ tr.total-row td{background:#f0faf5;font-weight:700;border-top:2px solid #d0ede5}
 </head>
 <body>
 <div class="topbar">
-  <span class="title">📊 รายงานยอดขาย — โกโลด ทรานสปอร์ต</span>
+  <span class="title">📊 รายงานยอดขาย — โกโลด ทรานสปอร์ต <span style="font-size:10px;opacity:.7;font-weight:400">build 2026-06-06·b2</span></span>
   <a href="GolodApp.html">← หน้าหลัก</a>
   <button onclick="window.print()" style="padding:5px 12px;background:rgba(255,255,255,.2);color:#fff;border:1px solid rgba(255,255,255,.4);border-radius:6px;cursor:pointer;font-size:12px">🖨 พิมพ์</button>
 </div>
@@ -368,6 +368,22 @@ function printBillPreview(){
   setTimeout(function(){ w.print(); w.close(); }, 300);
 }
 
+// ===== ที่อยู่ตามสาขา (ตรงกับ ThermalBill) =====
+var _BR_ADDR = {
+  "กรุงเทพ":       {label:"สาขากรุงเทพ",    a:"527 ถ.ลัดนิ่มไสว แขวงทวีวัฒนา เขตทวีวัฒนา", b:"กรุงเทพฯ 10170", phones:["099-1875230","086-0741212","094-4721796","098-4518141"]},
+  "กรุงเทพมหานคร": {label:"สาขากรุงเทพ",    a:"527 ถ.ลัดนิ่มไสว แขวงทวีวัฒนา เขตทวีวัฒนา", b:"กรุงเทพฯ 10170", phones:["099-1875230","086-0741212","094-4721796","098-4518141"]},
+  "ปทุมธานี":      {label:"สาขาปทุมธานี",   a:"145/7 ถนนทางหลวง 345 ต.บ้านใหม่", b:"อ.เมือง จ.ปทุมธานี 12000", phones:["062-4304185","085-1703547"]},
+  "นครราชสีมา":    {label:"สาขานครราชสีมา", a:"44 หมู่ 5 ต.หนองบัวน้อย", b:"อ.สีคิ้ว จ.นครราชสีมา 30140", phones:["080-9904835","095-6195161","085-2242533"]},
+  "ศรีสะเกษ":      {label:"สาขาศรีสะเกษ",   a:"49 หมู่ 1 ถ.กันทรลักษ์-วารินชำราบ ต.น้ำอ้อม", b:"อ.กันทรลักษ์ จ.ศรีสะเกษ 33110", phones:["087-9589918"]}
+};
+function _brFromClerk(cc){
+  cc=(cc||"").toUpperCase();
+  if(cc.indexOf("P")===0) return "ปทุมธานี";
+  if(cc.indexOf("K")===0) return "นครราชสีมา";
+  if(cc.indexOf("S")===0||cc.indexOf("H")===0) return "ศรีสะเกษ";
+  return "กรุงเทพ";
+}
+
 function buildBillHTML(b){
   var f=(b.form&&typeof b.form==="object")?b.form:{};
   var pick=function(k){ return b[k]||f[k]||""; };
@@ -387,6 +403,8 @@ function buildBillHTML(b){
   var items    = Array.isArray(b.items)?b.items:(Array.isArray(f.items)?f.items:[]);
   var clerk    = (pick("clerkName")||pick("staffName")||b.clerkCode||"").replace(/\s*\(.*?\)\s*/g,"").trim();
   var note     = pick("note");
+  var _issBranch = pick("originBranch") || _brFromClerk(pick("clerkCode")||pick("staff")||b.clerkCode);
+  var _brInfo    = _BR_ADDR[_issBranch] || _BR_ADDR["กรุงเทพ"];
 
   var rowKV=function(l,v){ return v?('<div style="display:flex;gap:5px;margin:1px 0"><span style="color:#555;min-width:42px;font-size:10px">'+l+'</span><span style="flex:1;font-weight:700;font-size:11px">'+v+'</span></div>'):''; };
 
@@ -410,12 +428,16 @@ function buildBillHTML(b){
     try{ var el=document.getElementById(qrId); if(el&&typeof QRCode!=="undefined"){ el.innerHTML=""; new QRCode(el,{text:(b.billNo||""),width:78,height:78,correctLevel:QRCode.CorrectLevel.L}); } }catch(e){}
   },60);
 
-  var payTxt = pay==="dest"?"ปลายทาง":pay==="transfer"?"โอน":pay==="credit"?"เครดิต":"ต้นทาง";
+  var payTxt = (pay&&pay.indexOf("dest")>=0)?"ปลายทาง":pay==="transfer"?"โอน":pay==="credit"?"เครดิต":"ต้นทาง";
+  // คนขับต้องเก็บกับผู้รับ = ค่าขนส่งสุทธิ (ถ้าชำระปลายทาง) + COD  (ตรงกับ ThermalBill)
+  var _isDest  = !!(pay && pay.indexOf("dest")>=0);
+  var _collect = (_isDest?net:0) + cod;
 
   return ''
     +'<div style="width:302px;box-sizing:border-box;padding:14px 16px 10px;font-family:Sarabun,sans-serif;font-size:12px;font-weight:700;line-height:1.55;color:#000">'
     +'<div style="text-align:center;font-size:15px;font-weight:900">บจ.โกโลด ทรานสปอร์ต</div>'
-    +'<div style="text-align:center;font-size:9px;color:#444;line-height:1.4">527 ถ.ดินแดง แขวงดินแดง เขตดินแดง กรุงเทพฯ 10400<br>โทร 099-1875230, 086-0741212, 094-4721796, 098-4518141<br>เช็กสถานะที่ <b>@golexpress</b> · ลิขสิทธิ์รับงาน <b>@golod</b></div>'
+    +'<div style="text-align:center;font-size:9px;color:#444;line-height:1.4">'+_brInfo.a+' '+_brInfo.b+'<br>โทร '+_brInfo.phones.join(", ")+'<br>เช็กสถานะที่ <b>@golexpress</b> · ลิขสิทธิ์รับงาน <b>@golod</b></div>'
+    +'<div style="text-align:center;font-size:9px;color:#0F6E56;font-weight:800;margin-top:1px">'+_brInfo.label+'</div>'
     +'<div style="border-top:1.5px solid #000;margin:5px 0"></div>'
     +'<div style="display:flex;justify-content:space-between;align-items:baseline">'
       +'<span style="font-weight:900;font-size:13px">บิลขนส่งเลขที่ '+(b.billNo||"")+'</span></div>'
@@ -443,7 +465,7 @@ function buildBillHTML(b){
       +'<span style="font-size:10px;font-weight:700;margin-left:4px;word-break:break-word">('+bahtTextTH(net)+')</span></span></div>'
     +'<div style="display:flex;justify-content:space-between;font-size:11px;margin-top:3px"><span>ชำระค่าขนส่ง</span><span style="font-weight:800">'+payTxt+'</span></div>'
     +'<div style="display:flex;justify-content:space-between;font-size:11px"><span>COD รวม</span><span style="font-weight:800;color:'+(cod>0?"#d8543f":"#000")+'">'+(cod>0?fmt(cod)+".-":"-ไม่มี-")+'</span></div>'
-    +'<div style="display:flex;justify-content:space-between;font-size:11px"><span>คนขับต้องเก็บเงินก่อนผู้รับ</span><span style="font-weight:800">'+(driverCollect>0?fmt(driverCollect)+".-":"-ไม่มี-")+'</span></div>'
+    +'<div style="display:flex;justify-content:space-between;font-size:13px;font-weight:900;margin-top:2px"><span>คนขับต้องเก็บกับผู้รับ</span><span style="color:'+(_collect>0?"#d8543f":"#000")+'">'+(_collect>0?fmt(_collect)+".-":"-ไม่มี-")+'</span></div>'
     +'<div style="display:flex;justify-content:center;margin:8px 0 2px"><div id="'+qrId+'"></div></div>'
     +'<div style="text-align:center;font-size:9px;color:#666">'+(b.billNo||"")+'</div>'
     +'<div style="text-align:center;font-size:11px;margin-top:10px">ลงชื่อผู้รับเงิน ................................</div>'
