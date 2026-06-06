@@ -67,7 +67,7 @@ tr.total-row td{background:#f0faf5;font-weight:700;border-top:2px solid #d0ede5}
 </head>
 <body>
 <div class="topbar">
-  <span class="title">📊 รายงานยอดขาย — โกโลด ทรานสปอร์ต <span style="font-size:10px;opacity:.7;font-weight:400">build 2026-06-06·b2</span></span>
+  <span class="title">📊 รายงานยอดขาย — โกโลด ทรานสปอร์ต <span style="font-size:10px;opacity:.7;font-weight:400">build 2026-06-06·b3</span></span>
   <a href="GolodApp.html">← หน้าหลัก</a>
   <button onclick="window.print()" style="padding:5px 12px;background:rgba(255,255,255,.2);color:#fff;border:1px solid rgba(255,255,255,.4);border-radius:6px;cursor:pointer;font-size:12px">🖨 พิมพ์</button>
 </div>
@@ -171,11 +171,23 @@ function getZone(prov, amphoe) {
 }
 
 function getBranch(b){
-  if(b.branch) return b.branch;
-  var cc=(b.clerkCode||"").toUpperCase();
-  if(cc==="KA") return "krt";
-  if(cc==="SA") return "ssk";
-  if(cc==="PH") return "ptm";
+  function norm(s){
+    s=String(s||"");
+    if(["bkk","ptm","krt","ssk"].indexOf(s)>=0) return s;
+    if(s.indexOf("ปทุม")>=0) return "ptm";
+    if(s.indexOf("นครราช")>=0||s.indexOf("โคราช")>=0) return "krt";
+    if(s.indexOf("ศรีสะเกษ")>=0) return "ssk";
+    if(s.indexOf("กรุงเทพ")>=0) return "bkk";
+    return "";
+  }
+  // 1) จากชื่อสาขาที่ออกบิล (originBranch / branch)
+  var byName = norm(b.originBranch || (b.form&&b.form.originBranch) || b.branch);
+  if(byName) return byName;
+  // 2) เดาจากรหัสเสมียน แบบ prefix (P→ปทุม, K→โคราช, S/H→ศรีสะเกษ, ที่เหลือ→กทม)
+  var cc=(b.clerkCode || (b.form&&b.form.clerkCode) || b.staff || (b.form&&b.form.staff) || "").toUpperCase();
+  if(cc.indexOf("P")===0) return "ptm";
+  if(cc.indexOf("K")===0) return "krt";
+  if(cc.indexOf("S")===0||cc.indexOf("H")===0) return "ssk";
   return "bkk";
 }
 
