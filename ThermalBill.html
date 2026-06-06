@@ -14,7 +14,7 @@
   <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
 </head><body>
 <div class="golod-bar no-print">
-  <h1>โกโลด ทรานสปอร์ต — ออกบิล Thermal 80mm <span style="font-size:11px;font-weight:400;opacity:.6">build 2026-06-06·b4</span></h1>
+  <h1>โกโลด ทรานสปอร์ต — ออกบิล Thermal 80mm <span style="font-size:11px;font-weight:400;opacity:.6">build 2026-06-06·b5</span></h1>
   <div id="golod-chip"></div>
   <a href="GolodApp.html" style="font-size:11px;color:#9FE1CB;background:rgba(255,255,255,.15);padding:3px 10px;border-radius:20px;text-decoration:none">← หน้าหลัก</a>
   <a href="DailyReport.html" style="font-size:11px;color:#FFE082;background:rgba(255,255,255,.15);padding:3px 10px;border-radius:20px;text-decoration:none">📊 รายงานสิ้นวัน</a>
@@ -2848,7 +2848,10 @@ function ThermalBillingApp() {
     var its = fb.items || [];
     if(fr > 0 && its.length > 0){
       var hasPrice = its.some(function(it){ return it && it.customPrice !== undefined && it.customPrice !== ""; });
-      if(!hasPrice){
+      var hasSize = its.some(function(it){ return it && ((parseFloat(it.kg)||0) > 0 || (parseFloat(it.sumCm)||0) > 0); });
+      // แก้เฉพาะบิลที่ไม่มีทั้งราคาต่อชิ้นและขนาด (บิล DR-/บิลมือ ที่เก็บแต่ยอดรวม) → ใส่ยอดรวมลงแถวแรก ให้ตรงยอดรวม
+      // บิลเสมียนปกติ (มีราคาหรือขนาด) จะไม่ถูกแตะ
+      if(!hasPrice && !hasSize){
         fb = Object.assign({}, fb, {items: its.map(function(it,i){ return Object.assign({}, it, {customPrice: i===0?String(fr):"0"}); })});
       }
     }
@@ -3489,7 +3492,7 @@ function ThermalBillingApp() {
     bills: bills,
     onNew: resetForm,
     onView: b => {
-      setViewBill(b);
+      setViewBill(_buildPrintBill(b));
       setView("preview");
     }
   })), view === "form" && /*#__PURE__*/React.createElement("div", {
