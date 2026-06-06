@@ -382,12 +382,17 @@ var PAY_LABEL = {origin:"ต้นทาง",dest:"ปลายทาง",transf
 
 function renderBillList(){
   var el = document.getElementById("bill-list");
-  if(BILLS.length === 0){
-    el.innerHTML = '<div class="empty-state"><div class="ico">✅</div><div class="msg">ไม่มีงานค้างในขณะนี้<br><br><button onclick="loadBills()" style="padding:8px 18px;background:#0F6E56;color:#fff;border:none;border-radius:8px;font-size:13px;cursor:pointer">🔄 รีเฟรช</button></div></div>';
-    return;
-  }
-  // ดึง open trip ล่าสุดก่อน แล้วค่อย render
-  loadLatestTrip(function(tripBillIds){ renderBillListWithTrip(tripBillIds); });
+  // โหลดเที่ยว (ทุกสถานะ) เสมอ เพื่อให้ dropdown เลือกเที่ยวเก่าขึ้นได้ แม้ไม่มีงานค้าง
+  loadLatestTrip(function(tripBillIds){
+    // ไม่มีทั้งงานค้างและไม่มีเที่ยวเลย → ขึ้นข้อความว่าง
+    if(BILLS.length === 0 && DRIVER_TRIPS.length === 0){
+      el.innerHTML = '<div class="empty-state"><div class="ico">✅</div><div class="msg">ไม่มีงานค้างในขณะนี้<br><br><button onclick="loadBills()" style="padding:8px 18px;background:#0F6E56;color:#fff;border:none;border-radius:8px;font-size:13px;cursor:pointer">🔄 รีเฟรช</button></div></div>';
+      return;
+    }
+    // ถ้าเที่ยวที่เลือกเป็นเที่ยวที่ส่งเสร็จ/เคลียร์ (บิลไม่อยู่ใน BILLS) ให้ switchTrip ดึงบิลมาแสดงอัตโนมัติ
+    if(SELECTED_TRIP_ID){ switchTrip(SELECTED_TRIP_ID); }
+    else { renderBillListWithTrip(tripBillIds); }
+  });
 }
 
 var DRIVER_TRIPS = [];

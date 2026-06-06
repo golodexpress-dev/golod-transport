@@ -2836,6 +2836,35 @@ function ThermalBillingApp() {
     ? allBills
     : allBills.filter(b => b.clerkCode === staffCode || (b.billNo && b.billNo.startsWith(staffCode)));
   const [viewBill, setViewBill] = useState(null);
+  // เปิดจากปุ่ม "พริ้นบิล" (DispatchApp) → ?print=เลขบิล → หาบิลแล้วเปิดหน้าพิมพ์เลย (ไม่ใช่ฟอร์มใหม่)
+  const [_printDone, _setPrintDone] = useState(false);
+  useEffect(function(){
+    if(_printDone) return;
+    var p;
+    try{ p = new URLSearchParams(location.search).get("print"); }catch(e){ p=null; }
+    if(!p) return;
+    if(!allBills || allBills.length === 0){ setView("list"); return; }
+    var found = allBills.find(function(b){ return b && b.billNo === p; });
+    if(found){
+      var fb = found;
+      if(fb.form && typeof fb.form === "string"){ try{ fb = Object.assign({}, found, {form: JSON.parse(found.form)}); }catch(e){} }
+      if(!fb.form) fb = Object.assign({}, fb, {form: {}});
+      // เติมข้อมูลที่หน้าพิมพ์ต้องใช้ เผื่อบิลคนรถไม่มี summary/items ครบ
+      if(!fb.items || !Array.isArray(fb.items)) fb = Object.assign({}, fb, {items: (fb.form && Array.isArray(fb.form.items)) ? fb.form.items : []});
+      if(!fb.summary) fb = Object.assign({}, fb, {summary: {
+        freightNet: parseFloat(fb.freightNet)||0,
+        freightTotal: parseFloat(fb.freightNet)||0,
+        codTotal: parseFloat(fb.codTotal)||0,
+        discount: 0
+      }});
+      if(!fb.date) fb = Object.assign({}, fb, {date: fb.billDate || fb.date || ""});
+      setViewBill(fb);
+      setView("preview");
+      _setPrintDone(true);
+    } else {
+      setView("list"); // ยังหาไม่เจอ → ค้างที่รายการ (ช่องค้นหาจะกรองด้วยเลขบิลให้)
+    }
+  }, [allBills, _printDone]);
   const [form, setForm] = useState(() => {
     // ถ้ามีบิลที่ต้องการแก้ไข
     try {
