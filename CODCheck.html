@@ -110,7 +110,7 @@ td.r,th.r{text-align:right}
 <div class="app hidden" id="app-main">
   <div class="hdr">
     <div>
-      <div class="hdr-logo">GOLOD · ตรวจสอบ COD <span style="font-size:10px;opacity:.6;font-weight:400">build 2026-06-06·b2</span></div>
+      <div class="hdr-logo">GOLOD · ตรวจสอบ COD <span style="font-size:10px;opacity:.6;font-weight:400">build 2026-06-06·b3</span></div>
       <div class="hdr-sub">เช็คเงินปลายทางที่เก็บแทนลูกค้าต้นทาง — เก็บครบไหม / โอนคืนเท่าไหร่</div>
     </div>
     <div class="hdr-pills" id="hdr-pills"></div>
@@ -163,7 +163,13 @@ td.r,th.r{text-align:right}
 <div id="assign-modal" class="overlay hidden" onclick="if(event.target===this)closeAssign()">
   <div class="modal" style="max-width:420px">
     <div class="modal-h">มอบหมายสิทธิ์ดูระบบ COD</div>
-    <div class="acct-line" style="margin-bottom:8px">แอดมินเข้าได้เสมอ · ติ๊กเลือกผู้ที่อนุญาตให้ดูระบบตรวจสอบ COD</div>
+    <div class="acct-line" style="margin-bottom:8px">แอดมินเข้าได้เสมอ · ติ๊กเลือกผู้ที่อนุญาตให้เข้าระบบตรวจสอบ COD</div>
+    <div style="background:#F3FAF7;border:1px solid #D6ECE3;border-radius:8px;padding:8px 10px;margin-bottom:10px;font-size:12px;line-height:1.6;color:#0F6E56">
+      <b>ขอบเขตสิทธิ์ของผู้ที่ได้รับมอบหมาย:</b><br>
+      ✓ ดูรายชื่อลูกค้า/ยอด COD และตรวจสอบได้<br>
+      ✓ เพิ่ม/แก้ไขบัญชีรับโอนได้<br>
+      ✗ <b>ลบบัญชีไม่ได้</b> — การลบสงวนไว้สำหรับแอดมินเท่านั้น
+    </div>
     <div id="assign-list" style="max-height:300px;overflow:auto;border:1px solid #eee;border-radius:8px;padding:6px"></div>
     <div style="display:flex;gap:8px;margin-top:12px">
       <button class="btn btn-green" style="flex:1" onclick="saveAssign()">บันทึก</button>
