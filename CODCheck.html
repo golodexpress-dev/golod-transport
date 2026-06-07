@@ -110,7 +110,7 @@ td.r,th.r{text-align:right}
 <div class="app hidden" id="app-main">
   <div class="hdr">
     <div>
-      <div class="hdr-logo">GOLOD · ตรวจสอบ COD</div>
+      <div class="hdr-logo">GOLOD · ตรวจสอบ COD <span style="font-size:10px;opacity:.6;font-weight:400">build 2026-06-06·b2</span></div>
       <div class="hdr-sub">เช็คเงินปลายทางที่เก็บแทนลูกค้าต้นทาง — เก็บครบไหม / โอนคืนเท่าไหร่</div>
     </div>
     <div class="hdr-pills" id="hdr-pills"></div>
@@ -193,6 +193,8 @@ var ACCTS     = {};    // ชื่อลูกค้าต้นทาง -> {n
 var curPage   = "dash";
 var CU        = null;  // ผู้ใช้ปัจจุบัน (จาก GolodSession)
 var COD_VIEWERS = [];  // username ที่แอดมินมอบหมายให้ดู COD ได้
+var CAN_DELETE  = false; // ลบบัญชีได้ไหม (แอดมินเท่านั้น)
+var ACCT_ONLY   = false; // โหมดเสมียน: เห็นแค่แท็บบัญชี ซ่อนข้อมูลการเงิน
 
 /* ---------- สิทธิ์เข้าถึง (collection: codSettings/viewers) ---------- */
 var Settings = (function(){
@@ -279,7 +281,19 @@ var Accounts = (function(){
     if(r&&r.code) return Promise.resolve(r.code);
     return set(name, (r?{bank:r.bank||"",accountNo:r.accountNo||"",accountName:r.accountName||""}:{})).then(function(){ return ACCTS[name].code; });
   }
-  return {load:load, get:get, set:set, code:code, nextCode:nextCode, codeTaken:codeTaken, ensureCode:ensureCode, all:function(){return ACCTS;}};
+  // ลบบัญชี (แอดมินเท่านั้น — คุมสิทธิ์ที่ตัวเรียก)
+  function remove(name){
+    name=(name||"").trim(); if(!name) return Promise.resolve();
+    delete ACCTS[name];
+    try{ localStorage.setItem("golod_cod_accounts", JSON.stringify(ACCTS)); }catch(e){}
+    var fs=_fs();
+    if(fs){
+      var id=name.replace(/\//g,"_").slice(0,200);
+      return fs.collection("codAccounts").doc(id).delete().catch(function(e){ console.warn("[Accounts] remove:",e); });
+    }
+    return Promise.resolve();
+  }
+  return {load:load, get:get, set:set, remove:remove, code:code, nextCode:nextCode, codeTaken:codeTaken, ensureCode:ensureCode, all:function(){return ACCTS;}};
 })();
 
 var ST_TH = {
@@ -785,7 +799,9 @@ function renderAccounts(){
       '<td>'+(has?(a.accountNo||'—'):'')+'</td>'+
       '<td>'+(has?((a.accountName||'—')+(mismatch?'<span class="acct-line" style="color:#5B3FB3"> (≠ ชื่อบิล)</span>':'')):'')+'</td>'+
       '<td class="r">'+(senders[n]||0)+'</td>'+
-      '<td><button class="btn btn-ghost btn-sm" onclick="openAcct(\''+enc(n)+'\')">'+(has||cd?'แก้ไข':'+ เพิ่มข้อมูล')+'</button></td></tr>';
+      '<td><button class="btn btn-ghost btn-sm" onclick="openAcct(\''+enc(n)+'\')">'+(has||cd?'แก้ไข':'+ เพิ่มข้อมูล')+'</button>'+
+      ((CAN_DELETE && (has||cd))?' <button class="btn btn-ghost btn-sm" style="color:#C0392B" onclick="delAcct(\''+enc(n)+'\')">🗑 ลบ</button>':'')+
+      '</td></tr>';
   }).join("");
   box.innerHTML=
     '<div class="mini-note">รหัสลูกค้าออกอัตโนมัติ (C1, C2, …) · 1 ลูกค้าต้นทาง = 1 รหัส = 1 บัญชี · ผูกแล้วใช้ตลอดจนกว่าจะกดแก้ไข (เก็บประวัติ) · ออกรหัสแล้ว '+ncoded+'/'+names.length+' · ตั้งบัญชีแล้ว '+nset+'/'+names.length+' ราย</div>'+
@@ -821,6 +837,16 @@ function openAcct(encName){
   document.getElementById("acct-modal").classList.remove("hidden");
 }
 function closeAcct(){ document.getElementById("acct-modal").classList.add("hidden"); _acctName=""; }
+
+// ลบบัญชี — แอดมินเท่านั้น
+function delAcct(encName){
+  if(!CAN_DELETE){ alert("เฉพาะแอดมินเท่านั้นที่ลบบัญชีได้"); return; }
+  var name=decodeURIComponent(encName);
+  var a=Accounts.get(name);
+  if(!a){ alert("ไม่พบบัญชีนี้"); return; }
+  if(!confirm("ลบบัญชีรับโอนของ \""+name+"\"?\n(รหัส "+(a.code||"—")+" · ธ."+(a.bank||"—")+" "+(a.accountNo||"")+")\n\nการลบนี้ย้อนกลับไม่ได้")) return;
+  Accounts.remove(name).then(function(){ renderAll(); });
+}
 function saveAcct(){
   if(!_acctName) return;
   var existed=Accounts.get(_acctName);
@@ -853,9 +879,9 @@ function authGate(){
   if(!GS||!GS.get){ showLock("ไม่พบระบบเข้าสู่ระบบ — เปิดไฟล์นี้ในโฟลเดอร์ระบบโกโลด (ต้องมี session.js)"); return Promise.resolve(false); }
   CU=GS.get();
   if(!CU){ location.href="GolodApp.html"; return Promise.resolve(false); }
-  if(CU.role==="admin") return Promise.resolve(true);            // แอดมินเข้าได้เสมอ
-  return Settings.loadViewers().then(function(list){             // คนอื่นต้องอยู่ในรายชื่อมอบหมาย
-    if((list||[]).indexOf(CU.username)>=0) return true;
+  if(CU.role==="admin"){ CAN_DELETE=true; ACCT_ONLY=false; return Promise.resolve(true); }  // แอดมิน: ทุกอย่าง + ลบได้
+  return Settings.loadViewers().then(function(list){
+    if((list||[]).indexOf(CU.username)>=0){ CAN_DELETE=false; ACCT_ONLY=false; return true; }   // ผู้ที่มอบหมาย: ดูได้ เพิ่มบัญชีได้ ลบไม่ได้
     showLock("หน้านี้เปิดให้เฉพาะแอดมิน และผู้ที่ได้รับมอบหมายเท่านั้น<br>กรุณาติดต่อแอดมินเพื่อขอสิทธิ์ดูระบบตรวจสอบ COD");
     return false;
   });
@@ -902,9 +928,24 @@ function saveAssign(){
     if(!ok) return;
     document.getElementById("app-main").classList.remove("hidden");
     if(CU && CU.role==="admin") document.getElementById("assign-btn").classList.remove("hidden");
+    applyAccessUI();
     loadData();
   });
 })();
+
+// โหมดเสมียน (ACCT_ONLY): เห็นแค่แท็บบัญชี ซ่อนยอด COD รวม + ตัวกรองที่ไม่จำเป็น
+function applyAccessUI(){
+  if(!ACCT_ONLY) return;
+  document.querySelectorAll(".tab").forEach(function(t){
+    if(t.dataset.pg!=="accounts") t.style.display="none";
+  });
+  var pills=document.getElementById("hdr-pills"); if(pills) pills.style.display="none";
+  // ซ่อนตัวกรองช่วงวันที่/คนรถ (ไม่เกี่ยวกับการตั้งบัญชี) เหลือเฉพาะค้นหา + โหลดใหม่
+  ["f-from","f-to","f-driver"].forEach(function(id){
+    var el=document.getElementById(id); if(el&&el.parentNode) el.parentNode.style.display="none";
+  });
+  showPage("accounts");
+}
 </script>
 </body>
 </html>
