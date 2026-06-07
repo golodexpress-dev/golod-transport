@@ -494,6 +494,69 @@ var GolodDB = (function() {
     });
   }
 
+  // ===== PICKUPS (งานรับล่วงหน้า) =====
+  function savePickup(rec) {
+    return new Promise(function(resolve, reject) {
+      ready(function() {
+        try {
+          var col = db.collection("pickups");
+          if (rec && rec.id) {
+            var id = rec.id;
+            var data = Object.assign({}, rec); delete data.id;
+            data.updatedAt = new Date().toISOString();
+            col.doc(id).set(data, { merge: true })
+              .then(function(){ resolve(Object.assign({ id: id }, data)); })
+              .catch(reject);
+          } else {
+            var data2 = Object.assign({}, rec); delete data2.id;
+            if (!data2.createdAt) data2.createdAt = new Date().toISOString();
+            col.add(data2)
+              .then(function(refDoc){ resolve(Object.assign({ id: refDoc.id }, data2)); })
+              .catch(reject);
+          }
+        } catch(e){ reject(e); }
+      });
+    });
+  }
+
+  function getPickups(opts) {
+    opts = opts || {};
+    var limitN = opts.limitN || 400;
+    return new Promise(function(resolve, reject) {
+      ready(function() {
+        db.collection("pickups").limit(limitN).get()
+          .then(function(snap) {
+            var list = [];
+            snap.forEach(function(doc) { list.push(Object.assign({ id: doc.id }, doc.data())); });
+            list.sort(function(a,b){
+              var ta = a.createdAt || a.pickupDate || "";
+              var tb = b.createdAt || b.pickupDate || "";
+              return String(tb).localeCompare(String(ta));
+            });
+            resolve(list);
+          }).catch(reject);
+      });
+    });
+  }
+
+  function updatePickup(id, updates) {
+    return new Promise(function(resolve, reject) {
+      ready(function() {
+        db.collection("pickups").doc(id).update(updates)
+          .then(function(){ resolve(true); }).catch(reject);
+      });
+    });
+  }
+
+  function deletePickup(id) {
+    return new Promise(function(resolve, reject) {
+      ready(function() {
+        db.collection("pickups").doc(id).delete()
+          .then(function(){ resolve(true); }).catch(reject);
+      });
+    });
+  }
+
   return {
     init, ready,
     saveBill, getBills, updateBill,
@@ -504,6 +567,7 @@ var GolodDB = (function() {
     saveDispatchLog, getDispatchLogs,
     getBillsDispatch,
     saveTrip, getTrips, updateTrip, assignBillsToTrip,
+    savePickup, getPickups, updatePickup, deletePickup,
     saveSetting, getSetting
   };
 })();
