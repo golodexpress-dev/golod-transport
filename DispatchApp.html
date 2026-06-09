@@ -631,7 +631,7 @@ tr:hover td{background:#f8fffe}
 <div class="topbar">
   <span class="title">🚛 จัดการขนส่ง</span>
   <span id="session-info" style="font-size:11px;opacity:.8"></span>
-  <span style="font-size:10px;opacity:.65;margin-left:auto">build 2026-06-09d</span>
+  <span style="font-size:10px;opacity:.65;margin-left:auto">build 2026-06-09e</span>
   <a href="GolodApp.html" style="margin-left:10px">← หน้าหลัก</a>
 </div>
 <div class="container">
@@ -3809,6 +3809,7 @@ function refreshTripSummary(tripId){
   var t=(_tripState.openTrips||[]).find(function(x){ return x.id===tripId; });
   if(!t){ alert("ไม่พบข้อมูลเที่ยว"); return; }
   if(!GolodDB.updateTrip){ alert("ระบบบันทึกไม่พร้อม"); return; }
+  var f=function(n){ return (Math.round(+n||0)).toLocaleString("th-TH"); };
   fetchTripBillsFromDB(t).then(function(tb){
     if(!tb || !tb.length){ alert("ดึงบิลของเที่ยวไม่ได้ ลองใหม่อีกครั้ง"); return; }
     var dest=0, cod=0;
@@ -3820,8 +3821,8 @@ function refreshTripSummary(tripId){
     });
     var oldS=t.summary||{};
     var same = Math.round(dest)===Math.round(oldS.destTotal||0) && Math.round(cod)===Math.round(oldS.codTotal||0);
-    if(same){ alert("ยอดในระบบตรงกับบิลอยู่แล้ว\n\nปลายทาง "+fmt(dest)+" ฿ · COD "+fmt(cod)+" ฿\n("+tb.length+" บิล)"); return; }
-    if(!confirm("อัปเดตยอดที่เก็บในระบบให้ตรงกับบิลปัจจุบัน? ("+tb.length+" บิล)\n\nปลายทาง: "+fmt(oldS.destTotal||0)+" → "+fmt(dest)+" ฿\nCOD: "+fmt(oldS.codTotal||0)+" → "+fmt(cod)+" ฿\n\n(แก้เฉพาะเที่ยวนี้)")) return;
+    if(same){ alert("ยอดในระบบตรงกับบิลอยู่แล้ว\n\nปลายทาง "+f(dest)+" ฿ · COD "+f(cod)+" ฿\n("+tb.length+" บิล)"); return; }
+    if(!confirm("อัปเดตยอดที่เก็บในระบบให้ตรงกับบิลปัจจุบัน? ("+tb.length+" บิล)\n\nปลายทาง: "+f(oldS.destTotal||0)+" → "+f(dest)+" ฿\nCOD: "+f(oldS.codTotal||0)+" → "+f(cod)+" ฿\n\n(แก้เฉพาะเที่ยวนี้)")) return;
     var newSummary=Object.assign({}, oldS, {destTotal:dest, codTotal:cod, billCount:tb.length});
     GolodDB.updateTrip(t.id, {summary:newSummary}).then(function(){
       t.summary=newSummary;
