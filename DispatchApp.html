@@ -631,7 +631,7 @@ tr:hover td{background:#f8fffe}
 <div class="topbar">
   <span class="title">🚛 จัดการขนส่ง</span>
   <span id="session-info" style="font-size:11px;opacity:.8"></span>
-  <span style="font-size:10px;opacity:.65;margin-left:auto">build 2026-06-09b</span>
+  <span style="font-size:10px;opacity:.65;margin-left:auto">build 2026-06-09c</span>
   <a href="GolodApp.html" style="margin-left:10px">← หน้าหลัก</a>
 </div>
 <div class="container">
@@ -1340,6 +1340,7 @@ function renderTripList(){
         +'เส้น: '+fmt(t.baseFare||0)+' ฿ | น้ำมันประมาณ: '+fmt(fuelEst)+' ฿'
         +(t.fuelAdvance?' | เบิกล่วงหน้า: '+fmt(t.fuelAdvance)+' ฿':'')
       +'</div>'
+      +(((destFix||codFix)&&canClearTrip())?'<button class="btn btn-orange" data-tid="'+t.id+'" onclick="refreshTripSummary(this.dataset.tid)" style="margin-top:8px;font-size:11px">🔄 อัปเดตยอดเก่าในระบบให้ตรงบิล</button>':'')
     +'</div>';
   };
 
@@ -3802,6 +3803,31 @@ function remarksApprovedSum(){
 function remarksPendingSum(){
   return _clearRemarks.filter(function(r){return r.status==="pending";})
     .reduce(function(a,r){return a+parseFloat(r.amount||0);},0);
+}
+
+function refreshTripSummary(tripId){
+  var t=(_tripState.openTrips||[]).find(function(x){ return x.id===tripId; });
+  if(!t){ alert("ไม่พบข้อมูลเที่ยว"); return; }
+  if(typeof BILLS==="undefined" || !t.billIds || !t.billIds.length){ alert("ไม่มีข้อมูลบิลของเที่ยวนี้"); return; }
+  var allPresent = t.billIds.every(function(id){ return BILLS.some(function(b){ return b.billNo===id; }); });
+  if(!allPresent){ alert("บิลของเที่ยวนี้โหลดมาไม่ครบ — เลื่อนไปวันที่ของเที่ยวให้บิลโหลดครบก่อน แล้วลองใหม่"); return; }
+  var dest=0, cod=0;
+  t.billIds.forEach(function(id){
+    var b=BILLS.find(function(x){ return x.billNo===id; }); if(!b) return;
+    var pay=b.freightPay||(b.form&&b.form.freightPay)||"origin";
+    var net=parseFloat(b.freightNet||0), c=parseFloat(b.codTotal||0);
+    if(pay==="dest"||pay==="dest_cash") dest+=net;
+    if(c>0) cod+=c;
+  });
+  var oldS=t.summary||{};
+  if(!confirm("อัปเดตยอดที่เก็บในระบบให้ตรงกับบิลปัจจุบัน?\n\nปลายทาง: "+fmt(oldS.destTotal||0)+" → "+fmt(dest)+" ฿\nCOD: "+fmt(oldS.codTotal||0)+" → "+fmt(cod)+" ฿\n\n(แก้เฉพาะเที่ยวนี้)")) return;
+  var newSummary=Object.assign({}, oldS, {destTotal:dest, codTotal:cod, billCount:t.billIds.length});
+  if(!GolodDB.updateTrip){ alert("ระบบบันทึกไม่พร้อม"); return; }
+  GolodDB.updateTrip(t.id, {summary:newSummary}).then(function(){
+    t.summary=newSummary;
+    alert("อัปเดตยอดในระบบเรียบร้อย");
+    renderTripList();
+  }).catch(function(e){ alert("บันทึกไม่สำเร็จ: "+(e&&e.message||e)); });
 }
 
 function openClearTrip(tripId){
