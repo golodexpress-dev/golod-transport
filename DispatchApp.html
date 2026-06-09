@@ -631,7 +631,7 @@ tr:hover td{background:#f8fffe}
 <div class="topbar">
   <span class="title">🚛 จัดการขนส่ง</span>
   <span id="session-info" style="font-size:11px;opacity:.8"></span>
-  <span style="font-size:10px;opacity:.65;margin-left:auto">build 2026-06-09e</span>
+  <span style="font-size:10px;opacity:.65;margin-left:auto">build 2026-06-09f</span>
   <a href="GolodApp.html" style="margin-left:10px">← หน้าหลัก</a>
 </div>
 <div class="container">
@@ -3808,27 +3808,36 @@ function remarksPendingSum(){
 function refreshTripSummary(tripId){
   var t=(_tripState.openTrips||[]).find(function(x){ return x.id===tripId; });
   if(!t){ alert("ไม่พบข้อมูลเที่ยว"); return; }
-  if(!GolodDB.updateTrip){ alert("ระบบบันทึกไม่พร้อม"); return; }
   var f=function(n){ return (Math.round(+n||0)).toLocaleString("th-TH"); };
   fetchTripBillsFromDB(t).then(function(tb){
     if(!tb || !tb.length){ alert("ดึงบิลของเที่ยวไม่ได้ ลองใหม่อีกครั้ง"); return; }
-    var dest=0, cod=0;
+    var destAll=0, destDelivered=0, destPickup=0, pickupLines=[];
     tb.forEach(function(b){
       var pay=b.freightPay||(b.form&&b.form.freightPay)||"origin";
-      var net=parseFloat(b.freightNet||0), c=parseFloat(b.codTotal||0);
-      if(pay==="dest"||pay==="dest_cash") dest+=net;
-      if(c>0) cod+=c;
+      var net=parseFloat(b.freightNet||0);
+      if(pay==="dest"||pay==="dest_cash"){
+        destAll+=net;
+        var isPickup=(b.status==="ออกบิลรับของ"||b.status==="issued"||b.status==="");
+        if(isPickup){ destPickup+=net; pickupLines.push("   • "+(b.billNo||"?")+": "+f(net)+" ฿ ["+(b.status||"ว่าง")+"]"); }
+        else destDelivered+=net;
+      }
     });
     var oldS=t.summary||{};
-    var same = Math.round(dest)===Math.round(oldS.destTotal||0) && Math.round(cod)===Math.round(oldS.codTotal||0);
-    if(same){ alert("ยอดในระบบตรงกับบิลอยู่แล้ว\n\nปลายทาง "+f(dest)+" ฿ · COD "+f(cod)+" ฿\n("+tb.length+" บิล)"); return; }
-    if(!confirm("อัปเดตยอดที่เก็บในระบบให้ตรงกับบิลปัจจุบัน? ("+tb.length+" บิล)\n\nปลายทาง: "+f(oldS.destTotal||0)+" → "+f(dest)+" ฿\nCOD: "+f(oldS.codTotal||0)+" → "+f(cod)+" ฿\n\n(แก้เฉพาะเที่ยวนี้)")) return;
-    var newSummary=Object.assign({}, oldS, {destTotal:dest, codTotal:cod, billCount:tb.length});
-    GolodDB.updateTrip(t.id, {summary:newSummary}).then(function(){
-      t.summary=newSummary;
-      alert("อัปเดตยอดในระบบเรียบร้อย");
-      renderTripList();
-    }).catch(function(e){ alert("บันทึกไม่สำเร็จ: "+(e&&e.message||e)); });
+    var msg="📊 ปลายทางในเที่ยวนี้ ("+tb.length+" บิล)\n\n"+
+      "รวมทั้งหมด (dest): "+f(destAll)+" ฿\n"+
+      "• บิลที่ส่ง/กำลังส่ง: "+f(destDelivered)+" ฿\n"+
+      "• บิลที่ยังเป็นงานรับ: "+f(destPickup)+" ฿"+(pickupLines.length?("\n"+pickupLines.join("\n")):"")+"\n\n"+
+      "ยอดที่เก็บในระบบ: "+f(oldS.destTotal||0)+" ฿";
+    if(Math.round(destAll)!==Math.round(oldS.destTotal||0)){
+      if(!GolodDB.updateTrip){ alert(msg+"\n\n(ยอดไม่ตรง แต่ระบบบันทึกไม่พร้อม)"); return; }
+      if(confirm(msg+"\n\n⚠️ ยอดที่เก็บไม่ตรงกับบิล — อัปเดตเป็น "+f(destAll)+" ฿ ไหม?")){
+        var ns=Object.assign({}, oldS, {destTotal:destAll, billCount:tb.length});
+        GolodDB.updateTrip(t.id, {summary:ns}).then(function(){ t.summary=ns; alert("อัปเดตยอดในระบบเรียบร้อย"); renderTripList(); })
+          .catch(function(e){ alert("บันทึกไม่สำเร็จ: "+(e&&e.message||e)); });
+      }
+    } else {
+      alert(msg+"\n\n✅ ยอดที่เก็บตรงกับบิลแล้ว\n\nหมายเหตุ: ยอดนี้รวม \"งานรับ\" ที่ยังไม่ส่งด้วย\nหน้าเคลียร์เที่ยวจะโชว์เฉพาะบิลที่ส่งแล้ว = "+f(destDelivered)+" ฿ (แยกงานรับ "+f(destPickup)+" ฿ ออกไป)");
+    }
   }).catch(function(e){ alert("ดึงบิลไม่สำเร็จ: "+(e&&e.message||e)); });
 }
 
