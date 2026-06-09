@@ -631,7 +631,7 @@ tr:hover td{background:#f8fffe}
 <div class="topbar">
   <span class="title">🚛 จัดการขนส่ง</span>
   <span id="session-info" style="font-size:11px;opacity:.8"></span>
-  <span style="font-size:10px;opacity:.65;margin-left:auto">build 2026-06-09a</span>
+  <span style="font-size:10px;opacity:.65;margin-left:auto">build 2026-06-09b</span>
   <a href="GolodApp.html" style="margin-left:10px">← หน้าหลัก</a>
 </div>
 <div class="container">
@@ -1285,8 +1285,30 @@ function renderTripList(){
     return String(b.createdAt||"").localeCompare(String(a.createdAt||""));
   });
 
+  // คิดยอดปลายทาง/COD สดจากบิลปัจจุบัน — กันยอดค้างเก่าตอนบิลถูกแก้วิธีจ่ายภายหลัง
+  // ใช้ได้เฉพาะเมื่อบิลของเที่ยวโหลดมาครบใน BILLS (ไม่ครบ → ใช้ค่าที่เก็บไว้)
+  function liveTripTotals(t){
+    if(!t || !t.billIds || !t.billIds.length || typeof BILLS==="undefined") return null;
+    var allPresent = t.billIds.every(function(id){ return BILLS.some(function(b){ return b.billNo===id; }); });
+    if(!allPresent) return null;
+    var dest=0, cod=0;
+    t.billIds.forEach(function(id){
+      var b = BILLS.find(function(x){ return x.billNo===id; }); if(!b) return;
+      var pay = b.freightPay||(b.form&&b.form.freightPay)||"origin";
+      var net = parseFloat(b.freightNet||0), c = parseFloat(b.codTotal||0);
+      if(pay==="dest"||pay==="dest_cash") dest+=net;
+      if(c>0) cod+=c;
+    });
+    return {dest:dest, cod:cod};
+  }
+
   var tripCardHTML = function(t){
     var s = t.summary||{};
+    var _live = liveTripTotals(t);
+    var destShow = _live ? _live.dest : (s.destTotal||0);
+    var codShow  = _live ? _live.cod  : (s.codTotal||0);
+    var destFix  = _live && Math.round(_live.dest)!==Math.round(s.destTotal||0);
+    var codFix   = _live && Math.round(_live.cod )!==Math.round(s.codTotal||0);
     var fuelEst = t.fuelDist&&t.fuelRate&&t.fuelPrice ? Math.round((t.fuelDist/t.fuelRate)*t.fuelPrice) : 0;
     var pendRmk = ((t.clearRemarks||(t.clearData&&t.clearData.remarks)||[]).filter(function(r){return r.status==="pending";})).length;
     var pendDel = ((t.billRemovalRequests||[]).filter(function(r){return r.status==="pending";})).length;
@@ -1310,8 +1332,8 @@ function renderTripList(){
         +'</div>'+'</div>'
       +'<div class="trip-stats">'
         +'<div class="trip-stat gray"><div class="tsl">บิลทั้งหมด</div><div class="tsv">'+(s.billCount||0)+'</div></div>'
-        +'<div class="trip-stat orange"><div class="tsl">ปลายทาง (฿)</div><div class="tsv">'+fmt(s.destTotal||0)+'</div></div>'
-        +'<div class="trip-stat red"><div class="tsl">COD (฿)</div><div class="tsv">'+fmt(s.codTotal||0)+'</div></div>'
+        +'<div class="trip-stat orange"><div class="tsl">ปลายทาง (฿)'+(destFix?' <span title="อัปเดตจากบิลล่าสุด (เดิมเก็บ '+fmt(s.destTotal||0)+')" style="cursor:help">↻</span>':'')+'</div><div class="tsv">'+fmt(destShow)+'</div></div>'
+        +'<div class="trip-stat red"><div class="tsl">COD (฿)'+(codFix?' <span title="อัปเดตจากบิลล่าสุด (เดิมเก็บ '+fmt(s.codTotal||0)+')" style="cursor:help">↻</span>':'')+'</div><div class="tsv">'+fmt(codShow)+'</div></div>'
         +'<div class="trip-stat"><div class="tsl">รับงาน</div><div class="tsv">'+(s.pickupCount||0)+'</div></div>'
       +'</div>'
       +'<div style="font-size:11px;color:#888">'
