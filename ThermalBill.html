@@ -14,7 +14,7 @@
   <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
 </head><body>
 <div class="golod-bar no-print">
-  <h1>โกโลด ทรานสปอร์ต — ออกบิล Thermal 80mm <span style="font-size:11px;font-weight:400;opacity:.6">build 2026-06-06·b7</span></h1>
+  <h1>โกโลด ทรานสปอร์ต — ออกบิล Thermal 80mm <span style="font-size:11px;font-weight:400;opacity:.6">build 2026-06-06·b9</span></h1>
   <div id="golod-chip"></div>
   <a href="GolodApp.html" style="font-size:11px;color:#9FE1CB;background:rgba(255,255,255,.15);padding:3px 10px;border-radius:20px;text-decoration:none">← หน้าหลัก</a>
   <a href="DailyReport.html" style="font-size:11px;color:#FFE082;background:rgba(255,255,255,.15);padding:3px 10px;border-radius:20px;text-decoration:none">📊 รายงานสิ้นวัน</a>
@@ -389,6 +389,7 @@ function getMinFreight(prov, amphoe) {
 }
 </script>
 <script>var useState=React.useState,useRef=React.useRef,useEffect=React.useEffect,useCallback=React.useCallback,useMemo=React.useMemo,useContext=React.useContext,useReducer=React.useReducer;
+var CUST_INDEX={byCode:{},byName:{}};  // รหัสลูกค้า -> ข้อมูล (โหลดจาก codAccounts)
 // ===== SearchSelect — พิมพ์ค้นหาในช่องเลือกจังหวัด/อำเภอ =====
 function SearchSelect({
   value,
@@ -2388,20 +2389,28 @@ function canEditBill(bill, sessionUser) {
   };
 }
 function saveEditLog(billNo, oldData, newData, editor) {
+  var entry = {
+    billNo: billNo,
+    editedAt: new Date().toISOString(),
+    editedBy: (editor === null || editor === void 0 ? void 0 : editor.name) || (editor === null || editor === void 0 ? void 0 : editor.username) || "unknown",
+    editorCode: (editor === null || editor === void 0 ? void 0 : editor.clerkCode) || "",
+    changes: Object.keys(newData).filter(k => JSON.stringify(oldData[k]) !== JSON.stringify(newData[k])).map(k => ({
+      field: k,
+      from: oldData[k],
+      to: newData[k]
+    }))
+  };
+  // 1) เก็บ local (ใช้งานออฟไลน์/สำรอง)
   try {
     const logs = JSON.parse(localStorage.getItem("golod_edit_logs") || "[]");
-    logs.unshift({
-      billNo,
-      editedAt: new Date().toISOString(),
-      editedBy: (editor === null || editor === void 0 ? void 0 : editor.name) || (editor === null || editor === void 0 ? void 0 : editor.username) || "unknown",
-      editorCode: (editor === null || editor === void 0 ? void 0 : editor.clerkCode) || "",
-      changes: Object.keys(newData).filter(k => JSON.stringify(oldData[k]) !== JSON.stringify(newData[k])).map(k => ({
-        field: k,
-        from: oldData[k],
-        to: newData[k]
-      }))
-    });
+    logs.unshift(entry);
     localStorage.setItem("golod_edit_logs", JSON.stringify(logs.slice(0, 500)));
+  } catch (e) {}
+  // 2) ส่งขึ้น Firestore กลาง — ให้ทุกเครื่องเห็นประวัติเดียวกัน
+  try {
+    if (typeof GolodDB !== "undefined" && GolodDB.saveEditLog && entry.changes.length) {
+      GolodDB.saveEditLog(entry);
+    }
   } catch (e) {}
 }
 function requestAdminEdit(billNo) {
@@ -2443,6 +2452,7 @@ function getSessionBranch() {
 const initForm = () => ({
   branch: getSessionBranch(),
   staff: "",
+  customerCode: "",
   senderName: "",
   senderPhone: "",
   senderProv: "",
@@ -2775,6 +2785,16 @@ function ThermalBillingApp() {
   useEffect(() => {
     try {
       if (typeof GolodDB === "undefined") return;
+      // โหลดรายชื่อลูกค้า (รหัส + เรทพิเศษ) สำหรับช่อง "รหัสลูกค้า"
+      if (GolodDB.getCodAccounts) {
+        GolodDB.getCodAccounts().then(function(list){
+          (list||[]).forEach(function(c){
+            if (c && c.code) CUST_INDEX.byCode[String(c.code).trim().toUpperCase()] = c;
+            if (c && c.name) CUST_INDEX.byName[c.name] = c;
+          });
+          console.log("[ThermalBill] loaded "+(list?list.length:0)+" customer codes");
+        }).catch(function(){});
+      }
       var s = {};
       try { s = JSON.parse(localStorage.getItem("golod_session") || "{}"); } catch(e) {}
       var isAdminRole = s.role === "admin" || s.role === "branch";
@@ -3342,6 +3362,7 @@ function ThermalBillingApp() {
       // flat fields สำหรับ TripManager
       clerkCode: staffCode,
       clerkName: staffName,
+      customerCode: form.customerCode || "",
       senderName: form.senderName || "",
       senderPhone: form.senderPhone || "",
       senderProv: form.senderProv || "",
@@ -3536,7 +3557,19 @@ function ThermalBillingApp() {
       fontWeight: 700,
       cursor: "default"
     }
-  }, staffCode, " \u2014 ", staffName)), /*#__PURE__*/React.createElement("div", null, /*#__PURE__*/React.createElement(Lbl, {
+  }, staffCode, " \u2014 ", staffName)), /*#__PURE__*/React.createElement("div", { style: { marginBottom: 6 } }, /*#__PURE__*/React.createElement(Lbl, {
+    c: "รหัสลูกค้า (ไม่บังคับ — พิมพ์รหัสเพื่อดึงชื่อผู้ส่ง)"
+  }), /*#__PURE__*/React.createElement("input", {
+    value: form.customerCode || "",
+    onChange: (e) => {
+      var v = (e.target.value || "").toUpperCase();
+      setF("customerCode", v);
+      var cust = CUST_INDEX.byCode[v.trim()];
+      if (cust) { setF("senderName", cust.name || form.senderName); }
+    },
+    placeholder: "เช่น C5",
+    style: { width: "100%", padding: "8px", border: "1px solid #ddd", borderRadius: 6, boxSizing: "border-box", textTransform: "uppercase" }
+  })), /*#__PURE__*/React.createElement("div", null, /*#__PURE__*/React.createElement(Lbl, {
     c: "\u0E0A\u0E37\u0E48\u0E2D\u0E1C\u0E39\u0E49\u0E2A\u0E48\u0E07 *"
   }), /*#__PURE__*/React.createElement("div", {
     style: {

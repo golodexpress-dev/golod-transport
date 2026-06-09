@@ -173,10 +173,11 @@ var GolodDB = (function() {
     });
   }
 
-  function getEditLogs() {
+  function getEditLogs(opts) {
+    opts = opts || {};
     return new Promise(function(resolve) {
       ready(function() {
-        db.collection("editLogs").orderBy("editedAt", "desc").limit(100).get()
+        db.collection("editLogs").orderBy("editedAt", "desc").limit(opts.limitN || 300).get()
           .then(function(snap) {
             var logs = [];
             snap.forEach(function(doc) { logs.push(doc.data()); });
@@ -557,6 +558,20 @@ var GolodDB = (function() {
     });
   }
 
+  // ===== CUSTOMER / COD ACCOUNTS (อ่านรายชื่อลูกค้า + รหัส + เรทพิเศษ) =====
+  function getCodAccounts() {
+    return new Promise(function(resolve, reject) {
+      ready(function() {
+        db.collection("codAccounts").limit(3000).get()
+          .then(function(snap) {
+            var list = [];
+            snap.forEach(function(doc) { list.push(Object.assign({ _id: doc.id }, doc.data())); });
+            resolve(list);
+          }).catch(reject);
+      });
+    });
+  }
+
   return {
     init, ready,
     saveBill, getBills, updateBill,
@@ -568,6 +583,7 @@ var GolodDB = (function() {
     getBillsDispatch,
     saveTrip, getTrips, updateTrip, assignBillsToTrip,
     savePickup, getPickups, updatePickup, deletePickup,
+    getCodAccounts,
     saveSetting, getSetting
   };
 })();

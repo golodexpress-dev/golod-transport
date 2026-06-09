@@ -474,7 +474,6 @@ var MENU=[
   {k:"billing",lb:"ออกบิล",ic:"📄",perm:"billing",roles:["admin","branch","clerk"],extUrl:"ThermalBill.html"},
   {k:"bills",lb:"รายการบิล",ic:"📋",perm:"billing",roles:["admin","branch","clerk"]},
   {k:"transport",lb:"จัดการขนส่ง",ic:"🚛",perm:"transport",roles:["admin","branch","clerk","driver"],extUrl:"DispatchApp.html",driverUrl:"DriverApp.html"},
-  {k:"pickup",lb:"กรอกงานรับ",ic:"📦",roles:["admin","branch","clerk"],extUrl:"PickupIntake.html"},
   {k:"tracking",lb:"ติดตามสินค้า",ic:"📍",roles:["admin","branch","clerk","driver","customer"],extUrl:"TrackingSystem.html"},
   {k:"finance",lb:"การเงิน",ic:"💰",perm:"finance",roles:["admin","branch","clerk"],extUrl:"FinanceSystem.html"},
   {k:"cod",lb:"ตรวจสอบ COD",ic:"💸",roles:["admin","branch","clerk"],extUrl:"CODCheck.html"},
@@ -497,7 +496,7 @@ function canAccess(k){
 function buildSidebar(){
   var isDriver=CU.role==="driver"||CU.role==="customer";
   var h="";
-  var secs=[{lb:"เมนูหลัก",ks:["dashboard","billing","bills","transport","pickup","tracking"]},{lb:"ข้อมูล",ks:["finance","cod","reports","salesreport","customers","drivers"]},{lb:"ระบบ",ks:["users","profile"]}];
+  var secs=[{lb:"เมนูหลัก",ks:["dashboard","billing","bills","transport","tracking"]},{lb:"ข้อมูล",ks:["finance","cod","reports","salesreport","customers","drivers"]},{lb:"ระบบ",ks:["users","profile"]}];
   secs.forEach(function(s){
     var visItems=MENU.filter(function(m){return s.ks.includes(m.k)&&m.roles.includes(CU.role);});
     if(!visItems.length)return;
@@ -1547,53 +1546,62 @@ function savePerm(id){
 
 // ===== PROFILE =====
 function pgEditLogs(){
-  var logs=[];var reqs=[];
-  try{logs=JSON.parse(localStorage.getItem("golod_edit_logs")||"[]");}catch(e){}
+  var reqs=[];
   try{reqs=JSON.parse(localStorage.getItem("golod_edit_requests")||"[]");}catch(e){}
-
-  var h='<div class="card">';
-  h+='<div class="ct" style="display:flex;justify-content:space-between;align-items:center">';
-  h+='<span>📝 ประวัติการแก้ไขบิล</span>';
-  h+='<button class="btn btg" style="font-size:11px;padding:4px 12px" onclick="clearEditLogs()">ล้าง Log</button>';
-  h+='</div>';
-
-  if(logs.length===0){
-    h+='<div style="text-align:center;padding:24px;color:#bbb">ยังไม่มีประวัติการแก้ไข</div>';
-  }else{
-    h+='<table class="tbl" style="font-size:12px"><thead><tr><th>เลขบิล</th><th>แก้ไขเมื่อ</th><th>โดย</th><th>รายการที่แก้</th></tr></thead><tbody>';
+  _editLogReqs=reqs;
+  document.getElementById("content").innerHTML='<div class="card"><div class="ct">📝 ประวัติการแก้ไขบิล</div><div style="text-align:center;padding:24px;color:#bbb">⏳ กำลังโหลดประวัติจากระบบ...</div></div>';
+  var local=[]; try{local=JSON.parse(localStorage.getItem("golod_edit_logs")||"[]");}catch(e){}
+  var fbP=(typeof GolodDB!=="undefined"&&GolodDB.getEditLogs)?GolodDB.getEditLogs({limitN:300}):Promise.resolve([]);
+  fbP.then(function(fb){
+    var seen={}, all=[];
+    (fb||[]).concat(local).forEach(function(l){
+      if(!l||!l.editedAt) return;
+      var k=(l.billNo||"")+"|"+l.editedAt;
+      if(seen[k]) return; seen[k]=true; all.push(l);
+    });
+    all.sort(function(a,b){ return String(b.editedAt||"").localeCompare(String(a.editedAt||"")); });
+    _editLogsAll=all; renderEditLogs();
+  }).catch(function(){ _editLogsAll=local; renderEditLogs(); });
+}
+var _editLogsAll=[], _editLogReqs=[];
+function _elFmtVal(v){ if(v===undefined||v===null||v==="") return "(ว่าง)"; if(typeof v==="object"){ try{return JSON.stringify(v);}catch(e){return "…";} } return String(v); }
+function _elField(f){ var m={freightPay:"วิธีจ่าย",freightNet:"ค่าขนส่งสุทธิ",freightTotal:"ค่าขนส่งรวม",codTotal:"COD",senderName:"ผู้ส่ง",senderPhone:"เบอร์ผู้ส่ง",receiverName:"ผู้รับ",destProv:"จ.ปลายทาง",status:"สถานะ",items:"รายการของ",hidePrice:"ซ่อนราคา"}; return m[f]||f; }
+function renderEditLogs(){
+  var fEl=document.getElementById("el-filter");
+  var filter=(fEl?fEl.value:"").trim().toUpperCase();
+  var logs=_editLogsAll.filter(function(l){ return !filter || String(l.billNo||"").toUpperCase().indexOf(filter)>=0; });
+  var rows;
+  if(!logs.length){ rows='<div style="text-align:center;padding:24px;color:#bbb">ไม่พบประวัติการแก้ไข</div>'; }
+  else{
+    rows='<table class="tbl" style="font-size:12px"><thead><tr><th>เลขบิล</th><th>เมื่อ</th><th>โดย</th><th>รายการที่แก้ (เดิม → ใหม่)</th></tr></thead><tbody>';
     logs.forEach(function(log){
       var dt=new Date(log.editedAt);
       var dtStr=dt.toLocaleDateString("th-TH")+" "+dt.toLocaleTimeString("th-TH",{hour:"2-digit",minute:"2-digit"});
-      var changes=(log.changes||[]).map(function(c){return c.field;}).join(", ")||"—";
-      h+="<tr><td style='font-weight:600;color:#0F6E56'>"+log.billNo+"</td>";
-      h+="<td style='font-size:11px;color:#888'>"+dtStr+"</td>";
-      h+="<td>"+log.editedBy+"</td>";
-      h+="<td style='font-size:11px;color:#555'>"+changes+"</td></tr>";
+      var ch=(log.changes||[]).map(function(c){ return "<div>"+_elField(c.field)+": <span style='color:#c0392b'>"+_elFmtVal(c.from)+"</span> → <span style='color:#0F6E56'>"+_elFmtVal(c.to)+"</span></div>"; }).join("")||"—";
+      rows+="<tr><td style='font-weight:600;color:#0F6E56'>"+(log.billNo||"—")+"</td><td style='font-size:11px;color:#888'>"+dtStr+"</td><td>"+(log.editedBy||"—")+"</td><td style='font-size:11px;color:#555'>"+ch+"</td></tr>";
     });
-    h+="</tbody></table>";
+    rows+="</tbody></table>";
   }
-  h+="</div>";
-
-  // คำขออนุมัติ
-  h+='<div class="card" style="margin-top:12px">';
-  h+='<div class="ct">🔒 คำขออนุมัติแก้ไขบิล</div>';
-  var pending=reqs.filter(function(r){return r.status==="pending";});
-  if(pending.length===0){
-    h+='<div style="text-align:center;padding:24px;color:#bbb">ไม่มีคำขอรออนุมัติ</div>';
-  }else{
+  var resEl=document.getElementById("el-results");
+  if(resEl){ resEl.innerHTML=rows; return; }
+  var h='<div class="card">';
+  h+='<div class="ct" style="display:flex;justify-content:space-between;align-items:center"><span>📝 ประวัติการแก้ไขบิล</span>';
+  h+='<button class="btn btg" style="font-size:11px;padding:4px 12px" onclick="clearEditLogs()">ล้าง Log เครื่องนี้</button></div>';
+  h+='<input id="el-filter" placeholder="ค้นเลขบิล เช่น PH0106-09" oninput="renderEditLogs()" style="width:100%;padding:8px;border:1px solid #ddd;border-radius:7px;margin:6px 0;box-sizing:border-box">';
+  h+='<div id="el-results">'+rows+'</div></div>';
+  h+='<div class="card" style="margin-top:12px"><div class="ct">🔒 คำขออนุมัติแก้ไขบิล</div>';
+  var pending=(_editLogReqs||[]).filter(function(r){return r.status==="pending";});
+  if(!pending.length){ h+='<div style="text-align:center;padding:24px;color:#bbb">ไม่มีคำขอรออนุมัติ</div>'; }
+  else{
     h+='<table class="tbl" style="font-size:12px"><thead><tr><th>เลขบิล</th><th>ขอเมื่อ</th><th>โดย</th><th>อนุมัติ</th></tr></thead><tbody>';
     pending.forEach(function(req,i){
       var dt=new Date(req.requestedAt);
       var dtStr=dt.toLocaleDateString("th-TH")+" "+dt.toLocaleTimeString("th-TH",{hour:"2-digit",minute:"2-digit"});
-      h+="<tr><td style='font-weight:600;color:#0F6E56'>"+req.billNo+"</td>";
-      h+="<td style='font-size:11px;color:#888'>"+dtStr+"</td>";
-      h+="<td>"+req.requestedBy+"</td>";
-      h+="<td><button class='btn btg' style='font-size:11px;padding:3px 10px' onclick='approveEditRequest("+i+")'>✓ อนุมัติ</button></td></tr>";
+      h+="<tr><td style='font-weight:600;color:#0F6E56'>"+req.billNo+"</td><td style='font-size:11px;color:#888'>"+dtStr+"</td><td>"+req.requestedBy+"</td><td><button class='btn btg' style='font-size:11px;padding:3px 10px' onclick='approveEditRequest("+i+")'>✓ อนุมัติ</button></td></tr>";
     });
     h+="</tbody></table>";
   }
   h+="</div>";
-
   document.getElementById("content").innerHTML=h;
 }
 
