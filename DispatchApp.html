@@ -631,7 +631,7 @@ tr:hover td{background:#f8fffe}
 <div class="topbar">
   <span class="title">🚛 จัดการขนส่ง</span>
   <span id="session-info" style="font-size:11px;opacity:.8"></span>
-  <span style="font-size:10px;opacity:.65;margin-left:auto">build 2026-06-09f</span>
+  <span style="font-size:10px;opacity:.65;margin-left:auto">build 2026-06-09h</span>
   <a href="GolodApp.html" style="margin-left:10px">← หน้าหลัก</a>
 </div>
 <div class="container">
@@ -1222,8 +1222,16 @@ var _tripState = {
   editId: null,
   selectedBills: {},   // billNo -> bill object
   drivers: [],
-  openTrips: []
+  openTrips: [],
+  fltDriver: "",       // ตัวกรองคนรถ (ค้างไว้)
+  fltDate: ""          // ตัวกรองวันที่ออก (ค้างไว้)
 };
+function setTripFilter(field, val){
+  if(field==="driver") _tripState.fltDriver=val||"";
+  else if(field==="date") _tripState.fltDate=val||"";
+  renderTripList();
+}
+function clearTripFilter(){ _tripState.fltDriver=""; _tripState.fltDate=""; renderTripList(); }
 
 function renderTripTab(){
   var app = document.getElementById("app");
@@ -1345,8 +1353,38 @@ function renderTripList(){
   };
 
   var openTrips = trips.filter(function(t){ return t.status!=="closed"; });
+
+  // ===== ตัวกรอง คนรถ / วันที่ออก (ค้างไว้ใน _tripState ข้ามการแก้เที่ยว) =====
+  var fltD=_tripState.fltDriver||"", fltDate=_tripState.fltDate||"";
+  var _ckey=function(t){ if(!t.createdAt) return ""; var d=new Date(t.createdAt); return d.getFullYear()+"-"+String(d.getMonth()+1).padStart(2,"0")+"-"+String(d.getDate()).padStart(2,"0"); };
+  var _clabel=function(k){ if(!k) return k; var p=k.split("-"); return parseInt(p[2],10)+"/"+parseInt(p[1],10)+"/"+p[0]; };
+  var drvOpts={}, dateOpts={};
+  openTrips.forEach(function(t){ if(t.driverName) drvOpts[t.driverName]=1; var ck=_ckey(t); if(ck) dateOpts[ck]=1; });
+  var drvList=Object.keys(drvOpts).sort(function(a,b){return a.localeCompare(b,"th");});
+  var dateList=Object.keys(dateOpts).sort().reverse();
+  var filterActive=!!(fltD||fltDate);
+  var shownTrips=openTrips.filter(function(t){
+    if(fltD && t.driverName!==fltD) return false;
+    if(fltDate && _ckey(t)!==fltDate) return false;
+    return true;
+  });
+  var filterBar='<div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-bottom:12px">'
+    +'<select onchange="setTripFilter(\'driver\',this.value)" style="padding:8px 10px;border:1.5px solid '+(fltD?"#0F6E56":"#ddd")+';border-radius:8px;font-size:13px;font-weight:700;color:'+(fltD?"#0F6E56":"#555")+';max-width:55%">'
+      +'<option value="">🚛 ทุกคนรถ</option>'
+      +drvList.map(function(d){ return '<option value="'+d.replace(/"/g,"&quot;")+'"'+(d===fltD?" selected":"")+'>'+d+'</option>'; }).join("")
+    +'</select>'
+    +'<select onchange="setTripFilter(\'date\',this.value)" style="padding:8px 10px;border:1.5px solid '+(fltDate?"#0F6E56":"#ddd")+';border-radius:8px;font-size:13px;font-weight:700;color:'+(fltDate?"#0F6E56":"#555")+'">'
+      +'<option value="">📅 ทุกวันที่สร้าง</option>'
+      +dateList.map(function(d){ return '<option value="'+d+'"'+(d===fltDate?" selected":"")+'>'+_clabel(d)+'</option>'; }).join("")
+    +'</select>'
+    +(filterActive?'<button class="btn btn-gray" onclick="clearTripFilter()" style="font-size:12px">✕ ล้าง</button> <span style="font-size:12px;color:#0F6E56;font-weight:700">พบ '+shownTrips.length+' เที่ยว</span>':'')
+    +'</div>';
+
   var openCards;
-  if(ub==="all"){
+  if(filterActive){
+    // กรองอยู่ → แสดงรายการแบน (ข้ามแท็บสาขา) ให้เห็นเฉพาะที่ค้น และค้างไว้แม้เข้าไปแก้เที่ยวแล้วกลับมา
+    openCards = filterBar + (shownTrips.map(tripCardHTML).join("") || '<div style="text-align:center;padding:20px;color:#aaa">ไม่พบเที่ยวตามที่ค้น</div>');
+  } else if(ub==="all"){
     // ข้อ 1: แอดมินดูเป็น "แท็บสาขา" (ไม่มีสาขา All — ใบงานอยู่สาขาจริงเสมอ)
     var groups={};
     openTrips.forEach(function(t){
@@ -1367,9 +1405,9 @@ function renderTripList(){
         }).join("")
       +'</div>';
     var cards=(groups[_tripBranchTab]||[]).map(tripCardHTML).join("");
-    openCards = tabBar + (cards||'<div style="text-align:center;padding:20px;color:#aaa">สาขานี้ไม่มีเที่ยวที่เปิดอยู่</div>');
+    openCards = filterBar + tabBar + (cards||'<div style="text-align:center;padding:20px;color:#aaa">สาขานี้ไม่มีเที่ยวที่เปิดอยู่</div>');
   } else {
-    openCards = openTrips.map(tripCardHTML).join("") || '<div style="text-align:center;padding:20px;color:#aaa">ไม่มีเที่ยวที่เปิดอยู่</div>';
+    openCards = filterBar + (openTrips.map(tripCardHTML).join("") || '<div style="text-align:center;padding:20px;color:#aaa">ไม่มีเที่ยวที่เปิดอยู่</div>');
   }
 
   var closedRows = trips.filter(function(t){ return t.status==="closed"; }).map(function(t){
