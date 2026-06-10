@@ -631,7 +631,7 @@ tr:hover td{background:#f8fffe}
 <div class="topbar">
   <span class="title">🚛 จัดการขนส่ง</span>
   <span id="session-info" style="font-size:11px;opacity:.8"></span>
-  <span style="font-size:10px;opacity:.65;margin-left:auto">build 2026-06-09k</span>
+  <span style="font-size:10px;opacity:.65;margin-left:auto">build 2026-06-09l</span>
   <a href="GolodApp.html" style="margin-left:10px">← หน้าหลัก</a>
 </div>
 <div class="container">
@@ -1234,29 +1234,33 @@ function setTripFilter(field, val){
 function clearTripFilter(){ _tripState.fltDriver=""; _tripState.fltDate=""; renderTripList(); }
 
 function inspectBill(){
-  if(!GolodDB.findBillDocs){ alert("ต้องวาง golod-firebase.js ตัวใหม่ก่อน"); return; }
+  if(!GolodDB.findBillDocs || !GolodDB.findTripsWithBill){ alert("ต้องวาง golod-firebase.js ตัวใหม่ก่อน"); return; }
   var bn=prompt("ใส่เลขบิลที่จะตรวจ (เช่น PH0506-11)");
   if(!bn) return; bn=bn.trim();
-  GolodDB.findBillDocs(bn).then(function(docs){
-    if(!docs.length){ alert("ไม่พบบิล "+bn+" ใน Firestore"); return; }
-    var dup=docs.length>1;
-    var msg="บิล "+bn+" พบ "+docs.length+" รายการ"+(dup?" ⚠️ ซ้ำกัน!":"")+":\n\n";
+  Promise.all([ GolodDB.findBillDocs(bn), GolodDB.findTripsWithBill(bn) ]).then(function(r){
+    var docs=r[0]||[], trips=r[1]||[];
+    if(!docs.length && !trips.length){ alert("ไม่พบบิล "+bn); return; }
+    var msg="🔎 บิล "+bn+"\n\n";
+    // (1) เอกสารบิลใน Firestore
+    msg+="📄 เอกสารบิล: "+docs.length+" รายการ"+(docs.length>1?" ⚠️ ซ้ำ!":"")+"\n";
     docs.forEach(function(d,i){
-      msg+=(i+1)+") docId: "+d._id+(d._id===bn?" (=เลขบิล)":" (auto-id)")+"\n"
-        +"   สถานะ: "+(d.status||"(ว่าง)")+"\n"
-        +"   คนรถ: "+(d.driverName||d.driver||"(ไม่มี)")+"\n"
-        +"   เที่ยว: "+(d.tripId||"(ไม่มี)")+"\n\n";
+      msg+="  "+(i+1)+") "+d._id+(d._id===bn?" (=เลขบิล)":" (auto-id)")+" · สถานะ:"+(d.status||"ว่าง")+" · คนรถ:"+(d.driverName||d.driver||"ไม่มี")+"\n";
     });
-    if(dup){
-      msg+="พบ doc ซ้ำ — ปกติควรเหลือใบเดียว\nกด OK เพื่อเลือกลบ doc ซ้ำทีละตัว / Cancel เพื่อปิด";
+    // (2) เที่ยวที่อ้างถึงบิลนี้ (ตัวการ "อยู่ 2 ที่")
+    msg+="\n🚚 อยู่ในเที่ยว: "+trips.length+" เที่ยว"+(trips.length>1?" ⚠️ อยู่หลายเที่ยว!":"")+"\n";
+    trips.forEach(function(t,i){
+      msg+="  "+(i+1)+") "+(t.driverName||t.driverUsername||"?")+" · "+(t.routeName||t.name||t._id)+" · "+(t.departDate||"")+" ["+(t.status||"?")+"]\n";
+    });
+    if(trips.length>1){
+      msg+="\n⚠️ บิลอยู่หลายเที่ยว = สาเหตุที่เห็นในคนรถหลายคน\nกด OK เพื่อเลือกถอดบิลออกจากเที่ยวที่ผิดทีละเที่ยว";
       if(!confirm(msg)) return;
-      docs.forEach(function(d){
-        if(confirm("ลบ doc นี้?\ndocId: "+d._id+"\nสถานะ: "+(d.status||"(ว่าง)")+" · คนรถ: "+(d.driverName||d.driver||"(ไม่มี)")+"\n\n⚠️ ลบถาวร — เก็บใบที่ข้อมูลถูกต้อง อย่าลบหมด")){
-          GolodDB.deleteBillDoc(d._id).then(function(){ alert("ลบ "+d._id+" แล้ว"); }).catch(function(e){ alert("ลบไม่สำเร็จ: "+(e&&e.message||e)); });
+      trips.forEach(function(t){
+        if(confirm("ถอดบิล "+bn+" ออกจากเที่ยวนี้?\n\nคนรถ: "+(t.driverName||t.driverUsername||"?")+"\nเส้นทาง: "+(t.routeName||t.name||t._id)+"\nวันที่: "+(t.departDate||"")+" ["+(t.status||"?")+"]\n\n(เก็บเที่ยวที่ถูกต้องไว้ ถอดเฉพาะเที่ยวที่ผิด)")){
+          GolodDB.removeBillFromTrip(t._id, bn).then(function(){ alert("ถอดออกจากเที่ยว "+(t.driverName||t._id)+" แล้ว — บอกคนรถกด 🔄 รีเฟรช"); }).catch(function(e){ alert("ถอดไม่สำเร็จ: "+(e&&e.message||e)); });
         }
       });
     } else {
-      alert(msg+"(มีใบเดียว ไม่ซ้ำ)");
+      alert(msg+"\n(ไม่ซ้ำเที่ยว)");
     }
   }).catch(function(e){ alert("ดึงข้อมูลไม่ได้: "+(e&&e.message||e)); });
 }

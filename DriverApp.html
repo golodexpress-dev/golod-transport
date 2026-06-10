@@ -149,7 +149,7 @@ body{font-family:'Sarabun',Arial,sans-serif;background:#f0f4f0;min-height:100vh;
 <!-- Main app -->
 <div id="main-screen" style="display:none">
   <div class="topbar">
-    <span class="title">🚛 งานของฉัน <span style="font-size:9px;opacity:.6;font-weight:400">b0610a</span></span>
+    <span class="title">🚛 งานของฉัน <span style="font-size:9px;opacity:.6;font-weight:400">b0610b</span></span>
     <span class="driver-name" id="driver-label"></span>
     <button class="btn-logout" onclick="doLogout()">ออก</button>
   </div>
@@ -183,7 +183,7 @@ body{font-family:'Sarabun',Arial,sans-serif;background:#f0f4f0;min-height:100vh;
           <div class="lbl">ถ่ายรูป<br>สินค้า</div>
           <div class="done-badge" id="badge-photo" style="display:none">✓</div>
           <img id="prev-photo" style="display:none">
-          <input type="file" id="file-photo" accept="image/*" capture="environment" onchange="handleFile('photo',this)">
+          <input type="file" id="file-photo" accept="image/*" onchange="handleFile('photo',this)">
         </div>
         <!-- สลิปโอน -->
         <div class="upload-box" onclick="triggerUpload('slip')">
@@ -191,7 +191,7 @@ body{font-family:'Sarabun',Arial,sans-serif;background:#f0f4f0;min-height:100vh;
           <div class="lbl">สลิป<br>โอนเงิน</div>
           <div class="done-badge" id="badge-slip" style="display:none">✓</div>
           <img id="prev-slip" style="display:none">
-          <input type="file" id="file-slip" accept="image/*" capture="environment" onchange="handleFile('slip',this)">
+          <input type="file" id="file-slip" accept="image/*" onchange="handleFile('slip',this)">
         </div>
         <!-- เพิ่มเติม -->
         <div class="upload-box" onclick="triggerUpload('extra')">
@@ -883,8 +883,8 @@ function openVehiclePhoto(tripId){
     +condText
     +existHtml
     +'<div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:14px">'
-    +'<div><input type="file" accept="image/*" capture="environment" id="vp-file1" onchange="previewVp(this,1)" style="display:none"><label for="vp-file1" id="vp-prev1" style="display:flex;flex-direction:column;align-items:center;justify-content:center;height:110px;border:2px dashed #ccc;border-radius:10px;cursor:pointer"><div style="font-size:28px">📷</div><div style="font-size:10px;color:#aaa">รูปที่ 1</div></label></div>'
-    +'<div><input type="file" accept="image/*" capture="environment" id="vp-file2" onchange="previewVp(this,2)" style="display:none"><label for="vp-file2" id="vp-prev2" style="display:flex;flex-direction:column;align-items:center;justify-content:center;height:110px;border:2px dashed #ccc;border-radius:10px;cursor:pointer"><div style="font-size:28px">📷</div><div style="font-size:10px;color:#aaa">รูปที่ 2</div></label></div>'
+    +'<div><input type="file" accept="image/*" id="vp-file1" onchange="previewVp(this,1)" style="display:none"><label for="vp-file1" id="vp-prev1" style="display:flex;flex-direction:column;align-items:center;justify-content:center;height:110px;border:2px dashed #ccc;border-radius:10px;cursor:pointer"><div style="font-size:28px">📷</div><div style="font-size:10px;color:#aaa">รูปที่ 1</div></label></div>'
+    +'<div><input type="file" accept="image/*" id="vp-file2" onchange="previewVp(this,2)" style="display:none"><label for="vp-file2" id="vp-prev2" style="display:flex;flex-direction:column;align-items:center;justify-content:center;height:110px;border:2px dashed #ccc;border-radius:10px;cursor:pointer"><div style="font-size:28px">📷</div><div style="font-size:10px;color:#aaa">รูปที่ 2</div></label></div>'
     +'</div>'
     +'<button onclick="submitVehiclePhoto()" id="vp-submit-btn" style="width:100%;padding:12px;background:#0F6E56;color:#fff;border:none;border-radius:10px;font-size:14px;font-weight:800;cursor:pointer;margin-bottom:8px">💾 บันทึกรูป</button>'
     +'<button onclick="document.getElementById(\'vehicle-photo-modal\').remove()" style="width:100%;padding:10px;background:#f5f5f5;border:none;border-radius:9px;font-size:12px;cursor:pointer">ปิด</button>'
@@ -1486,7 +1486,7 @@ function submitPickupBill(){
         <div>
           <div style="font-size:10px;color:#888;margin-bottom:5px">รูปที่ 1</div>
           <label style="display:block;width:100%;aspect-ratio:1;border:2px dashed #d0ede5;border-radius:10px;cursor:pointer;position:relative;overflow:hidden;background:#f8fffe">
-            <input type="file" id="pb-photo1" accept="image/*" capture="environment" style="display:none" onchange="previewPhoto(this,'pb-preview1')">
+            <input type="file" id="pb-photo1" accept="image/*" style="display:none" onchange="previewPhoto(this,'pb-preview1')">
             <div id="pb-preview1" style="width:100%;height:100%;display:flex;align-items:center;justify-content:center;flex-direction:column;gap:4px">
               <div style="font-size:28px">📷</div>
               <div style="font-size:10px;color:#aaa">กดถ่ายรูป</div>
@@ -1497,7 +1497,7 @@ function submitPickupBill(){
         <div>
           <div style="font-size:10px;color:#888;margin-bottom:5px">รูปที่ 2</div>
           <label style="display:block;width:100%;aspect-ratio:1;border:2px dashed #d0ede5;border-radius:10px;cursor:pointer;position:relative;overflow:hidden;background:#f8fffe">
-            <input type="file" id="pb-photo2" accept="image/*" capture="environment" style="display:none" onchange="previewPhoto(this,'pb-preview2')">
+            <input type="file" id="pb-photo2" accept="image/*" style="display:none" onchange="previewPhoto(this,'pb-preview2')">
             <div id="pb-preview2" style="width:100%;height:100%;display:flex;align-items:center;justify-content:center;flex-direction:column;gap:4px">
               <div style="font-size:28px">📷</div>
               <div style="font-size:10px;color:#aaa">กดถ่ายรูป</div>
