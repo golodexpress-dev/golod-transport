@@ -149,7 +149,7 @@ body{font-family:'Sarabun',Arial,sans-serif;background:#f0f4f0;min-height:100vh;
 <!-- Main app -->
 <div id="main-screen" style="display:none">
   <div class="topbar">
-    <span class="title">🚛 งานของฉัน</span>
+    <span class="title">🚛 งานของฉัน <span style="font-size:9px;opacity:.6;font-weight:400">b0610a</span></span>
     <span class="driver-name" id="driver-label"></span>
     <button class="btn-logout" onclick="doLogout()">ออก</button>
   </div>
@@ -175,21 +175,16 @@ body{font-family:'Sarabun',Arial,sans-serif;background:#f0f4f0;min-height:100vh;
 
     <!-- upload section -->
     <div class="action-section">
-      <!-- รูปส่งงาน (แยกออกมา บังคับ) -->
-      <div class="action-title">📷 รูปส่งงาน <span style="color:#c0392b;font-size:11px">(บังคับ ก่อนกดส่งสำเร็จ)</span></div>
-      <div style="margin-bottom:6px">
-        <div class="upload-box" onclick="triggerUpload('photo')" style="width:100%;min-height:120px;border:2px solid #0F6E56;background:#f3fbf8">
-          <div class="ico" style="font-size:34px">📷</div>
-          <div class="lbl" style="font-weight:700;color:#0F6E56">ถ่ายรูปส่งงาน<br>(ของถึงมือผู้รับ)</div>
+      <div class="action-title">📎 เอกสาร / หลักฐาน</div>
+      <div class="upload-grid">
+        <!-- รูปถ่าย -->
+        <div class="upload-box" onclick="triggerUpload('photo')">
+          <div class="ico">📷</div>
+          <div class="lbl">ถ่ายรูป<br>สินค้า</div>
           <div class="done-badge" id="badge-photo" style="display:none">✓</div>
           <img id="prev-photo" style="display:none">
           <input type="file" id="file-photo" accept="image/*" capture="environment" onchange="handleFile('photo',this)">
         </div>
-        <div style="font-size:10px;color:#888;margin-top:4px">💡 รูปนี้จะแสดงให้ลูกค้าเห็นในหน้าติดตามสถานะ</div>
-      </div>
-
-      <div class="action-title">📎 เอกสาร / หลักฐานเพิ่มเติม</div>
-      <div class="upload-grid">
         <!-- สลิปโอน -->
         <div class="upload-box" onclick="triggerUpload('slip')">
           <div class="ico">🧾</div>
@@ -382,17 +377,12 @@ var PAY_LABEL = {origin:"ต้นทาง",dest:"ปลายทาง",transf
 
 function renderBillList(){
   var el = document.getElementById("bill-list");
-  // โหลดเที่ยว (ทุกสถานะ) เสมอ เพื่อให้ dropdown เลือกเที่ยวเก่าขึ้นได้ แม้ไม่มีงานค้าง
-  loadLatestTrip(function(tripBillIds){
-    // ไม่มีทั้งงานค้างและไม่มีเที่ยวเลย → ขึ้นข้อความว่าง
-    if(BILLS.length === 0 && DRIVER_TRIPS.length === 0){
-      el.innerHTML = '<div class="empty-state"><div class="ico">✅</div><div class="msg">ไม่มีงานค้างในขณะนี้<br><br><button onclick="loadBills()" style="padding:8px 18px;background:#0F6E56;color:#fff;border:none;border-radius:8px;font-size:13px;cursor:pointer">🔄 รีเฟรช</button></div></div>';
-      return;
-    }
-    // ถ้าเที่ยวที่เลือกเป็นเที่ยวที่ส่งเสร็จ/เคลียร์ (บิลไม่อยู่ใน BILLS) ให้ switchTrip ดึงบิลมาแสดงอัตโนมัติ
-    if(SELECTED_TRIP_ID){ switchTrip(SELECTED_TRIP_ID); }
-    else { renderBillListWithTrip(tripBillIds); }
-  });
+  if(BILLS.length === 0){
+    el.innerHTML = '<div class="empty-state"><div class="ico">✅</div><div class="msg">ไม่มีงานค้างในขณะนี้<br><br><button onclick="loadBills()" style="padding:8px 18px;background:#0F6E56;color:#fff;border:none;border-radius:8px;font-size:13px;cursor:pointer">🔄 รีเฟรช</button></div></div>';
+    return;
+  }
+  // ดึง open trip ล่าสุดก่อน แล้วค่อย render
+  loadLatestTrip(function(tripBillIds){ renderBillListWithTrip(tripBillIds); });
 }
 
 var DRIVER_TRIPS = [];
@@ -400,35 +390,34 @@ var SELECTED_TRIP_ID = null;
 
 function loadLatestTrip(callback){
   var db; try{ db=firebase.firestore(); }catch(e){ callback(null); return; }
-  function pickDefault(){
-    // เลือกเที่ยวที่ยังเปิดอยู่ก่อน ถ้าไม่มีค่อยใช้เที่ยวล่าสุด
-    if(SELECTED_TRIP_ID && DRIVER_TRIPS.find(function(t){return t.id===SELECTED_TRIP_ID;})) return;
-    var openT = DRIVER_TRIPS.find(function(t){ return t.status==="open"; });
-    SELECTED_TRIP_ID = openT ? openT.id : DRIVER_TRIPS[0].id;
-  }
-  // โหลดเที่ยวล่าสุดทุกสถานะ (เปิด/เคลียร์/ปิด) เพื่อให้คนรถดูย้อนหลังได้
+  // ลอง query แบบมี orderBy ก่อน (ต้องการ index)
   db.collection("trips")
     .where("driverUsername","==",CU.username)
-    .orderBy("createdAt","desc").limit(15).get()
+    .where("status","==","open")
+    .orderBy("createdAt","desc").limit(10).get()
     .then(function(snap){
       DRIVER_TRIPS = [];
       snap.forEach(function(doc){ DRIVER_TRIPS.push(doc.data()); });
       if(DRIVER_TRIPS.length === 0){ callback(null); return; }
-      pickDefault();
+      if(!SELECTED_TRIP_ID) SELECTED_TRIP_ID = DRIVER_TRIPS[0].id;
       var sel = DRIVER_TRIPS.find(function(t){ return t.id===SELECTED_TRIP_ID; });
       callback(sel ? sel.billIds||null : null);
     }).catch(function(e){
+      // ถ้า index ยังไม่มี ลอง query แบบไม่มี orderBy
       console.warn("[DriverApp] trips index missing, fallback:", e.message);
       db.collection("trips")
         .where("driverUsername","==",CU.username)
-        .limit(30).get()
+        .where("status","==","open")
+        .limit(10).get()
         .then(function(snap){
           DRIVER_TRIPS = [];
           snap.forEach(function(doc){ DRIVER_TRIPS.push(doc.data()); });
-          DRIVER_TRIPS.sort(function(a,b){ return (b.createdAt||"").localeCompare(a.createdAt||""); });
-          DRIVER_TRIPS = DRIVER_TRIPS.slice(0,15);
+          // sort client-side
+          DRIVER_TRIPS.sort(function(a,b){
+            return (b.createdAt||"").localeCompare(a.createdAt||"");
+          });
           if(DRIVER_TRIPS.length === 0){ callback(null); return; }
-          pickDefault();
+          if(!SELECTED_TRIP_ID) SELECTED_TRIP_ID = DRIVER_TRIPS[0].id;
           var sel = DRIVER_TRIPS.find(function(t){ return t.id===SELECTED_TRIP_ID; });
           callback(sel ? sel.billIds||null : null);
         }).catch(function(){
@@ -451,42 +440,20 @@ function loadTripFromBills(callback){
   callback(tripBills.length>0 ? tripBills : null);
 }
 
-var TRIP_VIEW_CACHE = {}; // tripId -> bills (สำหรับดูเที่ยวที่ส่งเสร็จ/เคลียร์แล้ว)
-
 function switchTrip(tripId){
   SELECTED_TRIP_ID = tripId;
   var trip = DRIVER_TRIPS.find(function(t){ return t.id===tripId; });
-  var ids = trip ? trip.billIds||null : null;
-  // ถ้าบิลในเที่ยวไม่อยู่ใน BILLS (เที่ยวส่งเสร็จ/เคลียร์แล้ว) → ดึงจาก Firestore มาดู
-  if(ids && ids.length && ids.some(function(bn){ return !BILLS.find(function(b){return b.billNo===bn;}); })){
-    if(TRIP_VIEW_CACHE[tripId]){ renderBillListWithTrip(ids); return; }
-    var el=document.getElementById("bill-list");
-    if(el) el.innerHTML='<div class="loading-state"><span class="spin-inline">⏳</span><br><br>กำลังโหลดบิลในเที่ยว...</div>';
-    fetchDriverTripBills(ids, function(bills){ TRIP_VIEW_CACHE[tripId]=bills; renderBillListWithTrip(ids); });
-    return;
-  }
-  renderBillListWithTrip(ids);
-}
-
-function fetchDriverTripBills(ids, cb){
-  var db; try{ db=firebase.firestore(); }catch(e){ cb([]); return; }
-  Promise.all(ids.map(function(id){
-    return db.collection("bills").doc(String(id)).get()
-      .then(function(d){ var x=d.exists?d.data():null; if(x&&x.form&&typeof x.form==="string"){try{x.form=JSON.parse(x.form);}catch(e){x.form={};}} return x; })
-      .catch(function(){ return null; });
-  })).then(function(arr){ cb(arr.filter(Boolean)); });
+  renderBillListWithTrip(trip ? trip.billIds||null : null);
 }
 
 function renderBillListWithTrip(tripBillIds){
   var el = document.getElementById("bill-list");
+  // summary เฉพาะบิลใน trip ล่าสุด (ถ้ามี)
+  // มี trip → แสดงเฉพาะบิลในเที่ยว, ไม่มี → แสดงทุกบิลของตัวเอง
   var hasTripData = tripBillIds && tripBillIds.length > 0;
-  // ถ้ากำลังดูเที่ยวที่ส่งเสร็จ/เคลียร์แล้ว ใช้บิลที่ดึงมาดู (view cache) เป็นแหล่งข้อมูล
-  var viewCache = TRIP_VIEW_CACHE[SELECTED_TRIP_ID];
-  var viewingPast = !!viewCache;
-  var listBills = viewingPast ? viewCache : BILLS;
   var summaryBills = hasTripData
-    ? listBills.filter(function(b){ return tripBillIds.indexOf(b.billNo)>=0; })
-    : listBills;
+    ? BILLS.filter(function(b){ return tripBillIds.indexOf(b.billNo)>=0; })
+    : BILLS;
   var destTotal=0, codTotal=0, pickupCount=0, destCount=0;
   summaryBills.forEach(function(b){
     var form=b.form||{};
@@ -510,7 +477,7 @@ function renderBillListWithTrip(tripBillIds){
       +'<select onchange="switchTrip(this.value)" style="flex:1;padding:8px 10px;border:1px solid #d0ede5;border-radius:8px;font-size:12px;background:#fff">'
       +DRIVER_TRIPS.map(function(t){
         var sel = t.id===SELECTED_TRIP_ID ? " selected" : "";
-        var st = t.status==="cleared"?" ✅เคลียร์แล้ว":(t.status==="closed"?" 🔒ปิดแล้ว":"");
+        var st = t.status==="cleared"?" ✅":"";
         var label = (t.route||"ไม่ระบุเส้นทาง")+" ("+fmtDate(t.departDate||t.createdAt)+") — "+(t.summary?t.summary.billCount+"ใบ":(t.billIds||[]).length+"ใบ")+st;
         return '<option value="'+t.id+'"'+sel+'>'+label+'</option>';
       }).join("")
@@ -565,13 +532,13 @@ function renderBillListWithTrip(tripBillIds){
 
   var html = tripDropdown + summaryStrip + pickupsHtml
     +'<div style="display:flex;justify-content:space-between;align-items:center;padding:4px 2px 8px">'
-    +'<span class="section-title" style="padding:0">'+(viewingPast?'บิลในเที่ยว (ส่งเสร็จแล้ว) '+summaryBills.length+' ใบ':'งานรอส่ง '+BILLS.length+' รายการ')+'</span>'
+    +'<span class="section-title" style="padding:0">งานรอส่ง '+summaryBills.length+' รายการ</span>'
     +'<button onclick="loadBills()" style="padding:5px 12px;background:#e8f5f0;color:#0F6E56;border:1px solid #d0ede5;border-radius:8px;font-size:12px;cursor:pointer;font-weight:600">🔄 รีเฟรช</button>'
     +'<button onclick="openPickupBill()" style="padding:5px 12px;background:#EF9F27;color:#fff;border:none;border-radius:8px;font-size:12px;cursor:pointer;font-weight:600">📦 ออกบิลรับงาน</button>'
     +'<button onclick="showDrHistory()" style="padding:5px 12px;background:#6c5ce7;color:#fff;border:none;border-radius:8px;font-size:12px;cursor:pointer;font-weight:600">📜 ประวัติ</button>'
     +'</div>';
 
-  (viewingPast && hasTripData ? summaryBills : BILLS).forEach(function(b){
+  summaryBills.forEach(function(b){
     var form = (typeof b.form === "object" && b.form) ? b.form : {};
     var receiver = b.receiverName || form.receiverName || "—";
     var amphoe   = b.destAmphoe  || form.destAmphoe  || "";
@@ -581,18 +548,15 @@ function renderBillListWithTrip(tripBillIds){
     var cod      = parseFloat(b.codTotal    || 0);
     var pay      = PAY_LABEL[b.freightPay] || b.freightPay || "ต้นทาง";
     var isNew    = b.status === "นำส่งใหม่";
-    var isDone   = ["ส่งสำเร็จ","delivered","success"].indexOf(b.status||"")>=0;
-    var stBadge  = isDone?'<span style="font-size:10px;padding:2px 8px;background:#e8f5e9;color:#1B5E20;border-radius:10px;font-weight:700">✅ ส่งสำเร็จ</span>'
-                  :(isNew?'<span style="font-size:10px;padding:2px 8px;background:#fff3e0;color:#E67E22;border-radius:10px;font-weight:700">ส่งใหม่</span>':'');
 
-    html += '<div class="bill-card"'+(isDone?'':' onclick="openPanel(\''+b.billNo+'\')"')+'>'
-      +'<div class="bill-status-strip '+(isDone?"":(isNew?"new":"driving"))+'"></div>'
+    html += '<div class="bill-card" onclick="openPanel(\''+b.billNo+'\')">'
+      +'<div class="bill-status-strip '+(isNew?"new":"driving")+'"></div>'
       +'<div class="bill-card-head">'
         +'<div style="flex:1">'
           +'<div class="bill-no">'+b.billNo+'</div>'
           +'<div class="bill-sender">📦 '+sender+'</div>'
         +'</div>'
-        +stBadge
+        +(isNew?'<span style="font-size:10px;padding:2px 8px;background:#fff3e0;color:#E67E22;border-radius:10px;font-weight:700">ส่งใหม่</span>':'')
       +'</div>'
       +'<div class="bill-card-body">'
         +'<div class="bill-field"><span class="lbl">ผู้รับ</span><span class="val">'+receiver+'</span></div>'
@@ -792,14 +756,6 @@ function submitStatus(result){
     if(!failReason){ showToast("กรุณาเลือกสาเหตุ","red"); return; }
   }
 
-  // ส่งสำเร็จต้องมี "รูปส่งงาน" (ช่อง photo) เพื่อให้แสดงในหน้าติดตามของลูกค้า
-  if(result === "success"){
-    if(!uploadedUrls["_file_photo"] && !(currentBill && currentBill.photoUrl)){
-      showToast("📷 กรุณาถ่าย 'รูปส่งงาน' (ช่องสีเขียว) ก่อนกดส่งสำเร็จ","red");
-      return;
-    }
-  }
-
   showUploading("กำลังอัปโหลดรูปภาพ...");
 
   // collect upload tasks
@@ -832,13 +788,6 @@ function submitStatus(result){
   Promise.all(tasks).then(function(){
     setUploadingMsg("กำลังบันทึกสถานะ...");
 
-    // ถ้าส่งสำเร็จและมีไฟล์รูปแต่ดันอัปไม่ได้ url → หยุด ไม่ให้บันทึกสำเร็จแบบไม่มีรูป
-    if(result === "success" && uploadedUrls["_file_photo"] && !uploadedUrls.photo && !(currentBill&&currentBill.photoUrl)){
-      hideUploading();
-      showToast("❌ อัปโหลดรูปไม่สำเร็จ ลองใหม่อีกครั้ง","red");
-      throw new Error("photo upload failed");
-    }
-
     var now = new Date().toISOString();
     var newStatus = result === "success" ? "ส่งสำเร็จ" : "ส่งไม่สำเร็จ";
 
@@ -852,18 +801,6 @@ function submitStatus(result){
     if(uploadedUrls.extra)     upd.extraUrl     = uploadedUrls.extra;
     if(uploadedUrls.signature) upd.signatureUrl = uploadedUrls.signature;
     if(failReason)             upd.failReason   = failReason;
-    // บันทึก "คนส่งจริง" (คนที่กดส่ง ณ ตอนนี้ อาจไม่ใช่คนรถที่ถูกมอบหมาย)
-    if(typeof CU!=="undefined" && CU){
-      upd.deliveredBy = CU.username||"";
-      upd.deliveredByName = CU.name||CU.username||"";
-    }
-    // ต่อท้ายประวัติสถานะ (timeline เวลาจริง)
-    var _drv = (typeof CU!=="undefined" && CU) ? (CU.name||CU.username||"") : "";
-    var _loc = currentBill ? (currentBill.destAmphoe||(currentBill.form&&currentBill.form.destAmphoe)||"") : "";
-    upd.statusHistory = ((currentBill&&currentBill.statusHistory)||[]).concat([{
-      status:newStatus, at:now, loc:_loc, note:(failReason||""), by:_drv,
-      hasPhoto: !!(upd.photoUrl), hasSig: !!(upd.signatureUrl)
-    }]);
 
     return GolodDB.updateBill(billNo, upd);
   }).then(function(){
@@ -971,7 +908,7 @@ function submitVehiclePhoto(){
   var btn = document.getElementById("vp-submit-btn");
   btn.disabled=true; btn.textContent="⏳ กำลังอัปโหลด...";
   var uploads = files.map(function(f,i){
-    return GolodStorage.uploadFile("vehicle/"+_vpTripId+"_"+Date.now()+"_"+i, f);
+    return GolodStorage.uploadFile(f, "vehicle/"+_vpTripId+"_"+Date.now()+"_"+i);
   });
   Promise.all(uploads).then(function(urls){
     var t = DRIVER_TRIPS.find(function(x){return x.id===_vpTripId;});
@@ -1379,7 +1316,7 @@ function submitPickupBill(){
 
   if(photos.length > 0 && typeof GolodStorage !== "undefined" && GolodStorage.uploadFile){
     var uploads = photos.map(function(file,i){
-      return GolodStorage.uploadFile("pickups/"+_pbBillNo+"_"+(i+1), file)
+      return GolodStorage.uploadFile(file,"pickups/"+_pbBillNo+"_"+(i+1))
         .catch(function(){ return null; }); // ถ้าอัปโหลดรูปไม่ได้ ไม่ค้าง
     });
     Promise.all(uploads).then(function(urls){
