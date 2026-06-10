@@ -84,6 +84,32 @@ var GolodDB = (function() {
     });
   }
 
+  function findBillDocs(billNo) {
+    return new Promise(function(resolve, reject) {
+      ready(function() {
+        db.collection("bills").where("billNo", "==", billNo).get()
+          .then(function(snap) {
+            var out = [];
+            snap.forEach(function(d) { var x = d.data() || {}; x._id = d.id; out.push(x); });
+            resolve(out);
+          }).catch(reject);
+      });
+    });
+  }
+  function deleteBillDoc(docId) {
+    return new Promise(function(resolve, reject) {
+      ready(function() {
+        db.collection("bills").doc(docId).delete().then(resolve).catch(reject);
+      });
+    });
+  }
+  function updateBillDoc(docId, updates) {
+    return new Promise(function(resolve, reject) {
+      ready(function() {
+        db.collection("bills").doc(docId).update(updates).then(resolve).catch(reject);
+      });
+    });
+  }
   function _updBillLocal(billNo, updates) {
     try {
       var bills = JSON.parse(localStorage.getItem("golod_bills") || "[]");
@@ -588,6 +614,7 @@ var GolodDB = (function() {
   return {
     init, ready,
     saveBill, getBills, updateBill,
+    findBillDocs, deleteBillDoc, updateBillDoc,
     saveContact, getContacts,
     saveUser, getUsers,
     saveEditLog, getEditLogs,
