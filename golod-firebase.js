@@ -84,19 +84,32 @@ var GolodDB = (function() {
     });
   }
 
+  function _updBillLocal(billNo, updates) {
+    try {
+      var bills = JSON.parse(localStorage.getItem("golod_bills") || "[]");
+      var idx = bills.findIndex(function(b){ return b.billNo === billNo; });
+      if (idx >= 0) { bills[idx] = Object.assign({}, bills[idx], updates); localStorage.setItem("golod_bills", JSON.stringify(bills)); }
+    } catch(e) {}
+  }
   function updateBill(billNo, updates) {
     return new Promise(function(resolve, reject) {
       ready(function() {
-        db.collection("bills").doc(billNo).update(updates)
-          .then(function() {
-            try {
-              var bills = JSON.parse(localStorage.getItem("golod_bills") || "[]");
-              var idx = bills.findIndex(function(b){ return b.billNo === billNo; });
-              if (idx >= 0) bills[idx] = Object.assign({}, bills[idx], updates);
-              localStorage.setItem("golod_bills", JSON.stringify(bills));
-            } catch(e) {}
-            resolve();
-          }).catch(reject);
+        var col = db.collection("bills");
+        // 1) ลองอัปเดตที่ doc id = เลขบิล (กรณีปกติ บิลจากเสมียน)
+        col.doc(billNo).update(updates)
+          .then(function() { _updBillLocal(billNo, updates); resolve(); })
+          .catch(function(err) {
+            // 2) doc id ไม่ตรงกับเลขบิล (บิลที่บันทึกด้วย auto-id, billNo เป็น field) → หาด้วย field แล้วอัปเดต
+            col.where("billNo", "==", billNo).limit(1).get()
+              .then(function(snap) {
+                if (snap && !snap.empty) {
+                  return snap.docs[0].ref.update(updates)
+                    .then(function() { _updBillLocal(billNo, updates); resolve(); });
+                }
+                reject(err); // ไม่พบบิลนี้จริงๆ ส่ง error เดิมกลับ
+              })
+              .catch(reject);
+          });
       });
     });
   }
