@@ -654,7 +654,7 @@ tr:hover td{background:#f8fffe}
 <div class="topbar">
   <span class="title">🚛 จัดการขนส่ง</span>
   <span id="session-info" style="font-size:11px;opacity:.8"></span>
-  <span style="font-size:10px;opacity:.65;margin-left:auto">build 2026-06-09r</span>
+  <span style="font-size:10px;opacity:.65;margin-left:auto">build 2026-06-09s</span>
   <a href="GolodApp.html" style="margin-left:10px">← หน้าหลัก</a>
 </div>
 <div class="container">
@@ -1394,7 +1394,7 @@ function renderTripList(){
           +(canClearTrip()?'<button class="btn btn-orange" data-tid="'+t.id+'" onclick="openClearTrip(this.dataset.tid)">💰 เคลียร์เที่ยว</button>':'')
           +(canClearTrip()?'<button class="btn btn-green" data-tid="'+t.id+'" onclick="closeTrip(this.dataset.tid)">✅ ปิดเที่ยว</button>':'')
           +'<button class="btn btn-blue" data-tid="'+t.id+'" onclick="printTripSummary(this.dataset.tid)">🖨 พิมพ์</button>'
-          +'<button class="btn" data-tid="'+t.id+'" onclick="openSettlement(this.dataset.tid)" style="background:#7c4dff;color:#fff">📝 ใบเสนอจัดเที่ยว</button>'
+          +((t.status==="proposed"||t.status==="approved")?'<button class="btn" data-tid="'+t.id+'" onclick="openSettlement(this.dataset.tid)" style="background:#7c4dff;color:#fff">📝 ใบเสนอจัดเที่ยว</button>':'')
         +'</div>'+'</div>'
       +'<div class="trip-stats">'
         +'<div class="trip-stat gray"><div class="tsl">บิลทั้งหมด</div><div class="tsv">'+(s.billCount||0)+'</div></div>'
@@ -4001,7 +4001,7 @@ function renderSettlement(){
   var h='';
   h+='<h3 style="color:#0F6E56;margin-bottom:2px">📝 ใบเสนอจัดเที่ยว</h3>';
   h+='<div style="font-size:11px;color:#888;margin-bottom:8px">'+(_settle.trip.driverName||_settle.trip.driverUsername||"")+' · วันที่ออก '+(_settle.trip.departDate||"-")+'</div>';
-  var stMap={draft:["ร่าง","#888"],proposed:["เสนอแล้ว รออนุมัติ","#E67E22"],approved:["อนุมัติแล้ว (ส่งงานแล้ว)","#0F6E56"],confirmed:["ยืนยันแล้ว (รอบสุดท้าย)","#1565C0"]};
+  var stMap={draft:["ร่าง","#888"],proposed:["เสนอแล้ว รออนุมัติ","#E67E22"],approved:["อนุมัติแล้ว · ใส่คนรถแล้ว (ยังไม่ส่ง)","#E67E22"],confirmed:["ยืนยันสุดท้าย · ส่งให้คนรถแล้ว","#0F6E56"]};
   var st=stMap[_settle.status]||stMap.draft;
   h+='<div style="display:inline-block;background:'+st[1]+';color:#fff;padding:3px 12px;border-radius:20px;font-size:12px;font-weight:700;margin-bottom:8px">'+st[0]+'</div>';
   if(_settle.proposedByName) h+='<div style="font-size:11px;color:#888">เสนอโดย: '+_settle.proposedByName+(_settle.proposedAt?(' · '+_settleDate(_settle.proposedAt)):'')+'</div>';
