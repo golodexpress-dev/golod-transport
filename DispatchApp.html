@@ -654,7 +654,7 @@ tr:hover td{background:#f8fffe}
 <div class="topbar">
   <span class="title">🚛 จัดการขนส่ง</span>
   <span id="session-info" style="font-size:11px;opacity:.8"></span>
-  <span style="font-size:10px;opacity:.65;margin-left:auto">build 2026-06-09u</span>
+  <span style="font-size:10px;opacity:.65;margin-left:auto">build 2026-06-09v</span>
   <a href="GolodApp.html" style="margin-left:10px">← หน้าหลัก</a>
 </div>
 <div class="container">
@@ -4137,16 +4137,33 @@ function printSettlement(){
   var rows=_settle.bills.map(function(b){ return '<tr><td>'+b.billNo+'</td><td>'+(b.destProv||(b.form&&b.form.destProv)||"-")+'</td><td>'+(_SETTLE_PAYLBL[_settlePay(b)]||"-")+'</td><td style="text-align:right">'+_settleFmt(_settleNet(b))+'</td></tr>'; }).join("");
   var adjRows=_settle.adjustments.map(function(a){ return '<tr><td colspan="3">ปรับ: '+(a.note||"-")+'</td><td style="text-align:right">'+_settleFmt(a.amount)+'</td></tr>'; }).join("");
   var w=window.open("","_blank");
-  var html='<html><head><meta charset="utf-8"><title>ใบเสนอจัดเที่ยว</title><style>body{font-family:sans-serif;padding:16px;font-size:13px}table{width:100%;border-collapse:collapse;margin-top:6px}td,th{border:1px solid #ccc;padding:5px}h2{margin:0 0 4px}</style></head><body>';
-  html+='<h2>ใบเสนอจัดเที่ยว</h2>';
-  html+='<div>เส้นทาง: <b>'+(_settle.route||"-")+'</b></div>';
-  html+='<div>คนรถ: '+(_settle.trip.driverName||_settle.trip.driverUsername||"-")+' · วันที่ออก: '+(_settle.trip.departDate||"-")+'</div>';
-  html+='<div>บิลทั้งหมด '+c.count+' บิล — ต้นทาง '+(c.byPay.origin||0)+' / ปลายทาง '+(c.byPay.dest||0)+' / โอน '+(c.byPay.transfer||0)+' / เครดิต '+(c.byPay.credit||0)+' / COD '+c.codCount+'</div>';
-  html+='<table><thead><tr><th>เลขบิล</th><th>จังหวัด</th><th>ประเภท</th><th>ค่าส่ง</th></tr></thead><tbody>'+rows+adjRows+'</tbody></table>';
+  var stLbl={draft:"ร่าง",proposed:"เสนอ — รออนุมัติ",approved:"อนุมัติเบื้องต้น — รอยืนยันสุดท้าย",confirmed:"ยืนยันสุดท้ายแล้ว"}[_settle.status]||"";
+  var html='<html><head><meta charset="utf-8"><title>ใบเสนอจัดเที่ยว</title>'
+    +'<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Sarabun:wght@400;700;800;900&display=swap">'
+    +'<style>@page{size:A4;margin:12mm}body{font-family:Sarabun,sans-serif;font-size:13px;color:#000;margin:0;-webkit-print-color-adjust:exact;print-color-adjust:exact}'
+    +'table{width:100%;border-collapse:collapse;margin-top:6px}td,th{border:1px solid #999;padding:5px 6px}th{background:#f0f0f0}'
+    +'.hd{text-align:center;border-bottom:2px solid #0F6E56;padding-bottom:6px;margin-bottom:8px}'
+    +'.sig{display:flex;justify-content:space-between;gap:16px;margin-top:46px;text-align:center;font-size:12px}'
+    +'.sig>div{flex:1}.sigline{border-top:1px dotted #000;margin:34px 10px 4px}</style></head><body>';
+  html+='<div class="hd">'
+    +'<div style="font-size:15px;font-weight:800;color:#0F6E56">บริษัท โกโลด ทรานสปอร์ต จำกัด</div>'
+    +'<div style="font-size:11px;font-weight:700;letter-spacing:1px">GOLOD TRANSPORT Co.,Ltd.</div>'
+    +'<div style="font-size:10px">527 ถ.ลัดนิ่มไสว แขวงทวีวัฒนา เขตทวีวัฒนา กรุงเทพฯ 10170</div>'
+    +'<div style="font-size:10px">เลขภาษี: 0105556152968 | โทร: 099-1015858, 098-4518141</div>'
+    +'</div>';
+  html+='<div style="text-align:center;font-size:16px;font-weight:800;margin-bottom:6px">ใบเสนอจัดเที่ยว'+(stLbl?(' <span style="font-size:11px;font-weight:700;color:#888">('+stLbl+')</span>'):'')+'</div>';
+  html+='<div style="display:flex;justify-content:space-between"><div>เส้นทาง: <b>'+(_settle.route||"-")+'</b></div><div>วันที่ออก: <b>'+(_settle.trip.departDate||"-")+'</b></div></div>';
+  html+='<div>คนรถ: <b>'+(_settle.trip.driverName||_settle.trip.driverUsername||"— (ยังไม่กำหนด)")+'</b></div>';
+  html+='<div style="margin-top:2px">บิลทั้งหมด '+c.count+' บิล — ต้นทาง '+(c.byPay.origin||0)+' / ปลายทาง '+(c.byPay.dest||0)+' / โอน '+(c.byPay.transfer||0)+' / เครดิต '+(c.byPay.credit||0)+' / COD '+c.codCount+'</div>';
+  html+='<table><thead><tr><th style="text-align:left">เลขบิล</th><th style="text-align:left">จังหวัด</th><th>ประเภท</th><th style="text-align:right">ค่าส่ง</th></tr></thead><tbody>'+rows+adjRows+'</tbody></table>';
   html+='<div style="text-align:right;margin-top:8px">ยอดค่าส่งรวม: '+_settleFmt(c.total)+' ฿<br>ปรับ: '+_settleFmt(c.adj)+' ฿<br><b style="font-size:16px">ยอดสุทธิ: '+_settleFmt(c.adjusted)+' ฿</b></div>';
-  html+='<br><br><div style="display:flex;justify-content:space-between"><div>เสนอโดย: '+(_settle.proposedByName||"____________")+'</div><div>อนุมัติโดย: '+(_settle.approvedByName||"____________")+'</div></div>';
+  html+='<div class="sig">'
+    +'<div><div class="sigline"></div>ผู้เสนอ<br><span style="font-size:11px;color:#555">'+(_settle.proposedByName||"")+'</span></div>'
+    +'<div><div class="sigline"></div>ผู้อนุมัติ<br><span style="font-size:11px;color:#555">'+(_settle.approvedByName||"")+'</span></div>'
+    +'<div><div class="sigline"></div>ผู้รับงาน (คนรถ)<br><span style="font-size:11px;color:#555">'+(_settle.trip.driverName||"")+'</span></div>'
+    +'</div>';
   html+='</body></html>';
-  w.document.write(html); w.document.close(); w.focus(); setTimeout(function(){w.print();},300);
+  w.document.write(html); w.document.close(); w.focus(); setTimeout(function(){w.print();},400);
 }
 
 function confirmSettlement(){
