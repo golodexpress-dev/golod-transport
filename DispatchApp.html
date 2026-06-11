@@ -177,6 +177,22 @@ tr:hover td{background:#f8fffe}
       </div>
     </div>
 
+    <!-- เสนอจัดเที่ยว: เส้นทาง + จำนวนวันวิ่ง (เฉพาะหน้าเสนอ) -->
+    <div id="md-propose-fields" style="display:none;margin-top:10px;background:#f6f3ff;border:1px solid #ddd0ff;border-radius:8px;padding:12px">
+      <div style="font-size:11px;font-weight:700;color:#7c4dff;margin-bottom:8px">📝 ข้อมูลเที่ยว</div>
+      <div style="margin-bottom:8px">
+        <div style="font-size:10px;color:#888;margin-bottom:3px">เส้นทาง (จังหวัดไกลเป็นหลัก) — เสมียนกรอก</div>
+        <input id="mp-route" style="width:100%;padding:7px 10px;border:1px solid #ddd;border-radius:7px;font-size:12px;font-family:inherit" placeholder="เช่น ศรีสะเกษ / อุบลฯ">
+      </div>
+      <div>
+        <div style="font-size:10px;color:#888;margin-bottom:5px">จำนวนวันวิ่ง</div>
+        <div style="display:flex;gap:12px">
+          <label style="display:flex;align-items:center;gap:5px;font-size:13px"><input type="radio" name="mp-days" value="1" checked style="accent-color:#7c4dff">1 วัน</label>
+          <label style="display:flex;align-items:center;gap:5px;font-size:13px"><input type="radio" name="mp-days" value="2" style="accent-color:#7c4dff">2 วัน</label>
+        </div>
+      </div>
+    </div>
+
 <!-- งานรับ (แสดงเฉพาะ mode=driver) -->
     <div id="modal-pickup-wrap" style="display:none;margin-top:10px;background:#fff8e1;border:1px solid #ffe082;border-radius:8px;padding:12px">
       <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px">
@@ -638,7 +654,7 @@ tr:hover td{background:#f8fffe}
 <div class="topbar">
   <span class="title">🚛 จัดการขนส่ง</span>
   <span id="session-info" style="font-size:11px;opacity:.8"></span>
-  <span style="font-size:10px;opacity:.65;margin-left:auto">build 2026-06-09q</span>
+  <span style="font-size:10px;opacity:.65;margin-left:auto">build 2026-06-09r</span>
   <a href="GolodApp.html" style="margin-left:10px">← หน้าหลัก</a>
 </div>
 <div class="container">
@@ -3431,16 +3447,19 @@ function openDispatch(mode){
   var adminF=document.getElementById("md-admin-fields"); if(adminF) adminF.style.display="none";
   var sel=document.getElementById("modal-target");
   var cb=document.getElementById("modal-confirm-btn");
+  var propF=document.getElementById("md-propose-fields");
   if(mode==="driver"){
-    // เสนอจัดเที่ยว — ยังไม่เลือกคนรถ (ใส่ตอนแอดมินอนุมัติขั้นแรก)
+    // เสนอจัดเที่ยว — ยังไม่เลือกคนรถ (ใส่ตอนแอดมินอนุมัติขั้นแรก) + กรอกเส้นทาง/จำนวนวัน
     document.getElementById("modal-title").textContent="📝 เสนอจัดเที่ยว";
     document.getElementById("modal-bill-count").textContent="เลือก "+ids.length+" บิล · คนรถจะใส่ตอนแอดมินอนุมัติ";
     if(sel){ sel.innerHTML=""; sel.style.display="none"; }
+    if(propF){ propF.style.display="block"; var r=document.getElementById("mp-route"); if(r)r.value=""; var d1=document.getElementById("md-mpday1"); var rd=document.querySelector('input[name="mp-days"][value="1"]'); if(rd)rd.checked=true; }
     if(cb) cb.textContent="📤 เสนอจัดเที่ยว";
     document.getElementById("modal-dispatch").classList.add("show");
     return;
   }
   // โหมดสาขา — ส่งทันที
+  if(propF) propF.style.display="none";
   document.getElementById("modal-title").textContent="📦 จ่ายให้สาขา";
   document.getElementById("modal-bill-count").textContent="เลือก "+ids.length+" บิล";
   if(sel){ sel.style.display=""; sel.innerHTML="";
@@ -3530,10 +3549,14 @@ function proposeTripFromDispatch(ids){
   var byPay={origin:0,dest:0,transfer:0,credit:0}, codCount=0, total=0, prov={};
   bills.forEach(function(b){ var p=b.freightPay||(b.form&&b.form.freightPay)||"origin"; if(String(p).indexOf("dest")===0)p="dest"; if(byPay[p]==null)byPay[p]=0; byPay[p]++; if(parseFloat(b.codTotal||0)>0)codCount++; total+=parseFloat(b.freightNet||0); var pv=b.destProv||(b.form&&b.form.destProv)||""; if(pv)prov[pv]=1; });
   var route=Object.keys(prov).join(" / ");
+  // เส้นทาง + จำนวนวัน ที่เสมียนกรอกในหน้าเสนอ (ถ้าไม่กรอก ใช้จังหวัดอัตโนมัติ)
+  var rEl=document.getElementById("mp-route"); var routeInput=(rEl&&rEl.value.trim())||"";
+  if(routeInput) route=routeInput;
+  var dEl=document.querySelector('input[name="mp-days"]:checked'); var days=dEl?parseInt(dEl.value,10):1;
   var btn=document.getElementById("modal-confirm-btn"); if(btn){btn.disabled=true; btn.textContent="กำลังเสนอ...";}
   var trip={
     driverUsername:"", driverName:"", branch:_tb,
-    route:"", departDate:now.slice(0,10), days:1, baseFare:0,
+    route:route, departDate:now.slice(0,10), days:days, baseFare:0,
     billIds:ids, status:"proposed", createdAt:now, createdBy:(CU?CU.username:""),
     summary:calcTripSummary(bills),
     settlement:{ status:"proposed", route:route, note:"", perBill:{}, adjustments:[],
