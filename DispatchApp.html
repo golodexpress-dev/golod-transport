@@ -654,7 +654,7 @@ tr:hover td{background:#f8fffe}
 <div class="topbar">
   <span class="title">🚛 จัดการขนส่ง</span>
   <span id="session-info" style="font-size:11px;opacity:.8"></span>
-  <span style="font-size:10px;opacity:.65;margin-left:auto">build 2026-06-09s</span>
+  <span style="font-size:10px;opacity:.65;margin-left:auto">build 2026-06-09u</span>
   <a href="GolodApp.html" style="margin-left:10px">← หน้าหลัก</a>
 </div>
 <div class="container">
@@ -1394,6 +1394,7 @@ function renderTripList(){
           +(canClearTrip()?'<button class="btn btn-orange" data-tid="'+t.id+'" onclick="openClearTrip(this.dataset.tid)">💰 เคลียร์เที่ยว</button>':'')
           +(canClearTrip()?'<button class="btn btn-green" data-tid="'+t.id+'" onclick="closeTrip(this.dataset.tid)">✅ ปิดเที่ยว</button>':'')
           +'<button class="btn btn-blue" data-tid="'+t.id+'" onclick="printTripSummary(this.dataset.tid)">🖨 พิมพ์</button>'
+          +(t.settlement?'<button class="btn" data-tid="'+t.id+'" onclick="printTripProposal(this.dataset.tid)" style="background:#7c4dff;color:#fff">🖨 พิมพ์ใบเสนอ</button>':'')
           +((t.status==="proposed"||t.status==="approved")?'<button class="btn" data-tid="'+t.id+'" onclick="openSettlement(this.dataset.tid)" style="background:#7c4dff;color:#fff">📝 ใบเสนอจัดเที่ยว</button>':'')
         +'</div>'+'</div>'
       +'<div class="trip-stats">'
@@ -2549,13 +2550,14 @@ function printTripSummary(tripId){
     +'<div style="text-align:center"><div style="border-top:1px solid #555;padding-top:4px;margin-top:30px">ลายเซ็นคนขับ</div></div>'
     +'</div></div>';
 
-  var pa = document.getElementById("print-area");
-  if(pa){
-    pa.innerHTML = printHTML;
-    pa.style.display = "block";
-    window.print();
-    setTimeout(function(){ pa.style.display = "none"; }, 500);
-  }
+  var w = window.open("","_blank","width=820,height=920");
+  if(!w){ alert("เปิดหน้าต่างพิมพ์ไม่ได้ — กรุณาอนุญาต popup สำหรับเว็บนี้ก่อน"); return; }
+  w.document.write('<html><head><meta charset="utf-8"><title>ใบสรุปเที่ยว '+(trip.driverName||"")+' '+(trip.departDate||"")+'</title>'
+    +'<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Sarabun:wght@400;700;800;900&display=swap">'
+    +'<style>@page{size:A4;margin:10mm}body{margin:0;font-family:Sarabun,Arial,sans-serif;-webkit-print-color-adjust:exact;print-color-adjust:exact}</style></head><body>'
+    +printHTML+'</body></html>');
+  w.document.close();
+  setTimeout(function(){ try{w.focus();}catch(e){} w.print(); }, 500);
 }
 
 // ===== MONTHLY TAB =====
@@ -3983,6 +3985,23 @@ function openSettlement(tripId){
 }
 function closeSettlement(){ document.getElementById("modal-settlement").style.display="none"; _settle=null; }
 
+function printTripProposal(tripId){
+  var t=(_tripState.openTrips||[]).find(function(x){return x.id===tripId;});
+  if(!t){ alert("ไม่พบเที่ยว"); return; }
+  if(!t.settlement){ alert("เที่ยวนี้ยังไม่มีใบเสนอ"); return; }
+  fetchTripBillsFromDB(t).then(function(tb){
+    tb=tb||[];
+    var ex=t.settlement||{};
+    _settle={ tripId:t.id, trip:t, bills:tb,
+      route: ex.route || t.routeName || t.name || _settleProvJoin(tb),
+      perBill: ex.perBill || {}, adjustments:(ex.adjustments||[]).slice(), note: ex.note||"",
+      status: ex.status||"draft", proposedByName: ex.proposedByName||"", proposedAt: ex.proposedAt||"",
+      approvedByName: ex.approvedByName||"", approvedAt: ex.approvedAt||"",
+      confirmedByName: ex.confirmedByName||"", confirmedAt: ex.confirmedAt||"" };
+    printSettlement();
+  }).catch(function(e){ alert("ดึงบิลไม่สำเร็จ: "+(e&&e.message||e)); });
+}
+
 function settleCompute(){
   var byPay={origin:0,dest:0,transfer:0,credit:0}, codCount=0, byProv={}, total=0;
   _settle.bills.forEach(function(b){
@@ -4648,9 +4667,15 @@ function closeSummary(){
 
 function printSummary(){
   var pa = document.getElementById("print-area");
-  pa.style.display = "block";
-  window.print();
-  setTimeout(function(){ pa.style.display = "none"; }, 500);
+  if(!pa) return;
+  var w = window.open("","_blank","width=820,height=920");
+  if(!w){ alert("เปิดหน้าต่างพิมพ์ไม่ได้ — กรุณาอนุญาต popup สำหรับเว็บนี้ก่อน"); return; }
+  w.document.write('<html><head><meta charset="utf-8"><title>พิมพ์ใบสรุป</title>'
+    +'<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Sarabun:wght@400;700;800;900&display=swap">'
+    +'<style>@page{size:A4;margin:10mm}body{margin:0;font-family:Sarabun,Arial,sans-serif;-webkit-print-color-adjust:exact;print-color-adjust:exact}</style></head><body>'
+    +pa.innerHTML+'</body></html>');
+  w.document.close();
+  setTimeout(function(){ try{w.focus();}catch(e){} w.print(); }, 500);
 }
 
 // ตรวจว่าบิล "ส่งไม่สำเร็จ"
