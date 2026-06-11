@@ -654,7 +654,7 @@ tr:hover td{background:#f8fffe}
 <div class="topbar">
   <span class="title">🚛 จัดการขนส่ง</span>
   <span id="session-info" style="font-size:11px;opacity:.8"></span>
-  <span style="font-size:10px;opacity:.65;margin-left:auto">build 2026-06-09v</span>
+  <span style="font-size:10px;opacity:.65;margin-left:auto">build 2026-06-09z</span>
   <a href="GolodApp.html" style="margin-left:10px">← หน้าหลัก</a>
 </div>
 <div class="container">
@@ -1375,27 +1375,30 @@ function renderTripList(){
     var fuelEst = t.fuelDist&&t.fuelRate&&t.fuelPrice ? Math.round((t.fuelDist/t.fuelRate)*t.fuelPrice) : 0;
     var pendRmk = ((t.clearRemarks||(t.clearData&&t.clearData.remarks)||[]).filter(function(r){return r.status==="pending";})).length;
     var pendDel = ((t.billRemovalRequests||[]).filter(function(r){return r.status==="pending";})).length;
+    var _sst=(t.settlement&&t.settlement.status)||"";
+    var _isProp=(t.status==="proposed"||_sst==="proposed");
+    var _isAppr=(t.status==="approved"||_sst==="approved");
     return '<div class="trip-card">'
       +'<div class="trip-head">'
         +'<div style="flex:1">'
           +'<div class="trip-driver">🚛 '+t.driverName
             +(pendRmk>0?' <span style="background:#E67E22;color:#fff;font-size:10px;padding:2px 7px;border-radius:10px;font-weight:700">⏳ รออนุมัติหมายเหตุ '+pendRmk+'</span>':'')
             +(pendDel>0?' <span style="background:#c0392b;color:#fff;font-size:10px;padding:2px 7px;border-radius:10px;font-weight:700">⏳ ขอเอาบิลออก '+pendDel+'</span>':'')
-            +((t.status==="proposed"||(t.settlement&&t.settlement.status==="proposed"))?' <span style="background:#7c4dff;color:#fff;font-size:10px;padding:2px 7px;border-radius:10px;font-weight:700">📝 รออนุมัติจัดเที่ยว</span>':'')
-            +(t.status==="approved"?' <span style="background:#E67E22;color:#fff;font-size:10px;padding:2px 7px;border-radius:10px;font-weight:700">🚚 รอยืนยันสุดท้าย</span>':'')
+            +(_isProp?' <span style="background:#7c4dff;color:#fff;font-size:10px;padding:2px 7px;border-radius:10px;font-weight:700">📝 รออนุมัติจัดเที่ยว</span>':'')
+            +(_isAppr?' <span style="background:#E67E22;color:#fff;font-size:10px;padding:2px 7px;border-radius:10px;font-weight:700">🚚 รอยืนยันสุดท้าย</span>':'')
             +'</div>'
           +'<div class="trip-route">📍 '+(t.route||"—")+'</div>'
           +'<div style="font-size:10px;color:#aaa;margin-top:2px">วันที่ออก: '+(t.departDate||"—")+' | สร้างเมื่อ: '+fmtDT(t.createdAt)+'</div>'
         +'</div>'
         +'<div style="display:flex;flex-direction:column;gap:4px;align-items:flex-end">'
           +'<button class="btn btn-gray" data-tid="'+t.id+'" onclick="editTrip(this.dataset.tid)">✏️ แก้ไข</button>'
-          +((t.status==="proposed"||t.status==="approved")?'':'<button class="btn" data-tid="'+t.id+'" onclick="pushTripToDriver(this.dataset.tid)" style="background:#0F6E56;color:#fff">🚚 ส่งให้คนรถ</button>')
+          +((_isProp||_isAppr)?'':'<button class="btn" data-tid="'+t.id+'" onclick="pushTripToDriver(this.dataset.tid)" style="background:#0F6E56;color:#fff">🚚 ส่งให้คนรถ</button>')
           +'<button class="btn" data-tid="'+t.id+'" onclick="openTripVehiclePhoto(this.dataset.tid)" style="background:#34495e;color:#fff">📷 รูปรถ ('+((t.vehiclePhotos||[]).length)+')</button>'
           +(canClearTrip()?'<button class="btn btn-orange" data-tid="'+t.id+'" onclick="openClearTrip(this.dataset.tid)">💰 เคลียร์เที่ยว</button>':'')
           +(canClearTrip()?'<button class="btn btn-green" data-tid="'+t.id+'" onclick="closeTrip(this.dataset.tid)">✅ ปิดเที่ยว</button>':'')
           +'<button class="btn btn-blue" data-tid="'+t.id+'" onclick="printTripSummary(this.dataset.tid)">🖨 พิมพ์</button>'
           +(t.settlement?'<button class="btn" data-tid="'+t.id+'" onclick="printTripProposal(this.dataset.tid)" style="background:#7c4dff;color:#fff">🖨 พิมพ์ใบเสนอ</button>':'')
-          +((t.status==="proposed"||t.status==="approved")?'<button class="btn" data-tid="'+t.id+'" onclick="openSettlement(this.dataset.tid)" style="background:#7c4dff;color:#fff">📝 ใบเสนอจัดเที่ยว</button>':'')
+          +((_isProp||_isAppr)?'<button class="btn" data-tid="'+t.id+'" onclick="openSettlement(this.dataset.tid)" style="background:'+(_isProp?"#1D9E75":"#1565C0")+';color:#fff">'+(_isProp?"✅ อนุมัติ + ใส่คนรถ":"🔒 ยืนยันสุดท้าย")+'</button>':'')
         +'</div>'+'</div>'
       +'<div class="trip-stats">'
         +'<div class="trip-stat gray"><div class="tsl">บิลทั้งหมด</div><div class="tsv">'+(s.billCount||0)+'</div></div>'
@@ -2366,7 +2369,14 @@ function saveTrip(){
     },
     billIds: billIds,
     pickups: getTfPickupData(),
-    status: "open",
+    status: (function(){
+      if(_tripState.editId){
+        var ex=(_tripState.openTrips||[]).find(function(x){return x.id===_tripState.editId;});
+        var es=ex && ((ex.settlement&&ex.settlement.status)||ex.status);
+        if(es==="proposed"||es==="approved") return es;
+      }
+      return "open";
+    })(),
     createdAt: _tripState.editId ? undefined : new Date().toISOString(),
     createdBy: CU ? CU.username : "",
     summary: {billCount:billIds.length, destTotal:destTotal, codTotal:codTotal, pickupCount:pickupCount,
@@ -4070,7 +4080,14 @@ function renderSettlement(){
   h+='<div style="margin:10px 0"><label style="font-size:12px;color:#666">หมายเหตุ</label><textarea oninput="_settle.note=this.value" rows="2" style="width:100%;padding:8px;border:1px solid #ddd;border-radius:7px;box-sizing:border-box;margin-top:3px">'+String(_settle.note||"")+'</textarea></div>';
   // คนรถ — แอดมินใส่ตอนอนุมัติขั้นแรก (เลือก/แก้ได้จนกว่าจะยืนยันสุดท้าย)
   if(isAdmin && _settle.status!=="confirmed"){
-    var drvOptions=(_tripState.drivers||[]).map(function(d){ return '<option value="'+d.username+'"'+((_settle.trip.driverUsername===d.username)?" selected":"")+'>'+(d.name||d.username)+' ('+(d.branch||"")+')</option>'; }).join("");
+    var _brNorm=function(b){ b=b||""; if(["ปทุมธานี","กรุงเทพ","bkk","ptm","กทม"].indexOf(b)>=0) return "กรุงเทพ"; if(["krt","โคราช","นครราชสีมา"].indexOf(b)>=0) return "นครราชสีมา"; if(["ssk","ศรีสะเกษ"].indexOf(b)>=0) return "ศรีสะเกษ"; return b; };
+    var _tn=_brNorm(_settle.trip.branch||"");
+    var _same=[], _other=[];
+    (_tripState.drivers||[]).forEach(function(d){ (_brNorm(d.branch)===_tn && _tn ? _same : _other).push(d); });
+    var _opt=function(d){ return '<option value="'+d.username+'"'+((_settle.trip.driverUsername===d.username)?" selected":"")+'>'+(d.name||d.username)+' ('+(d.branch||"")+')</option>'; };
+    var drvOptions='';
+    if(_same.length) drvOptions+='<optgroup label="คนรถสาขานี้'+(_tn?(" ("+_tn+")"):"")+'">'+_same.map(_opt).join("")+'</optgroup>';
+    drvOptions+= (_same.length?'<optgroup label="สาขาอื่น">':'')+_other.map(_opt).join("")+(_same.length?'</optgroup>':'');
     h+='<div style="margin:10px 0"><label style="font-size:12px;color:#666;font-weight:700">คนรถ '+(_settle.status==="proposed"?'(ใส่ตอนอนุมัติ)':'')+'</label>';
     h+='<select id="settle-driver" style="width:100%;padding:8px;border:1px solid #ddd;border-radius:7px;margin-top:3px"><option value="">— เลือกคนรถ —</option>'+drvOptions+'</select></div>';
   } else if(_settle.trip.driverName){
@@ -4108,6 +4125,12 @@ function saveSettlement(approve){
     var dn=drv?(drv.name||du):du;
     if(!confirm("อนุมัติใบเสนอ + กำหนดคนรถเป็น \""+dn+"\" ?\n\n(ยังไม่ส่งเข้าแอปคนรถ — รอกด \"🔒 ยืนยันสุดท้าย\" หลังขึ้นของเสร็จ)")) return;
     _settle.trip.driverUsername=du; _settle.trip.driverName=dn;
+  } else {
+    var dsel=document.getElementById("settle-driver");
+    if(dsel && dsel.value && dsel.value!==_settle.trip.driverUsername){
+      var d2=(_tripState.drivers||[]).find(function(d){return d.username===dsel.value;});
+      _settle.trip.driverUsername=dsel.value; _settle.trip.driverName=d2?(d2.name||dsel.value):dsel.value;
+    }
   }
   var c=settleCompute(), now=new Date().toISOString(), me=(CU&&(CU.name||CU.username))||"";
   var s=_settle.trip.settlement||{};
@@ -4118,14 +4141,14 @@ function saveSettlement(approve){
   if(approve){ out.approvedByName=me; out.approvedAt=now; }
   else if(s.approvedByName){ out.approvedByName=s.approvedByName; out.approvedAt=s.approvedAt; }
   if(s.confirmedByName){ out.confirmedByName=s.confirmedByName; out.confirmedAt=s.confirmedAt; }
-  var tripUpd={settlement:out};
-  if(approve){ tripUpd.driverUsername=_settle.trip.driverUsername; tripUpd.driverName=_settle.trip.driverName; tripUpd.status="approved"; }
+  var tripUpd={settlement:out, driverUsername:_settle.trip.driverUsername||"", driverName:_settle.trip.driverName||""};
+  if(approve){ tripUpd.status="approved"; }
   GolodDB.updateTrip(_settle.tripId,tripUpd).then(function(){
     _settle.trip.settlement=out; _settle.status=out.status;
     if(approve) _settle.trip.status="approved";
     _settle.proposedByName=out.proposedByName; _settle.proposedAt=out.proposedAt;
     _settle.approvedByName=out.approvedByName||""; _settle.approvedAt=out.approvedAt||"";
-    alert(approve?("✅ อนุมัติแล้ว — กำหนดคนรถ "+_settle.trip.driverName+"\n\nขั้นต่อไป: หลังขึ้นของเสร็จ กด 🔒 ยืนยันสุดท้าย เพื่อส่งเข้าแอปคนรถ"):"💾 บันทึกแล้ว");
+    alert(approve?("✅ อนุมัติแล้ว — กำหนดคนรถ "+_settle.trip.driverName+"\n\nขั้นต่อไป: หลังขึ้นของเสร็จ กด 🔒 ยืนยันสุดท้าย เพื่อส่งเข้าแอปคนรถ"):("💾 บันทึกแล้ว"+(_settle.trip.driverName?(" · คนรถ: "+_settle.trip.driverName):"")));
     renderSettlement();
     if(typeof renderTripTab==="function") renderTripTab();
   }).catch(function(e){ alert("บันทึกไม่สำเร็จ: "+(e&&e.message||e)); });
