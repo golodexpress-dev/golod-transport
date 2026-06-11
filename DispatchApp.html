@@ -654,7 +654,7 @@ tr:hover td{background:#f8fffe}
 <div class="topbar">
   <span class="title">🚛 จัดการขนส่ง</span>
   <span id="session-info" style="font-size:11px;opacity:.8"></span>
-  <span style="font-size:10px;opacity:.65;margin-left:auto">build 2026-06-09z</span>
+  <span style="font-size:10px;opacity:.65;margin-left:auto">build 2026-06-10d</span>
   <a href="GolodApp.html" style="margin-left:10px">← หน้าหลัก</a>
 </div>
 <div class="container">
@@ -1609,13 +1609,28 @@ function pushTripToDriver(tripId){
   if(!t){ alert("ไม่พบเที่ยว ลองรีเฟรช"); return; }
   if(!t.driverUsername){ alert("เที่ยวนี้ยังไม่มีคนขับ — กดแก้ไขเพื่อเลือกคนขับก่อน"); return; }
   if(!t.billIds || !t.billIds.length){ alert("เที่ยวนี้ไม่มีบิล"); return; }
-  if(!confirm("ส่ง "+t.billIds.length+" บิล ให้ "+(t.driverName||t.driverUsername)+" ?\nบิลจะเปลี่ยนเป็น \"กำลังวิ่งส่งลูกค้า\" และคนรถจะเห็นงานในแอป")) return;
-
-  _dispatchTripBills(t).then(function(r){
-    if(r.fail.length){ alert("⚠️ ส่งให้คนรถแล้ว แต่มี "+r.fail.length+" บิลอัปเดตสถานะไม่สำเร็จ:\n"+r.fail.map(function(x){ return "• "+x.bn; }).join("\n")+"\n\nลองกด \"ส่งให้คนรถ\" ซ้ำอีกครั้ง (ถ้าวาง golod-firebase.js ตัวใหม่แล้วจะหาย)"); }
-    else { alert("✅ ส่งให้คนรถแล้ว "+(t.billIds||[]).length+" บิล — บอกคนรถกด 🔄 รีเฟรชในแอป"); }
-    renderTripTab();
-  }).catch(function(e){ alert("❌ "+e.message); });
+  if(!confirm("ส่ง/ซิงค์เที่ยวให้ "+(t.driverName||t.driverUsername)+" ?\n\n• ส่งบิลในเที่ยว ("+t.billIds.length+") ให้คนรถ (บิลที่เพิ่งเพิ่มจะเข้าด้วย)\n• ถ้าเปลี่ยนคนรถ บิลจะย้ายไปคนใหม่ (ออกจากคนเก่าให้)\n• บิลที่เอาออกจากเที่ยว จะคืนกองรอจ่าย")) return;
+  var curIds=(t.billIds||[]), now=new Date().toISOString();
+  (GolodDB.getBillsByTripId?GolodDB.getBillsByTripId(t.id):Promise.resolve([])).then(function(claim){
+    claim=claim||[];
+    // บิลที่ tripId ชี้มาที่เที่ยวนี้ แต่ไม่อยู่ใน billIds แล้ว = ถูกเอาออก → คืนกอง
+    var removed=claim.filter(function(b){ return b.billNo && curIds.indexOf(b.billNo)<0; });
+    var clearUps=removed.map(function(b){
+      return GolodDB.updateBill(b.billNo, {driver:"", driverName:"", tripId:"", status:"ออกบิลรับของ", updatedAt:now})
+        .then(function(){ var lb=BILLS.find(function(x){return x.billNo===b.billNo;}); if(lb){lb.driver="";lb.tripId="";lb.status="ออกบิลรับของ";} return {ok:true}; })
+        .catch(function(){ return {ok:false}; });
+    });
+    Promise.all(clearUps).then(function(){
+      // ส่งบิลปัจจุบันให้คนรถ (เปลี่ยน driver ของบิลเป็นคนใหม่อัตโนมัติ → หลุดจากแอปคนเก่า)
+      _dispatchTripBills(t).then(function(r){
+        var msg;
+        if(r.fail.length){ msg="⚠️ ส่งแล้ว แต่มี "+r.fail.length+" บิลไม่สำเร็จ:\n"+r.fail.map(function(x){ return "• "+x.bn; }).join("\n")+"\n\nลองกดซ้ำอีกครั้ง"; }
+        else { msg="✅ ส่งให้ "+(t.driverName||t.driverUsername)+" แล้ว "+curIds.length+" บิล"+(removed.length?(" · คืนกอง "+removed.length+" บิล"):"")+"\n\nบอกคนรถกด 🔄 รีเฟรชในแอป"; }
+        alert(msg);
+        renderTripTab();
+      }).catch(function(e){ alert("❌ "+(e&&e.message||e)); });
+    });
+  }).catch(function(e){ alert("❌ "+(e&&e.message||e)); });
 }
 // ส่งงานให้คนรถ: ตั้ง driver/tripId/สถานะบิลให้เข้าหน้าคนรถ — คืน Promise<{fail:[]}>
 function _dispatchTripBills(t){
@@ -1659,7 +1674,7 @@ function renderCurrentTripBills(){
       return '<div style="display:flex;align-items:center;gap:8px;padding:6px 10px;border-bottom:1px solid #f5f5f5;font-size:12px'+(req?';background:#fff8ef':'')+'">'
         +'<span>'+ic+'</span>'
         +'<span style="font-weight:600;min-width:90px">'+b.billNo+'</span>'
-        +'<span style="flex:1;color:#666">'+(b.receiverName||"")+' · '+(b.destProv||"")+'</span>'
+        +'<span style="flex:1;color:#666">'+(b.receiverName||"")+' · '+((b.destAmphoe||(b.form&&b.form.destAmphoe)||"")?((b.destAmphoe||(b.form&&b.form.destAmphoe))+"·"):"")+(b.destProv||"")+'</span>'
         +'<span style="white-space:nowrap">'+btn+'</span>'
         +'</div>';
     }).join("")
@@ -1754,6 +1769,7 @@ function renderTripForm(existingTrip){
     var sel = !!_tripState.selectedBills[b.billNo];
     var recv = b.receiverName||form.receiverName||"";
     var prov = b.destProv||form.destProv||"";
+    var amph = b.destAmphoe||form.destAmphoe||"";
     var net  = parseFloat(b.freightNet||0);
     var cod  = parseFloat(b.codTotal||0);
     var pay  = b.freightPay||form.freightPay||"origin";
@@ -1762,7 +1778,7 @@ function renderTripForm(existingTrip){
     return '<div class="bill-pick-row'+(sel?" selected":"")+'" data-bno="'+b.billNo+'" onclick="toggleTripBill(this.dataset.bno)">'
       +'<input type="checkbox" class="bpr-check" '+(sel?"checked":"")+'>'
       +'<div class="bpr-no">'+b.billNo+'</div>'
-      +'<div class="bpr-info">'+recv+'<br><span style="color:#aaa">'+prov+'</span></div>'
+      +'<div class="bpr-info">'+recv+'<br><span style="color:#aaa">'+(amph?amph+"·":"")+prov+'</span></div>'
       +'<div class="bpr-amt"><span style="'+amtColor+'">'+net.toLocaleString("th-TH")+'฿</span>'
       +(cod>0?'<br><span style="color:#c0392b;font-size:10px">COD '+cod.toLocaleString("th-TH")+'</span>':'')
       +'</div>'
@@ -2294,7 +2310,14 @@ function saveTrip(){
   var driverSel = document.getElementById("tf-driver");
   var driverUsername = driverSel ? driverSel.value : "";
   var driverName = driverSel && driverSel.selectedOptions[0] ? driverSel.selectedOptions[0].getAttribute("data-name")||driverSel.selectedOptions[0].text : "";
-  if(!driverUsername){ alert("กรุณาเลือกคนขับ"); return; }
+  // คงสถานะเสนอ/อนุมัติตอนแก้ไข — เที่ยว "รออนุมัติ" (proposed) ยังไม่ต้องใส่คนรถ
+  var _keepStatus = "open";
+  if(_tripState.editId){
+    var _exT=(_tripState.openTrips||[]).find(function(x){return x.id===_tripState.editId;});
+    var _esT=_exT && ((_exT.settlement&&_exT.settlement.status)||_exT.status);
+    if(_esT==="proposed"||_esT==="approved") _keepStatus=_esT;
+  }
+  if(!driverUsername && _keepStatus!=="proposed"){ alert("กรุณาเลือกคนขับ"); return; }
 
   var billIds = Object.keys(_tripState.selectedBills);
   var selBills = Object.values(_tripState.selectedBills);
@@ -2369,14 +2392,7 @@ function saveTrip(){
     },
     billIds: billIds,
     pickups: getTfPickupData(),
-    status: (function(){
-      if(_tripState.editId){
-        var ex=(_tripState.openTrips||[]).find(function(x){return x.id===_tripState.editId;});
-        var es=ex && ((ex.settlement&&ex.settlement.status)||ex.status);
-        if(es==="proposed"||es==="approved") return es;
-      }
-      return "open";
-    })(),
+    status: _keepStatus,
     createdAt: _tripState.editId ? undefined : new Date().toISOString(),
     createdBy: CU ? CU.username : "",
     summary: {billCount:billIds.length, destTotal:destTotal, codTotal:codTotal, pickupCount:pickupCount,
@@ -2398,18 +2414,37 @@ function saveTrip(){
 
   GolodDB.saveTrip(trip).then(function(saved){
     _savedTrip = saved;
-    if(billIds.length === 0) return;
-    // map สถานะปัจจุบันของบิล (กันบิลที่ส่งเสร็จแล้วถูกรีเซ็ต)
-    var stMap = {};
-    selBills.forEach(function(b){ if(b && b.billNo) stMap[b.billNo] = b.status; });
-    // อัปเดตบิล: ผูก tripId + ใส่คนขับ + เปลี่ยนสถานะเป็น "กำลังวิ่งส่งลูกค้า"
-    // (เพื่อให้บิลโผล่ในแอปคนรถ — DriverApp ดึงจาก driver+status)
-    var ups = billIds.map(function(bn){
-      var upd = {tripId:saved.id, driver:driverUsername, driverName:driverName, updatedAt:new Date().toISOString()};
-      if(DONE_ST.indexOf(stMap[bn]) < 0) upd.status = "กำลังวิ่งส่งลูกค้า";
-      return GolodDB.updateBill(bn, upd);
+    var notDispatched = (_keepStatus==="proposed"||_keepStatus==="approved");
+    // คืนบิลที่ถูกเอาออกจากเที่ยว (ตอนแก้ไข) → กลับกองรอจ่าย
+    var clearRemoved = Promise.resolve();
+    if(isEditTrip && GolodDB.getBillsByTripId){
+      clearRemoved = GolodDB.getBillsByTripId(saved.id).then(function(claim){
+        var removed=(claim||[]).filter(function(b){ return b.billNo && billIds.indexOf(b.billNo)<0; });
+        return Promise.all(removed.map(function(b){
+          return GolodDB.updateBill(b.billNo, {driver:"",driverName:"",tripId:"",status:"ออกบิลรับของ",updatedAt:new Date().toISOString()})
+            .then(function(){ var lb=BILLS.find(function(x){return x.billNo===b.billNo;}); if(lb){lb.driver="";lb.tripId="";lb.status="ออกบิลรับของ";} }).catch(function(){});
+        }));
+      }).catch(function(){});
+    }
+    return clearRemoved.then(function(){
+      if(billIds.length === 0) return;
+      var stMap = {};
+      selBills.forEach(function(b){ if(b && b.billNo) stMap[b.billNo] = b.status; });
+      var ups = billIds.map(function(bn){
+        var upd;
+        if(notDispatched){
+          // เที่ยวยังไม่ส่ง (รออนุมัติ/รอยืนยัน): แค่ผูก tripId + ออกจากกองรอจ่าย — ไม่ใส่คนรถ ไม่เข้าแอปคนรถ
+          upd = {tripId:saved.id, driver:"", driverName:"", updatedAt:new Date().toISOString()};
+          if(DONE_ST.indexOf(stMap[bn]) < 0) upd.status = "รออนุมัติจัดเที่ยว";
+        } else {
+          // เที่ยววิ่งจริง: ผูก tripId + ใส่คนขับ + ส่งเข้าแอปคนรถ
+          upd = {tripId:saved.id, driver:driverUsername, driverName:driverName, updatedAt:new Date().toISOString()};
+          if(DONE_ST.indexOf(stMap[bn]) < 0) upd.status = "กำลังวิ่งส่งลูกค้า";
+        }
+        return GolodDB.updateBill(bn, upd);
+      });
+      return Promise.all(ups);
     });
-    return Promise.all(ups);
   }).then(function(){
     // เขียนประวัติจ่ายงาน (เฉพาะตอนสร้างเที่ยวใหม่ กันบันทึกซ้ำตอนแก้ไข)
     if(!isEditTrip && GolodDB.saveDispatchLog && selBills.length > 0){
@@ -4157,8 +4192,8 @@ function saveSettlement(approve){
 function printSettlement(){
   if(!_settle) return;
   var c=settleCompute();
-  var rows=_settle.bills.map(function(b){ return '<tr><td>'+b.billNo+'</td><td>'+(b.destProv||(b.form&&b.form.destProv)||"-")+'</td><td>'+(_SETTLE_PAYLBL[_settlePay(b)]||"-")+'</td><td style="text-align:right">'+_settleFmt(_settleNet(b))+'</td></tr>'; }).join("");
-  var adjRows=_settle.adjustments.map(function(a){ return '<tr><td colspan="3">ปรับ: '+(a.note||"-")+'</td><td style="text-align:right">'+_settleFmt(a.amount)+'</td></tr>'; }).join("");
+  var rows=_settle.bills.map(function(b){ return '<tr><td>'+b.billNo+'</td><td>'+(b.destAmphoe||(b.form&&b.form.destAmphoe)||"-")+'</td><td>'+(b.destProv||(b.form&&b.form.destProv)||"-")+'</td><td>'+(_SETTLE_PAYLBL[_settlePay(b)]||"-")+'</td><td style="text-align:right">'+_settleFmt(_settleNet(b))+'</td></tr>'; }).join("");
+  var adjRows=_settle.adjustments.map(function(a){ return '<tr><td colspan="4">ปรับ: '+(a.note||"-")+'</td><td style="text-align:right">'+_settleFmt(a.amount)+'</td></tr>'; }).join("");
   var w=window.open("","_blank");
   var stLbl={draft:"ร่าง",proposed:"เสนอ — รออนุมัติ",approved:"อนุมัติเบื้องต้น — รอยืนยันสุดท้าย",confirmed:"ยืนยันสุดท้ายแล้ว"}[_settle.status]||"";
   var html='<html><head><meta charset="utf-8"><title>ใบเสนอจัดเที่ยว</title>'
@@ -4178,7 +4213,7 @@ function printSettlement(){
   html+='<div style="display:flex;justify-content:space-between"><div>เส้นทาง: <b>'+(_settle.route||"-")+'</b></div><div>วันที่ออก: <b>'+(_settle.trip.departDate||"-")+'</b></div></div>';
   html+='<div>คนรถ: <b>'+(_settle.trip.driverName||_settle.trip.driverUsername||"— (ยังไม่กำหนด)")+'</b></div>';
   html+='<div style="margin-top:2px">บิลทั้งหมด '+c.count+' บิล — ต้นทาง '+(c.byPay.origin||0)+' / ปลายทาง '+(c.byPay.dest||0)+' / โอน '+(c.byPay.transfer||0)+' / เครดิต '+(c.byPay.credit||0)+' / COD '+c.codCount+'</div>';
-  html+='<table><thead><tr><th style="text-align:left">เลขบิล</th><th style="text-align:left">จังหวัด</th><th>ประเภท</th><th style="text-align:right">ค่าส่ง</th></tr></thead><tbody>'+rows+adjRows+'</tbody></table>';
+  html+='<table><thead><tr><th style="text-align:left">เลขบิล</th><th style="text-align:left">อำเภอ</th><th style="text-align:left">จังหวัด</th><th>ประเภท</th><th style="text-align:right">ค่าส่ง</th></tr></thead><tbody>'+rows+adjRows+'</tbody></table>';
   html+='<div style="text-align:right;margin-top:8px">ยอดค่าส่งรวม: '+_settleFmt(c.total)+' ฿<br>ปรับ: '+_settleFmt(c.adj)+' ฿<br><b style="font-size:16px">ยอดสุทธิ: '+_settleFmt(c.adjusted)+' ฿</b></div>';
   html+='<div class="sig">'
     +'<div><div class="sigline"></div>ผู้เสนอ<br><span style="font-size:11px;color:#555">'+(_settle.proposedByName||"")+'</span></div>'
