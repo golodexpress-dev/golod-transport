@@ -84,6 +84,18 @@ var GolodDB = (function() {
     });
   }
 
+  function getBillsByTripId(tripId) {
+    return new Promise(function(resolve, reject) {
+      ready(function() {
+        db.collection("bills").where("tripId", "==", tripId).get()
+          .then(function(snap) {
+            var out = [];
+            snap.forEach(function(d) { var x = d.data() || {}; x._id = d.id; out.push(x); });
+            resolve(out);
+          }).catch(reject);
+      });
+    });
+  }
   function findTripsWithBill(billNo) {
     return new Promise(function(resolve, reject) {
       ready(function() {
@@ -637,6 +649,7 @@ var GolodDB = (function() {
     saveBill, getBills, updateBill,
     findBillDocs, deleteBillDoc, updateBillDoc,
     findTripsWithBill, removeBillFromTrip,
+    getBillsByTripId,
     saveContact, getContacts,
     saveUser, getUsers,
     saveEditLog, getEditLogs,
