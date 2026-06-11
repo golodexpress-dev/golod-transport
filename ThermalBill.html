@@ -14,7 +14,7 @@
   <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
 </head><body>
 <div class="golod-bar no-print">
-  <h1>โกโลด ทรานสปอร์ต — ออกบิล Thermal 80mm <span style="font-size:11px;font-weight:400;opacity:.6">build 2026-06-06·b9</span></h1>
+  <h1>โกโลด ทรานสปอร์ต — ออกบิล Thermal 80mm <span style="font-size:11px;font-weight:400;opacity:.6">build 2026-06-11·b10</span></h1>
   <div id="golod-chip"></div>
   <a href="GolodApp.html" style="font-size:11px;color:#9FE1CB;background:rgba(255,255,255,.15);padding:3px 10px;border-radius:20px;text-decoration:none">← หน้าหลัก</a>
   <a href="DailyReport.html" style="font-size:11px;color:#FFE082;background:rgba(255,255,255,.15);padding:3px 10px;border-radius:20px;text-decoration:none">📊 รายงานสิ้นวัน</a>
@@ -4442,41 +4442,43 @@ function bahtText(n) {
   }
   return result;
 }
-function ReceiptPrint({ receipt }) {
+function ReceiptPrint({ receipt, cfg }) {
   const W = 298;
   const fmt = n => (n||0).toLocaleString("th-TH");
+  const _c = cfg||{};
+  const MT=_c.mt==null?20:_c.mt, MB=_c.mb==null?8:_c.mb, ML=_c.ml==null?16:_c.ml, MR=_c.mr==null?10:_c.mr, FB=_c.fb==null?2:_c.fb;
   return React.createElement("div", {
-    style:{ width:W, fontFamily:"'Sarabun',sans-serif", fontSize:12, fontWeight:700, background:"#fff", paddingTop:20, paddingBottom:8, paddingLeft:16, paddingRight:10, boxSizing:"border-box", lineHeight:1.8 }
+    style:{ width:W, fontFamily:"'Sarabun',sans-serif", fontSize:(12+FB), fontWeight:700, background:"#fff", paddingTop:MT, paddingBottom:MB, paddingLeft:ML, paddingRight:MR, boxSizing:"border-box", lineHeight:1.8 }
   },
     // Header
     React.createElement("div",{style:{textAlign:"center",marginBottom:6}},
-      React.createElement("div",{style:{fontSize:12,fontWeight:800,color:"#000"}},"บริษัท โกโลด ทรานสปอร์ต จำกัด"),
-      React.createElement("div",{style:{fontSize:14,fontWeight:900,letterSpacing:1.5,color:"#000"}},"GOLOD TRANSPORT Co.,Ltd."),
-      React.createElement("div",{style:{fontSize:10,fontWeight:700,color:"#000"}},"527 ถ.ลัดนิ่มไสว แขวงทวีวัฒนา เขตทวีวัฒนา กรุงเทพฯ 10170"),
-      React.createElement("div",{style:{fontSize:10,fontWeight:700,color:"#000"}},"เลขภาษี: 0105556152968 | โทร: 099-1015858, 098-4518141"),
-      React.createElement("div",{style:{fontSize:13,fontWeight:800,marginTop:4,borderTop:"1.5px solid #000",borderBottom:"1.5px solid #000",padding:"3px 0"}},"ใบเสร็จรับเงิน / RECEIPT")
+      React.createElement("div",{style:{fontSize:(12+FB),fontWeight:800,color:"#000"}},"บริษัท โกโลด ทรานสปอร์ต จำกัด"),
+      React.createElement("div",{style:{fontSize:(14+FB),fontWeight:900,letterSpacing:1.5,color:"#000"}},"GOLOD TRANSPORT Co.,Ltd."),
+      React.createElement("div",{style:{fontSize:(10+FB),fontWeight:700,color:"#000"}},"527 ถ.ลัดนิ่มไสว แขวงทวีวัฒนา เขตทวีวัฒนา กรุงเทพฯ 10170"),
+      React.createElement("div",{style:{fontSize:(10+FB),fontWeight:700,color:"#000"}},"เลขภาษี: 0105556152968 | โทร: 099-1015858, 098-4518141"),
+      React.createElement("div",{style:{fontSize:(13+FB),fontWeight:800,marginTop:4,borderTop:"1.5px solid #000",borderBottom:"1.5px solid #000",padding:"3px 0"}},"ใบเสร็จรับเงิน / RECEIPT")
     ),
     // เลขใบเสร็จ + วันที่
-    React.createElement("div",{style:{display:"flex",justifyContent:"space-between",marginBottom:4,fontSize:11,fontWeight:800}},
+    React.createElement("div",{style:{display:"flex",justifyContent:"space-between",marginBottom:4,fontSize:(11+FB),fontWeight:800}},
       React.createElement("div",null,"เลขที่: ",React.createElement("strong",null,receipt.receiptNo)),
       React.createElement("div",null,"วันที่: ",receipt.date)
     ),
     // อ้างอิงบิล
-    receipt.refBillNo && React.createElement("div",{style:{fontSize:11,fontWeight:700,marginBottom:4}},
+    receipt.refBillNo && React.createElement("div",{style:{fontSize:(11+FB),fontWeight:700,marginBottom:4}},
       "อ้างอิงบิลขนส่ง: ",React.createElement("strong",null,receipt.refBillNo)
     ),
     React.createElement("hr",{style:{border:"none",borderTop:"1px dashed #333",margin:"4px 0"}}),
     // ผู้จ่าย
     React.createElement("div",{style:{marginBottom:4}},
-      React.createElement("div",{style:{fontWeight:800,fontSize:11,marginBottom:2}},"ผู้จ่ายเงิน (Payer):"),
-      React.createElement("div",{style:{fontSize:11,fontWeight:700}},receipt.payerName||"—"),
-      receipt.payerPhone && React.createElement("div",{style:{fontSize:10,fontWeight:700}},"โทร: ",receipt.payerPhone),
-      receipt.payerAddr && React.createElement("div",{style:{fontSize:10,fontWeight:700}},receipt.payerAddr),
-      receipt.payerTax && React.createElement("div",{style:{fontSize:10,fontWeight:700}},"เลขภาษี: ",receipt.payerTax)
+      React.createElement("div",{style:{fontWeight:800,fontSize:(11+FB),marginBottom:2}},"ผู้จ่ายเงิน (Payer):"),
+      React.createElement("div",{style:{fontSize:(11+FB),fontWeight:700}},receipt.payerName||"—"),
+      receipt.payerPhone && React.createElement("div",{style:{fontSize:(10+FB),fontWeight:700}},"โทร: ",receipt.payerPhone),
+      receipt.payerAddr && React.createElement("div",{style:{fontSize:(10+FB),fontWeight:700}},receipt.payerAddr),
+      receipt.payerTax && React.createElement("div",{style:{fontSize:(10+FB),fontWeight:700}},"เลขภาษี: ",receipt.payerTax)
     ),
     React.createElement("hr",{style:{border:"none",borderTop:"1px dashed #333",margin:"4px 0"}}),
     // รายการ
-    React.createElement("table",{style:{width:"100%",borderCollapse:"collapse",fontSize:11}},
+    React.createElement("table",{style:{width:"100%",borderCollapse:"collapse",fontSize:(11+FB)}},
       React.createElement("thead",null,
         React.createElement("tr",{style:{borderBottom:"1px solid #000"}},
           React.createElement("th",{style:{textAlign:"left",padding:"3px 3px",fontWeight:800}},"รายการ"),
@@ -4487,21 +4489,18 @@ function ReceiptPrint({ receipt }) {
         (receipt.items||[]).map((it,i)=>
           React.createElement("tr",{key:i},
             React.createElement("td",{style:{padding:"4px 3px",lineHeight:1.8,fontWeight:700}},it.desc),
-            React.createElement("td",{style:{textAlign:"right",padding:"4px 3px",lineHeight:1.8,fontWeight:800}},fmt(it.amount)," ฿")
+            React.createElement("td",{style:{textAlign:"right",padding:"4px 3px",lineHeight:1.8,fontWeight:800}},fmt(it.amount))
           )
         )
       )
     ),
     React.createElement("hr",{style:{border:"none",borderTop:"1.5px solid #000",margin:"4px 0"}}),
-    React.createElement("div",{style:{display:"flex",justifyContent:"space-between",fontWeight:900,fontSize:13}},
+    React.createElement("div",{style:{display:"flex",justifyContent:"space-between",fontWeight:900,fontSize:(13+FB)}},
       React.createElement("div",null,"รวมทั้งสิ้น"),
-      React.createElement("div",null,fmt(receipt.total)," ฿")
-    ),
-    React.createElement("div",{style:{fontSize:10,fontWeight:700,textAlign:"center",color:"#000",marginTop:2,marginBottom:2}},
-      "(",bahtText(receipt.total),")"
+      React.createElement("div",null,fmt(receipt.total)+" ("+bahtText(receipt.total)+")")
     ),
     React.createElement("hr",{style:{border:"none",borderTop:"1px dashed #333",margin:"4px 0"}}),
-    React.createElement("div",{style:{fontSize:11,fontWeight:700,marginBottom:4}},
+    React.createElement("div",{style:{fontSize:(11+FB),fontWeight:700,marginBottom:4}},
       "ชำระโดย: ",
       React.createElement("strong",{style:{fontWeight:900}}, receipt.paymentType==="transfer"?"โอนเงิน":"เงินสด"),
       receipt.paymentType==="transfer" && receipt.transferTime && React.createElement("span",{style:{fontWeight:700,marginLeft:6}},
@@ -4512,7 +4511,7 @@ function ReceiptPrint({ receipt }) {
       )
     ),
     React.createElement("hr",{style:{border:"none",borderTop:"1px dashed #333",margin:"4px 0"}}),
-    React.createElement("div",{style:{fontSize:11,fontWeight:700,textAlign:"center",marginTop:16}},
+    React.createElement("div",{style:{fontSize:(11+FB),fontWeight:700,textAlign:"center",marginTop:16}},
       "ลงชื่อผู้รับเงิน ................................",
       React.createElement("br",null),
       React.createElement("div",{style:{marginTop:10,fontWeight:700}},
@@ -4778,6 +4777,8 @@ function ReceiptForm({ bills, staffCode, staffName }) {
   });
   const [form, setForm] = React.useState(emptyForm());
   const [previewRcpt, setPreviewRcpt] = React.useState(null);
+  const [rcptCfg, setRcptCfg] = React.useState(()=>{ try{ return Object.assign({mt:20,mb:8,ml:16,mr:10,fb:2}, JSON.parse(localStorage.getItem("golod_rcpt_cfg")||"{}")); }catch(e){ return {mt:20,mb:8,ml:16,mr:10,fb:2}; } });
+  const setCfg=(k,v)=>setRcptCfg(c=>{ const n=Object.assign({},c,{[k]:(v===""?0:Number(v))}); try{localStorage.setItem("golod_rcpt_cfg",JSON.stringify(n));}catch(e){} return n; });
   const setF = (k,v) => setForm(f=>({...f,[k]:v}));
   const total = (form.items||[]).reduce((s,it)=>s+(parseFloat(it.amount)||0),0);
   // เลือกบิลอ้างอิง → auto-fill
@@ -4844,8 +4845,16 @@ function ReceiptForm({ bills, staffCode, staffName }) {
       React.createElement("button",{onClick:()=>{ setMode("form"); setForm(emptyForm()); setSelBill(null); },style:{padding:"7px 16px",background:"#eee",border:"none",borderRadius:8,cursor:"pointer"}},"+ ใบเสร็จใหม่"),
       React.createElement("button",{onClick:()=>setMode("list"),style:{padding:"7px 14px",background:"#eee",border:"none",borderRadius:8,cursor:"pointer"}},"← รายการ")
     ),
+    React.createElement("div",{style:{display:"flex",gap:8,marginBottom:10,flexWrap:"wrap",alignItems:"center",fontSize:12,background:"#f6f6f6",padding:"6px 10px",borderRadius:8}},
+      React.createElement("span",{style:{fontWeight:700,color:"#555"}},"ระยะขอบ (px):"),
+      React.createElement("label",{style:{display:"flex",alignItems:"center",gap:3}},"บน",React.createElement("input",{type:"number",value:rcptCfg.mt,onChange:e=>setCfg("mt",e.target.value),style:{width:48,padding:"2px 4px"}})),
+      React.createElement("label",{style:{display:"flex",alignItems:"center",gap:3}},"ล่าง",React.createElement("input",{type:"number",value:rcptCfg.mb,onChange:e=>setCfg("mb",e.target.value),style:{width:48,padding:"2px 4px"}})),
+      React.createElement("label",{style:{display:"flex",alignItems:"center",gap:3}},"ซ้าย",React.createElement("input",{type:"number",value:rcptCfg.ml,onChange:e=>setCfg("ml",e.target.value),style:{width:48,padding:"2px 4px"}})),
+      React.createElement("label",{style:{display:"flex",alignItems:"center",gap:3}},"ขวา",React.createElement("input",{type:"number",value:rcptCfg.mr,onChange:e=>setCfg("mr",e.target.value),style:{width:48,padding:"2px 4px"}})),
+      React.createElement("label",{style:{display:"flex",alignItems:"center",gap:3,marginLeft:8,fontWeight:700,color:"#1D9E75"}},"อักษร +",React.createElement("input",{type:"number",value:rcptCfg.fb,onChange:e=>setCfg("fb",e.target.value),style:{width:48,padding:"2px 4px"}}))
+    ),
     React.createElement("div",{ref:printRef,style:{display:"inline-block",boxShadow:"0 2px 16px rgba(0,0,0,0.12)",borderRadius:4}},
-      React.createElement(ReceiptPrint,{receipt:previewRcpt})
+      React.createElement(ReceiptPrint,{receipt:previewRcpt, cfg:rcptCfg})
     )
   );
   if (mode==="form") return React.createElement("div",{style:{maxWidth:500}},
