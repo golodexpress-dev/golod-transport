@@ -654,7 +654,7 @@ tr:hover td{background:#f8fffe}
 <div class="topbar">
   <span class="title">🚛 จัดการขนส่ง</span>
   <span id="session-info" style="font-size:11px;opacity:.8"></span>
-  <span style="font-size:10px;opacity:.65;margin-left:auto">build 2026-06-10e</span>
+  <span style="font-size:10px;opacity:.65;margin-left:auto">build 2026-06-10f</span>
   <a href="GolodApp.html" style="margin-left:10px">← หน้าหลัก</a>
 </div>
 <div class="container">
@@ -4063,15 +4063,16 @@ function printTripProposal(tripId){
 }
 
 function settleCompute(){
-  var byPay={origin:0,dest:0,transfer:0,credit:0}, codCount=0, byProv={}, total=0;
+  var byPay={origin:0,dest:0,transfer:0,credit:0}, payAmt={origin:0,dest:0,transfer:0,credit:0}, codCount=0, byProv={}, total=0;
   _settle.bills.forEach(function(b){
     var pay=_settlePay(b); if(byPay[pay]==null) byPay[pay]=0; byPay[pay]++;
+    var net=_settleNet(b); if(payAmt[pay]==null) payAmt[pay]=0; payAmt[pay]+=net;
     if(parseFloat(b.codTotal||0)>0) codCount++;
     var prov=b.destProv||(b.form&&b.form.destProv)||"-"; byProv[prov]=(byProv[prov]||0)+1;
-    total+=_settleNet(b);
+    total+=net;
   });
   var adj=0; _settle.adjustments.forEach(function(a){ adj+=parseFloat(a.amount||0); });
-  return {byPay:byPay, codCount:codCount, byProv:byProv, total:total, adj:adj, adjusted:total+adj, count:_settle.bills.length};
+  return {byPay:byPay, payAmt:payAmt, codCount:codCount, byProv:byProv, total:total, adj:adj, adjusted:total+adj, count:_settle.bills.length};
 }
 
 function renderSettlement(){
@@ -4207,8 +4208,14 @@ function saveSettlement(approve){
 function printSettlement(){
   if(!_settle) return;
   var c=settleCompute();
-  var rows=_settle.bills.map(function(b){ return '<tr><td>'+b.billNo+'</td><td>'+(b.destAmphoe||(b.form&&b.form.destAmphoe)||"-")+'</td><td>'+(b.destProv||(b.form&&b.form.destProv)||"-")+'</td><td>'+(_SETTLE_PAYLBL[_settlePay(b)]||"-")+'</td><td style="text-align:right">'+_settleFmt(_settleNet(b))+'</td></tr>'; }).join("");
-  var adjRows=_settle.adjustments.map(function(a){ return '<tr><td colspan="4">ปรับ: '+(a.note||"-")+'</td><td style="text-align:right">'+_settleFmt(a.amount)+'</td></tr>'; }).join("");
+  var rows=_settle.bills.map(function(b){
+    var its=Array.isArray(b.items)?b.items:(b.form&&Array.isArray(b.form.items)?b.form.items:[]);
+    var f0=its[0]||{};
+    var pq=its.reduce(function(s,i){return s+(parseInt(i.qty)||1);},0);
+    var prod=(f0.desc||"-")+(its.length>1?(" +"+(its.length-1)):"")+(pq?(" ×"+pq):"");
+    return '<tr><td>'+b.billNo+'</td><td>'+prod+'</td><td>'+(b.destAmphoe||(b.form&&b.form.destAmphoe)||"-")+'</td><td>'+(b.destProv||(b.form&&b.form.destProv)||"-")+'</td><td>'+(_SETTLE_PAYLBL[_settlePay(b)]||"-")+'</td><td style="text-align:right">'+_settleFmt(_settleNet(b))+'</td></tr>';
+  }).join("");
+  var adjRows=_settle.adjustments.map(function(a){ return '<tr><td colspan="5">ปรับ: '+(a.note||"-")+'</td><td style="text-align:right">'+_settleFmt(a.amount)+'</td></tr>'; }).join("");
   var w=window.open("","_blank");
   var stLbl={draft:"ร่าง",proposed:"เสนอ — รออนุมัติ",approved:"อนุมัติเบื้องต้น — รอยืนยันสุดท้าย",confirmed:"ยืนยันสุดท้ายแล้ว"}[_settle.status]||"";
   var html='<html><head><meta charset="utf-8"><title>ใบเสนอจัดเที่ยว</title>'
@@ -4227,8 +4234,14 @@ function printSettlement(){
   html+='<div style="text-align:center;font-size:16px;font-weight:800;margin-bottom:6px">ใบเสนอจัดเที่ยว'+(stLbl?(' <span style="font-size:11px;font-weight:700;color:#888">('+stLbl+')</span>'):'')+'</div>';
   html+='<div style="display:flex;justify-content:space-between"><div>เส้นทาง: <b>'+(_settle.route||"-")+'</b></div><div>วันที่ออก: <b>'+(_settle.trip.departDate||"-")+'</b></div></div>';
   html+='<div>คนรถ: <b>'+(_settle.trip.driverName||_settle.trip.driverUsername||"— (ยังไม่กำหนด)")+'</b></div>';
-  html+='<div style="margin-top:2px">บิลทั้งหมด '+c.count+' บิล — ต้นทาง '+(c.byPay.origin||0)+' / ปลายทาง '+(c.byPay.dest||0)+' / โอน '+(c.byPay.transfer||0)+' / เครดิต '+(c.byPay.credit||0)+' / COD '+c.codCount+'</div>';
-  html+='<table><thead><tr><th style="text-align:left">เลขบิล</th><th style="text-align:left">อำเภอ</th><th style="text-align:left">จังหวัด</th><th>ประเภท</th><th style="text-align:right">ค่าส่ง</th></tr></thead><tbody>'+rows+adjRows+'</tbody></table>';
+  html+='<div style="margin-top:4px;font-weight:700">บิลทั้งหมด '+c.count+' บิล · COD '+c.codCount+' บิล</div>';
+  html+='<table style="width:auto;min-width:55%;margin-top:4px"><thead><tr><th style="text-align:left">ประเภทการจ่าย</th><th>จำนวนบิล</th><th style="text-align:right">ยอดค่าส่ง</th></tr></thead><tbody>'
+    +'<tr><td>ต้นทาง</td><td style="text-align:center">'+(c.byPay.origin||0)+'</td><td style="text-align:right">'+_settleFmt(c.payAmt.origin||0)+' ฿</td></tr>'
+    +'<tr><td>ปลายทาง</td><td style="text-align:center">'+(c.byPay.dest||0)+'</td><td style="text-align:right">'+_settleFmt(c.payAmt.dest||0)+' ฿</td></tr>'
+    +'<tr><td>โอน</td><td style="text-align:center">'+(c.byPay.transfer||0)+'</td><td style="text-align:right">'+_settleFmt(c.payAmt.transfer||0)+' ฿</td></tr>'
+    +'<tr><td>เครดิต</td><td style="text-align:center">'+(c.byPay.credit||0)+'</td><td style="text-align:right">'+_settleFmt(c.payAmt.credit||0)+' ฿</td></tr>'
+    +'</tbody></table>';
+  html+='<table><thead><tr><th style="text-align:left">เลขบิล</th><th style="text-align:left">สินค้า</th><th style="text-align:left">อำเภอ</th><th style="text-align:left">จังหวัด</th><th>ประเภท</th><th style="text-align:right">ค่าส่ง</th></tr></thead><tbody>'+rows+adjRows+'</tbody></table>';
   html+='<div style="text-align:right;margin-top:8px">ยอดค่าส่งรวม: '+_settleFmt(c.total)+' ฿<br>ปรับ: '+_settleFmt(c.adj)+' ฿<br><b style="font-size:16px">ยอดสุทธิ: '+_settleFmt(c.adjusted)+' ฿</b></div>';
   html+='<div class="sig">'
     +'<div><div class="sigline"></div>ผู้เสนอ<br><span style="font-size:11px;color:#555">'+(_settle.proposedByName||"")+'</span></div>'
