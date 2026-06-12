@@ -644,6 +644,41 @@ var GolodDB = (function() {
     });
   }
 
+  // ===== RECEIPTS (ใบเสร็จ — cross-device + คิวอนุมัติ) =====
+  function saveReceipt(rcpt) {
+    return new Promise(function(resolve, reject) {
+      ready(function() {
+        db.collection("receipts").doc(rcpt.receiptNo).set(rcpt, {merge:true})
+          .then(function() {
+            try {
+              var rs = JSON.parse(localStorage.getItem("golod_receipts") || "[]");
+              var i = rs.findIndex(function(r){ return r.receiptNo === rcpt.receiptNo; });
+              if (i >= 0) rs[i] = rcpt; else rs.unshift(rcpt);
+              localStorage.setItem("golod_receipts", JSON.stringify(rs));
+            } catch(e) {}
+            resolve(rcpt);
+          }).catch(reject);
+      });
+    });
+  }
+  function getReceipts(opts) {
+    opts = opts || {};
+    return new Promise(function(resolve) {
+      ready(function() {
+        db.collection("receipts").limit(opts.limitN || 2000).get()
+          .then(function(snap) {
+            var rs = []; snap.forEach(function(d){ rs.push(d.data()); });
+            rs.sort(function(a,b){ return String(b.createdAt||b.receiptNo||"").localeCompare(String(a.createdAt||a.receiptNo||"")); });
+            try { localStorage.setItem("golod_receipts", JSON.stringify(rs)); } catch(e) {}
+            resolve(rs);
+          }).catch(function(e) {
+            console.warn("getReceipts:", e && e.message);
+            try { resolve(JSON.parse(localStorage.getItem("golod_receipts") || "[]")); } catch(_) { resolve([]); }
+          });
+      });
+    });
+  }
+
   return {
     init, ready,
     saveBill, getBills, updateBill,
@@ -658,6 +693,7 @@ var GolodDB = (function() {
     getBillsDispatch,
     saveTrip, getTrips, updateTrip, assignBillsToTrip,
     savePickup, getPickups, updatePickup, deletePickup,
+    saveReceipt, getReceipts,
     getCodAccounts,
     saveSetting, getSetting
   };

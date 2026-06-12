@@ -14,7 +14,7 @@
   <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
 </head><body>
 <div class="golod-bar no-print">
-  <h1>โกโลด ทรานสปอร์ต — ออกบิล Thermal 80mm <span style="font-size:11px;font-weight:400;opacity:.6">build 2026-06-11·b11</span></h1>
+  <h1>โกโลด ทรานสปอร์ต — ออกบิล Thermal 80mm <span style="font-size:11px;font-weight:400;opacity:.6">build 2026-06-11·b13</span></h1>
   <div id="golod-chip"></div>
   <a href="GolodApp.html" style="font-size:11px;color:#9FE1CB;background:rgba(255,255,255,.15);padding:3px 10px;border-radius:20px;text-decoration:none">← หน้าหลัก</a>
   <a href="DailyReport.html" style="font-size:11px;color:#FFE082;background:rgba(255,255,255,.15);padding:3px 10px;border-radius:20px;text-decoration:none">📊 รายงานสิ้นวัน</a>
@@ -4192,7 +4192,8 @@ function ThermalBillingApp() {
   }, "\u0E2D\u0E2D\u0E01\u0E1A\u0E34\u0E25 \u2713"))), view === "receipt" && /*#__PURE__*/React.createElement(ReceiptForm, {
     bills: bills,
     staffCode: staffCode,
-    staffName: staffName
+    staffName: staffName,
+    isAdmin: !!(sessionUser && sessionUser.role === "admin")
   }), view === "manualbill" && /*#__PURE__*/React.createElement(ManualBillForm, {
     staffCode: staffCode,
     staffName: staffName,
@@ -4759,12 +4760,13 @@ function SlipUploadBtn({ bill, onUploaded, isDriver }) {
   );
 }
 
-function ReceiptForm({ bills, staffCode, staffName }) {
+function ReceiptForm({ bills, staffCode, staffName, isAdmin }) {
   const fmt = n => (n||0).toLocaleString("th-TH");
   const printRef = React.useRef(null);
   const [receipts, setReceipts] = React.useState(()=>{
     try{ return JSON.parse(localStorage.getItem("golod_receipts")||"[]"); }catch(e){ return []; }
   });
+  React.useEffect(()=>{ try{ if(window.GolodDB&&GolodDB.getReceipts) GolodDB.getReceipts().then(function(rs){ if(Array.isArray(rs)) setReceipts(rs); }).catch(function(){}); }catch(e){} }, []);
   const [mode, setMode] = React.useState("list"); // list | form | preview
   const [selBill, setSelBill] = React.useState(null);
   const [search, setSearch] = React.useState("");
@@ -4779,7 +4781,51 @@ function ReceiptForm({ bills, staffCode, staffName }) {
   const [previewRcpt, setPreviewRcpt] = React.useState(null);
   const [rcptCfg, setRcptCfg] = React.useState(()=>{ try{ return Object.assign({mt:20,mb:8,ml:16,mr:10,fb:2}, JSON.parse(localStorage.getItem("golod_rcpt_cfg")||"{}")); }catch(e){ return {mt:20,mb:8,ml:16,mr:10,fb:2}; } });
   const setCfg=(k,v)=>setRcptCfg(c=>{ const n=Object.assign({},c,{[k]:(v===""?0:Number(v))}); try{localStorage.setItem("golod_rcpt_cfg",JSON.stringify(n));}catch(e){} return n; });
+  const [editingNo, setEditingNo] = React.useState(null);
+  const [unlockSensitive, setUnlockSensitive] = React.useState(false);
+  const _rcptLogDate = (iso)=>{ try{ const d=new Date(iso); return String(d.getDate()).padStart(2,"0")+"/"+String(d.getMonth()+1).padStart(2,"0")+" "+String(d.getHours()).padStart(2,"0")+":"+String(d.getMinutes()).padStart(2,"0"); }catch(e){ return ""; } };
   const setF = (k,v) => setForm(f=>({...f,[k]:v}));
+  const startEdit = (r) => {
+    setEditingNo(r.receiptNo); setUnlockSensitive(false); setSelBill(null); setSearch("");
+    setForm({ payerName:r.payerName||"", payerPhone:r.payerPhone||"", payerAddr:r.payerAddr||"", payerTax:r.payerTax||"",
+      paymentType:r.paymentType||"cash", transferTime:r.transferTime||"", transferRef:r.transferRef||"",
+      refBillNo:r.refBillNo||"", desc:"", amount:r.total||0, date:r.date||today,
+      items:(r.items&&r.items.length)?r.items.map(it=>({...it})):[{desc:"ค่าขนส่ง",amount:r.total||0}],
+      _editLog:r.editLog||[] });
+    setMode("form");
+  };
+  const requestUnlock = () => {
+    let pin = localStorage.getItem("golod_rcpt_pin")||"";
+    if(!pin){ const np=prompt("ตั้งรหัสอนุมัติครั้งแรก (ใช้อนุมัติการแก้ จำนวนเงิน/ชื่อผู้จ่าย):",""); if(np===null||np==="") return; localStorage.setItem("golod_rcpt_pin",np); pin=np; alert("ตั้งรหัสอนุมัติแล้ว"); }
+    const ans=prompt("ใส่รหัสอนุมัติ เพื่อปลดล็อกแก้ จำนวนเงิน/ชื่อผู้จ่าย:",""); if(ans===null) return;
+    if(ans===pin){ setUnlockSensitive(true); alert("🔓 ปลดล็อกแล้ว — แก้จำนวนเงิน/ชื่อผู้จ่ายได้ (จะบันทึกว่าอนุมัติด้วยรหัส)"); } else alert("รหัสไม่ถูกต้อง");
+  };
+  const approvePending = (rno) => {
+    const idx=receipts.findIndex(x=>x.receiptNo===rno); if(idx<0) return;
+    const r=receipts[idx]; const pe=r.pendingEdit; if(!pe) return;
+    const nowISO=new Date().toISOString();
+    const updated={...r,
+      payerName:(pe.payerName!==undefined?pe.payerName:r.payerName),
+      total:(pe.total!==undefined?pe.total:r.total),
+      items:(pe.items||r.items),
+      editLog:[...(r.editLog||[]), {at:nowISO, by:(staffName||staffCode||""), code:staffCode||"", changes:pe.changes||[], approved:true, approvedBy:(staffName||staffCode||""), reqBy:pe.by}],
+      pendingEdit:null, lastEditAt:nowISO, lastEditBy:(staffName||staffCode||"")};
+    const all=receipts.map((x,i)=>i===idx?updated:x);
+    setReceipts(all); localStorage.setItem("golod_receipts",JSON.stringify(all));
+    try{ if(window.GolodDB&&GolodDB.saveReceipt) GolodDB.saveReceipt(updated).catch(function(){}); }catch(e){}
+    alert("✅ อนุมัติแล้ว: "+rno);
+  };
+  const rejectPending = (rno) => {
+    const idx=receipts.findIndex(x=>x.receiptNo===rno); if(idx<0) return;
+    const r=receipts[idx]; const pe=r.pendingEdit; if(!pe) return;
+    const reason=prompt("เหตุผลที่ปฏิเสธ (ไม่บังคับ):","");
+    const nowISO=new Date().toISOString();
+    const updated={...r, editLog:[...(r.editLog||[]), {at:nowISO, by:(staffName||staffCode||""), code:staffCode||"", changes:pe.changes||[], approved:false, rejected:true, rejectReason:(reason||""), reqBy:pe.by}], pendingEdit:null};
+    const all=receipts.map((x,i)=>i===idx?updated:x);
+    setReceipts(all); localStorage.setItem("golod_receipts",JSON.stringify(all));
+    try{ if(window.GolodDB&&GolodDB.saveReceipt) GolodDB.saveReceipt(updated).catch(function(){}); }catch(e){}
+    alert("ปฏิเสธคำขอแล้ว: "+rno);
+  };
   const total = (form.items||[]).reduce((s,it)=>s+(parseFloat(it.amount)||0),0);
   // เลือกบิลอ้างอิง → auto-fill
   const pickBill = (b) => {
@@ -4798,9 +4844,48 @@ function ReceiptForm({ bills, staffCode, staffName }) {
     }));
   };
   const saveReceipt = () => {
+    if(editingNo){
+      const idx = receipts.findIndex(x=>x.receiptNo===editingNo);
+      if(idx<0){ alert("ไม่พบใบเสร็จ"); return; }
+      const old = receipts[idx];
+      const nowISO = new Date().toISOString();
+      const nameChanged = (form.payerName||"")!==(old.payerName||"");
+      const totalChanged = total!==(old.total||0);
+      const nsFlds=[["date","วันที่"],["payerPhone","เบอร์โทร"],["payerAddr","ที่อยู่"],["payerTax","เลขภาษี"],["paymentType","การชำระ"],["transferTime","เวลาโอน"],["transferRef","อ้างอิงโอน"],["refBillNo","อ้างอิงบิล"]];
+      const nsChanges=[]; nsFlds.forEach(([k,lb])=>{ if((form[k]||"")!==(old[k]||"")) nsChanges.push({field:k,label:lb,from:(old[k]||""),to:(form[k]||"")}); });
+      let applyItems = old.items;
+      if(!totalChanged){ const oD=JSON.stringify((old.items||[]).map(it=>it.desc)); const nD=JSON.stringify((form.items||[]).map(it=>it.desc)); if(oD!==nD){ nsChanges.push({field:"items",label:"ชื่อรายการ",from:"",to:""}); applyItems=form.items; } }
+      const sensChanges=[];
+      if(nameChanged) sensChanges.push({field:"payerName",label:"ชื่อผู้จ่าย",from:(old.payerName||""),to:(form.payerName||"")});
+      if(totalChanged) sensChanges.push({field:"total",label:"ยอดเงิน",from:(old.total||0),to:total});
+      if(!nsChanges.length && !sensChanges.length){ alert("ไม่มีการเปลี่ยนแปลง"); setEditingNo(null); setMode("list"); return; }
+      let updated = {...old, date:form.date||old.date, payerPhone:form.payerPhone, payerAddr:form.payerAddr, payerTax:form.payerTax, paymentType:form.paymentType, transferTime:form.transferTime, transferRef:form.transferRef, refBillNo:form.refBillNo, items:applyItems};
+      const logs=[...(old.editLog||[])];
+      if(nsChanges.length) logs.push({at:nowISO, by:(staffName||staffCode||""), code:staffCode||"", changes:nsChanges, approved:true});
+      if(sensChanges.length){
+        if(isAdmin){
+          updated.payerName=form.payerName; updated.total=total; updated.items=form.items;
+          logs.push({at:nowISO, by:(staffName||staffCode||""), code:staffCode||"", changes:sensChanges, approved:true});
+        } else {
+          const reason=prompt("เหตุผลที่ขอแก้ "+sensChanges.map(c=>c.label).join(" / ")+" (ส่งให้แอดมินอนุมัติ):",""); if(reason===null) return;
+          updated.pendingEdit={ payerName:form.payerName, total:total, items:form.items, changes:sensChanges, reason:(reason||""), by:(staffName||staffCode||""), byCode:staffCode||"", at:nowISO, status:"pending" };
+          logs.push({at:nowISO, by:(staffName||staffCode||""), code:staffCode||"", changes:sensChanges, approved:false, requested:true});
+        }
+      }
+      updated.editLog=logs; updated.lastEditAt=nowISO; updated.lastEditBy=(staffName||staffCode||"");
+      const all=receipts.map((x,i)=>i===idx?updated:x);
+      setReceipts(all); localStorage.setItem("golod_receipts", JSON.stringify(all));
+      try{ if(window.GolodDB&&GolodDB.saveReceipt) GolodDB.saveReceipt(updated).catch(function(){}); }catch(e){}
+      try{ if(window.GolodDB&&GolodDB.saveEditLog) GolodDB.saveEditLog({app:"Receipt", billNo:editingNo, by:(staffName||""), field:[...nsChanges,...sensChanges].map(c=>c.label).join(","), from:"", to:"", at:nowISO}); }catch(e){}
+      setEditingNo(null); setUnlockSensitive(false);
+      if(sensChanges.length && !isAdmin){ alert("📨 ส่งคำขออนุมัติแก้ "+sensChanges.map(c=>c.label).join("/")+" แล้ว · รอแอดมินอนุมัติ (ฟิลด์อื่นบันทึกแล้ว)"); setMode("list"); }
+      else { setPreviewRcpt(updated); setMode("preview"); alert("✅ บันทึกการแก้ไขแล้ว · มี log ติดตาม"); }
+      return;
+    }
     const rcptNo = genReceiptNo(staffCode);
     const rcpt = {
       receiptNo: rcptNo,
+      createdAt: new Date().toISOString(),
       date: today,
       clerkCode: staffCode,
       clerkName: staffName,
@@ -4818,6 +4903,7 @@ function ReceiptForm({ bills, staffCode, staffName }) {
     const all = [...receipts, rcpt];
     setReceipts(all);
     localStorage.setItem("golod_receipts", JSON.stringify(all));
+    try{ if(window.GolodDB&&GolodDB.saveReceipt) GolodDB.saveReceipt(rcpt).catch(function(){}); }catch(e){}
     setPreviewRcpt(rcpt);
     setMode("preview");
   };
@@ -4839,6 +4925,7 @@ function ReceiptForm({ bills, staffCode, staffName }) {
     !search || (b.billNo&&b.billNo.toLowerCase().includes(search.toLowerCase())) ||
     (b.form&&b.form.senderName&&b.form.senderName.includes(search))
   );
+  const pendingList = receipts.filter(r=>r.pendingEdit && r.pendingEdit.status==="pending");
   if (mode==="preview" && previewRcpt) return React.createElement("div",null,
     React.createElement("div",{style:{display:"flex",gap:8,marginBottom:10,flexWrap:"wrap"}},
       React.createElement("button",{onClick:doPrint,style:{padding:"7px 16px",background:"#1D9E75",color:"#fff",border:"none",borderRadius:8,fontWeight:700,cursor:"pointer"}},"🖨 พิมพ์ใบเสร็จ"),
@@ -4859,11 +4946,21 @@ function ReceiptForm({ bills, staffCode, staffName }) {
   );
   if (mode==="form") return React.createElement("div",{style:{maxWidth:500}},
     React.createElement("div",{style:{display:"flex",gap:8,marginBottom:10}},
-      React.createElement("button",{onClick:()=>setMode("list"),style:{padding:"5px 12px",background:"#eee",border:"none",borderRadius:8,cursor:"pointer"}},"← รายการ"),
-      React.createElement("div",{style:{fontWeight:700,fontSize:13,padding:"5px 0"}},"ออกใบเสร็จใหม่")
+      React.createElement("button",{onClick:()=>{setMode("list");setEditingNo(null);setUnlockSensitive(false);},style:{padding:"5px 12px",background:"#eee",border:"none",borderRadius:8,cursor:"pointer"}},"← รายการ"),
+      React.createElement("div",{style:{fontWeight:700,fontSize:13,padding:"5px 0"}}, editingNo?("✏️ แก้ไขใบเสร็จ "+editingNo):"ออกใบเสร็จใหม่")
     ),
-    // เลือกบิลอ้างอิง
-    React.createElement("div",{style:{background:"#f0faf5",border:"0.5px solid #9FE1CB",borderRadius:8,padding:"10px 12px",marginBottom:10}},
+    editingNo && React.createElement("div",{style:{background:"#fff8ef",border:"0.5px solid #ffd599",borderRadius:8,padding:"8px 12px",marginBottom:10,fontSize:12}},
+      React.createElement("div",null,"เลขที่ใบเสร็จ: ",React.createElement("b",null,editingNo)," (คงเดิม) · ",
+        React.createElement("label",null,"วันที่ ",React.createElement("input",{value:form.date||today,onChange:e=>setF("date",e.target.value),style:{border:"0.5px solid #ccc",borderRadius:6,padding:"2px 6px",fontSize:12,width:100}}))),
+      React.createElement("div",{style:{color:"#E67E22",marginTop:4,fontSize:11}}, isAdmin?"👑 แอดมิน — แก้ได้ทันทีทุกฟิลด์ · บันทึก log":"🔒 จำนวนเงิน/ชื่อผู้จ่าย จะส่งขออนุมัติก่อนมีผล · ฟิลด์อื่นบันทึกทันที · มี log"),
+      (form._editLog&&form._editLog.length)?React.createElement("details",{style:{marginTop:6}},
+        React.createElement("summary",{style:{cursor:"pointer",fontSize:11,color:"#888"}},"📜 ประวัติการแก้ไข ("+form._editLog.length+")"),
+        form._editLog.slice().reverse().map((lg,li)=>React.createElement("div",{key:li,style:{fontSize:10,color:"#777",borderTop:"0.5px solid #eee",padding:"3px 0"}},
+          _rcptLogDate(lg.at)+" · "+(lg.by||"")+(lg.approved?" · ✅อนุมัติ":"")+" — "+((lg.changes||[]).map(c=>c.label).join(", ")||"-")))
+      ):null
+    ),
+    // เลือกบิลอ้างอิง (ซ่อนตอนแก้ไข)
+    !editingNo && React.createElement("div",{style:{background:"#f0faf5",border:"0.5px solid #9FE1CB",borderRadius:8,padding:"10px 12px",marginBottom:10}},
       React.createElement("div",{style:{fontWeight:600,fontSize:12,marginBottom:6}},"🔗 อ้างอิงบิลขนส่ง (ไม่บังคับ)"),
       React.createElement("input",{
         value:search, onChange:e=>setSearch(e.target.value),
@@ -4892,10 +4989,10 @@ function ReceiptForm({ bills, staffCode, staffName }) {
       React.createElement("div",{style:{fontWeight:600,fontSize:12,marginBottom:8}},"ข้อมูลผู้จ่ายเงิน"),
       [["payerName","ชื่อ / บริษัทผู้จ่าย"],["payerPhone","เบอร์โทร"],["payerAddr","ที่อยู่"],["payerTax","เลขประจำตัวผู้เสียภาษี"]].map(([k,lb])=>
         React.createElement("div",{key:k,style:{marginBottom:6}},
-          React.createElement("div",{style:{fontSize:11,color:"#666",marginBottom:2}},lb),
+          React.createElement("div",{style:{fontSize:11,color:"#666",marginBottom:2}},lb+((k==="payerName"&&editingNo&&!isAdmin)?" 🔒 ต้องอนุมัติ":"")),
           React.createElement("input",{
             value:form[k]||"", onChange:e=>setF(k,e.target.value),
-            style:{border:"0.5px solid #ccc",borderRadius:7,padding:"5px 9px",fontSize:12,width:"100%",boxSizing:"border-box"}
+            style:{border:"0.5px solid "+((editingNo&&!isAdmin&&k==="payerName")?"#E67E22":"#ccc"),borderRadius:7,padding:"5px 9px",fontSize:12,width:"100%",boxSizing:"border-box",background:(editingNo&&!isAdmin&&k==="payerName")?"#fff8ef":"#fff"}
           })
         )
       )
@@ -4947,7 +5044,7 @@ function ReceiptForm({ bills, staffCode, staffName }) {
           }),
           React.createElement("input",{
             type:"number", value:it.amount||"", onChange:e=>setForm(f=>{const items=[...f.items];items[i]={...items[i],amount:parseFloat(e.target.value)||0};return {...f,items};}),
-            placeholder:"จำนวนเงิน", style:{border:"0.5px solid #ccc",borderRadius:7,padding:"5px 9px",fontSize:12,flex:1,textAlign:"right"}
+            placeholder:"จำนวนเงิน", style:{border:"0.5px solid "+((editingNo&&!isAdmin)?"#E67E22":"#ccc"),borderRadius:7,padding:"5px 9px",fontSize:12,flex:1,textAlign:"right",background:(editingNo&&!isAdmin)?"#fff8ef":"#fff"}
           }),
           i>0&&React.createElement("button",{
             onClick:()=>setForm(f=>({...f,items:f.items.filter((_,j)=>j!==i)})),
@@ -4964,19 +5061,45 @@ function ReceiptForm({ bills, staffCode, staffName }) {
         React.createElement("span",null,fmt(total)," ฿")
       )
     ),
+    editingNo && !isAdmin && React.createElement("div",{style:{background:"#fff8ef",border:"0.5px solid #ffd599",borderRadius:8,padding:"7px 10px",marginBottom:8,fontSize:11,color:"#E67E22"}},"🔒 ถ้าแก้ จำนวนเงิน หรือ ชื่อผู้จ่าย → ระบบจะส่งคำขอให้แอดมินอนุมัติก่อนมีผล (ใส่ค่าใหม่ที่ต้องการได้เลย) · ฟิลด์อื่นบันทึกทันที"),
     React.createElement("button",{
       onClick:saveReceipt,
       style:{width:"100%",padding:"10px",background:"#1D9E75",color:"#fff",border:"none",borderRadius:9,fontWeight:700,fontSize:14,cursor:"pointer"}
-    },"💾 บันทึกและออกใบเสร็จ")
+    }, editingNo?(isAdmin?"💾 บันทึกการแก้ไข":"💾 บันทึก / ส่งขออนุมัติ"):"💾 บันทึกและออกใบเสร็จ")
+  );
+  if(mode==="queue") return React.createElement("div",null,
+    React.createElement("div",{style:{display:"flex",gap:8,marginBottom:10,alignItems:"center"}},
+      React.createElement("button",{onClick:()=>setMode("list"),style:{padding:"5px 12px",background:"#eee",border:"none",borderRadius:8,cursor:"pointer"}},"← รายการ"),
+      React.createElement("div",{style:{fontWeight:700,fontSize:13}},"🔔 คำขออนุมัติแก้ใบเสร็จ ("+pendingList.length+")")
+    ),
+    pendingList.length===0
+      ? React.createElement("div",{style:{color:"#aaa",textAlign:"center",padding:30}},"ไม่มีคำขอรออนุมัติ")
+      : pendingList.map((r,i)=>{ const pe=r.pendingEdit; return React.createElement("div",{key:i,style:{border:"0.5px solid #ffd599",background:"#fff8ef",borderRadius:8,padding:"10px 12px",marginBottom:8}},
+          React.createElement("div",{style:{fontWeight:700,fontSize:12,color:"#0F6E56"}},r.receiptNo," · ",r.payerName||"—"),
+          React.createElement("div",{style:{fontSize:11,color:"#666",margin:"4px 0"}},"ขอโดย: ",pe.by||"—"," · ",_rcptLogDate(pe.at)),
+          (pe.changes||[]).map((c,ci)=>React.createElement("div",{key:ci,style:{fontSize:12,padding:"2px 0"}},
+            "• ",c.label,": ",React.createElement("span",{style:{color:"#c0392b",textDecoration:"line-through"}},String(c.from))," → ",React.createElement("b",{style:{color:"#0F6E56"}},String(c.to)))),
+          pe.reason?React.createElement("div",{style:{fontSize:11,color:"#888",marginTop:4}},"เหตุผล: ",pe.reason):null,
+          React.createElement("div",{style:{display:"flex",gap:8,marginTop:8}},
+            React.createElement("button",{onClick:()=>approvePending(r.receiptNo),style:{flex:1,padding:"7px",background:"#1D9E75",color:"#fff",border:"none",borderRadius:8,fontWeight:700,cursor:"pointer"}},"✅ อนุมัติ"),
+            React.createElement("button",{onClick:()=>rejectPending(r.receiptNo),style:{flex:1,padding:"7px",background:"#fee",color:"#c0392b",border:"0.5px solid #f5b5b5",borderRadius:8,fontWeight:700,cursor:"pointer"}},"✕ ปฏิเสธ")
+          )
+        ); })
   );
   // mode === list
   return React.createElement("div",null,
     React.createElement("div",{style:{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:10}},
       React.createElement("div",{style:{fontWeight:700,fontSize:13}},"ใบเสร็จทั้งหมด (",receipts.length,")"),
-      React.createElement("button",{
-        onClick:()=>{ setMode("form"); setForm(emptyForm()); setSelBill(null); setSearch(""); },
-        style:{padding:"6px 14px",background:"#1D9E75",color:"#fff",border:"none",borderRadius:8,fontWeight:700,cursor:"pointer"}
-      },"+ ออกใบเสร็จใหม่")
+      React.createElement("div",{style:{display:"flex",gap:6}},
+        isAdmin && pendingList.length>0 && React.createElement("button",{
+          onClick:()=>setMode("queue"),
+          style:{padding:"6px 12px",background:"#E67E22",color:"#fff",border:"none",borderRadius:8,fontWeight:700,cursor:"pointer"}
+        },"🔔 อนุมัติ ("+pendingList.length+")"),
+        React.createElement("button",{
+          onClick:()=>{ setMode("form"); setForm(emptyForm()); setSelBill(null); setSearch(""); setEditingNo(null); },
+          style:{padding:"6px 14px",background:"#1D9E75",color:"#fff",border:"none",borderRadius:8,fontWeight:700,cursor:"pointer"}
+        },"+ ออกใบเสร็จใหม่")
+      )
     ),
     receipts.length===0
       ? React.createElement("div",{style:{color:"#aaa",textAlign:"center",padding:30}},"ยังไม่มีใบเสร็จ")
@@ -4991,7 +5114,7 @@ function ReceiptForm({ bills, staffCode, staffName }) {
           React.createElement("tbody",null,
             [...receipts].reverse().map((r,i)=>
               React.createElement("tr",{key:i,style:{borderBottom:"0.5px solid #eee"}},
-                React.createElement("td",{style:{padding:"6px 8px",fontWeight:600,color:"#0F6E56"}},r.receiptNo),
+                React.createElement("td",{style:{padding:"6px 8px",fontWeight:600,color:"#0F6E56"}},r.receiptNo,(r.pendingEdit&&r.pendingEdit.status==="pending")?React.createElement("span",{style:{marginLeft:5,fontSize:9,color:"#E67E22",fontWeight:700}},"⏳รออนุมัติ"):null),
                 React.createElement("td",{style:{padding:"6px 8px",color:"#666"}},r.date),
                 React.createElement("td",{style:{padding:"6px 8px"}},r.payerName||"—"),
                 React.createElement("td",{style:{padding:"6px 8px",color:"#888"}},r.refBillNo||"—"),
@@ -4999,8 +5122,12 @@ function ReceiptForm({ bills, staffCode, staffName }) {
                 React.createElement("td",{style:{padding:"6px 8px"}},
                   React.createElement("button",{
                     onClick:()=>{ setPreviewRcpt(r); setMode("preview"); },
-                    style:{fontSize:11,padding:"3px 9px",background:"#f0faf5",border:"0.5px solid #9FE1CB",borderRadius:6,cursor:"pointer"}
-                  },"🖨 พิมพ์")
+                    style:{fontSize:11,padding:"3px 9px",background:"#f0faf5",border:"0.5px solid #9FE1CB",borderRadius:6,cursor:"pointer",marginRight:5}
+                  },"🖨 พิมพ์"),
+                  React.createElement("button",{
+                    onClick:()=>startEdit(r),
+                    style:{fontSize:11,padding:"3px 9px",background:"#fff3e0",border:"0.5px solid #ffd599",borderRadius:6,cursor:"pointer"}
+                  },"✏️ แก้ไข"+((r.editLog&&r.editLog.length)?(" ("+r.editLog.length+")"):""))
                 )
               )
             )
