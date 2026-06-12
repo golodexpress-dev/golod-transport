@@ -654,7 +654,7 @@ tr:hover td{background:#f8fffe}
 <div class="topbar">
   <span class="title">🚛 จัดการขนส่ง</span>
   <span id="session-info" style="font-size:11px;opacity:.8"></span>
-  <span style="font-size:10px;opacity:.65;margin-left:auto">build 2026-06-10m</span>
+  <span style="font-size:10px;opacity:.65;margin-left:auto">build 2026-06-10n</span>
   <a href="GolodApp.html" style="margin-left:10px">← หน้าหลัก</a>
 </div>
 <div class="container">
@@ -2802,14 +2802,22 @@ function _renderClearForm(){
     +'<div style="font-weight:700;margin-bottom:8px">① คนรถส่งเงิน (กรอกที่ส่งจริง)</div>'
     +rowI("เงินเก็บปลายทางที่ส่ง","clr-destS", v("destSubmitted",c.dest))
     +rowI("COD ที่ส่ง","clr-codS", v("codSubmitted",c.cod))
+    +'<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:2px"><span style="font-size:13px">บวก ภาษี ณ ที่จ่าย 1% (ลูกค้าปลายทางหักไว้)</span>'+inp("clr-tax", v("tax",0))+'</div>'
+    +'<div style="font-size:10px;color:#999;text-align:right;margin-bottom:8px">* WHT ที่ลูกค้าหัก = คนรถได้เงินสดน้อยลง · 1% ของปลายทาง = '+_clrFmt(Math.round(c.dest*0.01))+' (กรอกเฉพาะใบที่ถูกหัก)</div>'
     +'<div id="clr-shortover" style="text-align:right;font-size:13px;font-weight:700;margin:4px 0 10px"></div>'
     +'<div style="font-weight:700;margin:8px 0">② บริษัทจ่ายคนรถ</div>'
     +rowI("ค่าเที่ยว","clr-fare", v("fare",t.baseFare||0))
-    +rowI("ค่าน้ำมัน (คำนวณได้)","clr-fuel", v("fuel",0))
+    +'<div style="background:#fafafa;border:1px solid #eee;border-radius:8px;padding:8px;margin-bottom:6px">'
+      +'<div style="font-size:12px;font-weight:700;color:#555;margin-bottom:6px">⛽ ค่าน้ำมัน (คำนวณจากไมล์)</div>'
+      +rowI("ไมล์เริ่มต้น","clr-ms", v("mileStart",t.mileStart||0))
+      +rowI("ไมล์สิ้นสุด","clr-me", v("mileEnd",t.mileEnd||0))
+      +rowI("ราคาน้ำมัน (บาท/ลิตร)","clr-fp", v("fuelPrice",t.fuelPrice||0))
+      +rowI("อัตราสิ้นเปลือง (กม./ลิตร)","clr-fr", v("fuelRate",t.fuelRate||0))
+      +'<div id="clr-fuelcalc" style="text-align:right;font-size:12px;color:#0F6E56;margin-top:4px"></div>'
+    +'</div>'
     +rowI("ค่าทางด่วน","clr-toll", v("toll",0))
     +'<div style="font-weight:700;margin:8px 0">③ หักจากคนรถ</div>'
     +rowI("น้ำมันเบิกล่วงหน้า","clr-adv", adv)
-    +rowI("ภาษี ณ ที่จ่าย 1%","clr-tax", v("tax",0))
     +'<div id="clr-net" style="margin-top:12px;padding:12px;border-radius:8px;background:#f6f6f6;font-weight:800;text-align:center;font-size:16px"></div>'
     +'<div style="display:flex;gap:8px;margin-top:12px">'
     +'<button class="btn btn-green" onclick="_clrSave()" style="flex:1">💾 บันทึกการเคลียร์</button>'
@@ -2821,18 +2829,29 @@ function _renderClearForm(){
   _clrRecalc();
 }
 
+function _clrFuel(){
+  var ms=_clrNum("clr-ms"), me=_clrNum("clr-me"), fp=_clrNum("clr-fp"), fr=_clrNum("clr-fr");
+  var dist=(me>ms)?(me-ms):((_clearState.trip&&_clearState.trip.fuelDist)||0);
+  var liters=fr>0?(dist/fr):0;
+  return {ms:ms,me:me,fp:fp,fr:fr,dist:dist,liters:liters,fuel:Math.round(liters*fp)};
+}
 function _clrRecalc(){
   var c=_clrCompute();
-  var destS=_clrNum("clr-destS"), codS=_clrNum("clr-codS");
-  var fare=_clrNum("clr-fare"), fuel=_clrNum("clr-fuel"), toll=_clrNum("clr-toll"), adv=_clrNum("clr-adv"), tax=_clrNum("clr-tax");
-  var shouldCollect=c.dest+c.cod, collected=destS+codS, diff=collected-shouldCollect;
+  var destS=_clrNum("clr-destS"), codS=_clrNum("clr-codS"), tax=_clrNum("clr-tax");
+  var fare=_clrNum("clr-fare"), toll=_clrNum("clr-toll"), adv=_clrNum("clr-adv");
+  var f=_clrFuel(), fuel=f.fuel;
+  var fe=document.getElementById("clr-fuelcalc");
+  if(fe) fe.innerHTML='ระยะทาง '+_clrFmt(f.dist)+' กม. ÷ '+(f.fr||0)+' = '+_clrFmt(Math.round(f.liters))+' ลิตร × '+(f.fp||0)+' = <b style="font-size:14px">'+_clrFmt(fuel)+' บาท</b>';
+  // เกิน/ขาด เงินเก็บ — ภาษี 1% (WHT) เป็นตัวบวก (คนรถได้เงินสดน้อยลงเพราะลูกค้าหักไว้)
+  var shouldCollect=c.dest+c.cod, accounted=destS+codS+tax, diff=accounted-shouldCollect;
   var so=document.getElementById("clr-shortover");
   if(so){
     so.innerHTML = (diff===0)?'<span style="color:#0F6E56">✓ เงินเก็บครบพอดี</span>'
       : (diff>0)?'<span style="color:#1565C0">เงินเก็บเกิน '+_clrFmt(diff)+' บาท</span>'
       : '<span style="color:#c0392b">เงินเก็บขาด '+_clrFmt(-diff)+' บาท</span>';
   }
-  var companyPay=fare+fuel+toll, driverHand=destS+codS+adv+tax, net=companyPay-driverHand;
+  // สุทธิ: ไม่รวม tax (เป็นเครดิตภาษี ไม่ใช่เงินสด)
+  var companyPay=fare+fuel+toll, driverHand=destS+codS+adv, net=companyPay-driverHand;
   var ne=document.getElementById("clr-net");
   if(ne){
     if(net>0){ ne.innerHTML='บริษัทต้องจ่ายคนรถ<br><span style="color:#0F6E56;font-size:20px">'+_clrFmt(net)+' บาท</span>'; ne.style.background="#eafaf3"; }
@@ -2844,11 +2863,14 @@ function _clrRecalc(){
 function _clrSave(){
   var t=_clearState.trip; if(!t){ alert("ยังไม่เลือกเที่ยว"); return; }
   var c=_clrCompute();
-  var destS=_clrNum("clr-destS"),codS=_clrNum("clr-codS"),fare=_clrNum("clr-fare"),fuel=_clrNum("clr-fuel"),toll=_clrNum("clr-toll"),adv=_clrNum("clr-adv"),tax=_clrNum("clr-tax");
-  var companyPay=fare+fuel+toll, driverHand=destS+codS+adv+tax, net=companyPay-driverHand;
+  var destS=_clrNum("clr-destS"),codS=_clrNum("clr-codS"),tax=_clrNum("clr-tax");
+  var fare=_clrNum("clr-fare"),toll=_clrNum("clr-toll"),adv=_clrNum("clr-adv");
+  var f=_clrFuel(), fuel=f.fuel;
+  var companyPay=fare+fuel+toll, driverHand=destS+codS+adv, net=companyPay-driverHand;
   var clearing={ destExpected:c.dest, codExpected:c.cod, originTotal:c.origin, transferTotal:c.transfer, billCount:c.count, codCount:c.codCount,
     destSubmitted:destS, codSubmitted:codS, fare:fare, fuel:fuel, toll:toll, advance:adv, tax:tax,
-    shortOver:(destS+codS)-(c.dest+c.cod), companyPay:companyPay, driverHand:driverHand, net:net,
+    mileStart:f.ms, mileEnd:f.me, fuelPrice:f.fp, fuelRate:f.fr, fuelDist:f.dist,
+    shortOver:(destS+codS+tax)-(c.dest+c.cod), companyPay:companyPay, driverHand:driverHand, net:net,
     status:"cleared", clearedBy:(CU?(CU.name||CU.username):""), clearedAt:new Date().toISOString() };
   t.clearing=clearing;
   if(GolodDB.updateTrip){
@@ -2862,9 +2884,11 @@ function _clrSave(){
 function _clrPrint(){
   var t=_clearState.trip; if(!t){ alert("ยังไม่เลือกเที่ยว"); return; }
   var c=_clrCompute();
-  var destS=_clrNum("clr-destS"),codS=_clrNum("clr-codS"),fare=_clrNum("clr-fare"),fuel=_clrNum("clr-fuel"),toll=_clrNum("clr-toll"),adv=_clrNum("clr-adv"),tax=_clrNum("clr-tax");
-  var companyPay=fare+fuel+toll, driverHand=destS+codS+adv+tax, net=companyPay-driverHand;
-  var diff=(destS+codS)-(c.dest+c.cod);
+  var destS=_clrNum("clr-destS"),codS=_clrNum("clr-codS"),tax=_clrNum("clr-tax");
+  var fare=_clrNum("clr-fare"),toll=_clrNum("clr-toll"),adv=_clrNum("clr-adv");
+  var f=_clrFuel(), fuel=f.fuel;
+  var companyPay=fare+fuel+toll, driverHand=destS+codS+adv, net=companyPay-driverHand;
+  var diff=(destS+codS+tax)-(c.dest+c.cod);
   var R=function(lb,val,clr){ return '<tr><td style="padding:4px 8px;border-bottom:1px solid #eee">'+lb+'</td><td style="padding:4px 8px;text-align:right;border-bottom:1px solid #eee'+(clr?(';color:'+clr):'')+'">'+_clrFmt(val)+'</td></tr>'; };
   var html='<div style="font-family:Sarabun,Arial,sans-serif;font-size:13px;padding:16px;max-width:520px;margin:0 auto">'
     +'<div style="text-align:center;margin-bottom:10px"><div style="font-size:12px;color:#555">บริษัท โกโลด ทรานสปอร์ต จำกัด</div>'
@@ -2874,11 +2898,11 @@ function _clrPrint(){
     +'<tr style="background:#f0faf5"><td colspan="2" style="padding:5px 8px;font-weight:700">ยอดจากบิล ('+c.count+' บิล)</td></tr>'
     +R("เก็บต้นทาง", c.origin)+R("เก็บปลายทาง (คนรถเก็บ)", c.dest, "#E67E22")+R("โอน", c.transfer)+R("COD รวม ("+c.codCount+" บิล)", c.cod, "#c0392b")
     +'<tr style="background:#f0faf5"><td colspan="2" style="padding:5px 8px;font-weight:700">คนรถส่งเงิน</td></tr>'
-    +R("เงินเก็บปลายทางที่ส่ง", destS)+R("COD ที่ส่ง", codS)
+    +R("เงินเก็บปลายทางที่ส่ง", destS)+R("COD ที่ส่ง", codS)+R("บวก ภาษี ณ ที่จ่าย 1% (ลูกค้าหัก)", tax, "#1565C0")
     +'<tr><td style="padding:4px 8px;border-bottom:1px solid #eee">เกิน/ขาด เงินเก็บ</td><td style="padding:4px 8px;text-align:right;border-bottom:1px solid #eee;color:'+(diff<0?"#c0392b":"#1565C0")+'">'+(diff>=0?"เกิน ":"ขาด ")+_clrFmt(Math.abs(diff))+'</td></tr>'
     +'<tr style="background:#f0faf5"><td colspan="2" style="padding:5px 8px;font-weight:700">บริษัทจ่ายคนรถ / หัก</td></tr>'
-    +R("ค่าเที่ยว", fare)+R("ค่าน้ำมัน (คำนวณได้)", fuel)+R("ค่าทางด่วน", toll)
-    +R("หัก น้ำมันเบิกล่วงหน้า", adv, "#c0392b")+R("หัก ภาษี ณ ที่จ่าย 1%", tax, "#c0392b")
+    +R("ค่าเที่ยว", fare)+R("ค่าน้ำมัน ("+_clrFmt(f.dist)+"กม.÷"+(f.fr||0)+"×"+(f.fp||0)+")", fuel)+R("ค่าทางด่วน", toll)
+    +R("หัก น้ำมันเบิกล่วงหน้า", adv, "#c0392b")
     +'</tbody></table>'
     +'<div style="margin-top:12px;padding:12px;border-radius:8px;text-align:center;font-weight:800;font-size:16px;background:'+(net>=0?"#eafaf3":"#fdeaea")+'">'
     +(net>0?('บริษัทต้องจ่ายคนรถ '+_clrFmt(net)+' บาท'):net<0?('คนรถต้องส่งบริษัท '+_clrFmt(-net)+' บาท'):'พอดี 0 บาท')+'</div>'
