@@ -109,7 +109,7 @@ const blank=(branch,clerk)=>({
   location:"", originProv:"", originAmphoe:"", originTambon:"", senderPhone:"",
   items:["","",""], goods:"",
   receiverName:"", receiverPhone:"", destProv:"", destAmphoe:"", destTambon:"",
-  freight:"", rate:15, commission:"", paidOnPickup:false,
+  freight:"", rate:0, commission:"", paidOnPickup:false,
   pickupDate:todayISO(), note:"", photos:[], status:"pending"
 });
 
@@ -307,7 +307,7 @@ function App(){
             <input type="number" value={f.freight} onChange={e=>set("freight",e.target.value)} placeholder="0"/></div>
           <div className="fld" style={{maxWidth:88}}><label>เรท %</label>
             <select className="in" value={f.rate} onChange={e=>set("rate",e.target.value)}>
-              {[15,20,0].map(r=><option key={r} value={r}>{r?r+"%":"ไม่มี"}</option>)}</select></div>
+              {[0,15,20].map(r=><option key={r} value={r}>{r?r+"%":"ไม่มี"}</option>)}</select></div>
           <div className="fld"><label>ค่าจ้างรับ (฿)</label>
             <input type="number" value={f.commission} onChange={e=>set("commission",e.target.value)} placeholder="0"/></div>
           <button className="calcbtn" onClick={calcWage}>คำนวณ</button>
