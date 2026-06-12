@@ -654,7 +654,7 @@ tr:hover td{background:#f8fffe}
 <div class="topbar">
   <span class="title">🚛 จัดการขนส่ง</span>
   <span id="session-info" style="font-size:11px;opacity:.8"></span>
-  <span style="font-size:10px;opacity:.65;margin-left:auto">build 2026-06-10d</span>
+  <span style="font-size:10px;opacity:.65;margin-left:auto">build 2026-06-10e</span>
   <a href="GolodApp.html" style="margin-left:10px">← หน้าหลัก</a>
 </div>
 <div class="container">
@@ -1651,6 +1651,7 @@ function renderCurrentTripBills(){
   var bills = Object.keys(_tripState.selectedBills).map(function(k){ return _tripState.selectedBills[k]; });
   if(!bills.length) return '<div style="font-size:11px;color:#aaa;padding:6px">— ยังไม่มีบิลในเที่ยว —</div>';
   var isAdmin = CU && CU.role==="admin";
+  var canDirect = isAdmin || !_editTripLive();
   var reqs = _tripState.removalReqs || [];
   var STMAP={"ส่งสำเร็จ":"✅","delivered":"✅","success":"✅","ส่งไม่สำเร็จ":"❌","นำกลับสาขา":"↩️","กำลังวิ่งส่งลูกค้า":"🚚","ออกบิลรับของ":"📦"};
   return '<div style="border:1px solid #e0e0e0;border-radius:8px;max-height:220px;overflow-y:auto">'
@@ -1659,17 +1660,17 @@ function renderCurrentTripBills(){
       var ic=STMAP[st]||"•";
       var req=reqs.find(function(r){return r.billNo===b.billNo && r.status==="pending";});
       var btn;
-      if(isAdmin){
-        btn = req
-          ? '<span style="color:#E67E22;font-size:10px">⏳ '+(req.byName||"")+' ขอเอาออก</span>'
+      if(req && isAdmin){
+        btn = '<span style="color:#E67E22;font-size:10px">⏳ '+(req.byName||"")+' ขอเอาออก</span>'
             +' <button onclick="approveRemoveTripBill(\''+b.billNo+'\')" style="background:#0F6E56;color:#fff;border:none;border-radius:5px;padding:2px 8px;cursor:pointer;font-size:11px">อนุมัติเอาออก</button>'
-            +' <button onclick="rejectRemoveTripBill(\''+b.billNo+'\')" style="background:#eee;border:none;border-radius:5px;padding:2px 7px;cursor:pointer;font-size:11px">ปฏิเสธ</button>'
-          : '<button onclick="removeTripBill(\''+b.billNo+'\')" style="background:#fdecea;color:#c0392b;border:none;border-radius:5px;padding:2px 8px;cursor:pointer;font-size:11px">✕ เอาออก</button>';
+            +' <button onclick="rejectRemoveTripBill(\''+b.billNo+'\')" style="background:#eee;border:none;border-radius:5px;padding:2px 7px;cursor:pointer;font-size:11px">ปฏิเสธ</button>';
+      } else if(req && !isAdmin){
+        btn = '<span style="color:#E67E22;font-size:10px">⏳ รออนุมัติเอาออก</span>'
+            +' <button onclick="cancelRemoveTripBill(\''+b.billNo+'\')" style="background:#eee;border:none;border-radius:5px;padding:2px 7px;cursor:pointer;font-size:10px">ยกเลิกคำขอ</button>';
+      } else if(canDirect){
+        btn = '<button onclick="removeTripBill(\''+b.billNo+'\')" style="background:#fdecea;color:#c0392b;border:none;border-radius:5px;padding:2px 8px;cursor:pointer;font-size:11px">✕ เอาออก</button>';
       } else {
-        btn = req
-          ? '<span style="color:#E67E22;font-size:10px">⏳ รออนุมัติเอาออก</span>'
-            +' <button onclick="cancelRemoveTripBill(\''+b.billNo+'\')" style="background:#eee;border:none;border-radius:5px;padding:2px 7px;cursor:pointer;font-size:10px">ยกเลิกคำขอ</button>'
-          : '<button onclick="requestRemoveTripBill(\''+b.billNo+'\')" style="background:#fff3e0;color:#E67E22;border:1px solid #ffd599;border-radius:5px;padding:2px 8px;cursor:pointer;font-size:11px">ขอเอาออก</button>';
+        btn = '<button onclick="requestRemoveTripBill(\''+b.billNo+'\')" style="background:#fff3e0;color:#E67E22;border:1px solid #ffd599;border-radius:5px;padding:2px 8px;cursor:pointer;font-size:11px">ขอเอาออก</button>';
       }
       return '<div style="display:flex;align-items:center;gap:8px;padding:6px 10px;border-bottom:1px solid #f5f5f5;font-size:12px'+(req?';background:#fff8ef':'')+'">'
         +'<span>'+ic+'</span>'
@@ -1684,11 +1685,25 @@ function renderCurrentTripBills(){
 }
 
 // แอดมินลบได้เลย
+// เที่ยวนี้ส่งให้คนรถแล้วหรือยัง (proposed/approved/ไม่มีคนรถ = ยังไม่ส่ง)
+function _editTripLive(){
+  if(!_tripState.editId) return false;
+  var ex=(_tripState.openTrips||[]).find(function(x){return x.id===_tripState.editId;});
+  if(!ex) return false;
+  var stg=(ex.settlement&&ex.settlement.status)||ex.status||"";
+  if(stg==="proposed"||stg==="approved") return false;
+  return !!ex.driverUsername;
+}
 function removeTripBill(billNo){
-  if(!(CU&&CU.role==="admin")){ requestRemoveTripBill(billNo); return; }
+  // เสมียน + เที่ยวส่งแล้ว = ต้องขออนุมัติ ; เที่ยวยังไม่ส่ง = ลบได้เลย
+  if(!(CU&&CU.role==="admin") && _editTripLive()){ requestRemoveTripBill(billNo); return; }
   if(!confirm("เอาบิล "+billNo+" ออกจากเที่ยวนี้?")) return;
+  var b=_tripState.selectedBills[billNo]||BILLS.find(function(x){return x.billNo===billNo;});
   delete _tripState.selectedBills[billNo];
-  if(GolodDB.updateBill) GolodDB.updateBill(billNo, {tripId:""}).catch(function(){});
+  var DONE=["ส่งสำเร็จ","delivered","success","ส่งไม่สำเร็จ","นำกลับสาขา"];
+  var upd={tripId:""};
+  if(!b || DONE.indexOf(b.status)<0){ upd.status="ออกบิลรับของ"; upd.driver=""; upd.driverName=""; }
+  if(GolodDB.updateBill) GolodDB.updateBill(billNo, upd).then(function(){ var lb=BILLS.find(function(x){return x.billNo===billNo;}); if(lb){lb.tripId="";if(upd.status){lb.status=upd.status;lb.driver="";}} }).catch(function(){});
   _persistTripBillIds();
   _refreshCurrentBills();
 }
