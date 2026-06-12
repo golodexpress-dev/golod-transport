@@ -654,7 +654,7 @@ tr:hover td{background:#f8fffe}
 <div class="topbar">
   <span class="title">🚛 จัดการขนส่ง</span>
   <span id="session-info" style="font-size:11px;opacity:.8"></span>
-  <span style="font-size:10px;opacity:.65;margin-left:auto">build 2026-06-10l</span>
+  <span style="font-size:10px;opacity:.65;margin-left:auto">build 2026-06-10m</span>
   <a href="GolodApp.html" style="margin-left:10px">← หน้าหลัก</a>
 </div>
 <div class="container">
@@ -2650,11 +2650,13 @@ function printTripSummary(tripId){
 
 // ===== CLEARING / เคลียร์เงินคนรถ =====
 var _clearState = { driverU:"", tripId:"", trip:null, bills:[], allTrips:[], drivers:[] };
+var _clrDelivCache = {};
 function _clrFmt(n){ return (Math.round(n)||0).toLocaleString("th-TH"); }
 function _clrFmt2(iso){ try{ var d=new Date(iso); return d.toLocaleString("th-TH"); }catch(e){ return ""; } }
 function _clrNum(id){ var el=document.getElementById(id); return el?(parseFloat(el.value||0)||0):0; }
 
 function renderClearingTab(){
+  _clrDelivCache = {};
   var app=document.getElementById("app");
   app.innerHTML='<div class="card"><div class="loading">⏳ กำลังโหลดเที่ยว...</div></div>';
   Promise.all([
@@ -2677,17 +2679,7 @@ function _renderClearingUI(){
   var ub=getUserBranch?getUserBranch():"all";
   var brMap={bkk:"กรุงเทพ",ptm:"ปทุมธานี",krt:"นครราชสีมา",ssk:"ศรีสะเกษ"};
   var drivers=(_clearState.drivers||[]).filter(function(d){ if(ub==="all")return true; return d.branch===brMap[ub]; });
-  var trips=(_clearState.allTrips||[]).filter(function(t){
-    if(!t.driverUsername) return false;
-    var stg=(t.settlement&&t.settlement.status)||t.status||"";
-    return stg!=="proposed" && stg!=="approved"; // เฉพาะเที่ยวที่ส่งคนรถวิ่งแล้ว
-  });
-  if(_clearState.driverU) trips=trips.filter(function(t){ return t.driverUsername===_clearState.driverU; });
-  var _SS=(typeof SUCCESS_STATUS!=="undefined")?SUCCESS_STATUS:["ส่งสำเร็จ","delivered","success"];
-  var _bst={}; var _allB=(typeof BILLS!=="undefined"?BILLS:[]).concat(typeof DONE_BILLS_CACHE!=="undefined"?DONE_BILLS_CACHE:[]);
-  _allB.forEach(function(b){ if(b.billNo) _bst[b.billNo]=b.status||""; });
-  trips.forEach(function(t){ var ids=t.billIds||[]; var d=0; ids.forEach(function(id){ if(_SS.indexOf(_bst[id]||"")>=0) d++; }); t._dv={d:d,n:ids.length,pct:ids.length?Math.round(d/ids.length*100):0}; });
-  trips.sort(function(a,b){ var ar=a._dv.pct>=80?1:0, br=b._dv.pct>=80?1:0; if(ar!==br) return br-ar; return String(b.departDate||"").localeCompare(String(a.departDate||"")); });
+  var trips=_clrDisplayTrips();
   var drvOpts='<option value="">— ทุกคนรถ —</option>'+drivers.map(function(d){
     return '<option value="'+d.username+'"'+(_clearState.driverU===d.username?" selected":"")+'>'+(d.name||d.username)+' ('+(d.branch||"")+')</option>';
   }).join("");
@@ -2707,8 +2699,53 @@ function _renderClearingUI(){
     +'</div>';
   app.innerHTML=h;
   if(_clearState.tripId) _clrLoadTrip(_clearState.tripId);
+  _clrFetchDelivered(trips);
 }
 
+function _clrDisplayTrips(){
+  var ub=getUserBranch?getUserBranch():"all";
+  var trips=(_clearState.allTrips||[]).filter(function(t){
+    if(!t.driverUsername) return false;
+    var stg=(t.settlement&&t.settlement.status)||t.status||"";
+    return stg!=="proposed" && stg!=="approved"; // เฉพาะเที่ยวที่ส่งคนรถวิ่งแล้ว
+  });
+  if(_clearState.driverU) trips=trips.filter(function(t){ return t.driverUsername===_clearState.driverU; });
+  var _SS=(typeof SUCCESS_STATUS!=="undefined")?SUCCESS_STATUS:["ส่งสำเร็จ","delivered","success"];
+  var _bst={}; var _allB=(typeof BILLS!=="undefined"?BILLS:[]).concat(typeof DONE_BILLS_CACHE!=="undefined"?DONE_BILLS_CACHE:[]);
+  _allB.forEach(function(b){ if(b.billNo) _bst[b.billNo]=b.status||""; });
+  trips.forEach(function(t){
+    if(_clrDelivCache[t.id]){ t._dv=_clrDelivCache[t.id]; return; }
+    var ids=t.billIds||[]; var d=0; ids.forEach(function(id){ if(_SS.indexOf(_bst[id]||"")>=0) d++; });
+    t._dv={d:d,n:ids.length,pct:ids.length?Math.round(d/ids.length*100):0};
+  });
+  trips.sort(function(a,b){ var ar=a._dv.pct>=80?1:0, br=b._dv.pct>=80?1:0; if(ar!==br) return br-ar; return String(b.departDate||"").localeCompare(String(a.departDate||"")); });
+  return trips;
+}
+function _clrTripOptHTML(t){
+  var cl=(t.clearing&&t.clearing.status==="cleared")?" ✔เคลียร์แล้ว":"";
+  var dv=t._dv||{d:0,n:(t.billIds||[]).length,pct:0};
+  var rdy=dv.pct>=80?" ✅พร้อม":"";
+  return '<option value="'+t.id+'"'+(_clearState.tripId===t.id?" selected":"")+'>'+(t.driverName||t.driverUsername)+' · '+(t.route||"-")+' · '+(t.departDate||"-")+' ('+dv.d+'/'+dv.n+' ส่งสำเร็จ '+dv.pct+'%)'+rdy+cl+'</option>';
+}
+function _clrRefreshTripSelect(){
+  var sel=document.getElementById("clr-trip"); if(!sel) return;
+  var trips=_clrDisplayTrips();
+  sel.innerHTML='<option value="">— เลือกเที่ยว —</option>'+trips.map(_clrTripOptHTML).join("");
+}
+// ดึงบิลจริงของแต่ละเที่ยว มานับ % ส่งสำเร็จ (เพราะ BILLS/CACHE ไม่มีบิลส่งสำเร็จครบ)
+function _clrFetchDelivered(trips){
+  var _SS=(typeof SUCCESS_STATUS!=="undefined")?SUCCESS_STATUS:["ส่งสำเร็จ","delivered","success"];
+  var todo=(trips||[]).filter(function(t){ return !_clrDelivCache[t.id] && t.billIds && t.billIds.length; }).slice(0,40);
+  if(!todo.length || !GolodDB.getBillsByTripId) return;
+  Promise.all(todo.map(function(t){
+    return GolodDB.getBillsByTripId(t.id).then(function(bills){
+      bills=bills||[];
+      var d=bills.filter(function(b){ return _SS.indexOf(b.status||"")>=0; }).length;
+      var n=bills.length||(t.billIds||[]).length;
+      _clrDelivCache[t.id]={d:d,n:n,pct:n?Math.round(d/n*100):0};
+    }).catch(function(){ _clrDelivCache[t.id]={d:0,n:(t.billIds||[]).length,pct:0}; });
+  })).then(function(){ if(currentTab==="clearing") _clrRefreshTripSelect(); });
+}
 function _clrPickDriver(u){ _clearState.driverU=u; _clearState.tripId=""; _clearState.trip=null; _renderClearingUI(); }
 function _clrPickTrip(id){ _clearState.tripId=id; if(id){ _clrLoadTrip(id); } else { _clearState.trip=null; var b=document.getElementById("clr-body"); if(b)b.innerHTML=""; } }
 
