@@ -310,6 +310,8 @@ function firestoreBillToTracking(b){
       var hs = statusMap[h.status] || h.status; // map → key ของ TrackingSystem
       if(hs==="issued") return; // มี issued อยู่แล้ว
       var entry = {status:(hs==="out"?"transit":hs), dt:fmtISO(h.at), loc:(h.loc||b.destAmphoe||form.destAmphoe||""), note:h.note||"", photo:false, sig:false, by:(h.by||"")};
+      // ช่วงส่งของจริง → แสดงชื่อคนรถ (ไม่ใช่เสมียนที่จ่ายงาน)
+      if(hs==="out"||hs==="delivered"||hs==="nocontact"||hs==="returned"){ entry.by = h.driverName || h.driver || b.driverName || h.by || ""; }
       if(hs==="delivered"){
         entry.note = h.note || "ส่งถึงมือผู้รับแล้ว";
         entry.photo = !!b.photoUrl; entry.photoUrl = b.photoUrl||"";
@@ -325,13 +327,13 @@ function firestoreBillToTracking(b){
     if(st==="hub"){
       timeline.push({status:"hub", dt:updatedDt, loc:"ระหว่างนำส่ง", note:"กำลังนำส่งสาขา", photo:false, sig:false});
     } else if(st==="out"){
-      timeline.push({status:"transit", dt:updatedDt, loc:(b.destAmphoe||form.destAmphoe||""), note:"กำลังวิ่งส่งลูกค้า", photo:false, sig:false});
+      timeline.push({status:"transit", dt:updatedDt, loc:(b.destAmphoe||form.destAmphoe||""), note:"กำลังวิ่งส่งลูกค้า", photo:false, sig:false, by:(b.driverName||"")});
     } else if(st==="delivered"){
-      timeline.push({status:"delivered", dt:fmtISO(b.deliveredAt||b.updatedAt), loc:(b.destAmphoe||form.destAmphoe||""), note:"ส่งถึงมือผู้รับแล้ว", photo:!!b.photoUrl, sig:!!b.signatureUrl, photoUrl:b.photoUrl||"", signatureUrl:b.signatureUrl||"", by:(b.deliveredByName||b.statusByName||"")});
+      timeline.push({status:"delivered", dt:fmtISO(b.deliveredAt||b.updatedAt), loc:(b.destAmphoe||form.destAmphoe||""), note:"ส่งถึงมือผู้รับแล้ว", photo:!!b.photoUrl, sig:!!b.signatureUrl, photoUrl:b.photoUrl||"", signatureUrl:b.signatureUrl||"", by:(b.driverName||b.deliveredByName||b.statusByName||"")});
     } else if(st==="nocontact"){
-      timeline.push({status:"nocontact", dt:fmtISO(b.updatedAt), loc:(b.destAmphoe||form.destAmphoe||""), note:b.failReason||"ส่งไม่สำเร็จ", photo:false, sig:false});
+      timeline.push({status:"nocontact", dt:fmtISO(b.updatedAt), loc:(b.destAmphoe||form.destAmphoe||""), note:b.failReason||"ส่งไม่สำเร็จ", photo:false, sig:false, by:(b.driverName||"")});
     } else if(st==="returned"){
-      timeline.push({status:"returned", dt:fmtISO(b.updatedAt), loc:(b.destAmphoe||form.destAmphoe||""), note:"นำกลับสาขา", photo:false, sig:false});
+      timeline.push({status:"returned", dt:fmtISO(b.updatedAt), loc:(b.destAmphoe||form.destAmphoe||""), note:"นำกลับสาขา", photo:false, sig:false, by:(b.driverName||"")});
     }
   }
   return {
