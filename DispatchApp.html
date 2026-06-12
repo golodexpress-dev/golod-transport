@@ -654,7 +654,7 @@ tr:hover td{background:#f8fffe}
 <div class="topbar">
   <span class="title">🚛 จัดการขนส่ง</span>
   <span id="session-info" style="font-size:11px;opacity:.8"></span>
-  <span style="font-size:10px;opacity:.65;margin-left:auto">build 2026-06-10t</span>
+  <span style="font-size:10px;opacity:.65;margin-left:auto">build 2026-06-10u</span>
   <a href="GolodApp.html" style="margin-left:10px">← หน้าหลัก</a>
 </div>
 <div class="container">
@@ -1772,8 +1772,8 @@ function renderTripForm(existingTrip){
   var ub = getUserBranch();
   var drivers = _tripState.drivers.filter(function(d){
     if(ub==="all") return true;
-    var m={bkk:"กรุงเทพ",ptm:"ปทุมธานี",krt:"นครราชสีมา",ssk:"ศรีสะเกษ"};
-    return d.branch===m[ub];
+    var bm={"กรุงเทพ":"bkk","ปทุมธานี":"bkk","นครราชสีมา":"krt","ศรีสะเกษ":"ssk"};
+    return (bm[d.branch]||d.branch)===ub;
   });
   var driverOpts = drivers.map(function(d){
     return '<option value="'+d.username+'" data-name="'+d.name+'"'+(t.driverUsername===d.username?" selected":"")+'>'+d.name+' ('+d.branch+')</option>';
