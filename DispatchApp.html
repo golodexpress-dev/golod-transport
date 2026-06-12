@@ -654,7 +654,7 @@ tr:hover td{background:#f8fffe}
 <div class="topbar">
   <span class="title">🚛 จัดการขนส่ง</span>
   <span id="session-info" style="font-size:11px;opacity:.8"></span>
-  <span style="font-size:10px;opacity:.65;margin-left:auto">build 2026-06-10f</span>
+  <span style="font-size:10px;opacity:.65;margin-left:auto">build 2026-06-10g</span>
   <a href="GolodApp.html" style="margin-left:10px">← หน้าหลัก</a>
 </div>
 <div class="container">
@@ -2549,17 +2549,33 @@ function printTripSummary(tripId){
     var net=parseFloat(b.freightNet||0);
     var cod=parseFloat(b.codTotal||0);
     var pay=b.freightPay||form.freightPay||"origin";
+    if(String(pay).indexOf("dest")===0) pay="dest";
     var payL={origin:"ต้นทาง",dest:"ปลายทาง",transfer:"โอน",credit:"เครดิต"};
+    var its=Array.isArray(b.items)?b.items:(form&&Array.isArray(form.items)?form.items:[]);
+    var f0=its[0]||{};
+    var pq=its.reduce(function(s,it){return s+(parseInt(it.qty)||1);},0);
+    var prod=(f0.desc||"-")+(its.length>1?(" +"+(its.length-1)):"")+(pq?(" ×"+pq):"");
     return '<tr style="border-bottom:1px solid #f0f0f0">'
       +'<td style="padding:4px 6px;color:#aaa">'+(i+1)+'</td>'
       +'<td style="padding:4px 6px;font-weight:700">'+b.billNo+'</td>'
       +'<td style="padding:4px 6px">'+recv+'</td>'
+      +'<td style="padding:4px 6px">'+prod+'</td>'
       +'<td style="padding:4px 6px">'+amphoe+'·'+prov+'</td>'
       +'<td style="padding:4px 6px;text-align:right;font-size:10px">'+(payL[pay]||pay)+'</td>'
       +'<td style="padding:4px 6px;text-align:right;font-weight:600">'+fmt(net)+'</td>'
       +'<td style="padding:4px 6px;text-align:right;color:#c0392b">'+(cod>0?fmt(cod):"—")+'</td>'
       +'</tr>';
   }).join("");
+
+  // สรุปยอดค่าส่งแยกประเภทการจ่าย
+  var payAgg={origin:{c:0,a:0},dest:{c:0,a:0},transfer:{c:0,a:0},credit:{c:0,a:0}};
+  var grandFreight=0;
+  tripBills.forEach(function(b){
+    var fm=b.form||{}; var pay=b.freightPay||fm.freightPay||"origin";
+    if(String(pay).indexOf("dest")===0) pay="dest";
+    if(!payAgg[pay]) payAgg[pay]={c:0,a:0};
+    var net=parseFloat(b.freightNet||0); payAgg[pay].c++; payAgg[pay].a+=net; grandFreight+=net;
+  });
 
   var printHTML = '<div style="font-family:Sarabun,Arial,sans-serif;font-size:12px;padding:16px">'
     +'<div style="text-align:center;margin-bottom:12px">'
@@ -2584,24 +2600,26 @@ function printTripSummary(tripId){
     +'<tr style="background:#f0faf5"><th style="padding:5px 6px;text-align:left">#</th>'
     +'<th style="padding:5px 6px;text-align:left">เลขบิล</th>'
     +'<th style="padding:5px 6px;text-align:left">ผู้รับ</th>'
+    +'<th style="padding:5px 6px;text-align:left">สินค้า</th>'
     +'<th style="padding:5px 6px;text-align:left">ปลายทาง</th>'
     +'<th style="padding:5px 6px;text-align:right">ชำระ</th>'
     +'<th style="padding:5px 6px;text-align:right">ค่าส่ง</th>'
     +'<th style="padding:5px 6px;text-align:right">COD</th></tr>'
     +billRows
     +'<tr style="background:#f0faf5;font-weight:700">'
-    +'<td colspan="5" style="padding:5px 6px">รวม '+tripBills.length+' บิล</td>'
+    +'<td colspan="6" style="padding:5px 6px">รวม '+tripBills.length+' บิล</td>'
     +'<td style="padding:5px 6px;text-align:right;color:#0F6E56">'+fmt(s.destTotal||0)+'</td>'
     +'<td style="padding:5px 6px;text-align:right;color:#c0392b">'+fmt(s.codTotal||0)+'</td>'
     +'</tr></table>'
 
-    // ค่าใช้จ่าย
-    +'<table style="width:50%;border-collapse:collapse;font-size:11px;margin-left:auto">'
-    +'<tr><td style="padding:4px 8px;border-bottom:1px solid #eee">ค่าเที่ยวฐาน</td><td style="padding:4px 8px;text-align:right;border-bottom:1px solid #eee;font-weight:700">'+fmt(trip.baseFare||0)+' ฿</td></tr>'
-    +(trip.extraFare?'<tr><td style="padding:4px 8px;border-bottom:1px solid #eee">ค่าบวกเพิ่ม</td><td style="padding:4px 8px;text-align:right;border-bottom:1px solid #eee">'+fmt(trip.extraFare)+' ฿</td></tr>':'')
-    +'<tr><td style="padding:4px 8px;border-bottom:1px solid #eee">ค่าน้ำมัน (ประมาณ)</td><td style="padding:4px 8px;text-align:right;border-bottom:1px solid #eee">'+fmt(fuelEst)+' ฿</td></tr>'
-    +(trip.fuelAdvance?'<tr><td style="padding:4px 8px;border-bottom:1px solid #eee">เบิกล่วงหน้า</td><td style="padding:4px 8px;text-align:right;border-bottom:1px solid #eee;color:#c0392b">-'+fmt(trip.fuelAdvance)+' ฿</td></tr>':'')
-    +'<tr style="background:#f0faf5;font-weight:700"><td style="padding:5px 8px">ค่าน้ำมันคงเหลือ</td><td style="padding:5px 8px;text-align:right;color:#0F6E56">'+fmt(fuelNet)+' ฿</td></tr>'
+    // สรุปยอดค่าส่งแยกประเภทการจ่าย
+    +'<table style="width:auto;min-width:55%;border-collapse:collapse;font-size:11px;margin-left:auto">'
+    +'<tr style="background:#f0faf5"><th style="padding:5px 8px;text-align:left">ประเภทการจ่าย</th><th style="padding:5px 8px">จำนวนบิล</th><th style="padding:5px 8px;text-align:right">ยอดค่าส่ง</th></tr>'
+    +'<tr><td style="padding:4px 8px;border-bottom:1px solid #eee">ต้นทาง</td><td style="padding:4px 8px;text-align:center;border-bottom:1px solid #eee">'+payAgg.origin.c+'</td><td style="padding:4px 8px;text-align:right;border-bottom:1px solid #eee">'+fmt(payAgg.origin.a)+' ฿</td></tr>'
+    +'<tr><td style="padding:4px 8px;border-bottom:1px solid #eee">ปลายทาง</td><td style="padding:4px 8px;text-align:center;border-bottom:1px solid #eee">'+payAgg.dest.c+'</td><td style="padding:4px 8px;text-align:right;border-bottom:1px solid #eee">'+fmt(payAgg.dest.a)+' ฿</td></tr>'
+    +'<tr><td style="padding:4px 8px;border-bottom:1px solid #eee">โอน</td><td style="padding:4px 8px;text-align:center;border-bottom:1px solid #eee">'+payAgg.transfer.c+'</td><td style="padding:4px 8px;text-align:right;border-bottom:1px solid #eee">'+fmt(payAgg.transfer.a)+' ฿</td></tr>'
+    +'<tr><td style="padding:4px 8px;border-bottom:1px solid #eee">เครดิต</td><td style="padding:4px 8px;text-align:center;border-bottom:1px solid #eee">'+payAgg.credit.c+'</td><td style="padding:4px 8px;text-align:right;border-bottom:1px solid #eee">'+fmt(payAgg.credit.a)+' ฿</td></tr>'
+    +'<tr style="background:#f0faf5;font-weight:700"><td style="padding:5px 8px">ยอดค่าส่งรวม</td><td style="padding:5px 8px;text-align:center">'+tripBills.length+'</td><td style="padding:5px 8px;text-align:right;color:#0F6E56">'+fmt(grandFreight)+' ฿</td></tr>'
     +'</table>'
 
     // ลายเซ็น
