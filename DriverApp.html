@@ -524,7 +524,9 @@ function renderBillListWithTrip(tripBillIds){
       pickupsHtml += '<div style="background:#fff;border:1px solid #ffe6a0;border-radius:8px;padding:10px;margin-bottom:6px">'
         +'<div style="font-size:13px;font-weight:700;color:#333">'+(p.location||"ไม่ระบุสถานที่")+'</div>'
         +'<div style="font-size:12px;color:#666;margin:2px 0">'+(p.goods||"-")+(p.freight>0?' · ฿'+p.freight.toLocaleString("th-TH"):"")+'</div>'
-        +'<button onclick="openPickupFromTrip('+i+')" style="margin-top:4px;padding:6px 14px;background:#EF9F27;color:#fff;border:none;border-radius:7px;font-size:12px;font-weight:700;cursor:pointer">📝 ออกบิลงานนี้</button>'
+        +(p.billedBillNo
+          ? '<div style="margin-top:4px;font-size:12px;font-weight:700;color:#0F6E56">✅ ออกบิลแล้ว: '+p.billedBillNo+'</div><button onclick="openPickupFromTrip('+i+')" style="margin-top:3px;padding:4px 12px;background:#f0f0f0;color:#888;border:none;border-radius:7px;font-size:11px;cursor:pointer">+ ออกเพิ่ม</button>'
+          : '<button onclick="openPickupFromTrip('+i+')" style="margin-top:4px;padding:6px 14px;background:#EF9F27;color:#fff;border:none;border-radius:7px;font-size:12px;font-weight:700;cursor:pointer">📝 ออกบิลงานนี้</button>')
         +'</div>';
     });
     pickupsHtml += '</div>';
@@ -994,6 +996,7 @@ function saveDriverClearTrip(){
 
 // ====== PICKUP BILL ======
 var _pbBillNo = null;
+var _pbPickupIdx = null, _pbPickupTripId = null;
 
 function genPickupBillNo(){
   var now = new Date();
@@ -1003,12 +1006,27 @@ function genPickupBillNo(){
   var ts = now.getTime().toString().slice(-4);
   return "DR"+yy+mm+"-"+ts;
 }
+// เช็กบิลซ้ำตามรายละเอียด (กันออกบิลงานรับเดิมหลายใบ)
+function _pbFindDuplicate(bill){
+  var pool=[];
+  try{ pool=JSON.parse(localStorage.getItem("golod_bills")||"[]"); }catch(e){}
+  if(typeof BILLS!=="undefined" && Array.isArray(BILLS)) pool=pool.concat(BILLS);
+  var rn=(bill.receiverName||"").trim(), rp=(bill.receiverPhone||"").trim(), dp=(bill.destProv||"").trim(), fr=parseFloat(bill.freightNet||0)||0;
+  if(!rn && !rp) return null;
+  return pool.find(function(b){
+    if(!b||!b.billNo||b.billNo===bill.billNo) return false;
+    var st=b.status||""; if(st==="ปฏิเสธ"||st==="ยกเลิก") return false;
+    return (b.receiverName||"").trim()===rn && (b.receiverPhone||"").trim()===rp
+        && (b.destProv||"").trim()===dp && (parseFloat(b.freightNet||0)||0)===fr;
+  })||null;
+}
 
 function openPickupFromTrip(idx){
   var selTrip = DRIVER_TRIPS.find(function(t){ return t.id===SELECTED_TRIP_ID; });
   if(!selTrip || !selTrip.pickups || !selTrip.pickups[idx]){ openPickupBill(); return; }
   var p = selTrip.pickups[idx];
   openPickupBill();
+  _pbPickupIdx = idx; _pbPickupTripId = selTrip.id;
   // เติมข้อมูลจากงานรับ
   setTimeout(function(){
     var senderEl = document.getElementById("pb-sender-name");
@@ -1037,6 +1055,7 @@ function openPickupFromTrip(idx){
 }
 
 function openPickupBill(){
+  _pbPickupIdx = null; _pbPickupTripId = null;
   _pbBillNo = genPickupBillNo();
   document.getElementById("pb-bill-no").textContent = "เลขบิล: "+_pbBillNo+" | คนรถ: "+(CU?CU.name:"");
   ["pb-sender-name","pb-sender-prov","pb-receiver-name","pb-receiver-phone","pb-dest-prov","pb-dest-amphoe","pb-dest-tambon","pb-freight"]
@@ -1125,31 +1144,59 @@ function showPickupSuccess(billNo, receiverName, destProv, items, freight, freig
   document.getElementById("ps-qr").appendChild(qrImg);
 }
 
+function _drHistItem(h){
+  var itemStr=(h.items||[]).map(function(i){return (i.desc||"")+(i.qty?(" x"+i.qty):"");}).filter(Boolean).join(", ");
+  var fr=parseFloat(h.freight!=null?h.freight:h.freightNet)||0;
+  var st=h.status||"";
+  var stColor=st==="ปฏิเสธ"?"#c0392b":(st==="รออนุมัติ"?"#b7950b":"#0F6E56");
+  return '<div style="border:0.5px solid #eee;border-radius:10px;padding:10px;margin-bottom:8px">'
+    +'<div style="display:flex;justify-content:space-between;align-items:center">'
+    +'<span style="font-weight:700;color:#0F6E56;font-size:14px">'+(h.billNo||"")+'</span>'
+    +'<span style="font-size:10px;color:#aaa">'+(h.time||"")+'</span></div>'
+    +'<div style="font-size:11px;color:#555;margin-top:2px">'+(h.receiverName||"-")+' · '+(h.destProv||"-")+'</div>'
+    +(itemStr?'<div style="font-size:11px;color:#888;margin-top:2px">'+itemStr+'</div>':'')
+    +'<div style="display:flex;justify-content:space-between;align-items:center;margin-top:2px">'
+    +'<span style="font-size:12px;font-weight:600;color:#333">'+fr.toLocaleString("th-TH")+' ฿</span>'
+    +(st?'<span style="font-size:10px;font-weight:700;color:'+stColor+'">'+st+'</span>':'')
+    +'</div></div>';
+}
 function showDrHistory(){
-  var history = JSON.parse(localStorage.getItem("dr_bill_history")||"[]");
-  if(history.length===0){ alert("ยังไม่มีประวัติบิลที่ออก"); return; }
-  var old = document.getElementById("pickup-success-popup");
-  if(old) old.remove();
-  var popup = document.createElement("div");
-  popup.style.cssText = "position:fixed;inset:0;background:rgba(0,0,0,.7);z-index:99999;display:flex;align-items:flex-start;justify-content:center;padding:16px;overflow-y:auto";
-  var html = '<div style="background:#fff;border-radius:16px;padding:20px;max-width:360px;width:100%;margin:auto">'
-    +'<div style="font-size:15px;font-weight:800;color:#0F6E56;margin-bottom:14px">📜 ประวัติบิลที่ออก</div>';
-  history.forEach(function(h){
-    var itemStr = (h.items||[]).map(function(i){return i.desc+" x"+i.qty;}).join(", ");
-    html += '<div style="border:0.5px solid #eee;border-radius:10px;padding:10px;margin-bottom:8px">'
-      +'<div style="display:flex;justify-content:space-between;align-items:center">'
-      +'<span style="font-weight:700;color:#0F6E56;font-size:14px">'+h.billNo+'</span>'
-      +'<span style="font-size:10px;color:#aaa">'+h.time+'</span>'
-      +'</div>'
-      +'<div style="font-size:11px;color:#555;margin-top:2px">'+h.receiverName+' · '+h.destProv+'</div>'
-      +'<div style="font-size:11px;color:#888;margin-top:2px">'+itemStr+'</div>'
-      +'<div style="font-size:12px;font-weight:600;color:#333;margin-top:2px">'+h.freight.toLocaleString("th-TH")+' ฿</div>'
-      +'</div>';
-  });
-  html += '<button onclick="this.parentElement.remove()" style="width:100%;padding:10px;background:#f5f5f5;border:none;border-radius:9px;font-size:12px;cursor:pointer;margin-top:4px">ปิด</button>'
+  var old=document.getElementById("dr-hist-popup"); if(old) old.remove();
+  var popup=document.createElement("div");
+  popup.id="dr-hist-popup";
+  popup.style.cssText="position:fixed;inset:0;background:rgba(0,0,0,.7);z-index:99999;display:flex;align-items:flex-start;justify-content:center;padding:16px;overflow-y:auto";
+  popup.innerHTML='<div style="background:#fff;border-radius:16px;padding:20px;max-width:360px;width:100%;margin:auto">'
+    +'<div style="font-size:15px;font-weight:800;color:#0F6E56;margin-bottom:14px">📜 ประวัติบิลที่ออก</div>'
+    +'<div id="dr-hist-body" style="font-size:12px;color:#888">⏳ กำลังโหลด...</div>'
+    +'<button onclick="document.getElementById(\'dr-hist-popup\').remove()" style="width:100%;padding:10px;background:#f5f5f5;border:none;border-radius:9px;font-size:12px;cursor:pointer;margin-top:8px">ปิด</button>'
     +'</div>';
-  popup.innerHTML = html;
   document.body.appendChild(popup);
+  function render(list){
+    var body=document.getElementById("dr-hist-body"); if(!body) return;
+    if(!list.length){ body.innerHTML='<div style="color:#888;padding:8px 0">ยังไม่มีประวัติบิลที่ออก</div>'; return; }
+    body.innerHTML=list.map(_drHistItem).join("");
+  }
+  // 1) local ก่อน (เร็ว/ออฟไลน์)
+  var localH=[]; try{ localH=JSON.parse(localStorage.getItem("dr_bill_history")||"[]"); }catch(e){}
+  render(localH);
+  // 2) ดึงจาก Firestore: บิลทั้งหมดที่คนรถคนนี้ออก (ทุกเครื่องเห็นตรงกัน)
+  try{
+    var db=firebase.firestore();
+    db.collection("bills").where("driver","==",(CU?CU.username:"")).limit(100).get().then(function(snap){
+      var arr=[]; snap.forEach(function(doc){
+        var d=doc.data(); var f=d.form||{};
+        var ts=d.createdAt||d.updatedAt||"";
+        arr.push({billNo:d.billNo, receiverName:d.receiverName||f.receiverName||"", destProv:d.destProv||f.destProv||"",
+          items:Array.isArray(d.items)?d.items:(Array.isArray(f.items)?f.items:[]),
+          freight:d.freightNet||0, status:d.status||"",
+          time:String(ts).slice(0,16).replace("T"," "), _ts:String(ts)});
+      });
+      var seen={}; arr.forEach(function(x){ seen[x.billNo]=1; });
+      localH.forEach(function(x){ if(x.billNo && !seen[x.billNo]) arr.push(x); });
+      arr.sort(function(a,b){ var ta=a._ts||a.time||"", tb=b._ts||b.time||""; return tb>ta?1:(tb<ta?-1:0); });
+      render(arr);
+    }).catch(function(){ /* คง local ไว้ */ });
+  }catch(e){}
 }
 
 function sharePickupLine(msg){
@@ -1236,10 +1283,12 @@ function startVoice(fieldId, label){
 }
 
 function submitPickupBill(){
+  if(window._pbSubmitting){ return; } // กันกดส่งซ้ำ
   var g = function(id){ return (document.getElementById(id)||{}).value||""; };
   if(!g("pb-receiver-name")){ alert("กรุณากรอกชื่อผู้รับ"); return; }
   if(!g("pb-dest-prov")){ alert("กรุณากรอกจังหวัดปลายทาง"); return; }
   if(!parseFloat(g("pb-freight"))){ alert("กรุณากรอกค่าขนส่ง"); return; }
+  window._pbSubmitting = true;
 
   var bill = {
     billNo: _pbBillNo,
@@ -1293,6 +1342,11 @@ function submitPickupBill(){
   };
 
   if(!GolodDB.saveBill){ alert("ระบบยังไม่พร้อม"); return; }
+  // เตือนถ้ามีบิลรายละเอียดเหมือนกันอยู่แล้ว (กันออกซ้ำงานรับเดิม)
+  var _dupB=_pbFindDuplicate(bill);
+  if(_dupB && !confirm("⚠️ มีบิลรายละเอียดเหมือนกันอยู่แล้ว!\n\nเลขบิล: "+_dupB.billNo+"\nผู้รับ: "+(_dupB.receiverName||"-")+"\nปลายทาง: "+(_dupB.destProv||"-")+"\nค่าส่ง: "+(parseFloat(_dupB.freightNet||0)||0).toLocaleString("th-TH")+" ฿\n\nออกบิลใบใหม่ซ้ำหรือไม่?")){
+    window._pbSubmitting=false; return;
+  }
   // อัปโหลดรูปก่อน (ถ้ามี)
   var photos = [];
   var p1 = document.getElementById("pb-photo1");
@@ -1306,9 +1360,22 @@ function submitPickupBill(){
   function doSaveBill(photoUrls){
     if(photoUrls && photoUrls.length>0) bill.pickupPhotos = photoUrls;
     GolodDB.saveBill(bill).then(function(){
+      window._pbSubmitting = false; _pbBillNo = null; // เปิดใหม่ = เลขใหม่
+      try{
+        if(_pbPickupIdx!=null && _pbPickupTripId){
+          var _tr=DRIVER_TRIPS.find(function(t){return t.id===_pbPickupTripId;});
+          if(_tr && _tr.pickups && _tr.pickups[_pbPickupIdx]){
+            _tr.pickups[_pbPickupIdx].billedBillNo = bill.billNo;
+            if(GolodDB.updateTrip) GolodDB.updateTrip(_tr.id,{pickups:_tr.pickups}).catch(function(){});
+          }
+        }
+      }catch(e){}
+      _pbPickupIdx=null; _pbPickupTripId=null;
       closePickupBill();
-      showPickupSuccess(bill.billNo||_pbBillNo, bill.receiverName, bill.destProv, bill.items||[], bill.freightNet||0, bill.freightPay||'origin');
+      if(typeof renderBillList==="function") try{ renderBillList(); }catch(e){}
+      showPickupSuccess(bill.billNo, bill.receiverName, bill.destProv, bill.items||[], bill.freightNet||0, bill.freightPay||'origin');
     }).catch(function(e){
+      window._pbSubmitting = false;
       if(btn){ btn.disabled=false; btn.textContent="💾 บันทึกบิลรับงาน"; }
       alert("❌ "+e.message);
     });
