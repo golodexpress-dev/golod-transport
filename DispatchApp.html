@@ -654,7 +654,7 @@ tr:hover td{background:#f8fffe}
 <div class="topbar">
   <span class="title">🚛 จัดการขนส่ง</span>
   <span id="session-info" style="font-size:11px;opacity:.8"></span>
-  <span style="font-size:10px;opacity:.65;margin-left:auto">build 2026-06-10z2</span>
+  <span style="font-size:10px;opacity:.65;margin-left:auto">build 2026-06-10z3</span>
   <a href="GolodApp.html" style="margin-left:10px">← หน้าหลัก</a>
 </div>
 <div class="container">
@@ -4594,7 +4594,7 @@ function printSettlement(asPdf){
   }).join("");
   var adjRows=_settle.adjustments.map(function(a){ return '<tr><td colspan="5">ปรับ: '+(a.note||"-")+'</td><td style="text-align:right">'+_settleFmt(a.amount)+'</td></tr>'; }).join("");
   var stLbl={draft:"ร่าง",proposed:"เสนอ — รออนุมัติ",approved:"อนุมัติเบื้องต้น — รอยืนยันสุดท้าย",confirmed:"ยืนยันสุดท้ายแล้ว"}[_settle.status]||"";
-  var html='<html><head><meta charset="utf-8"><title>'+_ttl+'</title>'
+  var html='<html><head><meta charset="utf-8"><title>'+_ttl+' '+(_settle.trip.driverName||'')+' '+(_settle.trip.departDate||'')+'</title>'
     +'<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Sarabun:wght@400;700;800;900&display=swap">'
     +'<style>@page{size:A4;margin:12mm}body{font-family:Sarabun,sans-serif;font-size:13px;color:#000;margin:0;-webkit-print-color-adjust:exact;print-color-adjust:exact}'
     +'table{width:100%;border-collapse:collapse;margin-top:6px}td,th{border:1px solid #999;padding:5px 6px}th{background:#f0f0f0}'
@@ -4629,22 +4629,10 @@ function printSettlement(asPdf){
     +'<div><div class="sigline"></div>ผู้รับงาน (คนรถ)<br><span style="font-size:11px;color:#555">'+(_settle.trip.driverName||"")+'</span></div>'
     +'</div>';
   html+='</body></html>';
-  if(asPdf){
-    var sm=html.match(/<style>([\s\S]*?)<\/style>/);
-    var inner=html.replace(/^[\s\S]*?<body>/,"").replace(/<\/body>[\s\S]*$/,"");
-    var cont=document.createElement("div");
-    cont.style.cssText="position:absolute;left:-9999px;top:0;width:794px;background:#fff;padding:24px;box-sizing:border-box;font-family:Sarabun,Arial,sans-serif;color:#000;font-size:13px";
-    cont.innerHTML='<style>'+(sm?sm[1]:"")+'</style>'+inner;
-    document.body.appendChild(cont);
-    var fn="ใบเสนอ-"+String(_settle.trip.driverName||_settle.trip.departDate||"trip").replace(/[\\/:*?"<>|]/g,"-")+".pdf";
-    var done=function(){ if(cont.parentNode) document.body.removeChild(cont); };
-    var gen=function(){ setTimeout(function(){ try{ window.html2pdf().set({margin:6,filename:fn,image:{type:"jpeg",quality:0.96},html2canvas:{scale:2,backgroundColor:"#ffffff",useCORS:true,scrollX:0,scrollY:0,windowWidth:900},jsPDF:{unit:"mm",format:"a4",orientation:"portrait"},pagebreak:{mode:["css","legacy"]}}).from(cont).save().then(done).catch(function(e){ done(); alert("สร้าง PDF ไม่สำเร็จ: "+(e&&e.message||e)); }); }catch(e){ done(); alert("สร้าง PDF ไม่สำเร็จ: "+(e&&e.message||e)); } }, 350); };
-    if(window.html2pdf) gen();
-    else { var s=document.createElement("script"); s.src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"; s.onload=gen; s.onerror=function(){ done(); alert("โหลดตัวสร้าง PDF ไม่สำเร็จ (เน็ต) — ใช้ปุ่ม 🖨 พิมพ์ แล้วเลือก \"บันทึกเป็น PDF\" แทนได้"); }; document.head.appendChild(s); }
-    return;
-  }
+  if(asPdf){ alert("📄 ในหน้าพิมพ์ที่จะเปิด ให้เลือกเครื่องพิมพ์เป็น \"บันทึกเป็น PDF / Save as PDF\" แล้วกดบันทึก"); }
   var w=window.open("","_blank");
-  w.document.write(html); w.document.close(); w.focus(); setTimeout(function(){w.print();},400);
+  if(!w){ alert("เบราว์เซอร์บล็อกหน้าต่างใหม่ — อนุญาต popup ของเว็บนี้ในตั้งค่าเบราว์เซอร์ แล้วลองใหม่"); return; }
+  w.document.write(html); w.document.close(); w.focus(); setTimeout(function(){ try{ w.print(); }catch(e){} }, 500);
 }
 
 function confirmSettlement(){
