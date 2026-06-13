@@ -654,7 +654,7 @@ tr:hover td{background:#f8fffe}
 <div class="topbar">
   <span class="title">🚛 จัดการขนส่ง</span>
   <span id="session-info" style="font-size:11px;opacity:.8"></span>
-  <span style="font-size:10px;opacity:.65;margin-left:auto">build 2026-06-10z4</span>
+  <span style="font-size:10px;opacity:.65;margin-left:auto">build 2026-06-10z5</span>
   <a href="GolodApp.html" style="margin-left:10px">← หน้าหลัก</a>
 </div>
 <div class="container">
@@ -4476,14 +4476,13 @@ function renderSettlement(){
   h+='<div style="margin:10px 0"><div style="font-weight:700;font-size:12px;color:#666;margin-bottom:4px">แยกตามจังหวัด</div><div style="font-size:12px;color:#555">';
   Object.keys(c.byProv).sort(function(a,b){return c.byProv[b]-c.byProv[a];}).forEach(function(p){ h+='<span style="display:inline-block;margin:2px 6px 2px 0;background:#f3f0ff;border-radius:5px;padding:2px 8px">'+p+' ('+c.byProv[p]+')</span>'; });
   h+='</div></div>';
-  h+='<div style="font-weight:700;font-size:12px;color:#666;margin:10px 0 4px">รายการบิล'+(isAdmin?' (แก้ค่าส่งรายบิลได้)':'')+'</div>';
+  h+='<div style="font-weight:700;font-size:12px;color:#666;margin:10px 0 4px">รายการบิล <span style="font-size:10px;color:#aaa;font-weight:400">(ค่าส่งจากบิล · แก้ไม่ได้)</span></div>';
   h+='<table style="width:100%;border-collapse:collapse;font-size:11px"><thead><tr style="border-bottom:1px solid #eee;color:#888"><th style="text-align:left;padding:4px">เลขบิล</th><th style="text-align:left">จังหวัด</th><th style="text-align:left">ประเภท</th><th style="text-align:right">ค่าส่ง</th></tr></thead><tbody>';
   _settle.bills.forEach(function(b){
     var bn=b.billNo, prov=b.destProv||(b.form&&b.form.destProv)||"-", pay=_SETTLE_PAYLBL[_settlePay(b)]||"-";
     var net=_settleNet(b), over=(_settle.perBill[bn]!=null&&_settle.perBill[bn]!=="");
     h+='<tr style="border-bottom:1px solid #f5f5f5"><td style="padding:4px">'+bn+'</td><td>'+prov+'</td><td>'+pay+'</td><td style="text-align:right">';
-    if(isAdmin){ h+='<input value="'+net+'" onchange="settleSetBill(\''+bn+'\',this.value)" style="width:72px;text-align:right;padding:3px;border:1px solid '+(over?"#E67E22":"#ddd")+';border-radius:5px">'; }
-    else { h+='<b>'+_settleFmt(net)+'</b>'; }
+    h+='<b>'+_settleFmt(net)+'</b>';
     h+='</td></tr>';
   });
   h+='</tbody></table>';
