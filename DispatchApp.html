@@ -654,7 +654,7 @@ tr:hover td{background:#f8fffe}
 <div class="topbar">
   <span class="title">🚛 จัดการขนส่ง</span>
   <span id="session-info" style="font-size:11px;opacity:.8"></span>
-  <span style="font-size:10px;opacity:.65;margin-left:auto">build 2026-06-10z3</span>
+  <span style="font-size:10px;opacity:.65;margin-left:auto">build 2026-06-10z4</span>
   <a href="GolodApp.html" style="margin-left:10px">← หน้าหลัก</a>
 </div>
 <div class="container">
@@ -4390,9 +4390,9 @@ function _settleProvJoin(bills){ var seen={},arr=[]; bills.forEach(function(b){ 
 function settleSaveRoute(){
   if(!_settle) return;
   var t=_settle.trip; var ex=t.settlement||{};
-  ex.route=_settle.route; ex.day1=_settle.day1; ex.day2=_settle.day2;
+  ex.route=_settle.route; ex.day1=_settle.day1; ex.day2=_settle.day2; ex.note=_settle.note;
   t.settlement=ex;
-  if(GolodDB.updateTrip){ GolodDB.updateTrip(t.id,{settlement:ex}).then(function(){ alert("✅ บันทึกเส้นทาง/วันที่แล้ว"); }).catch(function(){ alert("⚠️ บันทึกไม่สำเร็จ"); }); }
+  if(GolodDB.updateTrip){ GolodDB.updateTrip(t.id,{settlement:ex}).then(function(){ alert("✅ บันทึกเส้นทาง/วันที่/หมายเหตุแล้ว"); }).catch(function(){ alert("⚠️ บันทึกไม่สำเร็จ"); }); }
 }
 function openSettlement(tripId){
   var t=(_tripState.openTrips||[]).find(function(x){return x.id===tripId;});
@@ -4405,7 +4405,7 @@ function openSettlement(tripId){
     _settle={ tripId:t.id, trip:t, bills:tb,
       route: ex.route || t.routeName || t.name || _settleProvJoin(tb),
       day1: ex.day1||t.day1||"", day2: ex.day2||t.day2||"", source: ex.source||"",
-      perBill: ex.perBill || {}, adjustments:(ex.adjustments||[]).slice(), note: ex.note||"",
+      perBill: ex.perBill || {}, adjustments:(ex.adjustments||[]).slice(), note: ex.note||t.note||"",
       status: ex.status||"draft", proposedByName: ex.proposedByName||"", proposedAt: ex.proposedAt||"",
       approvedByName: ex.approvedByName||"", approvedAt: ex.approvedAt||"",
       confirmedByName: ex.confirmedByName||"", confirmedAt: ex.confirmedAt||"" };
@@ -4424,7 +4424,7 @@ function printTripProposal(tripId, asPdf){
     _settle={ tripId:t.id, trip:t, bills:tb,
       route: ex.route || t.routeName || t.name || _settleProvJoin(tb),
       day1: ex.day1||t.day1||"", day2: ex.day2||t.day2||"", source: ex.source||"",
-      perBill: ex.perBill || {}, adjustments:(ex.adjustments||[]).slice(), note: ex.note||"",
+      perBill: ex.perBill || {}, adjustments:(ex.adjustments||[]).slice(), note: ex.note||t.note||"",
       status: ex.status||"draft", proposedByName: ex.proposedByName||"", proposedAt: ex.proposedAt||"",
       approvedByName: ex.approvedByName||"", approvedAt: ex.approvedAt||"",
       confirmedByName: ex.confirmedByName||"", confirmedAt: ex.confirmedAt||"" };
@@ -4464,7 +4464,9 @@ function renderSettlement(){
   h+='<input id="settle-day1" value="'+String(_settle.day1||"").replace(/"/g,"&quot;")+'" oninput="_settle.day1=this.value" placeholder="เช่น เมือง/ศรีสะเกษ, กันทรลักษ์" style="width:100%;padding:8px;border:1px solid #ddd;border-radius:7px;box-sizing:border-box;margin-top:3px"></div>';
   h+='<div style="flex:1"><label style="font-size:12px;color:#666;font-weight:700">วันที่ 2 — อำเภอ/จังหวัดที่วิ่ง</label>';
   h+='<input id="settle-day2" value="'+String(_settle.day2||"").replace(/"/g,"&quot;")+'" oninput="_settle.day2=this.value" placeholder="เช่น วารินฯ/อุบลฯ (ถ้ามี)" style="width:100%;padding:8px;border:1px solid #ddd;border-radius:7px;box-sizing:border-box;margin-top:3px"></div></div>';
-  h+='<button class="btn btn-gray" onclick="settleSaveRoute()" style="font-size:12px;padding:5px 12px;margin-bottom:6px">💾 บันทึกเส้นทาง/วันที่</button>';
+  h+='<div style="margin:8px 0"><label style="font-size:12px;color:#666;font-weight:700">📝 หมายเหตุ (พิมพ์ตรงนี้ → แสดงท้ายใบเสนอ)</label>';
+  h+='<textarea id="settle-note" oninput="_settle.note=this.value" placeholder="พิมพ์หมายเหตุที่นี่..." style="width:100%;padding:8px;border:1px solid #ddd;border-radius:7px;box-sizing:border-box;margin-top:3px;min-height:52px;font-family:inherit;font-size:13px">'+String(_settle.note||"").replace(/</g,"&lt;").replace(/>/g,"&gt;")+'</textarea></div>';
+  h+='<button class="btn btn-gray" onclick="settleSaveRoute()" style="font-size:12px;padding:5px 12px;margin-bottom:6px">💾 บันทึกเส้นทาง/วันที่/หมายเหตุ</button>';
   h+='<div style="background:#f8fffe;border:1px solid #d0ede5;border-radius:8px;padding:10px;margin:10px 0">';
   h+='<div style="font-weight:700;font-size:13px;margin-bottom:6px">บิลทั้งหมด '+c.count+' บิล</div>';
   h+='<div style="display:flex;flex-wrap:wrap;gap:6px;font-size:12px">';
