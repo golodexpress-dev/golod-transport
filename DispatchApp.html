@@ -654,7 +654,7 @@ tr:hover td{background:#f8fffe}
 <div class="topbar">
   <span class="title">🚛 จัดการขนส่ง</span>
   <span id="session-info" style="font-size:11px;opacity:.8"></span>
-  <span style="font-size:10px;opacity:.65;margin-left:auto">build 2026-06-10z</span>
+  <span style="font-size:10px;opacity:.65;margin-left:auto">build 2026-06-10z2</span>
   <a href="GolodApp.html" style="margin-left:10px">← หน้าหลัก</a>
 </div>
 <div class="container">
@@ -4633,12 +4633,12 @@ function printSettlement(asPdf){
     var sm=html.match(/<style>([\s\S]*?)<\/style>/);
     var inner=html.replace(/^[\s\S]*?<body>/,"").replace(/<\/body>[\s\S]*$/,"");
     var cont=document.createElement("div");
-    cont.style.cssText="position:fixed;left:-9999px;top:0;width:800px;background:#fff";
-    cont.innerHTML='<style>'+(sm?sm[1]:"")+'</style><div style="font-family:Sarabun,sans-serif;padding:24px;color:#000;font-size:13px">'+inner+'</div>';
+    cont.style.cssText="position:absolute;left:-9999px;top:0;width:794px;background:#fff;padding:24px;box-sizing:border-box;font-family:Sarabun,Arial,sans-serif;color:#000;font-size:13px";
+    cont.innerHTML='<style>'+(sm?sm[1]:"")+'</style>'+inner;
     document.body.appendChild(cont);
     var fn="ใบเสนอ-"+String(_settle.trip.driverName||_settle.trip.departDate||"trip").replace(/[\\/:*?"<>|]/g,"-")+".pdf";
     var done=function(){ if(cont.parentNode) document.body.removeChild(cont); };
-    var gen=function(){ try{ window.html2pdf().set({margin:6,filename:fn,image:{type:"jpeg",quality:0.96},html2canvas:{scale:2,backgroundColor:"#ffffff"},jsPDF:{unit:"mm",format:"a4",orientation:"portrait"}}).from(cont).save().then(done).catch(done); }catch(e){ done(); alert("สร้าง PDF ไม่สำเร็จ: "+(e&&e.message||e)); } };
+    var gen=function(){ setTimeout(function(){ try{ window.html2pdf().set({margin:6,filename:fn,image:{type:"jpeg",quality:0.96},html2canvas:{scale:2,backgroundColor:"#ffffff",useCORS:true,scrollX:0,scrollY:0,windowWidth:900},jsPDF:{unit:"mm",format:"a4",orientation:"portrait"},pagebreak:{mode:["css","legacy"]}}).from(cont).save().then(done).catch(function(e){ done(); alert("สร้าง PDF ไม่สำเร็จ: "+(e&&e.message||e)); }); }catch(e){ done(); alert("สร้าง PDF ไม่สำเร็จ: "+(e&&e.message||e)); } }, 350); };
     if(window.html2pdf) gen();
     else { var s=document.createElement("script"); s.src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"; s.onload=gen; s.onerror=function(){ done(); alert("โหลดตัวสร้าง PDF ไม่สำเร็จ (เน็ต) — ใช้ปุ่ม 🖨 พิมพ์ แล้วเลือก \"บันทึกเป็น PDF\" แทนได้"); }; document.head.appendChild(s); }
     return;
