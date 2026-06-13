@@ -666,7 +666,7 @@ tr:hover td{background:#f8fffe}
 <div class="topbar">
   <span class="title">🚛 จัดการขนส่ง</span>
   <span id="session-info" style="font-size:11px;opacity:.8"></span>
-  <span style="font-size:10px;opacity:.65;margin-left:auto">build 2026-06-10z8</span>
+  <span style="font-size:10px;opacity:.65;margin-left:auto">build 2026-06-10z9</span>
   <a href="GolodApp.html" style="margin-left:10px">← หน้าหลัก</a>
 </div>
 <div class="container">
@@ -4608,9 +4608,9 @@ function printSettlement(asPdf){
     var f0=its[0]||{};
     var pq=its.reduce(function(s,i){return s+(parseInt(i.qty)||1);},0);
     var prod=(f0.desc||"-")+(its.length>1?(" +"+(its.length-1)):"")+(pq?(" ×"+pq):"");
-    return '<tr><td>'+b.billNo+'</td><td>'+prod+'</td><td>'+(b.destAmphoe||(b.form&&b.form.destAmphoe)||"-")+'</td><td>'+(b.destProv||(b.form&&b.form.destProv)||"-")+'</td><td>'+(_SETTLE_PAYLBL[_settlePay(b)]||"-")+'</td><td style="text-align:right">'+_settleFmt(_settleNet(b))+'</td></tr>';
+    return '<tr><td>'+b.billNo+'</td><td>'+(b.destAmphoe||(b.form&&b.form.destAmphoe)||"-")+'</td><td>'+(b.destProv||(b.form&&b.form.destProv)||"-")+'</td><td>'+(_SETTLE_PAYLBL[_settlePay(b)]||"-")+'</td><td style="text-align:right">'+_settleFmt(_settleNet(b))+'</td></tr>';
   }).join("");
-  var adjRows=_settle.adjustments.map(function(a){ return '<tr><td colspan="5">ปรับ: '+(a.note||"-")+'</td><td style="text-align:right">'+_settleFmt(a.amount)+'</td></tr>'; }).join("");
+  var adjRows=_settle.adjustments.map(function(a){ return '<tr><td colspan="4">ปรับ: '+(a.note||"-")+'</td><td style="text-align:right">'+_settleFmt(a.amount)+'</td></tr>'; }).join("");
   var stLbl={draft:"ร่าง",proposed:"เสนอ — รออนุมัติ",approved:"อนุมัติเบื้องต้น — รอยืนยันสุดท้าย",confirmed:"ยืนยันสุดท้ายแล้ว"}[_settle.status]||"";
   var pay=[];
   if(c.byPay.origin) pay.push('ต้นทาง('+c.byPay.origin+', '+_settleFmt(c.payAmt.origin||0)+'.-)');
@@ -4632,7 +4632,7 @@ function printSettlement(asPdf){
   html+='<div class="info" style="display:flex;justify-content:space-between"><div>เส้นทาง: <b>'+(_settle.route||"-")+'</b></div><div>วันที่ออก: <b>'+(_settle.trip.departDate||"-")+'</b></div></div>';
   html+='<div class="info">คนรถ: <b>'+(_settle.trip.driverName||_settle.trip.driverUsername||"— (ยังไม่กำหนด)")+'</b>'+(_settle.day1?(' · วันที่1: <b>'+_settle.day1+'</b>'):'')+(_settle.day2?(' · วันที่2: <b>'+_settle.day2+'</b>'):'')+'</div>';
   html+='<div class="info" style="margin-top:3px"><b>บิลทั้งหมด '+c.count+' บิล</b> · '+pay.join(' · ')+'</div>';
-  html+='<table><thead><tr><th style="text-align:left">เลขบิล</th><th style="text-align:left">สินค้า</th><th style="text-align:left">อำเภอ</th><th style="text-align:left">จังหวัด</th><th>ประเภท</th><th style="text-align:right">ค่าส่ง</th></tr></thead><tbody>'+rows+adjRows+'</tbody></table>';
+  html+='<table><thead><tr><th style="text-align:left">เลขบิล</th><th style="text-align:left">อำเภอ</th><th style="text-align:left">จังหวัด</th><th>ประเภท</th><th style="text-align:right">ค่าส่ง</th></tr></thead><tbody>'+rows+adjRows+'</tbody></table>';
   html+='<div style="text-align:right;margin-top:6px;font-size:12px">ยอดค่าส่งรวม: '+_settleFmt(c.total)+' ฿'+(c.adj?(' · ปรับ: '+_settleFmt(c.adj)+' ฿'):'')+' · <b style="font-size:15px">สุทธิ: '+_settleFmt(c.adjusted)+' ฿</b></div>';
   if(_stNote) html+='<div style="margin-top:6px;font-size:11px;border-top:1px dashed #999;padding-top:4px">หมายเหตุ: <b>'+_stNote+'</b></div>';
   html+='<div class="sig">'
