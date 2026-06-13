@@ -191,6 +191,18 @@ tr:hover td{background:#f8fffe}
           <label style="display:flex;align-items:center;gap:5px;font-size:13px"><input type="radio" name="mp-days" value="2" style="accent-color:#7c4dff">2 วัน</label>
         </div>
       </div>
+      <div style="margin-top:8px">
+        <div style="font-size:10px;color:#888;margin-bottom:3px">วันที่ 1 — อำเภอ/จังหวัดที่วิ่ง</div>
+        <input id="mp-day1" style="width:100%;padding:7px 10px;border:1px solid #ddd;border-radius:7px;font-size:12px;font-family:inherit" placeholder="เช่น เมือง/ศรีสะเกษ, กันทรลักษ์">
+      </div>
+      <div style="margin-top:8px">
+        <div style="font-size:10px;color:#888;margin-bottom:3px">วันที่ 2 — อำเภอ/จังหวัดที่วิ่ง (ถ้ามี)</div>
+        <input id="mp-day2" style="width:100%;padding:7px 10px;border:1px solid #ddd;border-radius:7px;font-size:12px;font-family:inherit" placeholder="เช่น วารินฯ/อุบลฯ">
+      </div>
+      <div style="margin-top:8px">
+        <div style="font-size:10px;color:#888;margin-bottom:3px">📝 หมายเหตุ</div>
+        <textarea id="mp-note" rows="2" style="width:100%;padding:7px 10px;border:1px solid #ddd;border-radius:7px;font-size:12px;font-family:inherit;box-sizing:border-box" placeholder="พิมพ์หมายเหตุ (ถ้ามี)"></textarea>
+      </div>
     </div>
 
 <!-- งานรับ (แสดงเฉพาะ mode=driver) -->
@@ -654,7 +666,7 @@ tr:hover td{background:#f8fffe}
 <div class="topbar">
   <span class="title">🚛 จัดการขนส่ง</span>
   <span id="session-info" style="font-size:11px;opacity:.8"></span>
-  <span style="font-size:10px;opacity:.65;margin-left:auto">build 2026-06-10z5</span>
+  <span style="font-size:10px;opacity:.65;margin-left:auto">build 2026-06-10z6</span>
   <a href="GolodApp.html" style="margin-left:10px">← หน้าหลัก</a>
 </div>
 <div class="container">
@@ -3876,7 +3888,7 @@ function openDispatch(mode){
     document.getElementById("modal-title").textContent="📝 เสนอจัดเที่ยว";
     document.getElementById("modal-bill-count").textContent="เลือก "+ids.length+" บิล · คนรถจะใส่ตอนแอดมินอนุมัติ";
     if(sel){ sel.innerHTML=""; sel.style.display="none"; }
-    if(propF){ propF.style.display="block"; var r=document.getElementById("mp-route"); if(r)r.value=""; var d1=document.getElementById("md-mpday1"); var rd=document.querySelector('input[name="mp-days"][value="1"]'); if(rd)rd.checked=true; }
+    if(propF){ propF.style.display="block"; var r=document.getElementById("mp-route"); if(r)r.value=""; var d1=document.getElementById("md-mpday1"); var rd=document.querySelector('input[name="mp-days"][value="1"]'); if(rd)rd.checked=true; ["mp-day1","mp-day2","mp-note"].forEach(function(id){var e=document.getElementById(id);if(e)e.value="";}); }
     if(cb) cb.textContent="📤 เสนอจัดเที่ยว";
     document.getElementById("modal-dispatch").classList.add("show");
     return;
@@ -3976,13 +3988,17 @@ function proposeTripFromDispatch(ids){
   var rEl=document.getElementById("mp-route"); var routeInput=(rEl&&rEl.value.trim())||"";
   if(routeInput) route=routeInput;
   var dEl=document.querySelector('input[name="mp-days"]:checked'); var days=dEl?parseInt(dEl.value,10):1;
+  var pDay1=(document.getElementById("mp-day1")||{}).value||"";
+  var pDay2=(document.getElementById("mp-day2")||{}).value||"";
+  var pNote=(document.getElementById("mp-note")||{}).value||"";
   var btn=document.getElementById("modal-confirm-btn"); if(btn){btn.disabled=true; btn.textContent="กำลังเสนอ...";}
   var trip={
     driverUsername:"", driverName:"", branch:_tb,
     route:route, departDate:now.slice(0,10), days:days, baseFare:0,
+    day1:pDay1, day2:pDay2, note:pNote,
     billIds:ids, status:"proposed", createdAt:now, createdBy:(CU?CU.username:""),
     summary:calcTripSummary(bills),
-    settlement:{ status:"proposed", route:route, note:"", perBill:{}, adjustments:[], source:"dispatch",
+    settlement:{ status:"proposed", route:route, note:pNote, day1:pDay1, day2:pDay2, perBill:{}, adjustments:[], source:"dispatch",
       totalFreight:total, adjustedTotal:total, byPay:byPay, codCount:codCount, billCount:bills.length,
       proposedByName:me, proposedAt:now }
   };
