@@ -14,7 +14,7 @@
   <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
 </head><body>
 <div class="golod-bar no-print">
-  <h1>โกโลด ทรานสปอร์ต — ออกบิล Thermal 80mm <span style="font-size:11px;font-weight:400;opacity:.6">build 2026-06-11·b13</span></h1>
+  <h1>โกโลด ทรานสปอร์ต — ออกบิล Thermal 80mm <span style="font-size:11px;font-weight:400;opacity:.6">build 2026-06-11·b19</span></h1>
   <div id="golod-chip"></div>
   <a href="GolodApp.html" style="font-size:11px;color:#9FE1CB;background:rgba(255,255,255,.15);padding:3px 10px;border-radius:20px;text-decoration:none">← หน้าหลัก</a>
   <a href="DailyReport.html" style="font-size:11px;color:#FFE082;background:rgba(255,255,255,.15);padding:3px 10px;border-radius:20px;text-decoration:none">📊 รายงานสิ้นวัน</a>
@@ -369,8 +369,51 @@ overrideHookState:null,overrideHookStateDeletePath:null,overrideHookStateRenameP
 null})}),!0):!1};M.unstable_batchedUpdates=ai;M.unstable_createPortal=function(a,b){return hi(a,b,2<arguments.length&&void 0!==arguments[2]?arguments[2]:null)};M.unstable_renderSubtreeIntoContainer=function(a,b,c,d){if(!wc(c))throw Error(m(200));if(null==a||void 0===a._reactInternals)throw Error(m(38));return zd(a,b,c,!1,d)};M.version="17.0.2"});
 })();
 </script><script>
+var SPECIAL_AREAS = []; // override จากหน้า "จัดการพื้นที่พิเศษ" (Firestore setting)
+var SPECIAL_RECEIVERS = []; // ขั้นต่ำปลายทางเฉพาะราย (ชื่อบริษัท/ผู้รับ + จังหวัด)
+var CUSTOMER_PRICES = []; // [{name, code, pricePerPiece}] จากหน้า "ราคาลูกค้าพิเศษ" ใน Dispatch
+function getReceiverMin(name, prov){
+  if(!name || !Array.isArray(SPECIAL_RECEIVERS)) return 0;
+  var n=String(name).trim().toLowerCase(), p=String(prov||"").trim().toLowerCase(), best=0;
+  for(var i=0;i<SPECIAL_RECEIVERS.length;i++){
+    var sr=SPECIAL_RECEIVERS[i]; if(!sr||!sr.name) continue;
+    var sn=String(sr.name).trim().toLowerCase(); if(!sn) continue;
+    if(n.indexOf(sn)>=0 && (!sr.prov || String(sr.prov).trim().toLowerCase()===p)){
+      var m=parseInt(sr.min)||0; if(m>best) best=m;
+    }
+  }
+  return best;
+}
+function getSpecialAreaMin(prov, amphoe){
+  if(!prov) return 0;
+  var amp=(amphoe||"").trim();
+  if(Array.isArray(SPECIAL_AREAS)){
+    for(var i=0;i<SPECIAL_AREAS.length;i++){
+      var sa=SPECIAL_AREAS[i];
+      if(sa&&sa.amphoe&&String(sa.amphoe).trim()===amp&&(!sa.prov||String(sa.prov).trim()===prov)) return parseInt(sa.min)||0;
+    }
+  }
+  var min1000=["น้ำหนาว","นาแห้ว","ทองผาภูมิ","ปิล็อก"];
+  var min500=["ศรีสวัสดิ์","สังขละบุรี","ปากชม","นาด้วง","ตาพระยา","โคกสูง","คลองหาด",
+    "สอยดาว","เขาสมิง","บ่อไร่","เขาชะเมา","สวี","หลังสวน","บ้านไร่","สามเงา",
+    "เถิน","แม่พริก","น้ำปาด","นครไทย","ชาติตระการ","หล่มสัก","หล่มเก่า",
+    "ภูเรือ","ด่านซ้าย","ศรีสัชนาลัย","สังคม","บ้านแพง","บึงโขงหลง",
+    "ดงหลวง","ภูพาน","เต่างอย","สามชัย","ภักดีชุมพล","เทพสถิต",
+    "สิรินธร","ศรีเมืองใหม่","นาจะหลวย","น้ำยืน","ภูสิงห์","แม่สอด","พบพระ"];
+  if(min1000.indexOf(amp)>=0) return 1000;
+  if(min500.indexOf(amp)>=0) return 500;
+  return 0; // ไม่รวมขั้นต่ำพื้นฐานรายจังหวัด
+}
 function getMinFreight(prov, amphoe) {
   if(!prov) return 0;
+  var _amp=(amphoe||"").trim();
+  if(Array.isArray(SPECIAL_AREAS)){
+    for(var _i=0;_i<SPECIAL_AREAS.length;_i++){
+      var _sa=SPECIAL_AREAS[_i];
+      if(_sa&&_sa.amphoe&&String(_sa.amphoe).trim()===_amp&&(!_sa.prov||String(_sa.prov).trim()===prov))
+        return parseInt(_sa.min)||0;
+    }
+  }
   var min1000 = ["น้ำหนาว","นาแห้ว","ทองผาภูมิ","ปิล็อก"];
   var min500 = ["ศรีสวัสดิ์","สังขละบุรี","ปากชม","นาด้วง","ตาพระยา","โคกสูง","คลองหาด",
     "สอยดาว","เขาสมิง","บ่อไร่","เขาชะเมา","สวี","หลังสวน","บ้านไร่","สามเงา",
@@ -1039,7 +1082,7 @@ function ThermalBill({
   // คำนวณ minFreight ภายใน
 
   const _autoMin = getMinFreight(form.destProv||"", form.receiverAmphoe||"");
-  const _minFr = form.isSpecialArea ? (parseInt(form.minFreight)||0) : _autoMin;
+  const _minFr = Math.max(form.isSpecialArea ? (parseInt(form.minFreight)||0) : _autoMin, getReceiverMin(form.receiverName||"", form.destProv||""));
   const _isMinApplied = _minFr > 0 && (summary.freightTotal||summary.freightNet||0) < _minFr;
   var _FREIGHT_PAY$find, _BRANCHES$find;
   const W = 298;
@@ -1753,6 +1796,9 @@ function BillList({
   onView
 }) {
   const [q, setQ] = useState("");
+  const [extraBills, setExtraBills] = useState([]);
+  const [loadingMore, setLoadingMore] = useState(false);
+  const _bigLoadedRef = useRef(false);
   // เปิดจากปุ่ม "พริ้นบิล" (DispatchApp) → ?print=เลขบิล → ค้นให้อัตโนมัติ
   useEffect(function(){
     try{
@@ -1760,8 +1806,23 @@ function BillList({
       if(p) setQ(p);
     }catch(e){}
   }, []);
+  // 2+3: ค้นทะลุชุดที่โหลด — โหลดชุดใหญ่ตอนเริ่มค้นหา + ดึงเลขบิลเป๊ะจากเซิร์ฟเวอร์ (ทุกใบ)
+  useEffect(function(){
+    var term=(q||"").trim();
+    if(term.length<2) return;
+    if(!_bigLoadedRef.current && typeof GolodDB!=="undefined" && GolodDB.getBillsNew){
+      _bigLoadedRef.current=true; setLoadingMore(true);
+      GolodDB.getBillsNew(5000).then(function(list){
+        setExtraBills(function(prev){ var map={}; prev.forEach(function(b){ if(b&&b.billNo)map[b.billNo]=b; }); (list||[]).forEach(function(b){ if(b&&b.billNo&&!map[b.billNo])map[b.billNo]=b; }); return Object.keys(map).map(function(k){return map[k];}); });
+      }).catch(function(){}).then(function(){ setLoadingMore(false); });
+    }
+    if(/[0-9]/.test(term) && term.length>=5 && term.indexOf(" ")<0){
+      try{ var _db=firebase.firestore(); _db.collection("bills").doc(term).get().then(function(doc){ if(doc&&doc.exists){ var d=doc.data(); setExtraBills(function(prev){ if(prev.some(function(x){return x&&x.billNo===d.billNo;})) return prev; return prev.concat([d]); }); } }).catch(function(){}); }catch(e){}
+    }
+  }, [q]);
+  var _mergedBillsSrc=(function(){ var map={}; (bills||[]).forEach(function(b){ if(b&&b.billNo)map[b.billNo]=b; }); (extraBills||[]).forEach(function(b){ if(b&&b.billNo&&!map[b.billNo])map[b.billNo]=b; }); return Object.keys(map).map(function(k){return map[k];}); })();
   // normalize form field — ถ้าเป็น string ให้ parse เป็น object
-  const normalizedBills = bills.filter(function(b){ return b && b.billNo; }).map(function(b) {
+  const normalizedBills = _mergedBillsSrc.filter(function(b){ return b && b.billNo; }).map(function(b) {
     if (b.form && typeof b.form === "string") {
       try { return Object.assign({}, b, {form: JSON.parse(b.form)}); } catch(e) {}
     }
@@ -1799,7 +1860,7 @@ function BillList({
       ...INP,
       width: 240
     }
-  }), /*#__PURE__*/React.createElement("button", {
+  }), loadingMore?/*#__PURE__*/React.createElement("span",{style:{fontSize:11,color:"#E67E22",whiteSpace:"nowrap"}},"⏳ ค้นทั้งหมด..."):null, /*#__PURE__*/React.createElement("button", {
     onClick: onNew,
     style: {
       padding: "6px 16px",
@@ -2453,6 +2514,7 @@ const initForm = () => ({
   branch: getSessionBranch(),
   staff: "",
   customerCode: "",
+  custPricePerPiece: 0,
   senderName: "",
   senderPhone: "",
   senderProv: "",
@@ -2793,6 +2855,17 @@ function ThermalBillingApp() {
             if (c && c.name) CUST_INDEX.byName[c.name] = c;
           });
           console.log("[ThermalBill] loaded "+(list?list.length:0)+" customer codes");
+        }).catch(function(){});
+      }
+      if (GolodDB.getSetting) {
+        GolodDB.getSetting("specialAreas").then(function(v){
+          if (Array.isArray(v)) { SPECIAL_AREAS = v; console.log("[ThermalBill] loaded "+v.length+" special areas"); }
+        }).catch(function(){});
+        GolodDB.getSetting("specialReceivers").then(function(v){
+          if (Array.isArray(v)) { SPECIAL_RECEIVERS = v; console.log("[ThermalBill] loaded "+v.length+" special receivers"); }
+        }).catch(function(){});
+        GolodDB.getSetting("customerPrices").then(function(v){
+          if (Array.isArray(v)) { CUSTOMER_PRICES = v; console.log("[ThermalBill] loaded "+v.length+" customer prices"); }
         }).catch(function(){});
       }
       var s = {};
@@ -3211,6 +3284,7 @@ function ThermalBillingApp() {
     setView("form");
   };
   const zone = getZone(form.branch, form.destProv, form.receiverAmphoe);
+  const custPP = parseFloat(form.custPricePerPiece) || 0; // ราคาต่อชิ้นลูกค้าพิเศษ
   const freightTotal = items.reduce((s, item) => {
     const sc = parseFloat(item.sumCm) || (parseFloat(item.w) || 0) + (parseFloat(item.l) || 0) + (parseFloat(item.h) || 0);
     const sz = calcSize(item.kg, sc);
@@ -3218,7 +3292,7 @@ function ThermalBillingApp() {
     // ใช้ customPrice ถ้ากรอกเอง (ทุกพื้นที่)
     const unitP = item.customPrice !== undefined && item.customPrice !== ""
       ? (parseFloat(item.customPrice) || 0)
-      : autoP;
+      : (custPP > 0 ? custPP : autoP);
     return s + unitP * (parseInt(item.qty) || 1);
   }, 0);
   const discountAmt = parseFloat(form.discount) || 0;
@@ -3228,7 +3302,10 @@ function ThermalBillingApp() {
   }, 0);
   const freightNetRaw = Math.max(0, freightTotal - discountAmt);
   const autoMin = getMinFreight(form.destProv||"", form.receiverAmphoe||"");
-  const minFr = form.isSpecialArea ? (parseInt(form.minFreight) || 0) : autoMin;
+  const _recvMin = getReceiverMin(form.receiverName||"", form.destProv||"");
+  const minFr = custPP > 0
+    ? Math.max(getSpecialAreaMin(form.destProv||"", form.receiverAmphoe||""), _recvMin)
+    : Math.max(form.isSpecialArea ? (parseInt(form.minFreight) || 0) : autoMin, _recvMin);
   const freightNet = Math.max(freightNetRaw, minFr);
   const isMinApplied = minFr > 0 && freightNetRaw < minFr;
   const codTotal = items.reduce((s, item) => s + (item.hasCOD ? parseFloat(item.codAmount) || 0 : 0), 0);
@@ -3565,7 +3642,10 @@ function ThermalBillingApp() {
       var v = (e.target.value || "").toUpperCase();
       setF("customerCode", v);
       var cust = CUST_INDEX.byCode[v.trim()];
-      if (cust) { setF("senderName", cust.name || form.senderName); }
+      var _cp = (CUSTOMER_PRICES||[]).find(function(x){ return x && String(x.code||"").trim().toUpperCase()===v.trim(); });
+      if (_cp) { if(_cp.name) setF("senderName", _cp.name); setF("custPricePerPiece", parseFloat(_cp.pricePerPiece)||0); }
+      else if (cust) { setF("senderName", cust.name || form.senderName); setF("custPricePerPiece", parseFloat(cust.pricePerPiece)||0); }
+      else { setF("custPricePerPiece", 0); }
     },
     placeholder: "เช่น C5",
     style: { width: "100%", padding: "8px", border: "1px solid #ddd", borderRadius: 6, boxSizing: "border-box", textTransform: "uppercase" }
@@ -3580,6 +3660,9 @@ function ThermalBillingApp() {
     value: form.senderName,
     onChange: (e, contact) => {
       setF("senderName", e.target.value);
+      var _cpn=(CUSTOMER_PRICES||[]).find(function(x){ return x && x.name && String(x.name).trim()===String(e.target.value).trim(); });
+      if(_cpn && parseFloat(_cpn.pricePerPiece)>0){ setF("custPricePerPiece", parseFloat(_cpn.pricePerPiece)||0); }
+      else { var _spc=CUST_INDEX.byName[e.target.value]; if(_spc && parseFloat(_spc.pricePerPiece)>0) setF("custPricePerPiece", parseFloat(_spc.pricePerPiece)||0); }
       if (contact) {
         setF("senderPhone", contact.phone || form.senderPhone);
         setF("senderProv", contact.prov || form.senderProv);
