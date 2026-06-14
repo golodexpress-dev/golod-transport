@@ -14,7 +14,7 @@
   <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
 </head><body>
 <div class="golod-bar no-print">
-  <h1>โกโลด ทรานสปอร์ต — ออกบิล Thermal 80mm <span style="font-size:11px;font-weight:400;opacity:.6">build 2026-06-11·b19</span></h1>
+  <h1>โกโลด ทรานสปอร์ต — ออกบิล Thermal 80mm <span style="font-size:11px;font-weight:400;opacity:.6">build 2026-06-11·b20</span></h1>
   <div id="golod-chip"></div>
   <a href="GolodApp.html" style="font-size:11px;color:#9FE1CB;background:rgba(255,255,255,.15);padding:3px 10px;border-radius:20px;text-decoration:none">← หน้าหลัก</a>
   <a href="DailyReport.html" style="font-size:11px;color:#FFE082;background:rgba(255,255,255,.15);padding:3px 10px;border-radius:20px;text-decoration:none">📊 รายงานสิ้นวัน</a>
@@ -372,13 +372,17 @@ null})}),!0):!1};M.unstable_batchedUpdates=ai;M.unstable_createPortal=function(a
 var SPECIAL_AREAS = []; // override จากหน้า "จัดการพื้นที่พิเศษ" (Firestore setting)
 var SPECIAL_RECEIVERS = []; // ขั้นต่ำปลายทางเฉพาะราย (ชื่อบริษัท/ผู้รับ + จังหวัด)
 var CUSTOMER_PRICES = []; // [{name, code, pricePerPiece}] จากหน้า "ราคาลูกค้าพิเศษ" ใน Dispatch
-function getReceiverMin(name, prov){
-  if(!name || !Array.isArray(SPECIAL_RECEIVERS)) return 0;
-  var n=String(name).trim().toLowerCase(), p=String(prov||"").trim().toLowerCase(), best=0;
+function getReceiverMin(name, prov, addr){
+  if(!Array.isArray(SPECIAL_RECEIVERS)) return 0;
+  var n=String(name||"").trim().toLowerCase(), p=String(prov||"").trim().toLowerCase(), ad=String(addr||"").trim().toLowerCase(), best=0;
   for(var i=0;i<SPECIAL_RECEIVERS.length;i++){
-    var sr=SPECIAL_RECEIVERS[i]; if(!sr||!sr.name) continue;
-    var sn=String(sr.name).trim().toLowerCase(); if(!sn) continue;
-    if(n.indexOf(sn)>=0 && (!sr.prov || String(sr.prov).trim().toLowerCase()===p)){
+    var sr=SPECIAL_RECEIVERS[i]; if(!sr) continue;
+    var sn=String(sr.name||"").trim().toLowerCase();
+    var sl=String(sr.loc||"").trim().toLowerCase();
+    if(!sn && !sl) continue;
+    var nameHit = sn && n && n.indexOf(sn)>=0;
+    var locHit  = sl && ad && ad.indexOf(sl)>=0;
+    if((nameHit||locHit) && (!sr.prov || String(sr.prov).trim().toLowerCase()===p)){
       var m=parseInt(sr.min)||0; if(m>best) best=m;
     }
   }
@@ -1082,7 +1086,7 @@ function ThermalBill({
   // คำนวณ minFreight ภายใน
 
   const _autoMin = getMinFreight(form.destProv||"", form.receiverAmphoe||"");
-  const _minFr = Math.max(form.isSpecialArea ? (parseInt(form.minFreight)||0) : _autoMin, getReceiverMin(form.receiverName||"", form.destProv||""));
+  const _minFr = Math.max(form.isSpecialArea ? (parseInt(form.minFreight)||0) : _autoMin, getReceiverMin(form.receiverName||"", form.destProv||"", [form.receiverAddr,form.receiverTambon,form.receiverAmphoe,form.destProv].filter(Boolean).join(" ")));
   const _isMinApplied = _minFr > 0 && (summary.freightTotal||summary.freightNet||0) < _minFr;
   var _FREIGHT_PAY$find, _BRANCHES$find;
   const W = 298;
@@ -3302,7 +3306,7 @@ function ThermalBillingApp() {
   }, 0);
   const freightNetRaw = Math.max(0, freightTotal - discountAmt);
   const autoMin = getMinFreight(form.destProv||"", form.receiverAmphoe||"");
-  const _recvMin = getReceiverMin(form.receiverName||"", form.destProv||"");
+  const _recvMin = getReceiverMin(form.receiverName||"", form.destProv||"", [form.receiverAddr,form.receiverTambon,form.receiverAmphoe,form.destProv].filter(Boolean).join(" "));
   const minFr = custPP > 0
     ? Math.max(getSpecialAreaMin(form.destProv||"", form.receiverAmphoe||""), _recvMin)
     : Math.max(form.isSpecialArea ? (parseInt(form.minFreight) || 0) : autoMin, _recvMin);
