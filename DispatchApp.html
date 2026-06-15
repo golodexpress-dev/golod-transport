@@ -477,10 +477,11 @@ tr:hover td{background:#f8fffe}
 <div class="modal-bg" id="modal-special-areas" style="display:none">
   <div class="modal" style="max-width:560px;max-height:92vh;overflow-y:auto">
     <h3 style="color:#0F6E56;margin-bottom:4px">🗺️ จัดการพื้นที่พิเศษ</h3>
-    <div style="font-size:11px;color:#888;margin-bottom:12px">กำหนดค่าส่งขั้นต่ำรายอำเภอ — ระบบจะ auto คำนวณเมื่อออกบิล</div>
+    <div style="font-size:11px;color:#888;margin-bottom:12px">กำหนดค่าส่งขั้นต่ำรายอำเภอ/ตำบล — ระบบจะ auto คำนวณเมื่อออกบิล</div>
 
     <div style="display:flex;gap:8px;margin-bottom:10px">
       <input id="sa-amphoe" placeholder="ชื่ออำเภอ" style="flex:1;padding:8px 10px;border:1px solid #ddd;border-radius:7px;font-size:12px">
+      <input id="sa-tambon" placeholder="ตำบล (ไม่บังคับ)" style="flex:1;padding:8px 10px;border:1px solid #ddd;border-radius:7px;font-size:12px">
       <input id="sa-prov" placeholder="จังหวัด (ไม่บังคับ)" style="flex:1;padding:8px 10px;border:1px solid #ddd;border-radius:7px;font-size:12px">
       <input id="sa-min" type="number" placeholder="ขั้นต่ำ ฿" style="width:90px;padding:8px 10px;border:1px solid #ddd;border-radius:7px;font-size:12px">
       <button class="btn btn-green" onclick="addSpecialArea()">+ เพิ่ม</button>
@@ -666,7 +667,7 @@ tr:hover td{background:#f8fffe}
 <div class="topbar">
   <span class="title">🚛 จัดการขนส่ง</span>
   <span id="session-info" style="font-size:11px;opacity:.8"></span>
-  <span style="font-size:10px;opacity:.65;margin-left:auto">build 2026-06-10z13</span>
+  <span style="font-size:10px;opacity:.65;margin-left:auto">build 2026-06-10z17</span>
   <a href="GolodApp.html" style="margin-left:10px">← หน้าหลัก</a>
 </div>
 <div class="container">
@@ -743,10 +744,11 @@ tr:hover td{background:#f8fffe}
 <div class="modal-bg" id="modal-special-areas" style="display:none">
   <div class="modal" style="max-width:560px;max-height:92vh;overflow-y:auto">
     <h3 style="color:#0F6E56;margin-bottom:4px">🗺️ จัดการพื้นที่พิเศษ</h3>
-    <div style="font-size:11px;color:#888;margin-bottom:12px">กำหนดค่าส่งขั้นต่ำรายอำเภอ — ระบบจะ auto คำนวณเมื่อออกบิล</div>
+    <div style="font-size:11px;color:#888;margin-bottom:12px">กำหนดค่าส่งขั้นต่ำรายอำเภอ/ตำบล — ระบบจะ auto คำนวณเมื่อออกบิล</div>
 
     <div style="display:flex;gap:8px;margin-bottom:10px">
       <input id="sa-amphoe" placeholder="ชื่ออำเภอ" style="flex:1;padding:8px 10px;border:1px solid #ddd;border-radius:7px;font-size:12px">
+      <input id="sa-tambon" placeholder="ตำบล (ไม่บังคับ)" style="flex:1;padding:8px 10px;border:1px solid #ddd;border-radius:7px;font-size:12px">
       <input id="sa-prov" placeholder="จังหวัด (ไม่บังคับ)" style="flex:1;padding:8px 10px;border:1px solid #ddd;border-radius:7px;font-size:12px">
       <input id="sa-min" type="number" placeholder="ขั้นต่ำ ฿" style="width:90px;padding:8px 10px;border:1px solid #ddd;border-radius:7px;font-size:12px">
       <button class="btn btn-green" onclick="addSpecialArea()">+ เพิ่ม</button>
@@ -794,6 +796,38 @@ tr:hover td{background:#f8fffe}
     <div class="btn-row" style="margin-top:12px">
       <button class="btn btn-gray" onclick="closeCustomerPrices()">ปิด</button>
       <button class="btn btn-green" onclick="saveCustomerPrices()">💾 บันทึกทั้งหมด</button>
+    </div>
+  </div>
+</div>
+
+<div class="modal-bg" id="modal-auto-trip" style="display:none">
+  <div class="modal" style="max-width:560px;max-height:92vh;overflow-y:auto">
+    <h3 style="color:#0F6E56;margin-bottom:4px">🤖 ออโต้จัดเที่ยว</h3>
+    <div style="font-size:11px;color:#888;margin-bottom:12px">จัดบิลที่ยังไม่อยู่ในเที่ยว เข้าเที่ยวอัตโนมัติตามโซนปลายทาง — ตรวจดูก่อนกดสร้าง (ยังไม่ใส่คนรถ ใส่ทีหลังได้)</div>
+    <div style="display:flex;align-items:center;gap:8px;margin-bottom:10px;font-size:12px"><span>บิล/เที่ยว ~</span><input id="at-target" type="number" value="20" style="width:70px;padding:6px 8px;border:1px solid #ddd;border-radius:6px" onchange="renderAutoTripPreview()"></div>
+    <div id="at-body" style="max-height:50vh;overflow-y:auto"></div>
+    <div class="btn-row" style="margin-top:12px">
+      <button class="btn btn-gray" onclick="closeAutoTrip()">ปิด</button>
+      <button class="btn btn-green" id="at-confirm-btn" onclick="confirmAutoTrip()">✅ สร้างเที่ยวที่เลือก</button>
+    </div>
+  </div>
+</div>
+
+<div class="modal-bg" id="modal-routes" style="display:none">
+  <div class="modal" style="max-width:640px;max-height:92vh;overflow-y:auto">
+    <h3 style="color:#0F6E56;margin-bottom:4px">🛣️ เส้นทางจัดส่ง</h3>
+    <div style="font-size:11px;color:#888;margin-bottom:10px">กำหนดเส้นตามจังหวัด/อำเภอ — ออโต้จัดเที่ยวจะจัดบิลเข้าเส้น เช็คยอดขั้นต่ำ แล้วแตกเที่ยวละ ~20 บิล<br><b>กฎ (พิมพ์บรรทัดละ 1 รายการ):</b> ทั้งจังหวัด = <code>ตาก</code> · เฉพาะอำเภอ = <code>สุพรรณบุรี: ด่านช้าง, สามชุก</code> (อำเภอเจาะจงมาก่อนทั้งจังหวัด)</div>
+    <input id="rt-name" placeholder="ชื่อเส้น (เช่น แม่สอด)" style="width:100%;box-sizing:border-box;padding:8px 10px;border:1px solid #ddd;border-radius:7px;font-size:12px">
+    <div style="display:flex;gap:8px;margin:8px 0">
+      <input id="rt-group" placeholder="ทิศ/กลุ่ม (เช่น เหนือ)" style="flex:1;padding:8px 10px;border:1px solid #ddd;border-radius:7px;font-size:12px">
+      <input id="rt-min" type="number" placeholder="ขั้นต่ำ ฿" style="width:120px;padding:8px 10px;border:1px solid #ddd;border-radius:7px;font-size:12px">
+    </div>
+    <textarea id="rt-rules" rows="4" placeholder="ตาก&#10;กำแพงเพชร&#10;สุพรรณบุรี: ด่านช้าง, สามชุก, หนองหญ้าไซ" style="width:100%;box-sizing:border-box;padding:8px 10px;border:1px solid #ddd;border-radius:7px;font-size:12px;font-family:inherit"></textarea>
+    <button class="btn btn-green" id="rt-save-btn" onclick="saveRouteEntry()" style="margin-top:6px">+ เพิ่มเส้น</button>
+    <div id="rt-list" style="margin-top:12px;max-height:300px;overflow-y:auto"></div>
+    <div class="btn-row" style="margin-top:12px">
+      <button class="btn btn-gray" onclick="closeRoutes()">ปิด</button>
+      <button class="btn btn-green" onclick="persistRoutes()">💾 บันทึกทั้งหมด</button>
     </div>
   </div>
 </div>
@@ -1024,6 +1058,7 @@ function loadData(){
   loadSpecialAreas();
   loadSpecialReceivers();
   loadCustomerPrices();
+  loadRoutes();
     Promise.all([
       GolodDB.getBillsDispatch({days:14}),
       GolodDB.getUsers()
@@ -1556,7 +1591,9 @@ function renderTripList(){
     +(isAdmin?'<button class="btn btn-gray" onclick="openSpecialAreaSettings()" title="จัดการพื้นที่พิเศษ">⚙️พื้นที่</button>':'')
     +(isAdmin?'<button class="btn btn-gray" onclick="openSpecialReceivers()" title="ขั้นต่ำปลายทางพิเศษ">🏢ปลายทาง</button>':'')
     +(isAdmin?'<button class="btn btn-gray" onclick="openCustomerPrices()" title="ราคาลูกค้าพิเศษ">💰ราคาลูกค้า</button>':'')
+    +(isAdmin?'<button class="btn btn-gray" onclick="openRoutes()" title="ตั้งเส้นทางจัดส่ง">🛣️เส้นทาง</button>':'')
     +'<button class="btn btn-gray" onclick="renderTripTab()">🔄 รีเฟรช</button>'
+    +(isAdmin?'<button class="btn btn-gray" onclick="openAutoTrip()" title="จัดบิลเข้าเที่ยวอัตโนมัติตามเส้นทาง">🤖 ออโต้จัดเที่ยว</button>':'')
     +'<button class="btn btn-green" onclick="openCreateTrip()">+ สร้างเที่ยวใหม่</button>'
     +'</div></div>'
     +(openCards||'<div style="text-align:center;padding:20px;color:#aaa">ไม่มีเที่ยวที่เปิดอยู่</div>')
@@ -4989,7 +5026,7 @@ function renderSpecialAreaList(){
       +'<tr style="background:#f0faf5"><th style="padding:6px;text-align:left">อำเภอ</th><th>จังหวัด</th><th>ขั้นต่ำ (฿)</th><th>ลบ</th></tr>'
       +_specialAreas.map(function(sa, i){
         return '<tr style="border-bottom:1px solid #f0f0f0">'
-          +'<td style="padding:6px">'+sa.amphoe+'</td>'
+          +'<td style="padding:6px">'+sa.amphoe+(sa.tambon?'<div style="font-size:10px;color:#999">📍 ต.'+sa.tambon+'</div>':'')+'</td>'
           +'<td style="text-align:center;color:#888">'+( sa.prov||"ทุกจังหวัด")+'</td>'
           +'<td style="text-align:center;font-weight:700;color:#0F6E56">'+sa.min.toLocaleString("th-TH")+'</td>'
           +'<td style="text-align:center"><button onclick="removeSpecialArea('+i+')" style="background:#fee;border:1px solid #fcc;border-radius:5px;padding:2px 8px;cursor:pointer;font-size:11px;color:#c0392b">ลบ</button></td>'
@@ -5001,12 +5038,14 @@ function renderSpecialAreaList(){
 
 function addSpecialArea(){
   var amphoe = document.getElementById("sa-amphoe").value.trim();
+  var tambon = document.getElementById("sa-tambon").value.trim();
   var prov   = document.getElementById("sa-prov").value.trim();
   var min    = parseInt(document.getElementById("sa-min").value)||0;
   if(!amphoe){ alert("กรอกชื่ออำเภอด้วยครับ"); return; }
   if(min <= 0){ alert("กรอกค่าขั้นต่ำด้วยครับ"); return; }
-  _specialAreas.push({amphoe:amphoe, prov:prov, min:min});
+  _specialAreas.push({amphoe:amphoe, tambon:tambon, prov:prov, min:min});
   document.getElementById("sa-amphoe").value = "";
+  document.getElementById("sa-tambon").value = "";
   document.getElementById("sa-prov").value = "";
   document.getElementById("sa-min").value = "";
   renderSpecialAreaList();
@@ -5135,6 +5174,181 @@ function saveCustomerPrices(){
     alert("✅ บันทึกราคาลูกค้าพิเศษแล้ว "+_customerPrices.length+" รายการ");
     closeCustomerPrices();
   }).catch(function(e){ alert("❌ "+e.message); });
+}
+
+// ===== ระบบเส้นทาง (route) + ออโต้จัดเที่ยว =====
+var _routes = [];        // [{name, group, min, rules:[{prov, amphoes:[]}]}]
+var _rtEditIdx = -1;
+var _autoTripGroups = {};
+function loadRoutes(){
+  if(!GolodDB.getSetting) return;
+  GolodDB.getSetting("routes").then(function(v){ if(Array.isArray(v)) _routes=v; }).catch(function(){});
+}
+function _rtParseRules(text){
+  return (text||"").split("\n").map(function(line){
+    line=line.trim(); if(!line) return null;
+    var p=line.split(":");
+    var prov=p[0].trim();
+    var amphoes=(p.length>1)? p[1].split(",").map(function(s){return s.trim();}).filter(Boolean) : [];
+    return prov? {prov:prov, amphoes:amphoes} : null;
+  }).filter(Boolean);
+}
+function _rtRulesToText(rules){
+  return (rules||[]).map(function(r){ return r.prov+(r.amphoes&&r.amphoes.length?(": "+r.amphoes.join(", ")):""); }).join("\n");
+}
+function getRouteForBill(prov, amphoe){
+  prov=(prov||"").trim(); amphoe=(amphoe||"").trim();
+  var whole=null;
+  for(var i=0;i<_routes.length;i++){
+    var rt=_routes[i]; if(!rt||!rt.rules) continue;
+    for(var j=0;j<rt.rules.length;j++){
+      var ru=rt.rules[j]; if(!ru||String(ru.prov).trim()!==prov) continue;
+      if(ru.amphoes&&ru.amphoes.length){ if(ru.amphoes.indexOf(amphoe)>=0) return rt; }
+      else { if(!whole) whole=rt; }
+    }
+  }
+  return whole;
+}
+function openRoutes(){
+  if(!CU || CU.role!=="admin"){ alert("เฉพาะ Admin"); return; }
+  _rtEditIdx=-1; _rtClearForm(); renderRouteList();
+  document.getElementById("modal-routes").style.display="flex";
+}
+function closeRoutes(){ document.getElementById("modal-routes").style.display="none"; }
+function _rtClearForm(){
+  document.getElementById("rt-name").value="";
+  document.getElementById("rt-group").value="";
+  document.getElementById("rt-min").value="";
+  document.getElementById("rt-rules").value="";
+  var b=document.getElementById("rt-save-btn"); if(b) b.textContent="+ เพิ่มเส้น";
+}
+function saveRouteEntry(){
+  var name=document.getElementById("rt-name").value.trim();
+  var group=document.getElementById("rt-group").value.trim();
+  var min=parseInt(document.getElementById("rt-min").value)||0;
+  var rules=_rtParseRules(document.getElementById("rt-rules").value);
+  if(!name){ alert("กรอกชื่อเส้นด้วยครับ"); return; }
+  if(!rules.length){ alert("กรอกจังหวัด/อำเภอ อย่างน้อย 1 บรรทัด"); return; }
+  var entry={name:name, group:group, min:min, rules:rules};
+  if(_rtEditIdx>=0){ _routes[_rtEditIdx]=entry; _rtEditIdx=-1; } else { _routes.push(entry); }
+  _rtClearForm(); renderRouteList();
+}
+function editRoute(i){
+  var rt=_routes[i]; if(!rt) return; _rtEditIdx=i;
+  document.getElementById("rt-name").value=rt.name||"";
+  document.getElementById("rt-group").value=rt.group||"";
+  document.getElementById("rt-min").value=rt.min||"";
+  document.getElementById("rt-rules").value=_rtRulesToText(rt.rules);
+  var b=document.getElementById("rt-save-btn"); if(b) b.textContent="💾 บันทึกการแก้ไข";
+}
+function removeRoute(i){ if(!confirm("ลบเส้น "+((_routes[i]||{}).name||"")+"?")) return; _routes.splice(i,1); if(_rtEditIdx===i){_rtEditIdx=-1;_rtClearForm();} renderRouteList(); }
+function renderRouteList(){
+  var el=document.getElementById("rt-list");
+  if(!_routes.length){ el.innerHTML='<div style="text-align:center;padding:16px;color:#aaa">ยังไม่มีเส้นทาง</div>'; return; }
+  el.innerHTML=_routes.map(function(rt,i){
+    var summary=(rt.rules||[]).map(function(r){return r.prov+(r.amphoes&&r.amphoes.length?("("+r.amphoes.length+"อ.)"):"");}).join(", ");
+    return '<div style="border:1px solid #eee;border-radius:9px;padding:10px;margin-bottom:8px">'
+      +'<div style="display:flex;justify-content:space-between;align-items:center">'
+      +'<span style="font-weight:700;color:#0F6E56">'+rt.name+(rt.group?' <span style="font-size:10px;color:#999">· '+rt.group+'</span>':'')+'</span>'
+      +'<span style="font-size:11px;color:#b7950b;font-weight:700">ขั้นต่ำ '+(parseInt(rt.min)||0).toLocaleString("th-TH")+'฿</span></div>'
+      +'<div style="font-size:11px;color:#777;margin-top:3px">'+summary+'</div>'
+      +'<div style="margin-top:5px;display:flex;gap:6px">'
+      +'<button onclick="editRoute('+i+')" style="background:#eef;border:1px solid #cce;border-radius:5px;padding:2px 10px;font-size:11px;cursor:pointer">แก้</button>'
+      +'<button onclick="removeRoute('+i+')" style="background:#fee;border:1px solid #fcc;border-radius:5px;padding:2px 10px;font-size:11px;color:#c0392b;cursor:pointer">ลบ</button>'
+      +'</div></div>';
+  }).join("");
+}
+function persistRoutes(){
+  if(!GolodDB.saveSetting){ alert("golod-firebase.js ยังไม่อัปเดต"); return; }
+  GolodDB.saveSetting("routes", _routes).then(function(){
+    alert("✅ บันทึกเส้นทางแล้ว "+_routes.length+" เส้น"); closeRoutes();
+  }).catch(function(e){ alert("❌ "+e.message); });
+}
+function _atTarget(){ var v=parseInt((document.getElementById("at-target")||{}).value)||20; return v<1?20:v; }
+function openAutoTrip(){
+  if(!CU || CU.role!=="admin"){ alert("เฉพาะ Admin"); return; }
+  if(typeof BILLS==="undefined" || !Array.isArray(BILLS)){ alert("ยังโหลดบิลไม่เสร็จ ลองรีเฟรชก่อนครับ"); return; }
+  if(!_routes.length){ alert("ยังไม่ได้ตั้งเส้นทาง — กดปุ่ม 🛣️ เส้นทาง เพื่อตั้งก่อนครับ"); return; }
+  var pool=["ออกบิลรับของ","issued","นำส่งใหม่","ระหว่างนำส่งสาขา",""];
+  var groups={};
+  BILLS.forEach(function(b){
+    if(!b||!b.billNo||b.tripId) return;
+    if(pool.indexOf(b.status||"")<0) return;
+    var dp=b.destProv||(b.form&&b.form.destProv)||"";
+    var da=b.destAmphoe||(b.form&&b.form.destAmphoe)||"";
+    var rt=getRouteForBill(dp,da);
+    var key=rt?rt.name:"ไม่ระบุเส้น";
+    if(!groups[key]) groups[key]={bills:[], total:0, min:(rt?(parseInt(rt.min)||0):0), sel:true, hasRoute:!!rt};
+    groups[key].bills.push(b); groups[key].total+=parseFloat(b.freightNet||0)||0;
+  });
+  Object.keys(groups).forEach(function(k){ var g=groups[k];
+    if(!g.hasRoute) g.sel=false; else if(g.min>0 && g.total<g.min) g.sel=false; });
+  _autoTripGroups=groups; renderAutoTripPreview();
+  document.getElementById("modal-auto-trip").style.display="flex";
+}
+function renderAutoTripPreview(){
+  var keys=Object.keys(_autoTripGroups), body=document.getElementById("at-body"), N=_atTarget();
+  if(!keys.length){ body.innerHTML='<div style="text-align:center;padding:24px;color:#aaa">ไม่มีบิลที่ยังไม่ได้จัดเที่ยว 🎉</div>';
+    var b0=document.getElementById("at-confirm-btn"); if(b0) b0.style.display="none"; return; }
+  var html='<table style="width:100%;border-collapse:collapse;font-size:12px">'
+    +'<tr style="background:#f0faf5"><th style="padding:6px">เลือก</th><th style="text-align:left">เส้นทาง</th><th>บิล</th><th>ยอดรวม</th><th>เที่ยว</th></tr>';
+  keys.forEach(function(k){
+    var g=_autoTripGroups[k], chunks=Math.max(1,Math.ceil(g.bills.length/N));
+    var noRt=!g.hasRoute, low=g.hasRoute&&g.min>0&&g.total<g.min;
+    var warn=noRt?'<div style="font-size:10px;color:#c0392b">⚠️ ไม่อยู่ในเส้นใด — ตั้งเส้นเพิ่ม/จัดเอง</div>'
+            :(low?'<div style="font-size:10px;color:#c0392b">⚠️ ต่ำกว่าขั้นต่ำ '+g.min.toLocaleString("th-TH")+' — แนะนำพักไว้</div>':'');
+    html+='<tr style="border-bottom:1px solid #f0f0f0'+((low||noRt)?';background:#fff8f5':'')+'">'
+      +'<td style="text-align:center"><input type="checkbox" '+(g.sel?"checked":"")+' onchange="toggleAutoZone(\''+String(k).replace(/'/g,"")+'\')"></td>'
+      +'<td style="padding:6px;font-weight:700;color:'+(noRt?"#c0392b":"#0F6E56")+'">'+k+warn+'</td>'
+      +'<td style="text-align:center">'+g.bills.length+'</td>'
+      +'<td style="text-align:right;font-weight:700">'+g.total.toLocaleString("th-TH")+'</td>'
+      +'<td style="text-align:center">'+chunks+'</td></tr>';
+  });
+  html+='</table>'; body.innerHTML=html;
+  var selKeys=keys.filter(function(k){return _autoTripGroups[k].sel;});
+  var totTrips=selKeys.reduce(function(s,k){return s+Math.max(1,Math.ceil(_autoTripGroups[k].bills.length/N));},0);
+  var btn=document.getElementById("at-confirm-btn"); if(btn){ btn.style.display=""; btn.textContent="✅ สร้าง "+totTrips+" เที่ยว ("+selKeys.length+" เส้น)"; }
+}
+function toggleAutoZone(k){ if(_autoTripGroups[k]){ _autoTripGroups[k].sel=!_autoTripGroups[k].sel; renderAutoTripPreview(); } }
+function closeAutoTrip(){ document.getElementById("modal-auto-trip").style.display="none"; }
+function confirmAutoTrip(){
+  var ub=getUserBranch(), N=_atTarget();
+  var keys=Object.keys(_autoTripGroups).filter(function(k){return _autoTripGroups[k].sel && _autoTripGroups[k].bills.length;});
+  if(!keys.length){ alert("ยังไม่ได้เลือกเส้น"); return; }
+  if(!GolodDB.saveTrip){ alert("golod-firebase.js ยังไม่อัปเดต"); return; }
+  var totTrips=keys.reduce(function(s,k){return s+Math.max(1,Math.ceil(_autoTripGroups[k].bills.length/N));},0);
+  if(!confirm("สร้าง "+totTrips+" เที่ยว จาก "+keys.length+" เส้น?\nบิลจะถูกจัดเข้าเที่ยวอัตโนมัติ (ยังไม่ใส่คนรถ)")) return;
+  var now=new Date().toISOString(), today=new Date().toLocaleDateString("th-TH"), isAdmin=CU&&CU.role==="admin";
+  var btn=document.getElementById("at-confirm-btn"); if(btn){ btn.disabled=true; btn.textContent="⏳ กำลังสร้าง..."; }
+  var tasks=[];
+  keys.forEach(function(k){
+    var g=_autoTripGroups[k], bills=g.bills.slice(), nChunks=Math.max(1,Math.ceil(bills.length/N));
+    for(var c=0;c<nChunks;c++){
+      var chunk=bills.slice(c*N,(c+1)*N), billIds=chunk.map(function(b){return b.billNo;});
+      var firstBranch=(chunk[0]&&chunk[0].branch)||"", label=k+(nChunks>1?(" #"+(c+1)):"");
+      var trip={ branch:(ub!=="all"?ub:firstBranch), zone:k, route:k, billIds:billIds,
+        driverName:"", driverUsername:"", status:(isAdmin?"open":"proposed"), source:"auto",
+        note:"ออโต้จัดเที่ยว "+today+" · เส้น "+label, createdAt:now, createdBy:CU.username };
+      if(!isAdmin){ trip.settlement={status:"proposed", source:"auto"}; }
+      (function(billIds){
+        tasks.push(GolodDB.saveTrip(trip).then(function(saved){
+          var tid=saved&&saved.id;
+          if(tid && GolodDB.updateBill){
+            billIds.forEach(function(bn){ GolodDB.updateBill(bn,{tripId:tid}).catch(function(){});
+              var bb=BILLS.find(function(x){return x.billNo===bn;}); if(bb) bb.tripId=tid; });
+          }
+          return tid;
+        }));
+      })(billIds);
+    }
+  });
+  Promise.all(tasks).then(function(ids){
+    alert("✅ สร้าง "+ids.filter(Boolean).length+" เที่ยวแล้ว!"+(isAdmin?"":" (รออนุมัติ)"));
+    closeAutoTrip(); if(typeof renderTripTab==="function") renderTripTab();
+  }).catch(function(e){
+    alert("❌ "+((e&&e.message)||e));
+    if(btn){ btn.disabled=false; renderAutoTripPreview(); }
+  });
 }
 
 function saveDispatchLogNow(bills, targetId, targetName){
