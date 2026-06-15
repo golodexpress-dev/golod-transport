@@ -667,7 +667,7 @@ tr:hover td{background:#f8fffe}
 <div class="topbar">
   <span class="title">🚛 จัดการขนส่ง</span>
   <span id="session-info" style="font-size:11px;opacity:.8"></span>
-  <span style="font-size:10px;opacity:.65;margin-left:auto">build 2026-06-10z20</span>
+  <span style="font-size:10px;opacity:.65;margin-left:auto">build 2026-06-10z21</span>
   <a href="GolodApp.html" style="margin-left:10px">← หน้าหลัก</a>
 </div>
 <div class="container">
@@ -5198,15 +5198,20 @@ function _rtParseRules(text){
 function _rtRulesToText(rules){
   return (rules||[]).map(function(r){ return r.prov+(r.amphoes&&r.amphoes.length?(": "+r.amphoes.join(", ")):""); }).join("\n");
 }
+var _PROV_ALIAS={"โคราช":"นครราชสีมา","กทม":"กรุงเทพมหานคร","กรุงเทพ":"กรุงเทพมหานคร","กรุงเทพฯ":"กรุงเทพมหานคร","อยุธยา":"พระนครศรีอยุธยา"};
+function _normProv(p){ p=String(p||"").trim().replace(/^จังหวัด\s*/,"").replace(/^จ\.?\s*/,""); return _PROV_ALIAS[p]||p; }
+function _normAmp(a){ return String(a||"").trim().replace(/^อำเภอ\s*/,"").replace(/^อ\.?\s*/,"").replace(/^เขต\s*/,""); }
 function getRouteForBill(prov, amphoe){
-  prov=(prov||"").trim(); amphoe=(amphoe||"").trim();
+  var p=_normProv(prov), a=_normAmp(amphoe);
   var whole=null;
   for(var i=0;i<_routes.length;i++){
     var rt=_routes[i]; if(!rt||!rt.rules) continue;
     for(var j=0;j<rt.rules.length;j++){
-      var ru=rt.rules[j]; if(!ru||String(ru.prov).trim()!==prov) continue;
-      if(ru.amphoes&&ru.amphoes.length){ if(ru.amphoes.indexOf(amphoe)>=0) return rt; }
-      else { if(!whole) whole=rt; }
+      var ru=rt.rules[j]; if(!ru||_normProv(ru.prov)!==p) continue;
+      if(ru.amphoes&&ru.amphoes.length){
+        var hit=ru.amphoes.some(function(x){ var rx=_normAmp(x); return rx===a || (rx==="เมือง" && a.indexOf("เมือง")===0); });
+        if(hit) return rt;
+      } else { if(!whole) whole=rt; }
     }
   }
   return whole;
