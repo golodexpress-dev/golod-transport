@@ -14,7 +14,7 @@
   <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
 </head><body>
 <div class="golod-bar no-print">
-  <h1>โกโลด ทรานสปอร์ต — ออกบิล Thermal 80mm <span style="font-size:11px;font-weight:400;opacity:.6">build 2026-06-11·b22</span></h1>
+  <h1>โกโลด ทรานสปอร์ต — ออกบิล Thermal 80mm <span style="font-size:11px;font-weight:400;opacity:.6">build 2026-06-11·b23</span></h1>
   <div id="golod-chip"></div>
   <a href="GolodApp.html" style="font-size:11px;color:#9FE1CB;background:rgba(255,255,255,.15);padding:3px 10px;border-radius:20px;text-decoration:none">← หน้าหลัก</a>
   <a href="DailyReport.html" style="font-size:11px;color:#FFE082;background:rgba(255,255,255,.15);padding:3px 10px;border-radius:20px;text-decoration:none">📊 รายงานสิ้นวัน</a>
@@ -3514,6 +3514,7 @@ function ThermalBillingApp() {
     if(saveBtn){ saveBtn.disabled=true; saveBtn.textContent="⏳ กำลังบันทึก..."; saveBtn.style.background="#aaa"; }
 
     const doPreview = () => {
+      window._tbSaving = false;
       if(saveBtn){ saveBtn.disabled=false; saveBtn.textContent="ออกบิล ✓"; saveBtn.style.background="#1D9E75"; }
       setViewBill(nb);
       setView("preview");
@@ -3523,6 +3524,7 @@ function ThermalBillingApp() {
       GolodDB.saveBill(nb).then(function(){
         doPreview(); // บันทึกสำเร็จ → ไป preview
       }).catch(function(e){
+        window._tbSaving = false;
         if(saveBtn){ saveBtn.disabled=false; saveBtn.textContent="ออกบิล ✓"; saveBtn.style.background="#1D9E75"; }
         if(!confirm("⚠️ บันทึกไม่สำเร็จ: " + (e.message||"") + "\n\nต้องการดำเนินการต่อไหม?")) return;
         doPreview();
@@ -3531,6 +3533,10 @@ function ThermalBillingApp() {
       doPreview();
     }
     };
+    // กันกดซ้ำ/ดับเบิลแท็บ — ล็อก + ดับปุ่มทันที ก่อนเริ่ม async (สำคัญ: กันออกบิลซ้ำ)
+    if (window._tbSaving) return;
+    window._tbSaving = true;
+    (function(){ var _sb=document.querySelector("[data-main-save-btn]"); if(_sb){ _sb.disabled=true; _sb.textContent="⏳ กำลังบันทึก..."; _sb.style.background="#aaa"; } })();
     // บิลใหม่ → จองเลขแบบ atomic ตอนเซฟ (กันเลขซ้ำ) · บิลแก้ไข → ใช้เลขเดิม
     if (!form._editBillNo) {
       reserveBillNo(form.staff || staffCode).then(function(no){ billNo.current = no; _doSaveBill(); })

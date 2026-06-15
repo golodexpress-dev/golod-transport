@@ -667,7 +667,7 @@ tr:hover td{background:#f8fffe}
 <div class="topbar">
   <span class="title">🚛 จัดการขนส่ง</span>
   <span id="session-info" style="font-size:11px;opacity:.8"></span>
-  <span style="font-size:10px;opacity:.65;margin-left:auto">build 2026-06-10z23</span>
+  <span style="font-size:10px;opacity:.65;margin-left:auto">build 2026-06-10z24</span>
   <a href="GolodApp.html" style="margin-left:10px">← หน้าหลัก</a>
 </div>
 <div class="container">
@@ -829,6 +829,18 @@ tr:hover td{background:#f8fffe}
     <div class="btn-row" style="margin-top:12px">
       <button class="btn btn-gray" onclick="closeRoutes()">ปิด</button>
       <button class="btn btn-green" onclick="persistRoutes()">💾 บันทึกทั้งหมด</button>
+    </div>
+  </div>
+</div>
+
+<div class="modal-bg" id="modal-dup-bills" style="display:none">
+  <div class="modal" style="max-width:640px;max-height:92vh;overflow-y:auto">
+    <h3 style="color:#c0392b;margin-bottom:4px">🔁 ตรวจบิลซ้ำ</h3>
+    <div style="font-size:11px;color:#888;margin-bottom:10px">หาบิลที่ <b>ผู้ส่ง + ผู้รับ + ปลายทาง + ค่าส่ง</b> ตรงกันในวันเดียวกัน — เลือกใบที่จะลบ (ค่าเริ่มต้น: เก็บใบแรก/ใบที่อยู่ในเที่ยว) · <b style="color:#c0392b">การลบเป็นการลบถาวร</b></div>
+    <div id="dup-body" style="max-height:60vh;overflow-y:auto"></div>
+    <div class="btn-row" style="margin-top:12px">
+      <button class="btn btn-gray" onclick="closeDupBills()">ปิด</button>
+      <button class="btn" style="background:#c0392b;color:#fff" id="dup-del-btn" onclick="confirmDeleteDups()">🗑️ ลบที่เลือก</button>
     </div>
   </div>
 </div>
@@ -1595,6 +1607,7 @@ function renderTripList(){
     +(isAdmin?'<button class="btn btn-gray" onclick="openRoutes()" title="ตั้งเส้นทางจัดส่ง">🛣️เส้นทาง</button>':'')
     +'<button class="btn btn-gray" onclick="renderTripTab()">🔄 รีเฟรช</button>'
     +(isAdmin?'<button class="btn btn-gray" onclick="openAutoTrip()" title="จัดบิลเข้าเที่ยวอัตโนมัติตามเส้นทาง">🤖 ออโต้จัดเที่ยว</button>':'')
+    +(isAdmin?'<button class="btn btn-gray" onclick="openDupBills()" title="ตรวจบิลซ้ำ">🔁 บิลซ้ำ</button>':'')
     +'<button class="btn btn-green" onclick="openCreateTrip()">+ สร้างเที่ยวใหม่</button>'
     +'</div></div>'
     +(openCards||'<div style="text-align:center;padding:20px;color:#aaa">ไม่มีเที่ยวที่เปิดอยู่</div>')
@@ -5407,6 +5420,92 @@ function confirmAutoTrip(){
     alert("❌ "+((e&&e.message)||e));
     if(btn){ btn.disabled=false; renderAutoTripPreview(); }
   });
+}
+
+// ===== ตรวจบิลซ้ำ (admin) =====
+var _dupGroups=[], _dupDel={};
+function _dupUid(b){ return (b.billNo||"")+"|"+(b.createdAt||""); }
+function openDupBills(){
+  if(!CU||CU.role!=="admin"){ alert("เฉพาะ Admin"); return; }
+  if(typeof BILLS==="undefined"||!Array.isArray(BILLS)){ alert("ยังโหลดบิลไม่เสร็จ ลองรีเฟรชก่อนครับ"); return; }
+  var map={};
+  BILLS.forEach(function(b){
+    if(!b||!b.billNo) return;
+    if((b.status||"")==="ยกเลิก") return;
+    var sn=String(b.senderName||(b.form&&b.form.senderName)||"").trim();
+    var rn=String(b.receiverName||(b.form&&b.form.receiverName)||"").trim();
+    var dp=String(b.destProv||(b.form&&b.form.destProv)||"").trim();
+    var da=String(b.destAmphoe||(b.form&&b.form.destAmphoe)||"").trim();
+    var fr=String(parseFloat(b.freightNet||0)||0);
+    var dt=(typeof billDateStr==="function"?billDateStr(b):"")||"";
+    var key=dt+"|"+sn+"|"+rn+"|"+dp+"|"+da+"|"+fr;
+    (map[key]=map[key]||[]).push(b);
+  });
+  _dupGroups=Object.keys(map).map(function(k){return {key:k,bills:map[k]};}).filter(function(g){return g.bills.length>1;});
+  _dupGroups.sort(function(a,b){return b.bills.length-a.bills.length;});
+  _dupDel={};
+  _dupGroups.forEach(function(g){
+    g.bills.sort(function(a,b){return String(a.createdAt||"").localeCompare(String(b.createdAt||""));});
+    var keeperIdx=g.bills.findIndex(function(b){return b.tripId;});
+    if(keeperIdx<0) keeperIdx=0;
+    g.bills.forEach(function(b,i){ if(i!==keeperIdx && !b.tripId) _dupDel[_dupUid(b)]=true; });
+  });
+  renderDupBills();
+  document.getElementById("modal-dup-bills").style.display="flex";
+}
+function renderDupBills(){
+  var el=document.getElementById("dup-body");
+  if(!_dupGroups.length){ el.innerHTML='<div style="text-align:center;padding:24px;color:#2e7d32">ไม่พบบิลซ้ำ 🎉</div>';
+    var b0=document.getElementById("dup-del-btn"); if(b0) b0.style.display="none"; return; }
+  var html="";
+  _dupGroups.forEach(function(g){
+    var f=g.bills[0];
+    var sn=String(f.senderName||(f.form&&f.form.senderName)||"-");
+    var rn=String(f.receiverName||(f.form&&f.form.receiverName)||"-");
+    var dp=String(f.destProv||"")+" "+String(f.destAmphoe||"");
+    html+='<div style="border:1px solid #f0d0c0;border-radius:9px;padding:10px;margin-bottom:10px;background:#fffaf8">'
+      +'<div style="font-size:12px;font-weight:700;color:#c0392b;margin-bottom:4px">'+g.bills.length+' ใบซ้ำ · '+sn+' → '+rn+'</div>'
+      +'<div style="font-size:11px;color:#777;margin-bottom:6px">'+dp+' · '+(parseFloat(f.freightNet||0)||0).toLocaleString("th-TH")+'฿</div>';
+    g.bills.forEach(function(b){
+      var uid=_dupUid(b), del=!!_dupDel[uid], inTrip=!!b.tripId, tm="";
+      try{ tm=new Date(b.createdAt).toLocaleString("th-TH",{hour:"2-digit",minute:"2-digit",day:"2-digit",month:"2-digit"}); }catch(e){}
+      html+='<div style="display:flex;align-items:center;gap:8px;padding:4px 0;border-top:1px dotted #eee">'
+        +'<input type="checkbox" '+(del?"checked":"")+' '+(inTrip?"disabled":"")+' onchange="toggleDupDel(\''+uid.replace(/'/g,"")+'\')">'
+        +'<span style="font-weight:600;color:#0F6E56;white-space:nowrap">'+(b.billNo||"")+'</span>'
+        +'<span style="flex:1;color:#888;font-size:11px">'+tm+' · '+(b.status||"ว่าง")+(inTrip?' · <span style="color:#b7950b">อยู่ในเที่ยว</span>':'')+'</span>'
+        +(inTrip?'<span style="color:#b7950b;font-size:11px;font-weight:700">เก็บ(เที่ยว)</span>':(del?'<span style="color:#c0392b;font-size:11px;font-weight:700">จะลบ</span>':'<span style="color:#2e7d32;font-size:11px;font-weight:700">เก็บ</span>'))
+        +'</div>';
+    });
+    html+='</div>';
+  });
+  el.innerHTML=html;
+  var n=Object.keys(_dupDel).filter(function(k){return _dupDel[k];}).length;
+  var btn=document.getElementById("dup-del-btn"); if(btn){ btn.style.display=""; btn.textContent="🗑️ ลบที่เลือก ("+n+")"; }
+}
+function toggleDupDel(uid){ _dupDel[uid]=!_dupDel[uid]; renderDupBills(); }
+function closeDupBills(){ document.getElementById("modal-dup-bills").style.display="none"; }
+function confirmDeleteDups(){
+  var dels=[];
+  _dupGroups.forEach(function(g){ g.bills.forEach(function(b){ if(_dupDel[_dupUid(b)] && !b.tripId) dels.push(b); }); });
+  if(!dels.length){ alert("ยังไม่ได้เลือกบิลที่จะลบ"); return; }
+  if(!GolodDB.findBillDocs||!GolodDB.deleteBillDoc){ alert("golod-firebase.js ยังไม่อัปเดต"); return; }
+  if(!confirm("ลบ "+dels.length+" บิลถาวร?\n\n"+dels.map(function(b){return b.billNo;}).join(", ")+"\n\n⚠️ ลบแล้วกู้คืนไม่ได้")) return;
+  var btn=document.getElementById("dup-del-btn"); if(btn){ btn.disabled=true; btn.textContent="⏳ กำลังลบ..."; }
+  var tasks=dels.map(function(b){
+    return GolodDB.findBillDocs(b.billNo).then(function(docs){
+      if(!docs||!docs.length) return;
+      var target = docs.length===1 ? docs[0] : (docs.find(function(d){return d.createdAt===b.createdAt;})||docs[0]);
+      return GolodDB.deleteBillDoc(target._id).then(function(){
+        var i=BILLS.findIndex(function(x){return x.billNo===b.billNo && (x.createdAt||"")===(b.createdAt||"");}); if(i>=0) BILLS.splice(i,1);
+      });
+    });
+  });
+  Promise.all(tasks).then(function(){
+    if(btn){ btn.disabled=false; }
+    alert("✅ ลบ "+dels.length+" บิลแล้ว");
+    openDupBills();
+    if(typeof renderTripTab==="function") renderTripTab();
+  }).catch(function(e){ if(btn){btn.disabled=false;} alert("❌ ลบไม่สำเร็จบางส่วน: "+((e&&e.message)||e)); openDupBills(); });
 }
 
 function saveDispatchLogNow(bills, targetId, targetName){
