@@ -667,7 +667,7 @@ tr:hover td{background:#f8fffe}
 <div class="topbar">
   <span class="title">🚛 จัดการขนส่ง</span>
   <span id="session-info" style="font-size:11px;opacity:.8"></span>
-  <span style="font-size:10px;opacity:.65;margin-left:auto">build 2026-06-10z19</span>
+  <span style="font-size:10px;opacity:.65;margin-left:auto">build 2026-06-10z20</span>
   <a href="GolodApp.html" style="margin-left:10px">← หน้าหลัก</a>
 </div>
 <div class="container">
@@ -5181,6 +5181,7 @@ var _routes = [];        // [{name, group, min, rules:[{prov, amphoes:[]}]}]
 var _rtEditIdx = -1;
 var _autoTripGroups = {};
 var _autoTripExp = {};
+var _autoTripExcl = {};
 function loadRoutes(){
   if(!GolodDB.getSetting) return;
   GolodDB.getSetting("routes").then(function(v){ if(Array.isArray(v)) _routes=v; }).catch(function(){});
@@ -5284,47 +5285,56 @@ function openAutoTrip(){
   });
   Object.keys(groups).forEach(function(k){ var g=groups[k];
     if(!g.hasRoute) g.sel=false; else if(g.min>0 && g.total<g.min) g.sel=false; });
-  _autoTripGroups=groups; _autoTripExp={}; renderAutoTripPreview();
+  _autoTripGroups=groups; _autoTripExp={}; _autoTripExcl={}; renderAutoTripPreview();
   document.getElementById("modal-auto-trip").style.display="flex";
 }
 function renderAutoTripPreview(){
   var keys=Object.keys(_autoTripGroups), body=document.getElementById("at-body"), N=_atTarget();
   if(!keys.length){ body.innerHTML='<div style="text-align:center;padding:24px;color:#aaa">ไม่มีบิลที่ยังไม่ได้จัดเที่ยว 🎉</div>';
     var b0=document.getElementById("at-confirm-btn"); if(b0) b0.style.display="none"; return; }
+  function effBills(g){ return g.bills.filter(function(b){return !_autoTripExcl[b.billNo];}); }
   var html='<table style="width:100%;border-collapse:collapse;font-size:12px">'
     +'<tr style="background:#f0faf5"><th style="padding:6px">เลือก</th><th style="text-align:left">เส้นทาง (กดดูบิล)</th><th>บิล</th><th>ยอดรวม</th><th>เที่ยว</th></tr>';
   keys.forEach(function(k){
-    var g=_autoTripGroups[k], chunks=Math.max(1,Math.ceil(g.bills.length/N));
-    var noRt=!g.hasRoute, low=g.hasRoute&&g.min>0&&g.total<g.min, exp=!!_autoTripExp[k];
+    var g=_autoTripGroups[k], eff=effBills(g);
+    var effTotal=eff.reduce(function(s,b){return s+(parseFloat(b.freightNet||0)||0);},0);
+    var chunks=Math.max(1,Math.ceil((eff.length||1)/N));
+    var noRt=!g.hasRoute, low=g.hasRoute&&g.min>0&&effTotal<g.min, exp=!!_autoTripExp[k];
     var safek=String(k).replace(/'/g,"");
     var warn=noRt?'<div style="font-size:10px;color:#c0392b">⚠️ ไม่อยู่ในเส้นใด — ตั้งเส้นเพิ่ม/จัดเอง</div>'
             :(low?'<div style="font-size:10px;color:#c0392b">⚠️ ต่ำกว่าขั้นต่ำ '+g.min.toLocaleString("th-TH")+' — แนะนำพักไว้</div>':'');
     html+='<tr style="border-bottom:1px solid #f0f0f0'+((low||noRt)?';background:#fff8f5':'')+'">'
       +'<td style="text-align:center"><input type="checkbox" '+(g.sel?"checked":"")+' onchange="toggleAutoZone(\''+safek+'\')"></td>'
       +'<td style="padding:6px;font-weight:700;color:'+(noRt?"#c0392b":"#0F6E56")+';cursor:pointer" onclick="toggleAutoExpand(\''+safek+'\')">'+(exp?"\u25be ":"\u25b8 ")+k+warn+'</td>'
-      +'<td style="text-align:center">'+g.bills.length+'</td>'
-      +'<td style="text-align:right;font-weight:700">'+g.total.toLocaleString("th-TH")+'</td>'
-      +'<td style="text-align:center">'+chunks+'</td></tr>';
+      +'<td style="text-align:center">'+eff.length+(eff.length<g.bills.length?(' <span style="color:#c0392b;font-size:10px">/'+g.bills.length+'</span>'):'')+'</td>'
+      +'<td style="text-align:right;font-weight:700">'+effTotal.toLocaleString("th-TH")+'</td>'
+      +'<td style="text-align:center">'+(eff.length?chunks:0)+'</td></tr>';
     if(exp){
       html+='<tr><td colspan="5" style="padding:4px 6px 8px 24px;background:#fafafa">'
-        +'<div style="max-height:220px;overflow-y:auto;font-size:11px">'
+        +'<div style="max-height:240px;overflow-y:auto;font-size:11px">'
         + g.bills.map(function(b){
+            var ex=!!_autoTripExcl[b.billNo];
             var rn=b.receiverName||(b.form&&b.form.receiverName)||"-";
             var da=b.destAmphoe||(b.form&&b.form.destAmphoe)||"";
             var dp=b.destProv||(b.form&&b.form.destProv)||"";
-            return '<div style="display:flex;justify-content:space-between;gap:8px;padding:2px 0;border-bottom:1px dotted #eee">'
-              +'<span style="color:#0F6E56;font-weight:600;white-space:nowrap">'+(b.billNo||"")+'</span>'
+            var bn=String(b.billNo||"").replace(/'/g,"");
+            return '<div style="display:flex;justify-content:space-between;gap:8px;padding:3px 0;border-bottom:1px dotted #eee;opacity:'+(ex?'0.45':'1')+'">'
+              +'<span style="color:#0F6E56;font-weight:600;white-space:nowrap;'+(ex?'text-decoration:line-through':'')+'">'+(b.billNo||"")+'</span>'
               +'<span style="flex:1;color:#555;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">'+rn+' \u00b7 '+da+' '+dp+'</span>'
-              +'<span style="color:#333;font-weight:600;white-space:nowrap">'+(parseFloat(b.freightNet||0)||0).toLocaleString("th-TH")+'</span></div>';
+              +'<span style="color:#333;font-weight:600;white-space:nowrap">'+(parseFloat(b.freightNet||0)||0).toLocaleString("th-TH")+'</span>'
+              +'<span onclick="toggleAutoExclBill(\''+bn+'\')" title="'+(ex?'ใส่กลับ':'ตัดออก')+'" style="cursor:pointer;font-weight:700;white-space:nowrap;color:'+(ex?'#0F6E56':'#c0392b')+'">'+(ex?'\u21a9':'\u2715')+'</span>'
+              +'</div>';
           }).join("")
         +'</div></td></tr>';
     }
   });
   html+='</table>'; body.innerHTML=html;
-  var selKeys=keys.filter(function(k){return _autoTripGroups[k].sel;});
-  var totTrips=selKeys.reduce(function(s,k){return s+Math.max(1,Math.ceil(_autoTripGroups[k].bills.length/N));},0);
+  var selKeys=keys.filter(function(k){return _autoTripGroups[k].sel && effBills(_autoTripGroups[k]).length;});
+  var totTrips=selKeys.reduce(function(s,k){return s+Math.max(1,Math.ceil(effBills(_autoTripGroups[k]).length/N));},0);
   var btn=document.getElementById("at-confirm-btn"); if(btn){ btn.style.display=""; btn.textContent="\u2705 \u0e2a\u0e23\u0e49\u0e32\u0e07 "+totTrips+" \u0e40\u0e17\u0e35\u0e48\u0e22\u0e27 ("+selKeys.length+" \u0e40\u0e2a\u0e49\u0e19)"; }
 }
+function toggleAutoExpand(k){ _autoTripExp[k]=!_autoTripExp[k]; renderAutoTripPreview(); }
+function toggleAutoExclBill(bn){ _autoTripExcl[bn]=!_autoTripExcl[bn]; renderAutoTripPreview(); }
 function toggleAutoExpand(k){ _autoTripExp[k]=!_autoTripExp[k]; renderAutoTripPreview(); }
 function toggleAutoZone(k){ if(_autoTripGroups[k]){ _autoTripGroups[k].sel=!_autoTripGroups[k].sel; renderAutoTripPreview(); } }
 function closeAutoTrip(){ document.getElementById("modal-auto-trip").style.display="none"; }
@@ -5333,13 +5343,13 @@ function confirmAutoTrip(){
   var keys=Object.keys(_autoTripGroups).filter(function(k){return _autoTripGroups[k].sel && _autoTripGroups[k].bills.length;});
   if(!keys.length){ alert("ยังไม่ได้เลือกเส้น"); return; }
   if(!GolodDB.saveTrip){ alert("golod-firebase.js ยังไม่อัปเดต"); return; }
-  var totTrips=keys.reduce(function(s,k){return s+Math.max(1,Math.ceil(_autoTripGroups[k].bills.length/N));},0);
+  var totTrips=keys.reduce(function(s,k){var ef=_autoTripGroups[k].bills.filter(function(b){return !_autoTripExcl[b.billNo];});return s+(ef.length?Math.max(1,Math.ceil(ef.length/N)):0);},0);
   if(!confirm("สร้าง "+totTrips+" เที่ยว จาก "+keys.length+" เส้น?\nบิลจะถูกจัดเข้าเที่ยวอัตโนมัติ (ยังไม่ใส่คนรถ)")) return;
   var now=new Date().toISOString(), today=new Date().toLocaleDateString("th-TH"), isAdmin=CU&&CU.role==="admin";
   var btn=document.getElementById("at-confirm-btn"); if(btn){ btn.disabled=true; btn.textContent="⏳ กำลังสร้าง..."; }
   var tasks=[];
   keys.forEach(function(k){
-    var g=_autoTripGroups[k], bills=g.bills.slice(), nChunks=Math.max(1,Math.ceil(bills.length/N));
+    var g=_autoTripGroups[k], bills=g.bills.filter(function(b){return !_autoTripExcl[b.billNo];}); if(!bills.length) return; var nChunks=Math.max(1,Math.ceil(bills.length/N));
     for(var c=0;c<nChunks;c++){
       var chunk=bills.slice(c*N,(c+1)*N), billIds=chunk.map(function(b){return b.billNo;});
       var firstBranch=(chunk[0]&&chunk[0].branch)||"", label=k+(nChunks>1?(" #"+(c+1)):"");
