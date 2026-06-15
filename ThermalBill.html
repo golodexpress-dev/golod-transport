@@ -14,7 +14,7 @@
   <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
 </head><body>
 <div class="golod-bar no-print">
-  <h1>โกโลด ทรานสปอร์ต — ออกบิล Thermal 80mm <span style="font-size:11px;font-weight:400;opacity:.6">build 2026-06-11·b20</span></h1>
+  <h1>โกโลด ทรานสปอร์ต — ออกบิล Thermal 80mm <span style="font-size:11px;font-weight:400;opacity:.6">build 2026-06-11·b22</span></h1>
   <div id="golod-chip"></div>
   <a href="GolodApp.html" style="font-size:11px;color:#9FE1CB;background:rgba(255,255,255,.15);padding:3px 10px;border-radius:20px;text-decoration:none">← หน้าหลัก</a>
   <a href="DailyReport.html" style="font-size:11px;color:#FFE082;background:rgba(255,255,255,.15);padding:3px 10px;border-radius:20px;text-decoration:none">📊 รายงานสิ้นวัน</a>
@@ -388,15 +388,23 @@ function getReceiverMin(name, prov, addr){
   }
   return best;
 }
-function getSpecialAreaMin(prov, amphoe){
+function getSpecialAreaMin(prov, amphoe, tambon){
   if(!prov) return 0;
-  var amp=(amphoe||"").trim();
+  var amp=(amphoe||"").trim(), tb=(tambon||"").trim();
+  var tambonMin=null, amphoeOverride=null;
   if(Array.isArray(SPECIAL_AREAS)){
     for(var i=0;i<SPECIAL_AREAS.length;i++){
-      var sa=SPECIAL_AREAS[i];
-      if(sa&&sa.amphoe&&String(sa.amphoe).trim()===amp&&(!sa.prov||String(sa.prov).trim()===prov)) return parseInt(sa.min)||0;
+      var sa=SPECIAL_AREAS[i]; if(!sa||!sa.amphoe) continue;
+      if(String(sa.amphoe).trim()!==amp) continue;
+      if(sa.prov && String(sa.prov).trim()!==prov) continue;
+      var m=parseInt(sa.min)||0;
+      var saTb=String(sa.tambon||"").trim();
+      if(saTb){ if(tb && saTb===tb) tambonMin=(tambonMin==null?m:Math.max(tambonMin,m)); }
+      else { amphoeOverride=(amphoeOverride==null?m:Math.max(amphoeOverride,m)); }
     }
   }
+  if(tambonMin!=null) return tambonMin;        // ตำบลเจาะจงมาก่อน
+  if(amphoeOverride!=null) return amphoeOverride; // override ระดับอำเภอ (ทับฮาร์ดโค้ด)
   var min1000=["น้ำหนาว","นาแห้ว","ทองผาภูมิ","ปิล็อก"];
   var min500=["ศรีสวัสดิ์","สังขละบุรี","ปากชม","นาด้วง","ตาพระยา","โคกสูง","คลองหาด",
     "สอยดาว","เขาสมิง","บ่อไร่","เขาชะเมา","สวี","หลังสวน","บ้านไร่","สามเงา",
@@ -406,28 +414,13 @@ function getSpecialAreaMin(prov, amphoe){
     "สิรินธร","ศรีเมืองใหม่","นาจะหลวย","น้ำยืน","ภูสิงห์","แม่สอด","พบพระ"];
   if(min1000.indexOf(amp)>=0) return 1000;
   if(min500.indexOf(amp)>=0) return 500;
-  return 0; // ไม่รวมขั้นต่ำพื้นฐานรายจังหวัด
+  return 0;
 }
-function getMinFreight(prov, amphoe) {
+function getMinFreight(prov, amphoe, tambon) {
   if(!prov) return 0;
-  var _amp=(amphoe||"").trim();
-  if(Array.isArray(SPECIAL_AREAS)){
-    for(var _i=0;_i<SPECIAL_AREAS.length;_i++){
-      var _sa=SPECIAL_AREAS[_i];
-      if(_sa&&_sa.amphoe&&String(_sa.amphoe).trim()===_amp&&(!_sa.prov||String(_sa.prov).trim()===prov))
-        return parseInt(_sa.min)||0;
-    }
-  }
-  var min1000 = ["น้ำหนาว","นาแห้ว","ทองผาภูมิ","ปิล็อก"];
-  var min500 = ["ศรีสวัสดิ์","สังขละบุรี","ปากชม","นาด้วง","ตาพระยา","โคกสูง","คลองหาด",
-    "สอยดาว","เขาสมิง","บ่อไร่","เขาชะเมา","สวี","หลังสวน","บ้านไร่","สามเงา",
-    "เถิน","แม่พริก","น้ำปาด","นครไทย","ชาติตระการ","หล่มสัก","หล่มเก่า",
-    "ภูเรือ","ด่านซ้าย","ศรีสัชนาลัย","สังคม","บ้านแพง","บึงโขงหลง",
-    "ดงหลวง","ภูพาน","เต่างอย","สามชัย","ภักดีชุมพล","เทพสถิต",
-    "สิรินธร","ศรีเมืองใหม่","นาจะหลวย","น้ำยืน","ภูสิงห์","แม่สอด","พบพระ"];
+  var sp = getSpecialAreaMin(prov, amphoe, tambon);
+  if(sp>0) return sp;
   var amp = amphoe||"";
-  if(min1000.indexOf(amp)>=0) return 1000;
-  if(min500.indexOf(amp)>=0) return 500;
   if(["กรุงเทพมหานคร","ปทุมธานี","สมุทรปราการ","สมุทรสาคร","นนทบุรี"].indexOf(prov)>=0) return 100;
   if(["พระนครศรีอยุธยา","นครปฐม","สมุทรสงคราม","เพชรบุรี","ราชบุรี","สุพรรณบุรี","สิงห์บุรี","อ่างทอง","ลพบุรี","สระบุรี","ปราจีนบุรี","นครนายก","ฉะเชิงเทรา","ชลบุรี","ระยอง"].indexOf(prov)>=0) return 120;
   if(["กาญจนบุรี","สระแก้ว","จันทบุรี","ชัยนาท","ประจวบคีรีขันธ์","นครราชสีมา","บุรีรัมย์","มหาสารคาม","ชัยภูมิ","ร้อยเอ็ด","ยโสธร","อุบลราชธานี","ศรีสะเกษ","สุรินทร์"].indexOf(prov)>=0) return amp.startsWith("เมือง")?120:150;
@@ -872,6 +865,37 @@ async function genBillNo(staff) {
   }
   return `${staff}${today}-${String(seq).padStart(2, "0")}`;
 }
+// reserveBillNo — จองเลขบิลแบบ atomic ตอนกดเซฟ (กันเลขซ้ำแม้หลายเครื่อง/แท็บพร้อมกัน)
+// ใช้ตัวนับ (counter) ใน collection billSeq + transaction; floor ด้วย max ของบิลวันนี้ (กันชนบิลเก่า)
+async function reserveBillNo(staff) {
+  const d = new Date();
+  const today = String(d.getDate()).padStart(2,"0") + String(d.getMonth()+1).padStart(2,"0");
+  const prefix = staff + today + "-";
+  const db = firebase.firestore();
+  let queriedMax = 0;
+  try {
+    const snap = await db.collection("bills").where("clerkCode","==",staff).where("date","==",todayStr()).get();
+    queriedMax = snap.docs.map(x => parseInt((x.data().billNo||"").slice(prefix.length))||0).reduce((m,n)=>Math.max(m,n),0);
+  } catch(e) {}
+  const ref = db.collection("billSeq").doc(staff + today);
+  try {
+    const seq = await db.runTransaction(async (tx) => {
+      const s = await tx.get(ref);
+      const cur = s.exists ? (parseInt(s.data().seq)||0) : 0;
+      const next = Math.max(cur, queriedMax) + 1;
+      tx.set(ref, { seq: next, staff: staff, date: todayStr() }, { merge: true });
+      return next;
+    });
+    try { localStorage.setItem(`golod_seq_${staff}_${today}`, String(seq)); } catch(e) {}
+    return `${prefix}${String(seq).padStart(2,"0")}`;
+  } catch(e) {
+    // fallback ถ้า transaction ล้ม — ใช้ floor + localStorage
+    const KEY = `golod_seq_${staff}_${today}`;
+    let seq = Math.max(queriedMax, parseInt(localStorage.getItem(KEY)||"0")||0) + 1;
+    try { localStorage.setItem(KEY, String(seq)); } catch(_) {}
+    return `${prefix}${String(seq).padStart(2,"0")}`;
+  }
+}
 function todayStr() {
   const d = new Date();
   return `${d.getDate()}/${d.getMonth() + 1}/${d.getFullYear() + 543}`;
@@ -1085,7 +1109,7 @@ function ThermalBill({
 }) {
   // คำนวณ minFreight ภายใน
 
-  const _autoMin = getMinFreight(form.destProv||"", form.receiverAmphoe||"");
+  const _autoMin = getMinFreight(form.destProv||"", form.receiverAmphoe||"", form.receiverTambon||"");
   const _minFr = Math.max(form.isSpecialArea ? (parseInt(form.minFreight)||0) : _autoMin, getReceiverMin(form.receiverName||"", form.destProv||"", [form.receiverAddr,form.receiverTambon,form.receiverAmphoe,form.destProv].filter(Boolean).join(" ")));
   const _isMinApplied = _minFr > 0 && (summary.freightTotal||summary.freightNet||0) < _minFr;
   var _FREIGHT_PAY$find, _BRANCHES$find;
@@ -3305,10 +3329,10 @@ function ThermalBillingApp() {
     return s + (v > 0 ? Math.round(v * 0.005) : 0);
   }, 0);
   const freightNetRaw = Math.max(0, freightTotal - discountAmt);
-  const autoMin = getMinFreight(form.destProv||"", form.receiverAmphoe||"");
+  const autoMin = getMinFreight(form.destProv||"", form.receiverAmphoe||"", form.receiverTambon||"");
   const _recvMin = getReceiverMin(form.receiverName||"", form.destProv||"", [form.receiverAddr,form.receiverTambon,form.receiverAmphoe,form.destProv].filter(Boolean).join(" "));
   const minFr = custPP > 0
-    ? Math.max(getSpecialAreaMin(form.destProv||"", form.receiverAmphoe||""), _recvMin)
+    ? Math.max(getSpecialAreaMin(form.destProv||"", form.receiverAmphoe||"", form.receiverTambon||""), _recvMin)
     : Math.max(form.isSpecialArea ? (parseInt(form.minFreight) || 0) : autoMin, _recvMin);
   const freightNet = Math.max(freightNetRaw, minFr);
   const isMinApplied = minFr > 0 && freightNetRaw < minFr;
@@ -3436,6 +3460,7 @@ function ThermalBillingApp() {
       if (it.desc) saveGoodsHistory(it.desc, it.goodsType);
     });
     // บันทึกทั้ง wrapped format (สำหรับ ThermalBill) และ flat format (สำหรับ TripManager)
+    const _doSaveBill = () => {
     const nb = {
       billNo: billNo.current,
       createdAt: new Date().toISOString(),
@@ -3504,6 +3529,14 @@ function ThermalBillingApp() {
       });
     } else {
       doPreview();
+    }
+    };
+    // บิลใหม่ → จองเลขแบบ atomic ตอนเซฟ (กันเลขซ้ำ) · บิลแก้ไข → ใช้เลขเดิม
+    if (!form._editBillNo) {
+      reserveBillNo(form.staff || staffCode).then(function(no){ billNo.current = no; _doSaveBill(); })
+        .catch(function(){ _doSaveBill(); });
+    } else {
+      _doSaveBill();
     }
   };
   const resetForm = () => {
