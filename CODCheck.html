@@ -90,6 +90,8 @@ td.r,th.r{text-align:right}
   body *{visibility:hidden!important}
   #page-voucher .vc-doc, #page-voucher .vc-doc *{visibility:visible!important}
   #page-voucher .vc-doc{position:absolute;left:0;top:0;width:100%;margin:0;border:none}
+  body.print-remit #remit-batch, body.print-remit #remit-batch *{visibility:visible!important}
+  body.print-remit #remit-batch{position:absolute;left:0;top:0;width:100%;margin:0;border:none}
   .vc-noprint{display:none!important}
 }
 </style>
@@ -110,7 +112,7 @@ td.r,th.r{text-align:right}
 <div class="app hidden" id="app-main">
   <div class="hdr">
     <div>
-      <div class="hdr-logo">GOLOD · ตรวจสอบ COD <span style="font-size:10px;opacity:.6;font-weight:400">build 2026-06-06·b3</span></div>
+      <div class="hdr-logo">GOLOD · ตรวจสอบ COD <span style="font-size:10px;opacity:.6;font-weight:400">build 2026-06-06·b5</span></div>
       <div class="hdr-sub">เช็คเงินปลายทางที่เก็บแทนลูกค้าต้นทาง — เก็บครบไหม / โอนคืนเท่าไหร่</div>
     </div>
     <div class="hdr-pills" id="hdr-pills"></div>
@@ -153,6 +155,7 @@ td.r,th.r{text-align:right}
     <div class="fld2"><label>ธนาคาร</label><input id="ac-bank" class="inp" placeholder="เช่น กสิกรไทย / ไทยพาณิชย์ / กรุงเทพ"></div>
     <div class="fld2"><label>เลขบัญชี</label><input id="ac-no" class="inp" placeholder="xxx-x-xxxxx-x"></div>
     <div class="fld2"><label>ชื่อบัญชี</label><input id="ac-acctname" class="inp" placeholder="ชื่อเจ้าของบัญชี"></div>
+    <div class="fld2"><label>ราคา/ชิ้น (พิเศษ) — เว้นว่าง = คิดตามปกติ</label><input id="ac-priceperpiece" class="inp" type="number" placeholder="เช่น 120, 150, 180"></div>
     <div style="display:flex;gap:8px;margin-top:6px">
       <button class="btn btn-green" style="flex:1" onclick="saveAcct()">บันทึก</button>
       <button class="btn btn-ghost" onclick="closeAcct()">ยกเลิก</button>
@@ -568,12 +571,9 @@ function renderTrips(){
 function toggleTrip(i){ var el=document.getElementById("trip-sub-"+i); if(el)el.classList.toggle("hidden"); }
 
 /* ----- REMIT (โอนคืนต้นทาง) ----- */
-function renderRemit(){
-  var bills=codBillsFiltered();
-  if(!bills.length){ document.getElementById("page-remit").innerHTML='<div class="empty">ไม่พบบิล COD ในช่วงที่เลือก</div>'; return; }
-
-  // group by sender
-  var groups={};
+var REMIT_BATCH_SHOW=false;
+function _remitGroups(){
+  var bills=codBillsFiltered(), groups={};
   bills.forEach(function(b){
     var s=getSender(b)||"(ไม่ระบุชื่อต้นทาง)";
     if(!groups[s]) groups[s]={name:s,bills:[],cod:0,fee:0,net:0,pendNet:0,exempt:isExempt(s)};
@@ -581,8 +581,12 @@ function renderRemit(){
     g.bills.push(b); g.cod+=getCOD(b); g.fee+=codFee(b); g.net+=codNet(b);
     if(!(b.codRemit&&b.codRemit.remitted)) g.pendNet+=codNet(b);
   });
-  var list=Object.keys(groups).map(function(k){return groups[k];})
-            .sort(function(a,b){return b.pendNet-a.pendNet;});
+  return Object.keys(groups).map(function(k){return groups[k];}).sort(function(a,b){return b.pendNet-a.pendNet;});
+}
+function renderRemit(){
+  var bills=codBillsFiltered();
+  if(!bills.length){ document.getElementById("page-remit").innerHTML='<div class="empty">ไม่พบบิล COD ในช่วงที่เลือก</div>'; return; }
+  var list=_remitGroups();
 
   var rows=list.map(function(g,gi){
     var ac=Accounts.get(g.name);
@@ -612,11 +616,45 @@ function renderRemit(){
   }).join("");
 
   document.getElementById("page-remit").innerHTML=
+    '<div class="vc-noprint" style="margin-bottom:10px;display:flex;gap:8px;flex-wrap:wrap;align-items:center">'+
+      '<button class="btn btn-green" onclick="remitToggleBatch()">🧾 '+(REMIT_BATCH_SHOW?'ซ่อนใบสรุป':'ใบสรุปโอนคืนทั้งหมด (รายผู้ส่ง)')+'</button>'+
+      (REMIT_BATCH_SHOW?'<button class="btn btn-ghost" onclick="remitPrintBatch()">🖨️ พิมพ์ใบสรุป</button>':'')+
+    '</div>'+
+    (REMIT_BATCH_SHOW?remitBatchDoc():'')+
     '<div class="mini-note">สูตร: โอนคืน = COD − (COD + ค่าส่งปลายทาง) × '+(COD_FEE_RATE*100)+'% — ถ้ามีเก็บค่าส่งปลายทาง จะคิด 3% รวมค่าส่งด้วย · ลูกค้ายกเว้น ('+COD_FEE_EXEMPT.join(", ")+') ได้ COD เต็ม · แตะแถวเพื่อดูรายบิล</div>'+
     '<table><thead><tr><th>ลูกค้าต้นทาง</th><th class="r">บิล</th><th class="r">COD</th><th class="r">ค่าธรรมเนียม</th><th class="r">โอนคืนสุทธิ</th><th>สถานะ</th><th></th></tr></thead>'+
     '<tbody>'+rows+'</tbody></table>';
 }
 function toggleRemit(i){ var el=document.getElementById("remit-sub-"+i); if(el)el.classList.toggle("hidden"); }
+function remitBatchDoc(){
+  var groups=_remitGroups().filter(function(g){return g.pendNet>0.005;});
+  if(!groups.length) return '<div class="empty">ไม่มียอดค้างโอนคืน 🎉</div>';
+  var t=new Date(), dd=("0"+t.getDate()).slice(-2), mm=("0"+(t.getMonth()+1)).slice(-2), yy=(t.getFullYear()+543);
+  var totPend=0, totBills=0, noAcct=0;
+  var rows=groups.map(function(g){
+    var ac=Accounts.get(g.name)||{};
+    var pend=g.bills.filter(function(b){return !(b.codRemit&&b.codRemit.remitted);});
+    totPend+=g.pendNet; totBills+=pend.length;
+    var hasAc=!!(ac.bank||ac.accountNo); if(!hasAc) noAcct++;
+    var acct=hasAc?('ธ.'+(ac.bank||'—')+' '+(ac.accountNo||'—')+(ac.accountName?'<br><span style="font-size:11px;color:#555">'+ac.accountName+'</span>':'')):'<span class="vc-note">⚠ ยังไม่ตั้งบัญชี</span>';
+    return '<tr><td>'+g.name+(Accounts.code(g.name)?' ('+Accounts.code(g.name)+')':'')+(g.exempt?' [ยกเว้น3%]':'')+'</td><td>'+acct+'</td><td class="r">'+pend.length+'</td><td class="r"><b>'+money(g.pendNet)+'</b></td></tr>';
+  }).join("");
+  return '<div class="vc-doc" id="remit-batch">'+
+    '<div class="vc-title">ใบสรุปโอนคืน COD — รายผู้ส่ง (ค้างโอน)</div>'+
+    '<div class="vc-head"><div><b>วันที่จัดทำ</b> '+dd+'/'+mm+'/'+yy+'</div><div><b>ผู้ส่ง</b> '+groups.length+' ราย · <b>บิล</b> '+totBills+'</div></div>'+
+    '<table class="vc-tb"><thead><tr><th>ลูกค้าต้นทาง</th><th>บัญชีรับโอน</th><th>บิล</th><th>ยอดโอนคืน</th></tr></thead><tbody>'+
+    rows+
+    '<tr class="vc-tot"><td colspan="2" class="r">รวมต้องโอนทั้งหมด</td><td class="r">'+totBills+'</td><td class="r vc-net">'+money(totPend)+'</td></tr>'+
+    '</tbody></table>'+
+    (noAcct>0?'<div class="vc-note">⚠ มี '+noAcct+' รายยังไม่ตั้งบัญชีรับโอน — ตั้งที่แท็บ 🏦 ลูกค้า/บัญชีรับโอน</div>':'')+
+    '<div style="font-size:11px;color:#888;margin-top:8px">* ใช้รายการนี้ทำการโอน แล้วกด "✓ โอนคืนแล้ว" รายผู้ส่งในตารางด้านล่างเพื่อตัดยอด · ใบจ่ายแบบรายบิลออกได้ที่แท็บ 🧾 ใบจ่ายเงิน</div>'+
+    '</div>';
+}
+function remitToggleBatch(){ REMIT_BATCH_SHOW=!REMIT_BATCH_SHOW; renderRemit(); if(REMIT_BATCH_SHOW){ var d=document.getElementById("remit-batch"); if(d) d.scrollIntoView({behavior:"smooth"}); } }
+function remitPrintBatch(){
+  REMIT_BATCH_SHOW=true; renderRemit();
+  setTimeout(function(){ document.body.classList.add("print-remit"); window.print(); setTimeout(function(){ document.body.classList.remove("print-remit"); },300); },80);
+}
 
 /* ============================================================
    ใบจ่ายเงิน COD  (เลือกบิล → ออกใบจ่าย → พิมพ์ / ตัดยอด)
@@ -840,6 +878,7 @@ function openAcct(encName){
   document.getElementById("ac-no").value=a.accountNo||"";
   // ส่วนใหญ่ชื่อบัญชีตรงกับชื่อในบิล → เติมให้อัตโนมัติเฉพาะรายใหม่ แล้วผู้ใช้แก้เฉพาะที่ไม่ตรง
   document.getElementById("ac-acctname").value=isNew ? name : (a.accountName||"");
+  document.getElementById("ac-priceperpiece").value = a.pricePerPiece ? a.pricePerPiece : "";
   document.getElementById("acct-modal").classList.remove("hidden");
 }
 function closeAcct(){ document.getElementById("acct-modal").classList.add("hidden"); _acctName=""; }
@@ -863,7 +902,8 @@ function saveAcct(){
     code: codeVal,
     bank: document.getElementById("ac-bank").value.trim(),
     accountNo: document.getElementById("ac-no").value.trim(),
-    accountName: document.getElementById("ac-acctname").value.trim()
+    accountName: document.getElementById("ac-acctname").value.trim(),
+    pricePerPiece: parseFloat(document.getElementById("ac-priceperpiece").value)||0
   };
   // การผูกบัญชีค้างถาวร — ถ้าแก้ของเดิม ต้องยืนยัน (ถือเป็น "ขอแก้ไข")
   if(hadBinding && (existed.bank!==data.bank||existed.accountNo!==data.accountNo||existed.accountName!==data.accountName)){
