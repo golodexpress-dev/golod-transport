@@ -667,7 +667,7 @@ tr:hover td{background:#f8fffe}
 <div class="topbar">
   <span class="title">🚛 จัดการขนส่ง</span>
   <span id="session-info" style="font-size:11px;opacity:.8"></span>
-  <span style="font-size:10px;opacity:.65;margin-left:auto">build 2026-06-10z21</span>
+  <span style="font-size:10px;opacity:.65;margin-left:auto">build 2026-06-10z23</span>
   <a href="GolodApp.html" style="margin-left:10px">← หน้าหลัก</a>
 </div>
 <div class="container">
@@ -804,7 +804,8 @@ tr:hover td{background:#f8fffe}
   <div class="modal" style="max-width:560px;max-height:92vh;overflow-y:auto">
     <h3 style="color:#0F6E56;margin-bottom:4px">🤖 ออโต้จัดเที่ยว</h3>
     <div style="font-size:11px;color:#888;margin-bottom:12px">จัดบิลที่ยังไม่อยู่ในเที่ยว เข้าเที่ยวอัตโนมัติตามเส้นทาง — ตรวจดูได้ก่อน ยังไม่สร้างจนกว่าจะกด ✅ (ยังไม่ใส่คนรถ ใส่ทีหลังได้)</div>
-    <div style="display:flex;align-items:center;gap:8px;margin-bottom:10px;font-size:12px"><span>บิล/เที่ยว ~</span><input id="at-target" type="number" value="20" style="width:70px;padding:6px 8px;border:1px solid #ddd;border-radius:6px" onchange="renderAutoTripPreview()"></div>
+    <div style="display:flex;align-items:center;gap:8px;margin-bottom:4px;font-size:12px;flex-wrap:wrap"><span>บิล/เที่ยว ~</span><input id="at-target" type="number" value="20" style="width:62px;padding:6px 8px;border:1px solid #ddd;border-radius:6px" onchange="renderAutoTripPreview()"><span>· อายุบิลไม่เกิน</span><input id="at-maxage" type="number" value="14" style="width:54px;padding:6px 8px;border:1px solid #ddd;border-radius:6px" onchange="openAutoTrip()"><span>วัน</span></div>
+    <div style="font-size:10px;color:#aaa;margin-bottom:10px">บิลเกินอายุที่ตั้งไว้จะไม่ถูกดึงเข้าออโต้ — ยังจัดมือได้ที่ + สร้างเที่ยวใหม่ (0 วัน = ไม่จำกัด)</div>
     <div id="at-body" style="max-height:50vh;overflow-y:auto"></div>
     <div class="btn-row" style="margin-top:12px">
       <button class="btn btn-gray" onclick="closeAutoTrip()">ปิด</button>
@@ -816,13 +817,13 @@ tr:hover td{background:#f8fffe}
 <div class="modal-bg" id="modal-routes" style="display:none">
   <div class="modal" style="max-width:640px;max-height:92vh;overflow-y:auto">
     <h3 style="color:#0F6E56;margin-bottom:4px">🛣️ เส้นทางจัดส่ง</h3>
-    <div style="font-size:11px;color:#888;margin-bottom:10px">กำหนดเส้นตามจังหวัด/อำเภอ — ออโต้จัดเที่ยวจะจัดบิลเข้าเส้น เช็คยอดขั้นต่ำ แล้วแตกเที่ยวละ ~20 บิล<br><b>กฎ (พิมพ์บรรทัดละ 1 รายการ):</b> ทั้งจังหวัด = <code>ตาก</code> · เฉพาะอำเภอ = <code>สุพรรณบุรี: ด่านช้าง, สามชุก</code> (อำเภอเจาะจงมาก่อนทั้งจังหวัด)</div>
+    <div style="font-size:11px;color:#888;margin-bottom:10px">กำหนดเส้นตามจังหวัด/อำเภอ — ออโต้จัดเที่ยวจะจัดบิลเข้าเส้น เช็คยอดขั้นต่ำ แล้วแตกเที่ยวละ ~20 บิล<br><b>กฎ (บรรทัดละ 1 รายการ):</b><br>• ทั้งจังหวัด = <code>ตาก</code><br>• เฉพาะอำเภอ = <code>นครราชสีมา: ด่านขุนทด, พิมาย, โนนสูง</code><br>• เฉพาะตำบล = <code>นครราชสีมา &gt; ปากช่อง &gt; ปากช่อง, หนองสาหร่าย</code><br>(เจาะจงกว่าชนะ: ตำบล &gt; อำเภอ &gt; จังหวัด)</div>
     <input id="rt-name" placeholder="ชื่อเส้น (เช่น แม่สอด)" style="width:100%;box-sizing:border-box;padding:8px 10px;border:1px solid #ddd;border-radius:7px;font-size:12px">
     <div style="display:flex;gap:8px;margin:8px 0">
       <input id="rt-group" placeholder="ทิศ/กลุ่ม (เช่น เหนือ)" style="flex:1;padding:8px 10px;border:1px solid #ddd;border-radius:7px;font-size:12px">
       <input id="rt-min" type="number" placeholder="ขั้นต่ำ ฿" style="width:120px;padding:8px 10px;border:1px solid #ddd;border-radius:7px;font-size:12px">
     </div>
-    <textarea id="rt-rules" rows="4" placeholder="ตาก&#10;กำแพงเพชร&#10;สุพรรณบุรี: ด่านช้าง, สามชุก, หนองหญ้าไซ" style="width:100%;box-sizing:border-box;padding:8px 10px;border:1px solid #ddd;border-radius:7px;font-size:12px;font-family:inherit"></textarea>
+    <textarea id="rt-rules" rows="4" placeholder="นครราชสีมา: ด่านขุนทด, พิมาย, โนนสูง&#10;นครราชสีมา > ปากช่อง > ปากช่อง, หนองสาหร่าย, จันทึก&#10;นครราชสีมา > สีคิ้ว > หนองบัวน้อย, กฤษณา" style="width:100%;box-sizing:border-box;padding:8px 10px;border:1px solid #ddd;border-radius:7px;font-size:12px;font-family:inherit"></textarea>
     <button class="btn btn-green" id="rt-save-btn" onclick="saveRouteEntry()" style="margin-top:6px">+ เพิ่มเส้น</button>
     <div id="rt-list" style="margin-top:12px;max-height:300px;overflow-y:auto"></div>
     <div class="btn-row" style="margin-top:12px">
@@ -5189,32 +5190,53 @@ function loadRoutes(){
 function _rtParseRules(text){
   return (text||"").split("\n").map(function(line){
     line=line.trim(); if(!line) return null;
-    var p=line.split(":");
-    var prov=p[0].trim();
-    var amphoes=(p.length>1)? p[1].split(",").map(function(s){return s.trim();}).filter(Boolean) : [];
-    return prov? {prov:prov, amphoes:amphoes} : null;
+    if(line.indexOf(">")>=0){
+      var pp=line.split(">").map(function(s){return s.trim();});
+      var tb=(pp[2]? pp[2].split(",").map(function(s){return s.trim();}).filter(Boolean):[]);
+      return pp[0]? {prov:pp[0], amphoe:(pp[1]||""), tambons:tb} : null;
+    }
+    if(line.indexOf(":")>=0){
+      var c=line.split(":"); var prov=c[0].trim();
+      var amphoes=c[1].split(",").map(function(s){return s.trim();}).filter(Boolean);
+      return prov? {prov:prov, amphoes:amphoes} : null;
+    }
+    return {prov:line, amphoes:[]};
   }).filter(Boolean);
 }
 function _rtRulesToText(rules){
-  return (rules||[]).map(function(r){ return r.prov+(r.amphoes&&r.amphoes.length?(": "+r.amphoes.join(", ")):""); }).join("\n");
+  return (rules||[]).map(function(r){
+    if(r.amphoe!==undefined && r.amphoe!==null){
+      return r.prov+(r.amphoe? (" > "+r.amphoe+(r.tambons&&r.tambons.length?(" > "+r.tambons.join(", ")):"")):"");
+    }
+    return r.prov+(r.amphoes&&r.amphoes.length?(": "+r.amphoes.join(", ")):"");
+  }).join("\n");
 }
 var _PROV_ALIAS={"โคราช":"นครราชสีมา","กทม":"กรุงเทพมหานคร","กรุงเทพ":"กรุงเทพมหานคร","กรุงเทพฯ":"กรุงเทพมหานคร","อยุธยา":"พระนครศรีอยุธยา"};
 function _normProv(p){ p=String(p||"").trim().replace(/^จังหวัด\s*/,"").replace(/^จ\.?\s*/,""); return _PROV_ALIAS[p]||p; }
 function _normAmp(a){ return String(a||"").trim().replace(/^อำเภอ\s*/,"").replace(/^อ\.?\s*/,"").replace(/^เขต\s*/,""); }
-function getRouteForBill(prov, amphoe){
-  var p=_normProv(prov), a=_normAmp(amphoe);
-  var whole=null;
+function _normTb(a){ return String(a||"").trim().replace(/^ตำบล\s*/,"").replace(/^ต\.?\s*/,"").replace(/^แขวง\s*/,""); }
+function _eqAmp(rule, bill){ var r=_normAmp(rule), b=_normAmp(bill); return r===b || (r==="เมือง" && b.indexOf("เมือง")===0); }
+function getRouteForBill(prov, amphoe, tambon){
+  var p=_normProv(prov), t=_normTb(tambon);
+  var best=null, rank=0; // 3=ตำบล 2=อำเภอ 1=จังหวัด
   for(var i=0;i<_routes.length;i++){
     var rt=_routes[i]; if(!rt||!rt.rules) continue;
     for(var j=0;j<rt.rules.length;j++){
       var ru=rt.rules[j]; if(!ru||_normProv(ru.prov)!==p) continue;
-      if(ru.amphoes&&ru.amphoes.length){
-        var hit=ru.amphoes.some(function(x){ var rx=_normAmp(x); return rx===a || (rx==="เมือง" && a.indexOf("เมือง")===0); });
-        if(hit) return rt;
-      } else { if(!whole) whole=rt; }
+      var r=0;
+      if(ru.amphoe!==undefined){
+        if(!ru.amphoe){ r=1; }
+        else { if(!_eqAmp(ru.amphoe, amphoe)) continue;
+          if(ru.tambons && ru.tambons.length){ if(!ru.tambons.some(function(x){return _normTb(x)===t;})) continue; r=3; }
+          else { r=2; } }
+      } else {
+        if(!ru.amphoes || !ru.amphoes.length){ r=1; }
+        else { if(!ru.amphoes.some(function(x){return _eqAmp(x,amphoe);})) continue; r=2; }
+      }
+      if(r>rank){ rank=r; best=rt; if(r===3) return rt; }
     }
   }
-  return whole;
+  return best;
 }
 function openRoutes(){
   if(!CU || CU.role!=="admin"){ alert("เฉพาะ Admin"); return; }
@@ -5253,7 +5275,7 @@ function renderRouteList(){
   var el=document.getElementById("rt-list");
   if(!_routes.length){ el.innerHTML='<div style="text-align:center;padding:16px;color:#aaa">ยังไม่มีเส้นทาง</div>'; return; }
   el.innerHTML=_routes.map(function(rt,i){
-    var summary=(rt.rules||[]).map(function(r){return r.prov+(r.amphoes&&r.amphoes.length?("("+r.amphoes.length+"อ.)"):"");}).join(", ");
+    var summary=(rt.rules||[]).map(function(r){ if(r.amphoe!==undefined&&r.amphoe!==null){ return r.prov+(r.amphoe?("/"+r.amphoe+(r.tambons&&r.tambons.length?("("+r.tambons.length+"ต.)"):"")):""); } return r.prov+(r.amphoes&&r.amphoes.length?("("+r.amphoes.length+"อ.)"):""); }).join(", ");
     return '<div style="border:1px solid #eee;border-radius:9px;padding:10px;margin-bottom:8px">'
       +'<div style="display:flex;justify-content:space-between;align-items:center">'
       +'<span style="font-weight:700;color:#0F6E56">'+rt.name+(rt.group?' <span style="font-size:10px;color:#999">· '+rt.group+'</span>':'')+'</span>'
@@ -5277,13 +5299,17 @@ function openAutoTrip(){
   if(typeof BILLS==="undefined" || !Array.isArray(BILLS)){ alert("ยังโหลดบิลไม่เสร็จ ลองรีเฟรชก่อนครับ"); return; }
   if(!_routes.length){ alert("ยังไม่ได้ตั้งเส้นทาง — กดปุ่ม 🛣️ เส้นทาง เพื่อตั้งก่อนครับ"); return; }
   var pool=["ออกบิลรับของ","issued","นำส่งใหม่","ระหว่างนำส่งสาขา",""];
+  var maxAge=parseInt((document.getElementById("at-maxage")||{}).value); if(isNaN(maxAge)) maxAge=14;
+  var nowMs=Date.now();
   var groups={};
   BILLS.forEach(function(b){
     if(!b||!b.billNo||b.tripId) return;
     if(pool.indexOf(b.status||"")<0) return;
+    if(maxAge>0){ var ds=billDateStr(b); if(ds){ var tms=new Date(ds+"T00:00:00").getTime(); if(!isNaN(tms) && (nowMs-tms)/86400000 > maxAge) return; } }
     var dp=b.destProv||(b.form&&b.form.destProv)||"";
     var da=b.destAmphoe||(b.form&&b.form.destAmphoe)||"";
-    var rt=getRouteForBill(dp,da);
+    var dt=b.destTambon||(b.form&&b.form.destTambon)||b.receiverTambon||(b.form&&b.form.receiverTambon)||"";
+    var rt=getRouteForBill(dp,da,dt);
     var key=rt?rt.name:"ไม่ระบุเส้น";
     if(!groups[key]) groups[key]={bills:[], total:0, min:(rt?(parseInt(rt.min)||0):0), sel:true, hasRoute:!!rt};
     groups[key].bills.push(b); groups[key].total+=parseFloat(b.freightNet||0)||0;
