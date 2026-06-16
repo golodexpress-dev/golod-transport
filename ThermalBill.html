@@ -14,7 +14,7 @@
   <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
 </head><body>
 <div class="golod-bar no-print">
-  <h1>โกโลด ทรานสปอร์ต — ออกบิล Thermal 80mm <span style="font-size:11px;font-weight:400;opacity:.6">build 2026-06-11·b23</span></h1>
+  <h1>โกโลด ทรานสปอร์ต — ออกบิล Thermal 80mm <span style="font-size:11px;font-weight:400;opacity:.6">build 2026-06-11·b24</span></h1>
   <div id="golod-chip"></div>
   <a href="GolodApp.html" style="font-size:11px;color:#9FE1CB;background:rgba(255,255,255,.15);padding:3px 10px;border-radius:20px;text-decoration:none">← หน้าหลัก</a>
   <a href="DailyReport.html" style="font-size:11px;color:#FFE082;background:rgba(255,255,255,.15);padding:3px 10px;border-radius:20px;text-decoration:none">📊 รายงานสิ้นวัน</a>
@@ -2896,6 +2896,27 @@ function ThermalBillingApp() {
           if (Array.isArray(v)) { CUSTOMER_PRICES = v; console.log("[ThermalBill] loaded "+v.length+" customer prices"); }
         }).catch(function(){});
       }
+      // โหลดผู้ติดต่อ (ผู้ส่ง/ผู้รับ) จาก Firestore → merge เข้า localStorage ให้ autocomplete เห็นข้ามเครื่อง/ข้ามสาขา
+      if (GolodDB.getContacts) {
+        ["senders","receivers"].forEach(function(ckey){
+          GolodDB.getContacts(ckey).then(function(list){
+            if (!Array.isArray(list) || !list.length) return;
+            var contacts = {};
+            try { contacts = JSON.parse(localStorage.getItem("golod_contacts")||"{}"); } catch(e) {}
+            if (!contacts[ckey]) contacts[ckey] = [];
+            var idx = {};
+            contacts[ckey].forEach(function(c){ if(c&&c.name) idx[c.name+"|"+(c.phone||"")]=c; });
+            list.forEach(function(c){
+              if (!c || !c.name) return;
+              var k = c.name+"|"+(c.phone||"");
+              idx[k] = idx[k] ? Object.assign({}, idx[k], c) : c;
+            });
+            contacts[ckey] = Object.values(idx).slice(0,500);
+            try { localStorage.setItem("golod_contacts", JSON.stringify(contacts)); } catch(e) {}
+            console.log("[ThermalBill] synced "+list.length+" "+ckey+" contacts from Firestore");
+          }).catch(function(){});
+        });
+      }
       var s = {};
       try { s = JSON.parse(localStorage.getItem("golod_session") || "{}"); } catch(e) {}
       var isAdminRole = s.role === "admin" || s.role === "branch";
@@ -3445,14 +3466,16 @@ function ThermalBillingApp() {
         phone: form.senderPhone,
         prov: form.senderProv,
         amphoe: form.senderAmphoe,
-        tambon: form.senderTambon || ""
+        tambon: form.senderTambon || "",
+        addr: form.senderAddr || ""
       }).catch(function () {});
       if (form.receiverName) GolodDB.saveContact("receivers", {
         name: form.receiverName,
         phone: form.receiverPhone,
         prov: form.destProv,
         amphoe: form.receiverAmphoe,
-        tambon: form.receiverTambon || ""
+        tambon: form.receiverTambon || "",
+        addr: form.receiverAddr || ""
       }).catch(function () {});
     }
     // บันทึก goods history
