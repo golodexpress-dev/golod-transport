@@ -668,7 +668,7 @@ tr:hover td{background:#f8fffe}
 <div class="topbar">
   <span class="title">🚛 จัดการขนส่ง</span>
   <span id="session-info" style="font-size:11px;opacity:.8"></span>
-  <span style="font-size:10px;opacity:.65;margin-left:auto">build 2026-06-10z35</span>
+  <span style="font-size:10px;opacity:.65;margin-left:auto">build 2026-06-10z37</span>
   <a href="GolodApp.html" style="margin-left:10px">← หน้าหลัก</a>
 </div>
 <div class="container">
@@ -871,7 +871,8 @@ var CU = null;
   if(!s){ window.location.href="GolodApp.html"; return; }
   if(!["admin","branch","clerk"].includes(s.role)){ window.location.href="GolodApp.html"; return; }
   CU = s;
-  document.getElementById("session-info").textContent = s.name + " · " + (s.branch==="all"?"ทุกสาขา":s.branch);
+  if(CU && CU.branch==="all" && CU.role!=="admin") CU.role="admin"; // เจ้าของ/ทุกสาขา = สิทธิ์แอดมินเต็ม
+  document.getElementById("session-info").textContent = s.name + " · " + (s.branch==="all"?"ทุกสาขา":s.branch) + (CU.role==="admin"?" · แอดมิน":"");
 })();
 
 // ===== DATA =====
@@ -4511,10 +4512,12 @@ function renderClearRemarks(){
       : '';
     var delBtn = (isAdmin || r.status==="pending")
       ? ' <button onclick="deleteRemark(\''+r.id+'\')" style="background:#eee;border:none;border-radius:5px;padding:2px 7px;font-size:10px;cursor:pointer">🗑</button>' : '';
+    var convBtn = (isAdmin && r.type!=="ปท.→โอน" && r.amount>0)
+      ? ' <button onclick="convertRemarkToTransfer(\''+r.id+'\')" style="background:#fff3e0;border:1px solid #f0c97a;border-radius:5px;padding:2px 7px;font-size:10px;cursor:pointer;color:#b7950b">🔄 ปท.→โอน</button>' : '';
     return '<div style="background:#fff;border:1px solid #e5dcf5;border-radius:6px;padding:6px 8px;margin-bottom:4px;font-size:11px">'
       +'<div style="display:flex;justify-content:space-between;gap:8px;flex-wrap:wrap;align-items:center">'
       +'<div><b>'+r.type+'</b>'+(r.billNo?' · '+r.billNo:'')+(r.note?' · '+r.note:'')+'</div>'
-      +'<div style="white-space:nowrap"><b style="color:'+amtClr+'">'+(r.amount>=0?"+":"")+Math.round(r.amount).toLocaleString("th-TH")+' ฿</b> '+stBadge+adminBtns+delBtn+'</div>'
+      +'<div style="white-space:nowrap"><b style="color:'+amtClr+'">'+(r.amount>=0?"+":"")+Math.round(r.amount).toLocaleString("th-TH")+' ฿</b> '+stBadge+adminBtns+convBtn+delBtn+'</div>'
       +'</div>'
       +'<div style="font-size:9px;color:#aaa;margin-top:2px">โดย '+(r.byName||r.by||"-")+(r.approvedByName?' · อนุมัติโดย '+r.approvedByName:'')+'</div>'
       +(r.type==="ปท.→โอน" ? ('<div style="margin-top:3px">'+(r._uploading?'<span style="color:#E67E22;font-size:10px">⏳ กำลังอัปโหลดสลิป...</span>':((r.slipUrl?'<a href="'+r.slipUrl+'" target="_blank" style="color:#0F6E56;font-size:10px;font-weight:700">📎 ดูสลิป</a>':'<span style="color:#c0392b;font-size:10px;font-weight:700">⚠ ยังไม่แนบสลิป</span>')+' <button onclick="uploadRemarkSlip(\''+r.id+'\')" style="background:#eef;border:1px solid #ccd;border-radius:5px;padding:2px 7px;font-size:10px;cursor:pointer">📷 '+(r.slipUrl?'เปลี่ยน':'แนบสลิป')+'</button>'))+'</div>') : '')
@@ -4546,6 +4549,15 @@ function addClearRemark(){
   document.getElementById("ct-rmk-bill").value="";
   document.getElementById("ct-rmk-note").value="";
   document.getElementById("ct-rmk-amount").value="";
+  renderClearRemarks(); calcClearTrip();
+}
+function convertRemarkToTransfer(id){
+  var r=_clearRemarks.find(function(x){return x.id===id;}); if(!r) return;
+  if(!(CU&&CU.role==="admin")){ alert("เฉพาะแอดมิน"); return; }
+  if(!confirm("แปลงรายการนี้เป็น \"ปลายทาง→โอน\" และหักออกจากยอดคนรถ?\n"+(r.billNo||"")+" "+Math.round(r.amount).toLocaleString("th-TH")+" → -"+Math.abs(Math.round(r.amount)).toLocaleString("th-TH")+"\nอย่าลืมแนบสลิปก่อนบันทึก")) return;
+  r.type="ปท.→โอน";
+  r.amount=-Math.abs(r.amount);
+  if(!/โอน/.test(r.note||"")) r.note=(r.note?r.note+" ":"")+"(แปลงเป็นจ่ายผ่านโอน)";
   renderClearRemarks(); calcClearTrip();
 }
 function uploadRemarkSlip(id){
