@@ -668,7 +668,7 @@ tr:hover td{background:#f8fffe}
 <div class="topbar">
   <span class="title">🚛 จัดการขนส่ง</span>
   <span id="session-info" style="font-size:11px;opacity:.8"></span>
-  <span style="font-size:10px;opacity:.65;margin-left:auto">build 2026-06-10z34</span>
+  <span style="font-size:10px;opacity:.65;margin-left:auto">build 2026-06-10z35</span>
   <a href="GolodApp.html" style="margin-left:10px">← หน้าหลัก</a>
 </div>
 <div class="container">
@@ -773,8 +773,8 @@ tr:hover td{background:#f8fffe}
       <input id="sr-loc" placeholder="โลเคชั่น/คำในที่อยู่ (ไม่บังคับ)" style="flex:2;min-width:150px;padding:8px 10px;border:1px solid #ddd;border-radius:7px;font-size:12px">
       <input id="sr-prov" placeholder="จังหวัด (ไม่บังคับ)" style="flex:1;min-width:110px;padding:8px 10px;border:1px solid #ddd;border-radius:7px;font-size:12px">
       <input id="sr-min" type="number" placeholder="ขั้นต่ำ ฿" style="width:90px;padding:8px 10px;border:1px solid #ddd;border-radius:7px;font-size:12px">
-      <input id="sr-queue" type="number" placeholder="ค่ารอคิว ฿" style="width:90px;padding:8px 10px;border:1px solid #f0c97a;border-radius:7px;font-size:12px">
-      <button class="btn btn-green" onclick="addSpecialReceiver()">+ เพิ่ม</button>
+      <input id="sr-queue" type="number" placeholder="ค่าส่งพิเศษ ฿" style="width:90px;padding:8px 10px;border:1px solid #f0c97a;border-radius:7px;font-size:12px">
+      <button class="btn btn-green" id="sr-add-btn" onclick="addSpecialReceiver()">+ เพิ่ม</button>
     </div>
     <div id="sr-list" style="max-height:400px;overflow-y:auto"></div>
     <div class="btn-row" style="margin-top:12px">
@@ -5222,6 +5222,17 @@ function loadSpecialReceivers(){
     if(val && Array.isArray(val)) _specialReceivers = val;
   }).catch(function(){});
 }
+var _srEditIdx = -1;
+function editSpecialReceiver(i){
+  var sr=_specialReceivers[i]; if(!sr) return;
+  document.getElementById("sr-name").value=sr.name||"";
+  document.getElementById("sr-loc").value=sr.loc||"";
+  document.getElementById("sr-prov").value=sr.prov||"";
+  document.getElementById("sr-min").value=sr.min||"";
+  if(document.getElementById("sr-queue")) document.getElementById("sr-queue").value=sr.queue||"";
+  _srEditIdx=i;
+  var b=document.getElementById("sr-add-btn"); if(b) b.textContent="💾 บันทึกแก้ไข";
+}
 function openSpecialReceivers(){
   if(!CU || CU.role!=="admin"){ alert("เฉพาะ Admin"); return; }
   renderSpecialReceiverList();
@@ -5234,13 +5245,13 @@ function renderSpecialReceiverList(){
   var html = _specialReceivers.length === 0
     ? '<div style="text-align:center;padding:20px;color:#aaa">ยังไม่มีปลายทางพิเศษ</div>'
     : '<table style="width:100%;border-collapse:collapse;font-size:12px">'
-      +'<tr style="background:#f0faf5"><th style="padding:6px;text-align:left">บริษัท/ผู้รับ</th><th>จังหวัด</th><th>ขั้นต่ำ (฿)</th><th>ค่ารอคิว (฿)</th><th>ลบ</th></tr>'
+      +'<tr style="background:#f0faf5"><th style="padding:6px;text-align:left">บริษัท/ผู้รับ</th><th>จังหวัด</th><th>ขั้นต่ำ (฿)</th><th>ค่าส่งพิเศษ (฿)</th><th>ลบ</th></tr>'
       +_specialReceivers.map(function(sr, i){
         return '<tr style="border-bottom:1px solid #f0f0f0">'
           +'<td style="padding:6px">'+(sr.name||"(ตามโลเคชั่น)")+(sr.loc?'<div style="font-size:10px;color:#999">📍 '+sr.loc+'</div>':'')+'</td>'
           +'<td style="text-align:center;color:#888">'+(sr.prov||"ทุกจังหวัด")+'</td>'
           +'<td style="text-align:center;font-weight:700;color:#0F6E56">'+(parseInt(sr.min)||0).toLocaleString("th-TH")+'</td>'+'<td style="text-align:center;font-weight:700;color:#E67E22">'+((parseInt(sr.queue)||0)?(parseInt(sr.queue)).toLocaleString("th-TH"):'-')+'</td>'
-          +'<td style="text-align:center"><button onclick="removeSpecialReceiver('+i+')" style="background:#fee;border:1px solid #fcc;border-radius:5px;padding:2px 8px;cursor:pointer;font-size:11px;color:#c0392b">ลบ</button></td>'
+          +'<td style="text-align:center;white-space:nowrap"><button onclick="editSpecialReceiver('+i+')" style="background:#eef;border:1px solid #ccd;border-radius:5px;padding:2px 8px;cursor:pointer;font-size:11px;color:#33518a;margin-right:4px">แก้ไข</button><button onclick="removeSpecialReceiver('+i+')" style="background:#fee;border:1px solid #fcc;border-radius:5px;padding:2px 8px;cursor:pointer;font-size:11px;color:#c0392b">ลบ</button></td>'
           +'</tr>';
       }).join("")
       +'</table>';
@@ -5254,7 +5265,8 @@ function addSpecialReceiver(){
   var queue= parseInt((document.getElementById("sr-queue")||{}).value)||0;
   if(!name && !loc){ alert("กรอกชื่อบริษัท/ผู้รับ หรือโลเคชั่น อย่างน้อยหนึ่งอย่าง"); return; }
   if(min <= 0){ alert("กรอกค่าขั้นต่ำด้วยครับ"); return; }
-  _specialReceivers.push({name:name, loc:loc, prov:prov, min:min, queue:queue});
+  if(_srEditIdx>=0){ _specialReceivers[_srEditIdx]={name:name, loc:loc, prov:prov, min:min, queue:queue}; _srEditIdx=-1; var _b=document.getElementById("sr-add-btn"); if(_b) _b.textContent="+ เพิ่ม"; }
+  else { _specialReceivers.push({name:name, loc:loc, prov:prov, min:min, queue:queue}); }
   document.getElementById("sr-name").value="";
   document.getElementById("sr-loc").value="";
   document.getElementById("sr-prov").value="";

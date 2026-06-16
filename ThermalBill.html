@@ -14,7 +14,7 @@
   <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
 </head><body>
 <div class="golod-bar no-print">
-  <h1>โกโลด ทรานสปอร์ต — ออกบิล Thermal 80mm <span style="font-size:11px;font-weight:400;opacity:.6">build 2026-06-11·b26</span></h1>
+  <h1>โกโลด ทรานสปอร์ต — ออกบิล Thermal 80mm <span style="font-size:11px;font-weight:400;opacity:.6">build 2026-06-11·b27</span></h1>
   <div id="golod-chip"></div>
   <a href="GolodApp.html" style="font-size:11px;color:#9FE1CB;background:rgba(255,255,255,.15);padding:3px 10px;border-radius:20px;text-decoration:none">← หน้าหลัก</a>
   <a href="DailyReport.html" style="font-size:11px;color:#FFE082;background:rgba(255,255,255,.15);padding:3px 10px;border-radius:20px;text-decoration:none">📊 รายงานสิ้นวัน</a>
@@ -1405,7 +1405,7 @@ function ThermalBill({
     r: (summary&&summary.discount>0)?"-"+(summary.discount||0).toLocaleString("th-TH")+" \u0E3F":"\u2014"
   }), false),
   (!form.hidePrice && summary && summary.queueFee>0) && /*#__PURE__*/React.createElement("div", {style:{display:"flex",justifyContent:"flex-end",alignItems:"baseline",gap:8,margin:"2px 0"}}, /*#__PURE__*/React.createElement("span",{style:{fontSize:11}},"\u0E04\u0E48\u0E32\u0E02\u0E19\u0E2A\u0E48\u0E07"), /*#__PURE__*/React.createElement("span",{style:{fontSize:13,fontWeight:600,minWidth:60,textAlign:"right"}},(summary&&summary.freightOnly||0).toLocaleString("th-TH")," \u0E3F")),
-  (!form.hidePrice && summary && summary.queueFee>0) && /*#__PURE__*/React.createElement("div", {style:{display:"flex",justifyContent:"flex-end",alignItems:"baseline",gap:8,margin:"2px 0"}}, /*#__PURE__*/React.createElement("span",{style:{fontSize:11,fontWeight:700,color:"#E67E22"}},"\u0E04\u0E48\u0E32\u0E23\u0E2D\u0E04\u0E34\u0E27"), /*#__PURE__*/React.createElement("span",{style:{fontSize:13,fontWeight:700,minWidth:60,textAlign:"right",color:"#E67E22"}},(summary&&summary.queueFee||0).toLocaleString("th-TH")," \u0E3F")),
+  (!form.hidePrice && summary && summary.queueFee>0) && /*#__PURE__*/React.createElement("div", {style:{display:"flex",justifyContent:"flex-end",alignItems:"baseline",gap:8,margin:"2px 0"}}, /*#__PURE__*/React.createElement("span",{style:{fontSize:11,fontWeight:700,color:"#E67E22"}},"ค่าส่งพิเศษ"), /*#__PURE__*/React.createElement("span",{style:{fontSize:13,fontWeight:700,minWidth:60,textAlign:"right",color:"#E67E22"}},(summary&&summary.queueFee||0).toLocaleString("th-TH")," \u0E3F")),
   !form.hidePrice && /*#__PURE__*/React.createElement("div", {
     style: {
       display: "flex",
