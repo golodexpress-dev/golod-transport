@@ -14,7 +14,7 @@
   <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
 </head><body>
 <div class="golod-bar no-print">
-  <h1>โกโลด ทรานสปอร์ต — ออกบิล Thermal 80mm <span style="font-size:11px;font-weight:400;opacity:.6">build 2026-06-11·b24</span></h1>
+  <h1>โกโลด ทรานสปอร์ต — ออกบิล Thermal 80mm <span style="font-size:11px;font-weight:400;opacity:.6">build 2026-06-11·b26</span></h1>
   <div id="golod-chip"></div>
   <a href="GolodApp.html" style="font-size:11px;color:#9FE1CB;background:rgba(255,255,255,.15);padding:3px 10px;border-radius:20px;text-decoration:none">← หน้าหลัก</a>
   <a href="DailyReport.html" style="font-size:11px;color:#FFE082;background:rgba(255,255,255,.15);padding:3px 10px;border-radius:20px;text-decoration:none">📊 รายงานสิ้นวัน</a>
@@ -415,6 +415,22 @@ function getSpecialAreaMin(prov, amphoe, tambon){
   if(min1000.indexOf(amp)>=0) return 1000;
   if(min500.indexOf(amp)>=0) return 500;
   return 0;
+}
+function getReceiverQueue(name, prov, addr){
+  if(!Array.isArray(SPECIAL_RECEIVERS)) return 0;
+  var n=String(name||"").trim().toLowerCase(), p=String(prov||"").trim().toLowerCase(), ad=String(addr||"").trim().toLowerCase(), best=0;
+  for(var i=0;i<SPECIAL_RECEIVERS.length;i++){
+    var sr=SPECIAL_RECEIVERS[i]; if(!sr) continue;
+    var sn=String(sr.name||"").trim().toLowerCase();
+    var sl=String(sr.loc||"").trim().toLowerCase();
+    if(!sn && !sl) continue;
+    var nameHit = sn && n && n.indexOf(sn)>=0;
+    var locHit  = sl && ad && ad.indexOf(sl)>=0;
+    if((nameHit||locHit) && (!sr.prov || String(sr.prov).trim().toLowerCase()===p)){
+      var q=parseInt(sr.queue)||0; if(q>best) best=q;
+    }
+  }
+  return best;
 }
 function getMinFreight(prov, amphoe, tambon) {
   if(!prov) return 0;
@@ -1387,7 +1403,10 @@ function ThermalBill({
   }), /*#__PURE__*/React.createElement(Row, {
     l: "\u0E2A\u0E48\u0E27\u0E19\u0E25\u0E14",
     r: (summary&&summary.discount>0)?"-"+(summary.discount||0).toLocaleString("th-TH")+" \u0E3F":"\u2014"
-  }), false), !form.hidePrice && /*#__PURE__*/React.createElement("div", {
+  }), false),
+  (!form.hidePrice && summary && summary.queueFee>0) && /*#__PURE__*/React.createElement("div", {style:{display:"flex",justifyContent:"flex-end",alignItems:"baseline",gap:8,margin:"2px 0"}}, /*#__PURE__*/React.createElement("span",{style:{fontSize:11}},"\u0E04\u0E48\u0E32\u0E02\u0E19\u0E2A\u0E48\u0E07"), /*#__PURE__*/React.createElement("span",{style:{fontSize:13,fontWeight:600,minWidth:60,textAlign:"right"}},(summary&&summary.freightOnly||0).toLocaleString("th-TH")," \u0E3F")),
+  (!form.hidePrice && summary && summary.queueFee>0) && /*#__PURE__*/React.createElement("div", {style:{display:"flex",justifyContent:"flex-end",alignItems:"baseline",gap:8,margin:"2px 0"}}, /*#__PURE__*/React.createElement("span",{style:{fontSize:11,fontWeight:700,color:"#E67E22"}},"\u0E04\u0E48\u0E32\u0E23\u0E2D\u0E04\u0E34\u0E27"), /*#__PURE__*/React.createElement("span",{style:{fontSize:13,fontWeight:700,minWidth:60,textAlign:"right",color:"#E67E22"}},(summary&&summary.queueFee||0).toLocaleString("th-TH")," \u0E3F")),
+  !form.hidePrice && /*#__PURE__*/React.createElement("div", {
     style: {
       display: "flex",
       justifyContent: "flex-end",
@@ -3355,13 +3374,17 @@ function ThermalBillingApp() {
   const minFr = custPP > 0
     ? Math.max(getSpecialAreaMin(form.destProv||"", form.receiverAmphoe||"", form.receiverTambon||""), _recvMin)
     : Math.max(form.isSpecialArea ? (parseInt(form.minFreight) || 0) : autoMin, _recvMin);
-  const freightNet = Math.max(freightNetRaw, minFr);
+  const freightOnly = Math.max(freightNetRaw, minFr);
+  const queueFee = getReceiverQueue(form.receiverName||"", form.destProv||"", [form.receiverAddr,form.receiverTambon,form.receiverAmphoe,form.destProv].filter(Boolean).join(" "));
+  const freightNet = freightOnly + queueFee;
   const isMinApplied = minFr > 0 && freightNetRaw < minFr;
   const codTotal = items.reduce((s, item) => s + (item.hasCOD ? parseFloat(item.codAmount) || 0 : 0), 0);
   const summary = {
     freightTotal,
     discount: discountAmt,
     insurance: 0,
+    freightOnly,
+    queueFee,
     freightNet,
     codTotal
   };
@@ -3512,6 +3535,8 @@ function ThermalBillingApp() {
       clerkCode: form.staff || staffCode,
       freightPay: form.freightPay || "origin",
       freightNet: summary.freightNet || 0,
+      queueFee: summary.queueFee || 0,
+      freightOnly: summary.freightOnly || 0,
       codTotal: summary.codTotal || 0,
       isSpecialArea: form.isSpecialArea || false,
       minFreight: form.minFreight || 0,
