@@ -361,6 +361,7 @@ tr:hover td{background:#f8fffe}
             <option value="บิลไม่เข้าระบบ">บิลไม่เข้าระบบ</option>
             <option value="หาบิลไม่เจอ">หาบิลไม่เจอ</option>
             <option value="ยอดไม่ตรง">ยอดไม่ตรง</option>
+            <option value="ปท.→โอน">ปลายทาง→โอน (หักยอด+ต้องมีสลิป)</option>
             <option value="อื่นๆ">อื่นๆ</option>
           </select></div>
         <div><div style="font-size:9px;color:#888">เลขบิล (ถ้ามี)</div>
@@ -667,7 +668,7 @@ tr:hover td{background:#f8fffe}
 <div class="topbar">
   <span class="title">🚛 จัดการขนส่ง</span>
   <span id="session-info" style="font-size:11px;opacity:.8"></span>
-  <span style="font-size:10px;opacity:.65;margin-left:auto">build 2026-06-10z29</span>
+  <span style="font-size:10px;opacity:.65;margin-left:auto">build 2026-06-10z30</span>
   <a href="GolodApp.html" style="margin-left:10px">← หน้าหลัก</a>
 </div>
 <div class="container">
@@ -3137,6 +3138,7 @@ function _clrPrint(){
     +'<tr style="background:#f0faf5"><td colspan="2" style="padding:5px 8px;font-weight:700">บริษัทจ่ายคนรถ / หัก</td></tr>'
     +R("ค่าเที่ยว", fare)+R("ค่าน้ำมัน ("+_clrFmt(f.dist)+"กม.÷"+(f.fr||0)+"×"+(f.fp||0)+")", fuel)+R("ค่าทางด่วน", toll)+R("ค่าใช้จ่ายอื่น", other)
     +R("หัก น้ำมันเบิกล่วงหน้า", adv, "#c0392b")
+    +((t.clearRemarks||[]).filter(function(r){return r.type==="ปท.→โอน"&&r.status==="approved";}).length ? ('<tr style="background:#fff8ee"><td colspan="2" style="padding:5px 8px;font-weight:700;color:#b7950b">บิลปลายทาง → เปลี่ยนเป็นโอน (คนรถไม่ได้เก็บ · มีสลิป)</td></tr>'+(t.clearRemarks||[]).filter(function(r){return r.type==="ปท.→โอน"&&r.status==="approved";}).map(function(r){return '<tr><td style="padding:4px 8px;border-bottom:1px solid #eee">'+(r.billNo||"-")+(r.slipUrl?' · 📎มีสลิป':' · <span style="color:#c0392b">⚠ไม่มีสลิป</span>')+'</td><td style="padding:4px 8px;text-align:right;border-bottom:1px solid #eee;color:#c0392b">'+_clrFmt(r.amount)+'</td></tr>';}).join("")) : "")
     +'</tbody></table>'
     +'<div style="margin-top:12px;padding:12px;border-radius:8px;text-align:center;font-weight:800;font-size:16px;background:'+(net>=0?"#eafaf3":"#fdeaea")+'">'
     +(net>0?('บริษัทต้องจ่ายคนรถ '+_clrFmt(net)+' บาท'):net<0?('คนรถต้องส่งบริษัท '+_clrFmt(-net)+' บาท'):'พอดี 0 บาท')+'</div>'
@@ -4471,6 +4473,7 @@ function renderClearRemarks(){
       +'<div style="white-space:nowrap"><b style="color:'+amtClr+'">'+(r.amount>=0?"+":"")+Math.round(r.amount).toLocaleString("th-TH")+' ฿</b> '+stBadge+adminBtns+delBtn+'</div>'
       +'</div>'
       +'<div style="font-size:9px;color:#aaa;margin-top:2px">โดย '+(r.byName||r.by||"-")+(r.approvedByName?' · อนุมัติโดย '+r.approvedByName:'')+'</div>'
+      +(r.type==="ปท.→โอน" ? ('<div style="margin-top:3px">'+(r._uploading?'<span style="color:#E67E22;font-size:10px">⏳ กำลังอัปโหลดสลิป...</span>':((r.slipUrl?'<a href="'+r.slipUrl+'" target="_blank" style="color:#0F6E56;font-size:10px;font-weight:700">📎 ดูสลิป</a>':'<span style="color:#c0392b;font-size:10px;font-weight:700">⚠ ยังไม่แนบสลิป</span>')+' <button onclick="uploadRemarkSlip(\''+r.id+'\')" style="background:#eef;border:1px solid #ccd;border-radius:5px;padding:2px 7px;font-size:10px;cursor:pointer">📷 '+(r.slipUrl?'เปลี่ยน':'แนบสลิป')+'</button>'))+'</div>') : '')
       +'</div>';
   }).join("");
 }
@@ -4480,6 +4483,12 @@ function addClearRemark(){
   var billNo=(document.getElementById("ct-rmk-bill")||{}).value||"";
   var note=(document.getElementById("ct-rmk-note")||{}).value||"";
   var amount=parseFloat((document.getElementById("ct-rmk-amount")||{}).value||0);
+  if(type==="ปท.→โอน"){
+    if(!billNo){ alert("ใส่เลขบิลที่เปลี่ยน ปท.→โอน ด้วยครับ"); return; }
+    if(!amount){ alert("ใส่ยอดค่าขนส่งของบิลที่เปลี่ยนเป็นโอนด้วยครับ"); return; }
+    amount = -Math.abs(amount);
+    if(!note) note="ปลายทางจ่ายผ่านโอน (มีสลิป)";
+  }
   if(!note && !billNo){ alert("กรอกรายละเอียดหรือเลขบิลด้วยครับ"); return; }
   var isAdmin = CU && CU.role==="admin";
   _clearRemarks.push({
@@ -4494,6 +4503,19 @@ function addClearRemark(){
   document.getElementById("ct-rmk-note").value="";
   document.getElementById("ct-rmk-amount").value="";
   renderClearRemarks(); calcClearTrip();
+}
+function uploadRemarkSlip(id){
+  var r=_clearRemarks.find(function(x){return x.id===id;}); if(!r) return;
+  if(typeof GolodStorage==="undefined"||!GolodStorage.uploadFile){ alert("ระบบ Storage ไม่พร้อม"); return; }
+  var inp=document.createElement("input"); inp.type="file"; inp.accept="image/*"; inp.capture="environment";
+  inp.onchange=function(){
+    var f=inp.files&&inp.files[0]; if(!f) return;
+    r._uploading=true; renderClearRemarks();
+    GolodStorage.uploadFile("clearslip/"+(_clearTripId||"t")+"_"+((r.billNo||"x").replace(/[^A-Za-z0-9]/g,""))+"_"+Date.now(), f)
+      .then(function(url){ r.slipUrl=url; r._uploading=false; renderClearRemarks(); })
+      .catch(function(e){ r._uploading=false; renderClearRemarks(); alert("อัปโหลดสลิปไม่สำเร็จ: "+((e&&e.message)||e)); });
+  };
+  inp.click();
 }
 function approveRemark(id){
   var r=_clearRemarks.find(function(x){return x.id===id;}); if(!r) return;
@@ -5024,6 +5046,8 @@ function calcClearDiff(){
 
 function saveClearTrip(){
   if(!_clearTripId) return;
+  var _noSlip=_clearRemarks.filter(function(r){return r.type==="ปท.→โอน" && r.status!=="rejected" && !r.slipUrl;});
+  if(_noSlip.length){ alert("⚠ มีบิล ปท.→โอน "+_noSlip.length+" รายการยังไม่ได้แนบสลิป — แนบสลิปให้ครบก่อนบันทึกครับ"); return; }
   var trip = _clearTripData||{};
   var s = trip.summary||{};
   var fuelPrice = parseFloat((document.getElementById("ct-fuel-price")||{}).value||trip.fuelPrice||40);
