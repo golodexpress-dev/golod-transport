@@ -667,7 +667,7 @@ tr:hover td{background:#f8fffe}
 <div class="topbar">
   <span class="title">🚛 จัดการขนส่ง</span>
   <span id="session-info" style="font-size:11px;opacity:.8"></span>
-  <span style="font-size:10px;opacity:.65;margin-left:auto">build 2026-06-10z24</span>
+  <span style="font-size:10px;opacity:.65;margin-left:auto">build 2026-06-10z28</span>
   <a href="GolodApp.html" style="margin-left:10px">← หน้าหลัก</a>
 </div>
 <div class="container">
@@ -818,12 +818,25 @@ tr:hover td{background:#f8fffe}
   <div class="modal" style="max-width:640px;max-height:92vh;overflow-y:auto">
     <h3 style="color:#0F6E56;margin-bottom:4px">🛣️ เส้นทางจัดส่ง</h3>
     <div style="font-size:11px;color:#888;margin-bottom:10px">กำหนดเส้นตามจังหวัด/อำเภอ — ออโต้จัดเที่ยวจะจัดบิลเข้าเส้น เช็คยอดขั้นต่ำ แล้วแตกเที่ยวละ ~20 บิล<br><b>กฎ (บรรทัดละ 1 รายการ):</b><br>• ทั้งจังหวัด = <code>ตาก</code><br>• เฉพาะอำเภอ = <code>นครราชสีมา: ด่านขุนทด, พิมาย, โนนสูง</code><br>• เฉพาะตำบล = <code>นครราชสีมา &gt; ปากช่อง &gt; ปากช่อง, หนองสาหร่าย</code><br>(เจาะจงกว่าชนะ: ตำบล &gt; อำเภอ &gt; จังหวัด)</div>
+    <div style="background:#f0faf5;border:1px solid #d0ede5;border-radius:8px;padding:8px 10px;margin-bottom:10px">
+      <div style="font-size:11px;font-weight:700;color:#0F6E56;margin-bottom:5px">🚚 ประเภทรถ (ตั้งครั้งเดียว ใช้ได้ทุกเส้น)</div>
+      <div id="rt-veh-types" style="display:flex;flex-wrap:wrap;gap:5px;margin-bottom:6px"></div>
+      <div style="display:flex;gap:6px">
+        <input id="rt-veh-new" placeholder="เช่น กระบะ, 6 ล้อ, รถร่วม" style="flex:1;padding:6px 9px;border:1px solid #ddd;border-radius:6px;font-size:12px" onkeydown="if(event.key===\'Enter\'){addVehType();event.preventDefault();}">
+        <button class="btn btn-gray" onclick="addVehType()" style="font-size:12px;padding:5px 12px;white-space:nowrap">+ เพิ่มรถ</button>
+      </div>
+    </div>
     <input id="rt-name" placeholder="ชื่อเส้น (เช่น แม่สอด)" style="width:100%;box-sizing:border-box;padding:8px 10px;border:1px solid #ddd;border-radius:7px;font-size:12px">
     <div style="display:flex;gap:8px;margin:8px 0">
       <input id="rt-group" placeholder="ทิศ/กลุ่ม (เช่น เหนือ)" style="flex:1;padding:8px 10px;border:1px solid #ddd;border-radius:7px;font-size:12px">
       <input id="rt-min" type="number" placeholder="ขั้นต่ำ ฿" style="width:120px;padding:8px 10px;border:1px solid #ddd;border-radius:7px;font-size:12px">
     </div>
     <textarea id="rt-rules" rows="4" placeholder="นครราชสีมา: ด่านขุนทด, พิมาย, โนนสูง&#10;นครราชสีมา > ปากช่อง > ปากช่อง, หนองสาหร่าย, จันทึก&#10;นครราชสีมา > สีคิ้ว > หนองบัวน้อย, กฤษณา" style="width:100%;box-sizing:border-box;padding:8px 10px;border:1px solid #ddd;border-radius:7px;font-size:12px;font-family:inherit"></textarea>
+    <div style="background:#fffbf0;border:1px solid #f0e0b0;border-radius:8px;padding:8px 10px;margin-top:8px">
+      <div style="font-size:11px;font-weight:700;color:#b7950b;margin-bottom:5px">💵 ค่าเที่ยวของเส้นนี้ (ตามประเภทรถ × จำนวนวัน)</div>
+      <div id="rt-fares-list"></div>
+      <button class="btn btn-gray" onclick="addRtFare()" style="font-size:12px;padding:5px 12px;margin-top:4px">+ เพิ่มเรทค่าเที่ยว</button>
+    </div>
     <button class="btn btn-green" id="rt-save-btn" onclick="saveRouteEntry()" style="margin-top:6px">+ เพิ่มเส้น</button>
     <div id="rt-list" style="margin-top:12px;max-height:300px;overflow-y:auto"></div>
     <div class="btn-row" style="margin-top:12px">
@@ -1207,7 +1220,10 @@ function renderApp(){
     } else if(t.k==="redo"){
       // รอส่งใหม่ — นับจาก BILLS เสมอ (บิลค้าง active อยู่ใน BILLS)
       cnt = BILLS.filter(function(b){return REDO_STATUS.indexOf(b.status||"")>=0 && billBelongsToUserBranch(b);}).length;
-    } else if(t.k==="trip" || t.k==="history" || t.k==="monthly" || t.k==="clearing"){
+    } else if(t.k==="trip"){
+      var _rc=((_tripState&&_tripState.openTrips)||[]).filter(function(x){ var sp=(x.status==="proposed"||((x.settlement&&x.settlement.status)==="proposed")); return sp && x.readyForApproval && x.readyForApproval.at; }).length;
+      cnt = _rc>0?_rc:"";
+    } else if(t.k==="history" || t.k==="monthly" || t.k==="clearing"){
       cnt = "";
     } else if(t.k==="all"){
       // ทั้งหมด = BILLS + DONE_BILLS_CACHE รวมกัน (ไม่ซ้ำ)
@@ -1482,13 +1498,16 @@ function renderTripList(){
     var _sst=(t.settlement&&t.settlement.status)||"";
     var _isProp=(t.status==="proposed"||_sst==="proposed");
     var _isAppr=(t.status==="approved"||_sst==="approved");
+    var _ready=!!(t.readyForApproval&&t.readyForApproval.at);
+    var _isAdminU=!!(CU&&CU.role==="admin");
     return '<div class="trip-card">'
       +'<div class="trip-head">'
         +'<div style="flex:1">'
           +'<div class="trip-driver">🚛 '+t.driverName
             +(pendRmk>0?' <span style="background:#E67E22;color:#fff;font-size:10px;padding:2px 7px;border-radius:10px;font-weight:700">⏳ รออนุมัติหมายเหตุ '+pendRmk+'</span>':'')
             +(pendDel>0?' <span style="background:#c0392b;color:#fff;font-size:10px;padding:2px 7px;border-radius:10px;font-weight:700">⏳ ขอเอาบิลออก '+pendDel+'</span>':'')
-            +(_isProp?' <span style="background:#7c4dff;color:#fff;font-size:10px;padding:2px 7px;border-radius:10px;font-weight:700">📝 รออนุมัติจัดเที่ยว</span>':'')
+            +(_isProp&&!_ready?' <span style="background:#7c4dff;color:#fff;font-size:10px;padding:2px 7px;border-radius:10px;font-weight:700">📝 เสมียนกำลังจัด/ขึ้นของ</span>':'')
+            +(_isProp&&_ready?' <span style="background:#E67E22;color:#fff;font-size:10px;padding:2px 7px;border-radius:10px;font-weight:700">🔔 ขึ้นของเสร็จ รออนุมัติ'+(t.readyForApproval.by?(" · "+t.readyForApproval.by):"")+'</span>':'')
             +(_isAppr?' <span style="background:#E67E22;color:#fff;font-size:10px;padding:2px 7px;border-radius:10px;font-weight:700">🚚 รอยืนยันสุดท้าย</span>':'')
             +'</div>'
           +'<div class="trip-route">📍 '+(t.route||"—")+'</div>'
@@ -1503,7 +1522,12 @@ function renderTripList(){
           +'<button class="btn btn-blue" data-tid="'+t.id+'" onclick="printTripSummary(this.dataset.tid)">🖨 พิมพ์</button>'
           +(t.settlement?'<button class="btn" data-tid="'+t.id+'" onclick="printTripProposal(this.dataset.tid)" style="background:#7c4dff;color:#fff">🖨 พิมพ์'+((t.driverName||t.driverUsername)?"ใบวิ่งงานจริง":"ใบจัดเที่ยว")+'</button>':'')
           +(t.settlement?'<button class="btn" data-tid="'+t.id+'" onclick="printTripProposal(this.dataset.tid,true)" style="background:#c0392b;color:#fff">📄 PDF</button>':'')
-          +((_isProp||_isAppr)?'<button class="btn" data-tid="'+t.id+'" onclick="openSettlement(this.dataset.tid)" style="background:'+(_isProp?"#1D9E75":"#1565C0")+';color:#fff">'+(_isProp?"✅ อนุมัติ + ใส่คนรถ":"🔒 ยืนยันสุดท้าย")+'</button>':'')
+          +((_isProp||_isAppr)?(_isAdminU
+              ? '<button class="btn" data-tid="'+t.id+'" onclick="openSettlement(this.dataset.tid)" style="background:'+(_isProp?"#1D9E75":"#1565C0")+';color:#fff">'+(_isProp?"✅ อนุมัติ + ใส่คนรถ":"🔒 ยืนยันสุดท้าย")+'</button>'
+              : (_isProp?(_ready
+                  ? '<button class="btn btn-gray" data-tid="'+t.id+'" onclick="unmarkTripReady(this.dataset.tid)">↩️ ยกเลิกส่งอนุมัติ (แก้ไขต่อ)</button>'
+                  : '<button class="btn" data-tid="'+t.id+'" onclick="markTripReady(this.dataset.tid)" style="background:#E67E22;color:#fff">📦 ขึ้นของเสร็จ — ส่งอนุมัติ</button>'):'')
+            ):'')
         +'</div>'+'</div>'
       +'<div class="trip-stats">'
         +'<div class="trip-stat gray"><div class="tsl">บิลทั้งหมด</div><div class="tsv">'+(s.billCount||0)+'</div></div>'
@@ -1836,6 +1860,24 @@ function cancelRemoveTripBill(billNo){
   _persistRemovalReqs(); _refreshCurrentBills();
 }
 
+function markTripReady(tid){
+  var t=(_tripState.openTrips||[]).find(function(x){return x.id===tid;});
+  if(!t){ alert("ไม่พบเที่ยว"); return; }
+  if(!confirm("ยืนยัน \"ขึ้นของเสร็จ\" และส่งให้แอดมินอนุมัติ?\n\nบิลในเที่ยว "+((t.billIds||[]).length)+" ใบ\n(หลังส่งยังแก้ได้ แต่ต้องส่งอนุมัติใหม่)")) return;
+  var info={by:(CU&&(CU.name||CU.username))||"", at:new Date().toISOString()};
+  t.readyForApproval=info;
+  if(GolodDB.updateTrip) GolodDB.updateTrip(tid,{readyForApproval:info}).catch(function(){});
+  if(typeof renderTripTab==="function") renderTripTab();
+  alert("✅ ส่งให้แอดมินอนุมัติแล้ว — รอแอดมินกดอนุมัติเพื่อส่งบิลเข้าแอปคนรถ");
+}
+function unmarkTripReady(tid){
+  var t=(_tripState.openTrips||[]).find(function(x){return x.id===tid;});
+  if(!t) return;
+  if(!confirm("ยกเลิกการส่งอนุมัติ? (กลับมาแก้ไขบิลได้)")) return;
+  t.readyForApproval=null;
+  if(GolodDB.updateTrip) GolodDB.updateTrip(tid,{readyForApproval:null}).catch(function(){});
+  if(typeof renderTripTab==="function") renderTripTab();
+}
 function approveRemoveTripBill(billNo){
   if(!(CU&&CU.role==="admin")) return;
   if(!confirm("อนุมัติเอาบิล "+billNo+" ออกจากเที่ยว?")) return;
@@ -1939,14 +1981,20 @@ function renderTripForm(existingTrip){
     +'<div class="trip-form-grid">'
     +'<div><div class="trip-lbl">คนขับ</div>'
     +'<select id="tf-driver" class="trip-inp" onchange="updateTripDriverLabel()"><option value="">เลือกคนขับ</option>'+driverOpts+'</select></div>'
-    +'<div><div class="trip-lbl">เส้นทาง (เสมียนกรอก)</div>'
-    +'<input id="tf-route" class="trip-inp" placeholder="เช่น กทม.→โคราช" value="'+(t.route||"")+'"></div>'
+    +'<div><div class="trip-lbl">เส้นทาง (เสมียนกรอก / เลือกเส้นที่ตั้งไว้)</div>'
+    +'<input id="tf-route" class="trip-inp" list="tf-route-dl" placeholder="เช่น กทม.→โคราช" value="'+(t.route||"").replace(/"/g,"&quot;")+'" onchange="tfAutoFare()"></div>'
+    +'<datalist id="tf-route-dl">'+_routes.map(function(r){return '<option value="'+String(r.name||"").replace(/"/g,"&quot;")+'">';}).join("")+'</datalist>'
+    +'</div>'
+    +'<div class="trip-form-grid">'
+    +'<div><div class="trip-lbl">ประเภทรถ (ดึงค่าเที่ยวอัตโนมัติ)</div>'
+    +'<select id="tf-vehicle" class="trip-inp" onchange="tfAutoFare()"><option value="">— เลือกประเภทรถ —</option>'+_vehTypes.map(function(v){return '<option value="'+String(v).replace(/"/g,"&quot;")+'"'+(t.vehicleType===v?" selected":"")+'>'+v+'</option>';}).join("")+'</select></div>'
+    +'<div><div class="trip-lbl">&nbsp;</div><div id="tf-fare-hint" style="font-size:11px;padding-top:9px;line-height:1.3"></div></div>'
     +'</div>'
     +'<div class="trip-form-grid cols3">'
     +'<div><div class="trip-lbl">วันที่ออก</div>'
     +'<input id="tf-depart" type="date" class="trip-inp" value="'+(t.departDate||todayStr)+'"></div>'
     +'<div><div class="trip-lbl">จำนวนวัน</div>'
-    +'<select id="tf-days" class="trip-inp">'
+    +'<select id="tf-days" class="trip-inp" onchange="tfAutoFare()">'
     +'<option value="1"'+(t.days===1?" selected":"")+'>1 วัน</option>'
     +'<option value="2"'+(t.days===2?" selected":"")+'>2 วัน</option>'
     +'<option value="0"'+(t.days===0?" selected":"")+'>🌙 ค้างคืน</option>'
@@ -2095,8 +2143,28 @@ function renderTripForm(existingTrip){
     if(el) el.addEventListener("input", calcTotalFare);
   });
   calcTotalFare();
+  tfAutoFare();
 }
 
+function tfAutoFare(){
+  var hintEl=document.getElementById("tf-fare-hint");
+  var veh=(document.getElementById("tf-vehicle")||{}).value||"";
+  var days=String((document.getElementById("tf-days")||{}).value||"");
+  var rname=((document.getElementById("tf-route")||{}).value||"").trim();
+  var baseEl=document.getElementById("tf-base");
+  var isAdm=(typeof CU!=="undefined"&&CU&&CU.role==="admin");
+  if(!veh){ if(hintEl){hintEl.style.color="#aaa";hintEl.textContent="เลือกประเภทรถเพื่อดึงค่าเที่ยว";} return; }
+  var rt=null; for(var i=0;i<_routes.length;i++){ if(String(_routes[i].name||"").trim()===rname){ rt=_routes[i]; break; } }
+  var dayLbl={"1":"1 วัน","2":"2 วัน","0":"ค้างคืน"}[days]||days;
+  if(!rt){ if(hintEl){hintEl.style.color="#c0392b";hintEl.textContent="⚠ ไม่พบเส้น \""+rname+"\" ในระบบเส้นทาง (พิมพ์/เลือกชื่อเส้นให้ตรง)";} return; }
+  var f=null; for(var j=0;j<(rt.fares||[]).length;j++){ if(rt.fares[j].veh===veh && String(rt.fares[j].days)===days){ f=rt.fares[j]; break; } }
+  if(f){
+    if(isAdm && baseEl){ baseEl.value=f.fare; calcTotalFare(); }
+    if(hintEl){ hintEl.style.color="#0F6E56"; hintEl.textContent="✓ ค่าเที่ยว "+Number(f.fare).toLocaleString("th-TH")+"฿ ("+veh+"/"+dayLbl+")"+(isAdm?"":" — แก้โดยแอดมิน"); }
+  } else {
+    if(hintEl){ hintEl.style.color="#c0392b"; hintEl.textContent="เส้น "+rt.name+" ยังไม่ได้ตั้งเรท "+veh+"/"+dayLbl; }
+  }
+}
 function calcTotalFare(){
   var base  = parseFloat((document.getElementById("tf-base")||{}).value||0);
   var extra = parseFloat((document.getElementById("tf-extra")||{}).value||0);
@@ -2534,6 +2602,7 @@ function saveTrip(){
     note: (document.getElementById("tf-note")||{}).value||"",
     day1: (document.getElementById("tf-day1")||{}).value||"",
     day2: (document.getElementById("tf-day2")||{}).value||"",
+    vehicleType: (document.getElementById("tf-vehicle")||{}).value||"",
     hotelFare: parseFloat((document.getElementById("tf-hotel")||{}).value||0),
     phoneFare: parseFloat((document.getElementById("tf-phone")||{}).value||0),
     bonusFare: parseFloat((document.getElementById("tf-bonus")||{}).value||0),
@@ -4567,11 +4636,7 @@ function renderSettlement(){
   if(_settle.confirmedByName) h+='<div style="font-size:11px;color:#1565C0;font-weight:700">ยืนยันรอบสุดท้าย: '+_settle.confirmedByName+(_settle.confirmedAt?(' · '+_settleDate(_settle.confirmedAt)):'')+'</div>';
   h+='<div style="margin:10px 0"><label style="font-size:12px;color:#666;font-weight:700">เส้นทาง (จังหวัดไกลเป็นหลัก)</label>';
   h+='<input id="settle-route" value="'+String(_settle.route||"").replace(/"/g,"&quot;")+'" oninput="_settle.route=this.value" placeholder="เช่น ศรีสะเกษ / อุบลฯ" style="width:100%;padding:8px;border:1px solid #ddd;border-radius:7px;box-sizing:border-box;margin-top:3px"></div>';
-  h+='<div style="display:flex;gap:8px;margin:8px 0">';
-  h+='<div style="flex:1"><label style="font-size:12px;color:#666;font-weight:700">วันที่ 1 — อำเภอ/จังหวัดที่วิ่ง</label>';
-  h+='<input id="settle-day1" value="'+String(_settle.day1||"").replace(/"/g,"&quot;")+'" oninput="_settle.day1=this.value" placeholder="เช่น เมือง/ศรีสะเกษ, กันทรลักษ์" style="width:100%;padding:8px;border:1px solid #ddd;border-radius:7px;box-sizing:border-box;margin-top:3px"></div>';
-  h+='<div style="flex:1"><label style="font-size:12px;color:#666;font-weight:700">วันที่ 2 — อำเภอ/จังหวัดที่วิ่ง</label>';
-  h+='<input id="settle-day2" value="'+String(_settle.day2||"").replace(/"/g,"&quot;")+'" oninput="_settle.day2=this.value" placeholder="เช่น วารินฯ/อุบลฯ (ถ้ามี)" style="width:100%;padding:8px;border:1px solid #ddd;border-radius:7px;box-sizing:border-box;margin-top:3px"></div></div>';
+  // (วันที่ 1/2 ย้ายไปไว้ท้ายฟอร์มแล้ว)
   h+='<div style="margin:8px 0"><label style="font-size:12px;color:#666;font-weight:700">📝 หมายเหตุ (พิมพ์ตรงนี้ → แสดงท้ายใบเสนอ)</label>';
   h+='<textarea id="settle-note" oninput="_settle.note=this.value" placeholder="พิมพ์หมายเหตุที่นี่..." style="width:100%;padding:8px;border:1px solid #ddd;border-radius:7px;box-sizing:border-box;margin-top:3px;min-height:52px;font-family:inherit;font-size:13px">'+String(_settle.note||"").replace(/</g,"&lt;").replace(/>/g,"&gt;")+'</textarea></div>';
   h+='<button class="btn btn-gray" onclick="settleSaveRoute()" style="font-size:12px;padding:5px 12px;margin-bottom:6px">💾 บันทึกเส้นทาง/วันที่/หมายเหตุ</button>';
@@ -4613,7 +4678,10 @@ function renderSettlement(){
   h+='<div style="display:flex;justify-content:space-between;font-size:13px;color:#666"><span>ปรับ (+/-)</span><span id="settle-adj">'+_settleFmt(c.adj)+' ฿</span></div>';
   h+='<div style="display:flex;justify-content:space-between;font-size:16px;font-weight:800;color:#0F6E56;margin-top:4px"><span>ยอดสุทธิ</span><span id="settle-net">'+_settleFmt(c.adjusted)+' ฿</span></div>';
   h+='</div>';
-  h+='<div style="margin:10px 0"><label style="font-size:12px;color:#666">หมายเหตุ</label><textarea oninput="_settle.note=this.value" rows="2" style="width:100%;padding:8px;border:1px solid #ddd;border-radius:7px;box-sizing:border-box;margin-top:3px">'+String(_settle.note||"")+'</textarea></div>';
+  h+='<div style="display:flex;gap:8px;margin:12px 0 4px"><div style="flex:1"><label style="font-size:12px;color:#666;font-weight:700">วันที่ 1 — อำเภอ/จังหวัดที่วิ่ง</label>';
+  h+='<input id="settle-day1" value="'+String(_settle.day1||"").replace(/"/g,"&quot;")+'" oninput="_settle.day1=this.value" placeholder="เช่น เมือง/ศรีสะเกษ, กันทรลักษ์" style="width:100%;padding:8px;border:1px solid #ddd;border-radius:7px;box-sizing:border-box;margin-top:3px"></div>';
+  h+='<div style="flex:1"><label style="font-size:12px;color:#666;font-weight:700">วันที่ 2 — อำเภอ/จังหวัดที่วิ่ง (ถ้ามี)</label>';
+  h+='<input id="settle-day2" value="'+String(_settle.day2||"").replace(/"/g,"&quot;")+'" oninput="_settle.day2=this.value" placeholder="เช่น วารินฯ/อุบลฯ" style="width:100%;padding:8px;border:1px solid #ddd;border-radius:7px;box-sizing:border-box;margin-top:3px"></div></div>';
   // คนรถ — แอดมินใส่ตอนอนุมัติขั้นแรก (เลือก/แก้ได้จนกว่าจะยืนยันสุดท้าย)
   if(isAdmin && _settle.status!=="confirmed"){
     var _brNorm=function(b){ b=b||""; if(["ปทุมธานี","กรุงเทพ","bkk","ptm","กทม"].indexOf(b)>=0) return "กรุงเทพ"; if(["krt","โคราช","นครราชสีมา"].indexOf(b)>=0) return "นครราชสีมา"; if(["ssk","ศรีสะเกษ"].indexOf(b)>=0) return "ศรีสะเกษ"; return b; };
@@ -4723,11 +4791,12 @@ function printSettlement(asPdf){
   html+='<div class="hd"><div style="font-size:12px;font-weight:700;color:#0F6E56">บริษัท โกโลด ทรานสปอร์ต จำกัด</div>'
     +'<div style="font-size:19px;font-weight:800;margin-top:1px">'+_ttl+(stLbl?(' <span style="font-size:11px;font-weight:700;color:#888">('+stLbl+')</span>'):'')+'</div></div>';
   html+='<div class="info" style="display:flex;justify-content:space-between"><div>เส้นทาง: <b>'+(_settle.route||"-")+'</b></div><div>วันที่ออก: <b>'+(_settle.trip.departDate||"-")+'</b></div></div>';
-  html+='<div class="info">คนรถ: <b>'+(_settle.trip.driverName||_settle.trip.driverUsername||"— (ยังไม่กำหนด)")+'</b>'+(_settle.day1?(' · วันที่1: <b>'+_settle.day1+'</b>'):'')+(_settle.day2?(' · วันที่2: <b>'+_settle.day2+'</b>'):'')+'</div>';
+  html+='<div class="info">คนรถ: <b>'+(_settle.trip.driverName||_settle.trip.driverUsername||"— (ยังไม่กำหนด)")+'</b></div>';
   html+='<div class="info" style="margin-top:3px"><b>บิลทั้งหมด '+c.count+' บิล</b> · '+pay.join(' · ')+'</div>';
   html+='<table><thead><tr><th style="text-align:left">เลขบิล</th><th style="text-align:left">อำเภอ</th><th style="text-align:left">จังหวัด</th><th>ประเภท</th><th style="text-align:right">ค่าส่ง</th></tr></thead><tbody>'+rows+adjRows+'</tbody></table>';
   html+='<div style="text-align:right;margin-top:6px;font-size:12px">ยอดค่าส่งรวม: '+_settleFmt(c.total)+' ฿'+(c.adj?(' · ปรับ: '+_settleFmt(c.adj)+' ฿'):'')+' · <b style="font-size:15px">สุทธิ: '+_settleFmt(c.adjusted)+' ฿</b></div>';
   if(_stNote) html+='<div style="margin-top:6px;font-size:11px;border-top:1px dashed #999;padding-top:4px">หมายเหตุ: <b>'+_stNote+'</b></div>';
+  if(_settle.day1 || _settle.day2){ html+='<div class="info" style="margin-top:10px;border-top:1px dashed #999;padding-top:6px"><b>วันที่วิ่งจริง</b>&nbsp;&nbsp; '+(_settle.day1?('วันที่ 1: <b>'+_settle.day1+'</b>'):'')+(_settle.day2?('&nbsp;&nbsp;·&nbsp;&nbsp; วันที่ 2: <b>'+_settle.day2+'</b>'):'')+'</div>'; }
   html+='<div class="sig">'
     +'<div><div class="sigline"></div>ผู้เสนอ<br><span style="font-size:10px;color:#555">'+(_settle.proposedByName||"")+'</span></div>'
     +'<div><div class="sigline"></div>ผู้อนุมัติ<br><span style="font-size:10px;color:#555">'+(_settle.approvedByName||"")+'</span></div>'
@@ -5193,12 +5262,15 @@ function saveCustomerPrices(){
 // ===== ระบบเส้นทาง (route) + ออโต้จัดเที่ยว =====
 var _routes = [];        // [{name, group, min, rules:[{prov, amphoes:[]}]}]
 var _rtEditIdx = -1;
+var _vehTypes = [];
+var _rtFares = [];
 var _autoTripGroups = {};
 var _autoTripExp = {};
 var _autoTripExcl = {};
 function loadRoutes(){
   if(!GolodDB.getSetting) return;
   GolodDB.getSetting("routes").then(function(v){ if(Array.isArray(v)) _routes=v; }).catch(function(){});
+  GolodDB.getSetting("vehicleTypes").then(function(v){ if(Array.isArray(v)) _vehTypes=v; }).catch(function(){});
 }
 function _rtParseRules(text){
   return (text||"").split("\n").map(function(line){
@@ -5253,7 +5325,7 @@ function getRouteForBill(prov, amphoe, tambon){
 }
 function openRoutes(){
   if(!CU || CU.role!=="admin"){ alert("เฉพาะ Admin"); return; }
-  _rtEditIdx=-1; _rtClearForm(); renderRouteList();
+  _rtEditIdx=-1; _rtClearForm(); renderVehTypes(); renderRouteList();
   document.getElementById("modal-routes").style.display="flex";
 }
 function closeRoutes(){ document.getElementById("modal-routes").style.display="none"; }
@@ -5263,6 +5335,7 @@ function _rtClearForm(){
   document.getElementById("rt-min").value="";
   document.getElementById("rt-rules").value="";
   var b=document.getElementById("rt-save-btn"); if(b) b.textContent="+ เพิ่มเส้น";
+  _rtFares=[]; renderRtFares();
 }
 function saveRouteEntry(){
   var name=document.getElementById("rt-name").value.trim();
@@ -5271,7 +5344,8 @@ function saveRouteEntry(){
   var rules=_rtParseRules(document.getElementById("rt-rules").value);
   if(!name){ alert("กรอกชื่อเส้นด้วยครับ"); return; }
   if(!rules.length){ alert("กรอกจังหวัด/อำเภอ อย่างน้อย 1 บรรทัด"); return; }
-  var entry={name:name, group:group, min:min, rules:rules};
+  var fares=_rtFares.filter(function(f){return f.veh && f.fare!=="" && f.fare!=null && !isNaN(parseFloat(f.fare));}).map(function(f){return {veh:f.veh, days:String(f.days), fare:parseFloat(f.fare)};});
+  var entry={name:name, group:group, min:min, rules:rules, fares:fares};
   if(_rtEditIdx>=0){ _routes[_rtEditIdx]=entry; _rtEditIdx=-1; } else { _routes.push(entry); }
   _rtClearForm(); renderRouteList();
 }
@@ -5281,6 +5355,7 @@ function editRoute(i){
   document.getElementById("rt-group").value=rt.group||"";
   document.getElementById("rt-min").value=rt.min||"";
   document.getElementById("rt-rules").value=_rtRulesToText(rt.rules);
+  _rtFares=(rt.fares||[]).map(function(f){return {veh:f.veh, days:String(f.days), fare:f.fare};}); renderRtFares();
   var b=document.getElementById("rt-save-btn"); if(b) b.textContent="💾 บันทึกการแก้ไข";
 }
 function removeRoute(i){ if(!confirm("ลบเส้น "+((_routes[i]||{}).name||"")+"?")) return; _routes.splice(i,1); if(_rtEditIdx===i){_rtEditIdx=-1;_rtClearForm();} renderRouteList(); }
@@ -5292,7 +5367,7 @@ function renderRouteList(){
     return '<div style="border:1px solid #eee;border-radius:9px;padding:10px;margin-bottom:8px">'
       +'<div style="display:flex;justify-content:space-between;align-items:center">'
       +'<span style="font-weight:700;color:#0F6E56">'+rt.name+(rt.group?' <span style="font-size:10px;color:#999">· '+rt.group+'</span>':'')+'</span>'
-      +'<span style="font-size:11px;color:#b7950b;font-weight:700">ขั้นต่ำ '+(parseInt(rt.min)||0).toLocaleString("th-TH")+'฿</span></div>'
+      +'<span style="font-size:11px;color:#b7950b;font-weight:700">ขั้นต่ำ '+(parseInt(rt.min)||0).toLocaleString("th-TH")+'฿'+((rt.fares&&rt.fares.length)?' · 💵'+rt.fares.length+' เรท':' · <span style=\'color:#c0392b\'>ยังไม่ตั้งเรท</span>')+'</span></div>'
       +'<div style="font-size:11px;color:#777;margin-top:3px">'+summary+'</div>'
       +'<div style="margin-top:5px;display:flex;gap:6px">'
       +'<button onclick="editRoute('+i+')" style="background:#eef;border:1px solid #cce;border-radius:5px;padding:2px 10px;font-size:11px;cursor:pointer">แก้</button>'
@@ -5300,10 +5375,44 @@ function renderRouteList(){
       +'</div></div>';
   }).join("");
 }
+function renderVehTypes(){
+  var el=document.getElementById("rt-veh-types"); if(!el) return;
+  el.innerHTML = _vehTypes.length ? _vehTypes.map(function(v,i){
+    return '<span style="display:inline-flex;align-items:center;gap:5px;background:#fff;border:1px solid #cce;border-radius:14px;padding:3px 7px 3px 11px;font-size:12px">'+v+'<span onclick="removeVehType('+i+')" style="cursor:pointer;color:#c00;font-weight:700;background:#fee;border-radius:50%;width:17px;height:17px;display:inline-flex;align-items:center;justify-content:center;font-size:12px">×</span></span>';
+  }).join("") : '<span style="font-size:11px;color:#aaa">ยังไม่มี — เพิ่มประเภทรถก่อนตั้งเรท</span>';
+}
+function addVehType(){
+  var inp=document.getElementById("rt-veh-new"); var v=(inp.value||"").trim();
+  if(!v) return;
+  if(_vehTypes.indexOf(v)>=0){ alert("มี \""+v+"\" อยู่แล้ว"); return; }
+  _vehTypes.push(v); inp.value=""; renderVehTypes(); renderRtFares();
+}
+function removeVehType(i){ _vehTypes.splice(i,1); renderVehTypes(); renderRtFares(); }
+var _RT_DAYS=[["1","1 วัน"],["2","2 วัน"],["0","ค้างคืน"]];
+function _rtFareRow(f,i){
+  var vOpts='<option value="">— รถ —</option>'+_vehTypes.map(function(v){return '<option value="'+v+'"'+(f.veh===v?" selected":"")+'>'+v+'</option>';}).join("");
+  var dOpts=_RT_DAYS.map(function(d){return '<option value="'+d[0]+'"'+(String(f.days)===d[0]?" selected":"")+'>'+d[1]+'</option>';}).join("");
+  return '<div style="display:flex;gap:5px;align-items:center;margin-bottom:5px">'
+    +'<select onchange="_rtFareSet('+i+',\'veh\',this.value)" style="flex:1;padding:5px;border:1px solid #ddd;border-radius:6px;font-size:12px">'+vOpts+'</select>'
+    +'<select onchange="_rtFareSet('+i+',\'days\',this.value)" style="width:88px;padding:5px;border:1px solid #ddd;border-radius:6px;font-size:12px">'+dOpts+'</select>'
+    +'<input type="number" value="'+(f.fare!==undefined&&f.fare!==null?f.fare:"")+'" oninput="_rtFareSet('+i+',\'fare\',this.value)" placeholder="฿" style="width:84px;padding:5px;border:1px solid #ddd;border-radius:6px;font-size:12px;text-align:right">'
+    +'<span onclick="removeRtFare('+i+')" style="cursor:pointer;color:#c00;font-weight:700">✕</span></div>';
+}
+function renderRtFares(){
+  var el=document.getElementById("rt-fares-list"); if(!el) return;
+  if(!_vehTypes.length){ el.innerHTML='<div style="font-size:11px;color:#aaa">เพิ่มประเภทรถด้านบนก่อน แล้วค่อยตั้งเรท</div>'; return; }
+  el.innerHTML = _rtFares.length ? _rtFares.map(function(f,i){return _rtFareRow(f,i);}).join("") : '<div style="font-size:11px;color:#aaa;margin-bottom:4px">ยังไม่ได้ตั้งเรทเส้นนี้</div>';
+}
+function addRtFare(){ if(!_vehTypes.length){ alert("เพิ่มประเภทรถก่อนครับ"); return; } _rtFares.push({veh:_vehTypes[0]||"", days:"1", fare:""}); renderRtFares(); }
+function removeRtFare(i){ _rtFares.splice(i,1); renderRtFares(); }
+function _rtFareSet(i,k,v){ if(_rtFares[i]) _rtFares[i][k]=v; }
 function persistRoutes(){
   if(!GolodDB.saveSetting){ alert("golod-firebase.js ยังไม่อัปเดต"); return; }
-  GolodDB.saveSetting("routes", _routes).then(function(){
-    alert("✅ บันทึกเส้นทางแล้ว "+_routes.length+" เส้น"); closeRoutes();
+  Promise.all([
+    GolodDB.saveSetting("routes", _routes),
+    GolodDB.saveSetting("vehicleTypes", _vehTypes)
+  ]).then(function(){
+    alert("✅ บันทึกแล้ว — เส้นทาง "+_routes.length+" เส้น · ประเภทรถ "+_vehTypes.length+" แบบ"); closeRoutes();
   }).catch(function(e){ alert("❌ "+e.message); });
 }
 function _atTarget(){ var v=parseInt((document.getElementById("at-target")||{}).value)||20; return v<1?20:v; }
@@ -5398,9 +5507,9 @@ function confirmAutoTrip(){
       var chunk=bills.slice(c*N,(c+1)*N), billIds=chunk.map(function(b){return b.billNo;});
       var firstBranch=(chunk[0]&&chunk[0].branch)||"", label=k+(nChunks>1?(" #"+(c+1)):"");
       var trip={ branch:(ub!=="all"?ub:firstBranch), zone:k, route:k, billIds:billIds,
-        driverName:"", driverUsername:"", status:(isAdmin?"open":"proposed"), source:"auto",
-        note:"ออโต้จัดเที่ยว "+today+" · เส้น "+label, createdAt:now, createdBy:CU.username };
-      if(!isAdmin){ trip.settlement={status:"proposed", source:"auto"}; }
+        driverName:"", driverUsername:"", status:"proposed", source:"auto",
+        note:"ออโต้จัดเที่ยว "+today+" · เส้น "+label, createdAt:now, createdBy:CU.username,
+        settlement:{status:"proposed", source:"auto"} };
       (function(billIds){
         tasks.push(GolodDB.saveTrip(trip).then(function(saved){
           var tid=saved&&saved.id;
