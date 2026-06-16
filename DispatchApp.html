@@ -668,7 +668,7 @@ tr:hover td{background:#f8fffe}
 <div class="topbar">
   <span class="title">🚛 จัดการขนส่ง</span>
   <span id="session-info" style="font-size:11px;opacity:.8"></span>
-  <span style="font-size:10px;opacity:.65;margin-left:auto">build 2026-06-10z30</span>
+  <span style="font-size:10px;opacity:.65;margin-left:auto">build 2026-06-10z31</span>
   <a href="GolodApp.html" style="margin-left:10px">← หน้าหลัก</a>
 </div>
 <div class="container">
@@ -835,6 +835,12 @@ tr:hover td{background:#f8fffe}
     <textarea id="rt-rules" rows="4" placeholder="นครราชสีมา: ด่านขุนทด, พิมาย, โนนสูง&#10;นครราชสีมา > ปากช่อง > ปากช่อง, หนองสาหร่าย, จันทึก&#10;นครราชสีมา > สีคิ้ว > หนองบัวน้อย, กฤษณา" style="width:100%;box-sizing:border-box;padding:8px 10px;border:1px solid #ddd;border-radius:7px;font-size:12px;font-family:inherit"></textarea>
     <div style="background:#fffbf0;border:1px solid #f0e0b0;border-radius:8px;padding:8px 10px;margin-top:8px">
       <div style="font-size:11px;font-weight:700;color:#b7950b;margin-bottom:5px">💵 ค่าเที่ยวของเส้นนี้ (ตามประเภทรถ × จำนวนวัน)</div>
+      <div style="font-size:11px;font-weight:700;color:#b7950b;margin-bottom:4px">ปลายทางไกลสุด (ระดับเรท — เว้นว่างได้ถ้าเส้นนี้เรทเดียว)</div>
+      <div id="rt-tiers" style="display:flex;flex-wrap:wrap;gap:5px;margin-bottom:6px"></div>
+      <div style="display:flex;gap:6px;margin-bottom:8px">
+        <input id="rt-tier-new" placeholder="เช่น เมืองอุบล, เดชอุดม, น้ำยืน" style="flex:1;padding:6px 9px;border:1px solid #ddd;border-radius:6px;font-size:12px" onkeydown="if(event.key==='Enter'){addRtTier();event.preventDefault();}">
+        <button class="btn btn-gray" onclick="addRtTier()" style="font-size:12px;padding:5px 12px;white-space:nowrap">+ เพิ่มปลายทาง</button>
+      </div>
       <div id="rt-fares-list"></div>
       <button class="btn btn-gray" onclick="addRtFare()" style="font-size:12px;padding:5px 12px;margin-top:4px">+ เพิ่มเรทค่าเที่ยว</button>
     </div>
@@ -1970,6 +1976,8 @@ function renderTripForm(existingTrip){
 
   var today = new Date();
   var todayStr = today.getFullYear()+"-"+String(today.getMonth()+1).padStart(2,"0")+"-"+String(today.getDate()).padStart(2,"0");
+  var _tripRt=null; for(var _ri=0;_ri<_routes.length;_ri++){ if(String(_routes[_ri].name||"").trim()===String(t.route||"").trim()){_tripRt=_routes[_ri];break;} }
+  var _tripTiers=(_tripRt&&_tripRt.tiers)||[];
 
   var html = '<div class="card">'
     +'<div style="display:flex;align-items:center;gap:10px;margin-bottom:14px">'
@@ -1983,14 +1991,16 @@ function renderTripForm(existingTrip){
     +'<div><div class="trip-lbl">คนขับ</div>'
     +'<select id="tf-driver" class="trip-inp" onchange="updateTripDriverLabel()"><option value="">เลือกคนขับ</option>'+driverOpts+'</select></div>'
     +'<div><div class="trip-lbl">เส้นทาง (เสมียนกรอก / เลือกเส้นที่ตั้งไว้)</div>'
-    +'<input id="tf-route" class="trip-inp" list="tf-route-dl" placeholder="เช่น กทม.→โคราช" value="'+(t.route||"").replace(/"/g,"&quot;")+'" onchange="tfAutoFare()"></div>'
+    +'<input id="tf-route" class="trip-inp" list="tf-route-dl" placeholder="เช่น กทม.→โคราช" value="'+(t.route||"").replace(/"/g,"&quot;")+'" onchange="tfSyncTiers()"></div>'
     +'<datalist id="tf-route-dl">'+_routes.map(function(r){return '<option value="'+String(r.name||"").replace(/"/g,"&quot;")+'">';}).join("")+'</datalist>'
     +'</div>'
     +'<div class="trip-form-grid">'
     +'<div><div class="trip-lbl">ประเภทรถ (ดึงค่าเที่ยวอัตโนมัติ)</div>'
     +'<select id="tf-vehicle" class="trip-inp" onchange="tfAutoFare()"><option value="">— เลือกประเภทรถ —</option>'+_vehTypes.map(function(v){return '<option value="'+String(v).replace(/"/g,"&quot;")+'"'+(t.vehicleType===v?" selected":"")+'>'+v+'</option>';}).join("")+'</select></div>'
-    +'<div><div class="trip-lbl">&nbsp;</div><div id="tf-fare-hint" style="font-size:11px;padding-top:9px;line-height:1.3"></div></div>'
+    +'<div><div class="trip-lbl">ปลายทางไกลสุด (เรท)</div>'
+    +'<select id="tf-faretier" class="trip-inp" onchange="tfAutoFare()"><option value="">'+(_tripTiers.length?'— เลือกปลายทาง —':'(เรทเดียว)')+'</option>'+_tripTiers.map(function(tn){return '<option value="'+String(tn).replace(/"/g,"&quot;")+'"'+(t.fareTier===tn?" selected":"")+'>'+tn+'</option>';}).join("")+'</select></div>'
     +'</div>'
+    +'<div id="tf-fare-hint" style="font-size:11px;line-height:1.3;margin:2px 0 6px"></div>'
     +'<div class="trip-form-grid cols3">'
     +'<div><div class="trip-lbl">วันที่ออก</div>'
     +'<input id="tf-depart" type="date" class="trip-inp" value="'+(t.departDate||todayStr)+'"></div>'
@@ -2147,6 +2157,17 @@ function renderTripForm(existingTrip){
   tfAutoFare();
 }
 
+function tfSyncTiers(){
+  var sel=document.getElementById("tf-faretier");
+  var rname=((document.getElementById("tf-route")||{}).value||"").trim();
+  var rt=null; for(var i=0;i<_routes.length;i++){ if(String(_routes[i].name||"").trim()===rname){rt=_routes[i];break;} }
+  var tiers=(rt&&rt.tiers)||[];
+  if(sel){
+    var cur=sel.value;
+    sel.innerHTML='<option value="">'+(tiers.length?'— เลือกปลายทาง —':'(เรทเดียว)')+'</option>'+tiers.map(function(tn){return '<option value="'+String(tn).replace(/"/g,"&quot;")+'"'+(cur===tn?" selected":"")+'>'+tn+'</option>';}).join("");
+  }
+  tfAutoFare();
+}
 function tfAutoFare(){
   var hintEl=document.getElementById("tf-fare-hint");
   var veh=(document.getElementById("tf-vehicle")||{}).value||"";
@@ -2158,7 +2179,9 @@ function tfAutoFare(){
   var rt=null; for(var i=0;i<_routes.length;i++){ if(String(_routes[i].name||"").trim()===rname){ rt=_routes[i]; break; } }
   var dayLbl={"1":"1 วัน","2":"2 วัน","0":"ค้างคืน"}[days]||days;
   if(!rt){ if(hintEl){hintEl.style.color="#c0392b";hintEl.textContent="⚠ ไม่พบเส้น \""+rname+"\" ในระบบเส้นทาง (พิมพ์/เลือกชื่อเส้นให้ตรง)";} return; }
-  var f=null; for(var j=0;j<(rt.fares||[]).length;j++){ if(rt.fares[j].veh===veh && String(rt.fares[j].days)===days){ f=rt.fares[j]; break; } }
+  var tier=((document.getElementById("tf-faretier")||{}).value||"");
+  if((rt.tiers||[]).length && !tier){ if(hintEl){hintEl.style.color="#E67E22";hintEl.textContent="เลือกปลายทางไกลสุดก่อน เพื่อดึงเรทให้ตรง";} return; }
+  var f=null; for(var j=0;j<(rt.fares||[]).length;j++){ if(rt.fares[j].veh===veh && String(rt.fares[j].days)===days && String(rt.fares[j].tier||"")===tier){ f=rt.fares[j]; break; } }
   if(f){
     if(isAdm && baseEl){ baseEl.value=f.fare; calcTotalFare(); }
     if(hintEl){ hintEl.style.color="#0F6E56"; hintEl.textContent="✓ ค่าเที่ยว "+Number(f.fare).toLocaleString("th-TH")+"฿ ("+veh+"/"+dayLbl+")"+(isAdm?"":" — แก้โดยแอดมิน"); }
@@ -2604,6 +2627,7 @@ function saveTrip(){
     day1: (document.getElementById("tf-day1")||{}).value||"",
     day2: (document.getElementById("tf-day2")||{}).value||"",
     vehicleType: (document.getElementById("tf-vehicle")||{}).value||"",
+    fareTier: (document.getElementById("tf-faretier")||{}).value||"",
     hotelFare: parseFloat((document.getElementById("tf-hotel")||{}).value||0),
     phoneFare: parseFloat((document.getElementById("tf-phone")||{}).value||0),
     bonusFare: parseFloat((document.getElementById("tf-bonus")||{}).value||0),
@@ -5288,6 +5312,7 @@ var _routes = [];        // [{name, group, min, rules:[{prov, amphoes:[]}]}]
 var _rtEditIdx = -1;
 var _vehTypes = [];
 var _rtFares = [];
+var _rtTiers = [];
 var _autoTripGroups = {};
 var _autoTripExp = {};
 var _autoTripExcl = {};
@@ -5360,6 +5385,7 @@ function _rtClearForm(){
   document.getElementById("rt-rules").value="";
   var b=document.getElementById("rt-save-btn"); if(b) b.textContent="+ เพิ่มเส้น";
   _rtFares=[]; renderRtFares();
+  _rtTiers=[]; renderRtTiers();
 }
 function saveRouteEntry(){
   var name=document.getElementById("rt-name").value.trim();
@@ -5368,8 +5394,8 @@ function saveRouteEntry(){
   var rules=_rtParseRules(document.getElementById("rt-rules").value);
   if(!name){ alert("กรอกชื่อเส้นด้วยครับ"); return; }
   if(!rules.length){ alert("กรอกจังหวัด/อำเภอ อย่างน้อย 1 บรรทัด"); return; }
-  var fares=_rtFares.filter(function(f){return f.veh && f.fare!=="" && f.fare!=null && !isNaN(parseFloat(f.fare));}).map(function(f){return {veh:f.veh, days:String(f.days), fare:parseFloat(f.fare)};});
-  var entry={name:name, group:group, min:min, rules:rules, fares:fares};
+  var fares=_rtFares.filter(function(f){return f.veh && f.fare!=="" && f.fare!=null && !isNaN(parseFloat(f.fare));}).map(function(f){return {tier:(f.tier||""), veh:f.veh, days:String(f.days), fare:parseFloat(f.fare)};});
+  var entry={name:name, group:group, min:min, rules:rules, tiers:_rtTiers.slice(), fares:fares};
   if(_rtEditIdx>=0){ _routes[_rtEditIdx]=entry; _rtEditIdx=-1; } else { _routes.push(entry); }
   _rtClearForm(); renderRouteList();
 }
@@ -5379,7 +5405,8 @@ function editRoute(i){
   document.getElementById("rt-group").value=rt.group||"";
   document.getElementById("rt-min").value=rt.min||"";
   document.getElementById("rt-rules").value=_rtRulesToText(rt.rules);
-  _rtFares=(rt.fares||[]).map(function(f){return {veh:f.veh, days:String(f.days), fare:f.fare};}); renderRtFares();
+  _rtTiers=(rt.tiers||[]).slice(); renderRtTiers();
+  _rtFares=(rt.fares||[]).map(function(f){return {tier:(f.tier||""), veh:f.veh, days:String(f.days), fare:f.fare};}); renderRtFares();
   var b=document.getElementById("rt-save-btn"); if(b) b.textContent="💾 บันทึกการแก้ไข";
 }
 function removeRoute(i){ if(!confirm("ลบเส้น "+((_routes[i]||{}).name||"")+"?")) return; _routes.splice(i,1); if(_rtEditIdx===i){_rtEditIdx=-1;_rtClearForm();} renderRouteList(); }
@@ -5413,10 +5440,24 @@ function addVehType(){
 }
 function removeVehType(i){ _vehTypes.splice(i,1); renderVehTypes(); renderRtFares(); }
 var _RT_DAYS=[["1","1 วัน"],["2","2 วัน"],["0","ค้างคืน"]];
+function renderRtTiers(){
+  var el=document.getElementById("rt-tiers"); if(!el) return;
+  el.innerHTML = _rtTiers.length ? _rtTiers.map(function(tn,i){
+    return '<span style="display:inline-flex;align-items:center;gap:5px;background:#fff;border:1px solid #f0e0b0;border-radius:14px;padding:3px 7px 3px 11px;font-size:12px">'+tn+'<span onclick="removeRtTier('+i+')" style="cursor:pointer;color:#c00;font-weight:700;background:#fee;border-radius:50%;width:17px;height:17px;display:inline-flex;align-items:center;justify-content:center">×</span></span>';
+  }).join("") : '<span style="font-size:11px;color:#aaa">— ไม่มี (เส้นนี้เรทเดียว) —</span>';
+}
+function addRtTier(){
+  var inp=document.getElementById("rt-tier-new"); var v=(inp.value||"").trim();
+  if(!v) return; if(_rtTiers.indexOf(v)>=0){ alert("มี \""+v+"\" แล้ว"); return; }
+  _rtTiers.push(v); inp.value=""; renderRtTiers(); renderRtFares();
+}
+function removeRtTier(i){ _rtTiers.splice(i,1); renderRtTiers(); renderRtFares(); }
 function _rtFareRow(f,i){
   var vOpts='<option value="">— รถ —</option>'+_vehTypes.map(function(v){return '<option value="'+v+'"'+(f.veh===v?" selected":"")+'>'+v+'</option>';}).join("");
   var dOpts=_RT_DAYS.map(function(d){return '<option value="'+d[0]+'"'+(String(f.days)===d[0]?" selected":"")+'>'+d[1]+'</option>';}).join("");
+  var tCell = _rtTiers.length ? ('<select onchange="_rtFareSet('+i+',\'tier\',this.value)" style="width:104px;padding:5px;border:1px solid #f0c97a;border-radius:6px;font-size:12px"><option value="">(ไกลสุด/ทั้งเส้น)</option>'+_rtTiers.map(function(tn){return '<option value="'+tn+'"'+(f.tier===tn?" selected":"")+'>'+tn+'</option>';}).join("")+'</select>') : '';
   return '<div style="display:flex;gap:5px;align-items:center;margin-bottom:5px">'
+    +tCell
     +'<select onchange="_rtFareSet('+i+',\'veh\',this.value)" style="flex:1;padding:5px;border:1px solid #ddd;border-radius:6px;font-size:12px">'+vOpts+'</select>'
     +'<select onchange="_rtFareSet('+i+',\'days\',this.value)" style="width:88px;padding:5px;border:1px solid #ddd;border-radius:6px;font-size:12px">'+dOpts+'</select>'
     +'<input type="number" value="'+(f.fare!==undefined&&f.fare!==null?f.fare:"")+'" oninput="_rtFareSet('+i+',\'fare\',this.value)" placeholder="฿" style="width:84px;padding:5px;border:1px solid #ddd;border-radius:6px;font-size:12px;text-align:right">'
@@ -5427,7 +5468,7 @@ function renderRtFares(){
   if(!_vehTypes.length){ el.innerHTML='<div style="font-size:11px;color:#aaa">เพิ่มประเภทรถด้านบนก่อน แล้วค่อยตั้งเรท</div>'; return; }
   el.innerHTML = _rtFares.length ? _rtFares.map(function(f,i){return _rtFareRow(f,i);}).join("") : '<div style="font-size:11px;color:#aaa;margin-bottom:4px">ยังไม่ได้ตั้งเรทเส้นนี้</div>';
 }
-function addRtFare(){ if(!_vehTypes.length){ alert("เพิ่มประเภทรถก่อนครับ"); return; } _rtFares.push({veh:_vehTypes[0]||"", days:"1", fare:""}); renderRtFares(); }
+function addRtFare(){ if(!_vehTypes.length){ alert("เพิ่มประเภทรถก่อนครับ"); return; } _rtFares.push({tier:"", veh:_vehTypes[0]||"", days:"1", fare:""}); renderRtFares(); }
 function removeRtFare(i){ _rtFares.splice(i,1); renderRtFares(); }
 function _rtFareSet(i,k,v){ if(_rtFares[i]) _rtFares[i][k]=v; }
 function persistRoutes(){
