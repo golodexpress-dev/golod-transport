@@ -667,7 +667,7 @@ tr:hover td{background:#f8fffe}
 <div class="topbar">
   <span class="title">🚛 จัดการขนส่ง</span>
   <span id="session-info" style="font-size:11px;opacity:.8"></span>
-  <span style="font-size:10px;opacity:.65;margin-left:auto">build 2026-06-10z28</span>
+  <span style="font-size:10px;opacity:.65;margin-left:auto">build 2026-06-10z29</span>
   <a href="GolodApp.html" style="margin-left:10px">← หน้าหลัก</a>
 </div>
 <div class="container">
@@ -4783,9 +4783,9 @@ function printSettlement(asPdf){
     +'<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Sarabun:wght@400;700;800;900&display=swap">'
     +'<style>@page{size:A4;margin:8mm 10mm}body{font-family:Sarabun,sans-serif;font-size:11px;color:#000;margin:0;-webkit-print-color-adjust:exact;print-color-adjust:exact}'
     +'@media screen{body{max-width:210mm;margin:0 auto;padding:14px 10mm;box-sizing:border-box;background:#fff}}'
-    +'table{width:100%;border-collapse:collapse;margin-top:4px}td,th{border:1px solid #999;padding:2px 5px}th{background:#f0f0f0}'
+    +'table{width:100%;border-collapse:collapse;margin-top:4px}td,th{border:1px solid #999;padding:2px 5px;font-size:13px}th{background:#f0f0f0}'
     +'.hd{text-align:center;border-bottom:2px solid #0F6E56;padding-bottom:4px;margin-bottom:6px}'
-    +'.info{font-size:11px;line-height:1.55}'
+    +'.info{font-size:13px;line-height:1.55}'
     +'.sig{display:flex;justify-content:space-between;gap:16px;margin-top:24px;text-align:center;font-size:11px}'
     +'.sig>div{flex:1}.sigline{border-top:1px dotted #000;margin:22px 8px 3px}</style></head><body>';
   html+='<div class="hd"><div style="font-size:12px;font-weight:700;color:#0F6E56">บริษัท โกโลด ทรานสปอร์ต จำกัด</div>'
@@ -4794,8 +4794,8 @@ function printSettlement(asPdf){
   html+='<div class="info">คนรถ: <b>'+(_settle.trip.driverName||_settle.trip.driverUsername||"— (ยังไม่กำหนด)")+'</b></div>';
   html+='<div class="info" style="margin-top:3px"><b>บิลทั้งหมด '+c.count+' บิล</b> · '+pay.join(' · ')+'</div>';
   html+='<table><thead><tr><th style="text-align:left">เลขบิล</th><th style="text-align:left">อำเภอ</th><th style="text-align:left">จังหวัด</th><th>ประเภท</th><th style="text-align:right">ค่าส่ง</th></tr></thead><tbody>'+rows+adjRows+'</tbody></table>';
-  html+='<div style="text-align:right;margin-top:6px;font-size:12px">ยอดค่าส่งรวม: '+_settleFmt(c.total)+' ฿'+(c.adj?(' · ปรับ: '+_settleFmt(c.adj)+' ฿'):'')+' · <b style="font-size:15px">สุทธิ: '+_settleFmt(c.adjusted)+' ฿</b></div>';
-  if(_stNote) html+='<div style="margin-top:6px;font-size:11px;border-top:1px dashed #999;padding-top:4px">หมายเหตุ: <b>'+_stNote+'</b></div>';
+  html+='<div style="text-align:right;margin-top:6px;font-size:13px">ยอดค่าส่งรวม: '+_settleFmt(c.total)+' ฿'+(c.adj?(' · ปรับ: '+_settleFmt(c.adj)+' ฿'):'')+' · <b style="font-size:15px">สุทธิ: '+_settleFmt(c.adjusted)+' ฿</b></div>';
+  if(_stNote) html+='<div style="margin-top:6px;font-size:13px;border-top:1px dashed #999;padding-top:4px">หมายเหตุ: <b>'+_stNote+'</b></div>';
   if(_settle.day1 || _settle.day2){ html+='<div class="info" style="margin-top:10px;border-top:1px dashed #999;padding-top:6px"><b>วันที่วิ่งจริง</b>&nbsp;&nbsp; '+(_settle.day1?('วันที่ 1: <b>'+_settle.day1+'</b>'):'')+(_settle.day2?('&nbsp;&nbsp;·&nbsp;&nbsp; วันที่ 2: <b>'+_settle.day2+'</b>'):'')+'</div>'; }
   html+='<div class="sig">'
     +'<div><div class="sigline"></div>ผู้เสนอ<br><span style="font-size:10px;color:#555">'+(_settle.proposedByName||"")+'</span></div>'
