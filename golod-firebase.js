@@ -244,6 +244,16 @@ var GolodDB = (function() {
       });
     });
   }
+  function saveDeleteLog(entry) {
+    return new Promise(function(resolve) {
+      ready(function() {
+        var log = Object.assign({ action:"delete", editedAt:new Date().toISOString() }, entry||{});
+        db.collection("editLogs").add(log)
+          .then(function(){ try{ var l=JSON.parse(localStorage.getItem("golod_edit_logs")||"[]"); l.unshift(log); localStorage.setItem("golod_edit_logs", JSON.stringify(l.slice(0,500))); }catch(e){} resolve(); })
+          .catch(function(e){ console.warn("saveDeleteLog:", e); resolve(); });
+      });
+    });
+  }
 
   function getEditLogs(opts) {
     opts = opts || {};
@@ -687,7 +697,7 @@ var GolodDB = (function() {
     getBillsByTripId,
     saveContact, getContacts,
     saveUser, getUsers,
-    saveEditLog, getEditLogs,
+    saveEditLog, getEditLogs, saveDeleteLog,
     listenBills, getAllBills, getBillsNew,
     saveDispatchLog, getDispatchLogs,
     getBillsDispatch,
