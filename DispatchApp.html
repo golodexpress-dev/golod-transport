@@ -361,7 +361,7 @@ tr:hover td{background:#f8fffe}
             <option value="บิลไม่เข้าระบบ">บิลไม่เข้าระบบ</option>
             <option value="หาบิลไม่เจอ">หาบิลไม่เจอ</option>
             <option value="ยอดไม่ตรง">ยอดไม่ตรง</option>
-            <option value="ปท.→โอน">ปลายทาง→โอน (หักยอด+ต้องมีสลิป)</option>
+            <option value="ปท.→โอน">ปลายทาง→โอน (บันทึก+สลิป ไม่กระทบยอด)</option>
             <option value="อื่นๆ">อื่นๆ</option>
           </select></div>
         <div><div style="font-size:9px;color:#888">เลขบิล (ถ้ามี)</div>
@@ -668,7 +668,7 @@ tr:hover td{background:#f8fffe}
 <div class="topbar">
   <span class="title">🚛 จัดการขนส่ง</span>
   <span id="session-info" style="font-size:11px;opacity:.8"></span>
-  <span style="font-size:10px;opacity:.65;margin-left:auto">build 2026-06-10z37</span>
+  <span style="font-size:10px;opacity:.65;margin-left:auto">build 2026-06-10z38</span>
   <a href="GolodApp.html" style="margin-left:10px">← หน้าหลัก</a>
 </div>
 <div class="container">
@@ -4532,9 +4532,9 @@ function addClearRemark(){
   var amount=parseFloat((document.getElementById("ct-rmk-amount")||{}).value||0);
   if(type==="ปท.→โอน"){
     if(!billNo){ alert("ใส่เลขบิลที่เปลี่ยน ปท.→โอน ด้วยครับ"); return; }
-    if(!amount){ alert("ใส่ยอดค่าขนส่งของบิลที่เปลี่ยนเป็นโอนด้วยครับ"); return; }
-    amount = -Math.abs(amount);
-    if(!note) note="ปลายทางจ่ายผ่านโอน (มีสลิป)";
+    var _qf=Math.abs(amount)||0;
+    note=(note?note+" ":"")+"ปลายทางจ่ายผ่านโอน"+(_qf?" (฿"+_qf.toLocaleString("th-TH")+")":"")+" — บันทึก/สลิป ไม่กระทบยอด";
+    amount = 0;
   }
   if(!note && !billNo){ alert("กรอกรายละเอียดหรือเลขบิลด้วยครับ"); return; }
   var isAdmin = CU && CU.role==="admin";
@@ -4554,10 +4554,11 @@ function addClearRemark(){
 function convertRemarkToTransfer(id){
   var r=_clearRemarks.find(function(x){return x.id===id;}); if(!r) return;
   if(!(CU&&CU.role==="admin")){ alert("เฉพาะแอดมิน"); return; }
-  if(!confirm("แปลงรายการนี้เป็น \"ปลายทาง→โอน\" และหักออกจากยอดคนรถ?\n"+(r.billNo||"")+" "+Math.round(r.amount).toLocaleString("th-TH")+" → -"+Math.abs(Math.round(r.amount)).toLocaleString("th-TH")+"\nอย่าลืมแนบสลิปก่อนบันทึก")) return;
+  if(!confirm("แปลงรายการนี้เป็น \"ปลายทาง→โอน\" (บันทึก+สลิป ไม่กระทบยอดคนรถ)?\n"+(r.billNo||"")+" — ยอดปรับจะกลายเป็น 0\nอย่าลืมแนบสลิปก่อนบันทึก")) return;
+  var _af=Math.abs(r.amount)||0;
   r.type="ปท.→โอน";
-  r.amount=-Math.abs(r.amount);
-  if(!/โอน/.test(r.note||"")) r.note=(r.note?r.note+" ":"")+"(แปลงเป็นจ่ายผ่านโอน)";
+  r.note=(r.note?r.note+" ":"")+"(จ่ายผ่านโอน"+(_af?" ฿"+_af.toLocaleString("th-TH"):"")+" — ไม่กระทบยอด)";
+  r.amount=0;
   renderClearRemarks(); calcClearTrip();
 }
 function uploadRemarkSlip(id){
@@ -4589,7 +4590,7 @@ function deleteRemark(id){
   renderClearRemarks(); calcClearTrip();
 }
 function remarksApprovedSum(){
-  return _clearRemarks.filter(function(r){return r.status==="approved";})
+  return _clearRemarks.filter(function(r){return r.status==="approved" && r.type!=="ปท.→โอน";})
     .reduce(function(a,r){return a+parseFloat(r.amount||0);},0);
 }
 function remarksPendingSum(){
