@@ -191,6 +191,18 @@ tr:hover td{background:#f8fffe}
           <label style="display:flex;align-items:center;gap:5px;font-size:13px"><input type="radio" name="mp-days" value="2" style="accent-color:#7c4dff">2 วัน</label>
         </div>
       </div>
+      <div style="margin-top:8px">
+        <div style="font-size:10px;color:#888;margin-bottom:3px">วันที่ 1 — อำเภอ/จังหวัดที่วิ่ง</div>
+        <input id="mp-day1" style="width:100%;padding:7px 10px;border:1px solid #ddd;border-radius:7px;font-size:12px;font-family:inherit" placeholder="เช่น เมือง/ศรีสะเกษ, กันทรลักษ์">
+      </div>
+      <div style="margin-top:8px">
+        <div style="font-size:10px;color:#888;margin-bottom:3px">วันที่ 2 — อำเภอ/จังหวัดที่วิ่ง (ถ้ามี)</div>
+        <input id="mp-day2" style="width:100%;padding:7px 10px;border:1px solid #ddd;border-radius:7px;font-size:12px;font-family:inherit" placeholder="เช่น วารินฯ/อุบลฯ">
+      </div>
+      <div style="margin-top:8px">
+        <div style="font-size:10px;color:#888;margin-bottom:3px">📝 หมายเหตุ</div>
+        <textarea id="mp-note" rows="2" style="width:100%;padding:7px 10px;border:1px solid #ddd;border-radius:7px;font-size:12px;font-family:inherit;box-sizing:border-box" placeholder="พิมพ์หมายเหตุ (ถ้ามี)"></textarea>
+      </div>
     </div>
 
 <!-- งานรับ (แสดงเฉพาะ mode=driver) -->
@@ -349,6 +361,7 @@ tr:hover td{background:#f8fffe}
             <option value="บิลไม่เข้าระบบ">บิลไม่เข้าระบบ</option>
             <option value="หาบิลไม่เจอ">หาบิลไม่เจอ</option>
             <option value="ยอดไม่ตรง">ยอดไม่ตรง</option>
+            <option value="ปท.→โอน">ปลายทาง→โอน (บันทึก+สลิป ไม่กระทบยอด)</option>
             <option value="อื่นๆ">อื่นๆ</option>
           </select></div>
         <div><div style="font-size:9px;color:#888">เลขบิล (ถ้ามี)</div>
@@ -465,10 +478,11 @@ tr:hover td{background:#f8fffe}
 <div class="modal-bg" id="modal-special-areas" style="display:none">
   <div class="modal" style="max-width:560px;max-height:92vh;overflow-y:auto">
     <h3 style="color:#0F6E56;margin-bottom:4px">🗺️ จัดการพื้นที่พิเศษ</h3>
-    <div style="font-size:11px;color:#888;margin-bottom:12px">กำหนดค่าส่งขั้นต่ำรายอำเภอ — ระบบจะ auto คำนวณเมื่อออกบิล</div>
+    <div style="font-size:11px;color:#888;margin-bottom:12px">กำหนดค่าส่งขั้นต่ำรายอำเภอ/ตำบล — ระบบจะ auto คำนวณเมื่อออกบิล</div>
 
     <div style="display:flex;gap:8px;margin-bottom:10px">
       <input id="sa-amphoe" placeholder="ชื่ออำเภอ" style="flex:1;padding:8px 10px;border:1px solid #ddd;border-radius:7px;font-size:12px">
+      <input id="sa-tambon" placeholder="ตำบล (ไม่บังคับ)" style="flex:1;padding:8px 10px;border:1px solid #ddd;border-radius:7px;font-size:12px">
       <input id="sa-prov" placeholder="จังหวัด (ไม่บังคับ)" style="flex:1;padding:8px 10px;border:1px solid #ddd;border-radius:7px;font-size:12px">
       <input id="sa-min" type="number" placeholder="ขั้นต่ำ ฿" style="width:90px;padding:8px 10px;border:1px solid #ddd;border-radius:7px;font-size:12px">
       <button class="btn btn-green" onclick="addSpecialArea()">+ เพิ่ม</button>
@@ -654,7 +668,7 @@ tr:hover td{background:#f8fffe}
 <div class="topbar">
   <span class="title">🚛 จัดการขนส่ง</span>
   <span id="session-info" style="font-size:11px;opacity:.8"></span>
-  <span style="font-size:10px;opacity:.65;margin-left:auto">build 2026-06-10r</span>
+  <span style="font-size:10px;opacity:.65;margin-left:auto">build 2026-06-10z48</span>
   <a href="GolodApp.html" style="margin-left:10px">← หน้าหลัก</a>
 </div>
 <div class="container">
@@ -731,10 +745,11 @@ tr:hover td{background:#f8fffe}
 <div class="modal-bg" id="modal-special-areas" style="display:none">
   <div class="modal" style="max-width:560px;max-height:92vh;overflow-y:auto">
     <h3 style="color:#0F6E56;margin-bottom:4px">🗺️ จัดการพื้นที่พิเศษ</h3>
-    <div style="font-size:11px;color:#888;margin-bottom:12px">กำหนดค่าส่งขั้นต่ำรายอำเภอ — ระบบจะ auto คำนวณเมื่อออกบิล</div>
+    <div style="font-size:11px;color:#888;margin-bottom:12px">กำหนดค่าส่งขั้นต่ำรายอำเภอ/ตำบล — ระบบจะ auto คำนวณเมื่อออกบิล</div>
 
     <div style="display:flex;gap:8px;margin-bottom:10px">
       <input id="sa-amphoe" placeholder="ชื่ออำเภอ" style="flex:1;padding:8px 10px;border:1px solid #ddd;border-radius:7px;font-size:12px">
+      <input id="sa-tambon" placeholder="ตำบล (ไม่บังคับ)" style="flex:1;padding:8px 10px;border:1px solid #ddd;border-radius:7px;font-size:12px">
       <input id="sa-prov" placeholder="จังหวัด (ไม่บังคับ)" style="flex:1;padding:8px 10px;border:1px solid #ddd;border-radius:7px;font-size:12px">
       <input id="sa-min" type="number" placeholder="ขั้นต่ำ ฿" style="width:90px;padding:8px 10px;border:1px solid #ddd;border-radius:7px;font-size:12px">
       <button class="btn btn-green" onclick="addSpecialArea()">+ เพิ่ม</button>
@@ -749,6 +764,105 @@ tr:hover td{background:#f8fffe}
   </div>
 </div>
 
+<div class="modal-bg" id="modal-special-receivers" style="display:none">
+  <div class="modal" style="max-width:560px;max-height:92vh;overflow-y:auto">
+    <h3 style="color:#0F6E56;margin-bottom:4px">🏢 ขั้นต่ำปลายทางพิเศษ</h3>
+    <div style="font-size:11px;color:#888;margin-bottom:12px">กำหนดยอดขั้นต่ำต่อบิลตามชื่อบริษัท/ผู้รับ หรือคำในที่อยู่ (โลเคชั่น) ที่เข้าส่งยาก — ใช้เป็นพื้นล่างตอนออกบิล</div>
+    <div style="display:flex;gap:8px;margin-bottom:10px;flex-wrap:wrap">
+      <input id="sr-name" placeholder="ชื่อบริษัท/ผู้รับปลายทาง" style="flex:2;min-width:160px;padding:8px 10px;border:1px solid #ddd;border-radius:7px;font-size:12px">
+      <input id="sr-loc" placeholder="โลเคชั่น/คำในที่อยู่ (ไม่บังคับ)" style="flex:2;min-width:150px;padding:8px 10px;border:1px solid #ddd;border-radius:7px;font-size:12px">
+      <input id="sr-prov" placeholder="จังหวัด (ไม่บังคับ)" style="flex:1;min-width:110px;padding:8px 10px;border:1px solid #ddd;border-radius:7px;font-size:12px">
+      <input id="sr-min" type="number" placeholder="ขั้นต่ำ ฿" style="width:90px;padding:8px 10px;border:1px solid #ddd;border-radius:7px;font-size:12px">
+      <input id="sr-queue" type="number" placeholder="ค่าส่งพิเศษ ฿" style="width:90px;padding:8px 10px;border:1px solid #f0c97a;border-radius:7px;font-size:12px">
+      <button class="btn btn-green" id="sr-add-btn" onclick="addSpecialReceiver()">+ เพิ่ม</button>
+    </div>
+    <div id="sr-list" style="max-height:400px;overflow-y:auto"></div>
+    <div class="btn-row" style="margin-top:12px">
+      <button class="btn btn-gray" onclick="closeSpecialReceivers()">ปิด</button>
+      <button class="btn btn-green" onclick="saveSpecialReceivers()">💾 บันทึกทั้งหมด</button>
+    </div>
+  </div>
+</div>
+
+<div class="modal-bg" id="modal-cust-prices" style="display:none">
+  <div class="modal" style="max-width:560px;max-height:92vh;overflow-y:auto">
+    <h3 style="color:#0F6E56;margin-bottom:4px">💰 ราคาลูกค้าพิเศษ (ต่อชิ้น)</h3>
+    <div style="font-size:11px;color:#888;margin-bottom:12px">ตั้งราคาต่อชิ้นที่ตกลงไว้รายลูกค้า — ใช้ทันทีเมื่อพิมพ์รหัสลูกค้า หรือชื่อผู้ส่งตรงกัน (ไม่ต้องเป็นลูกค้า COD)</div>
+    <div style="display:flex;gap:8px;margin-bottom:10px;flex-wrap:wrap">
+      <input id="cp-name" placeholder="ชื่อลูกค้า/ผู้ส่ง" style="flex:2;min-width:150px;padding:8px 10px;border:1px solid #ddd;border-radius:7px;font-size:12px">
+      <input id="cp-code" placeholder="รหัส (ไม่บังคับ)" style="width:110px;padding:8px 10px;border:1px solid #ddd;border-radius:7px;font-size:12px;text-transform:uppercase">
+      <input id="cp-price" type="number" placeholder="ราคา/ชิ้น ฿" style="width:100px;padding:8px 10px;border:1px solid #ddd;border-radius:7px;font-size:12px">
+      <button class="btn btn-green" onclick="addCustomerPrice()">+ เพิ่ม</button>
+    </div>
+    <div id="cp-list" style="max-height:400px;overflow-y:auto"></div>
+    <div class="btn-row" style="margin-top:12px">
+      <button class="btn btn-gray" onclick="closeCustomerPrices()">ปิด</button>
+      <button class="btn btn-green" onclick="saveCustomerPrices()">💾 บันทึกทั้งหมด</button>
+    </div>
+  </div>
+</div>
+
+<div class="modal-bg" id="modal-auto-trip" style="display:none">
+  <div class="modal" style="max-width:560px;max-height:92vh;overflow-y:auto">
+    <h3 style="color:#0F6E56;margin-bottom:4px">🤖 ออโต้จัดเที่ยว</h3>
+    <div style="font-size:11px;color:#888;margin-bottom:12px">จัดบิลที่ยังไม่อยู่ในเที่ยว เข้าเที่ยวอัตโนมัติตามเส้นทาง — ตรวจดูได้ก่อน ยังไม่สร้างจนกว่าจะกด ✅ (ยังไม่ใส่คนรถ ใส่ทีหลังได้)</div>
+    <div style="display:flex;align-items:center;gap:8px;margin-bottom:4px;font-size:12px;flex-wrap:wrap"><span>บิล/เที่ยว ~</span><input id="at-target" type="number" value="20" style="width:62px;padding:6px 8px;border:1px solid #ddd;border-radius:6px" onchange="renderAutoTripPreview()"><span>· อายุบิลไม่เกิน</span><input id="at-maxage" type="number" value="14" style="width:54px;padding:6px 8px;border:1px solid #ddd;border-radius:6px" onchange="openAutoTrip()"><span>วัน</span></div>
+    <div style="font-size:10px;color:#aaa;margin-bottom:10px">บิลเกินอายุที่ตั้งไว้จะไม่ถูกดึงเข้าออโต้ — ยังจัดมือได้ที่ + สร้างเที่ยวใหม่ (0 วัน = ไม่จำกัด)</div>
+    <div id="at-body" style="max-height:50vh;overflow-y:auto"></div>
+    <div class="btn-row" style="margin-top:12px">
+      <button class="btn btn-gray" onclick="closeAutoTrip()">ปิด</button>
+      <button class="btn btn-green" id="at-confirm-btn" onclick="confirmAutoTrip()">✅ สร้างเที่ยวที่เลือก</button>
+    </div>
+  </div>
+</div>
+
+<div class="modal-bg" id="modal-routes" style="display:none">
+  <div class="modal" style="max-width:640px;max-height:92vh;overflow-y:auto">
+    <h3 style="color:#0F6E56;margin-bottom:4px">🛣️ เส้นทางจัดส่ง</h3>
+    <div style="font-size:11px;color:#888;margin-bottom:10px">กำหนดเส้นตามจังหวัด/อำเภอ — ออโต้จัดเที่ยวจะจัดบิลเข้าเส้น เช็คยอดขั้นต่ำ แล้วแตกเที่ยวละ ~20 บิล<br><b>กฎ (บรรทัดละ 1 รายการ):</b><br>• ทั้งจังหวัด = <code>ตาก</code><br>• เฉพาะอำเภอ = <code>นครราชสีมา: ด่านขุนทด, พิมาย, โนนสูง</code><br>• เฉพาะตำบล = <code>นครราชสีมา &gt; ปากช่อง &gt; ปากช่อง, หนองสาหร่าย</code><br>(เจาะจงกว่าชนะ: ตำบล &gt; อำเภอ &gt; จังหวัด)</div>
+    <div style="background:#f0faf5;border:1px solid #d0ede5;border-radius:8px;padding:8px 10px;margin-bottom:10px">
+      <div style="font-size:11px;font-weight:700;color:#0F6E56;margin-bottom:5px">🚚 ประเภทรถ (ตั้งครั้งเดียว ใช้ได้ทุกเส้น)</div>
+      <div id="rt-veh-types" style="display:flex;flex-wrap:wrap;gap:5px;margin-bottom:6px"></div>
+      <div style="display:flex;gap:6px">
+        <input id="rt-veh-new" placeholder="เช่น กระบะ, 6 ล้อ, รถร่วม" style="flex:1;padding:6px 9px;border:1px solid #ddd;border-radius:6px;font-size:12px" onkeydown="if(event.key===\'Enter\'){addVehType();event.preventDefault();}">
+        <button class="btn btn-gray" onclick="addVehType()" style="font-size:12px;padding:5px 12px;white-space:nowrap">+ เพิ่มรถ</button>
+      </div>
+    </div>
+    <input id="rt-name" placeholder="ชื่อเส้น (เช่น แม่สอด)" style="width:100%;box-sizing:border-box;padding:8px 10px;border:1px solid #ddd;border-radius:7px;font-size:12px">
+    <div style="display:flex;gap:8px;margin:8px 0">
+      <input id="rt-group" placeholder="ทิศ/กลุ่ม (เช่น เหนือ)" style="flex:1;padding:8px 10px;border:1px solid #ddd;border-radius:7px;font-size:12px">
+      <input id="rt-min" type="number" placeholder="ขั้นต่ำ ฿" style="width:120px;padding:8px 10px;border:1px solid #ddd;border-radius:7px;font-size:12px">
+    </div>
+    <textarea id="rt-rules" rows="4" placeholder="นครราชสีมา: ด่านขุนทด, พิมาย, โนนสูง&#10;นครราชสีมา > ปากช่อง > ปากช่อง, หนองสาหร่าย, จันทึก&#10;นครราชสีมา > สีคิ้ว > หนองบัวน้อย, กฤษณา" style="width:100%;box-sizing:border-box;padding:8px 10px;border:1px solid #ddd;border-radius:7px;font-size:12px;font-family:inherit"></textarea>
+    <div style="background:#fffbf0;border:1px solid #f0e0b0;border-radius:8px;padding:8px 10px;margin-top:8px">
+      <div style="font-size:11px;font-weight:700;color:#b7950b;margin-bottom:5px">💵 ค่าเที่ยวของเส้นนี้ (ตามประเภทรถ × จำนวนวัน)</div>
+      <div style="font-size:11px;font-weight:700;color:#b7950b;margin-bottom:4px">ปลายทางไกลสุด (ระดับเรท · เรียงบน=ใกล้สุด ล่าง=ไกลสุด · ใส่อำเภอเพื่อให้เดาจากบิลได้ · เว้นว่างถ้าเรทเดียว)</div>
+      <div id="rt-tiers" style="margin-bottom:6px"></div>
+      <button class="btn btn-gray" onclick="addRtTier()" style="font-size:12px;padding:5px 12px;margin-bottom:8px;white-space:nowrap">+ เพิ่มปลายทาง</button>
+      <div id="rt-fares-list"></div>
+      <button class="btn btn-gray" onclick="addRtFare()" style="font-size:12px;padding:5px 12px;margin-top:4px">+ เพิ่มเรทค่าเที่ยว</button>
+    </div>
+    <button class="btn btn-green" id="rt-save-btn" onclick="saveRouteEntry()" style="margin-top:6px">+ เพิ่มเส้น</button>
+    <div id="rt-list" style="margin-top:12px;max-height:300px;overflow-y:auto"></div>
+    <div class="btn-row" style="margin-top:12px">
+      <button class="btn btn-gray" onclick="closeRoutes()">ปิด</button>
+      <button class="btn btn-green" onclick="persistRoutes()">💾 บันทึกทั้งหมด</button>
+    </div>
+  </div>
+</div>
+
+<div class="modal-bg" id="modal-dup-bills" style="display:none">
+  <div class="modal" style="max-width:640px;max-height:92vh;overflow-y:auto">
+    <h3 style="color:#c0392b;margin-bottom:4px">🔁 ตรวจบิลซ้ำ</h3>
+    <div style="font-size:11px;color:#888;margin-bottom:10px">หาบิลที่ <b>ผู้ส่ง + ผู้รับ + ปลายทาง + ค่าส่ง</b> ตรงกันในวันเดียวกัน — เลือกใบที่จะลบ (ค่าเริ่มต้น: เก็บใบแรก/ใบที่อยู่ในเที่ยว) · <b style="color:#c0392b">การลบเป็นการลบถาวร</b></div>
+    <div id="dup-body" style="max-height:60vh;overflow-y:auto"></div>
+    <div class="btn-row" style="margin-top:12px">
+      <button class="btn btn-gray" onclick="closeDupBills()">ปิด</button>
+      <button class="btn" style="background:#c0392b;color:#fff" id="dup-del-btn" onclick="confirmDeleteDups()">🗑️ ลบที่เลือก</button>
+    </div>
+  </div>
+</div>
+
 <script>
 // ===== SESSION =====
 var CU = null;
@@ -757,7 +871,8 @@ var CU = null;
   if(!s){ window.location.href="GolodApp.html"; return; }
   if(!["admin","branch","clerk"].includes(s.role)){ window.location.href="GolodApp.html"; return; }
   CU = s;
-  document.getElementById("session-info").textContent = s.name + " · " + (s.branch==="all"?"ทุกสาขา":s.branch);
+  if(CU && CU.branch==="all" && CU.role!=="admin") CU.role="admin"; // เจ้าของ/ทุกสาขา = สิทธิ์แอดมินเต็ม
+  document.getElementById("session-info").textContent = s.name + " · " + (s.branch==="all"?"ทุกสาขา":s.branch) + (CU.role==="admin"?" · แอดมิน":"");
 })();
 
 // ===== DATA =====
@@ -973,6 +1088,9 @@ function loadData(){
   loadClearAllowedUsers();
   loadMonthlyAllowedUsers();
   loadSpecialAreas();
+  loadSpecialReceivers();
+  loadCustomerPrices();
+  loadRoutes();
     Promise.all([
       GolodDB.getBillsDispatch({days:14}),
       GolodDB.getUsers()
@@ -1096,7 +1214,8 @@ function renderApp(){
     {k:"trip",     l:"🚛 จัดการเที่ยว"},
     {k:"clearing", l:"💰 เคลียร์เงิน"},
     ...(canViewMonthly()?[{k:"monthly",l:"📅 สรุปสิ้นเดือน"}]:[]),
-    {k:"history",  l:"📋 ประวัติจ่ายงาน"}
+    {k:"history",  l:"📋 ประวัติจ่ายงาน"},
+    ...((CU&&CU.role==="admin")?[{k:"billlog", l:"📜 ประวัติแก้/ลบบิล"}]:[])
   ];
 
   var tabHTML = tabs.map(function(t){
@@ -1108,7 +1227,10 @@ function renderApp(){
     } else if(t.k==="redo"){
       // รอส่งใหม่ — นับจาก BILLS เสมอ (บิลค้าง active อยู่ใน BILLS)
       cnt = BILLS.filter(function(b){return REDO_STATUS.indexOf(b.status||"")>=0 && billBelongsToUserBranch(b);}).length;
-    } else if(t.k==="trip" || t.k==="history" || t.k==="monthly" || t.k==="clearing"){
+    } else if(t.k==="trip"){
+      var _rc=((_tripState&&_tripState.openTrips)||[]).filter(function(x){ var sp=(x.status==="proposed"||((x.settlement&&x.settlement.status)==="proposed")); var ready=sp && x.readyForApproval && x.readyForApproval.at; var pa=(x.billAdditionRequests||[]).some(function(r){return r.status==="pending";}); var pr=(x.billRemovalRequests||[]).some(function(r){return r.status==="pending";}); return ready||pa||pr; }).length;
+      cnt = _rc>0?_rc:"";
+    } else if(t.k==="history" || t.k==="monthly" || t.k==="clearing"){
       cnt = "";
     } else if(t.k==="all"){
       // ทั้งหมด = BILLS + DONE_BILLS_CACHE รวมกัน (ไม่ซ้ำ)
@@ -1229,6 +1351,10 @@ function renderApp(){
   }
   if(currentTab === "history"){
     renderHistoryTab();
+    return;
+  }
+  if(currentTab === "billlog"){
+    renderBillLogTab();
     return;
   }
   if(currentTab === "clearing"){
@@ -1380,16 +1506,21 @@ function renderTripList(){
     var fuelEst = t.fuelDist&&t.fuelRate&&t.fuelPrice ? Math.round((t.fuelDist/t.fuelRate)*t.fuelPrice) : 0;
     var pendRmk = ((t.clearRemarks||(t.clearData&&t.clearData.remarks)||[]).filter(function(r){return r.status==="pending";})).length;
     var pendDel = ((t.billRemovalRequests||[]).filter(function(r){return r.status==="pending";})).length;
+    var pendAdd = ((t.billAdditionRequests||[]).filter(function(r){return r.status==="pending";})).length;
     var _sst=(t.settlement&&t.settlement.status)||"";
     var _isProp=(t.status==="proposed"||_sst==="proposed");
     var _isAppr=(t.status==="approved"||_sst==="approved");
+    var _ready=!!(t.readyForApproval&&t.readyForApproval.at);
+    var _isAdminU=!!(CU&&CU.role==="admin");
     return '<div class="trip-card">'
       +'<div class="trip-head">'
         +'<div style="flex:1">'
           +'<div class="trip-driver">🚛 '+t.driverName
             +(pendRmk>0?' <span style="background:#E67E22;color:#fff;font-size:10px;padding:2px 7px;border-radius:10px;font-weight:700">⏳ รออนุมัติหมายเหตุ '+pendRmk+'</span>':'')
             +(pendDel>0?' <span style="background:#c0392b;color:#fff;font-size:10px;padding:2px 7px;border-radius:10px;font-weight:700">⏳ ขอเอาบิลออก '+pendDel+'</span>':'')
-            +(_isProp?' <span style="background:#7c4dff;color:#fff;font-size:10px;padding:2px 7px;border-radius:10px;font-weight:700">📝 รออนุมัติจัดเที่ยว</span>':'')
+            +(pendAdd>0?' <span style="background:#0F6E56;color:#fff;font-size:10px;padding:2px 7px;border-radius:10px;font-weight:700">⏳ ขอเพิ่มบิล '+pendAdd+'</span>':'')
+            +(_isProp&&!_ready?' <span style="background:#7c4dff;color:#fff;font-size:10px;padding:2px 7px;border-radius:10px;font-weight:700">📝 เสมียนกำลังจัด/ขึ้นของ</span>':'')
+            +(_isProp&&_ready?' <span style="background:#E67E22;color:#fff;font-size:10px;padding:2px 7px;border-radius:10px;font-weight:700">🔔 ขึ้นของเสร็จ รออนุมัติ'+(t.readyForApproval.by?(" · "+t.readyForApproval.by):"")+'</span>':'')
             +(_isAppr?' <span style="background:#E67E22;color:#fff;font-size:10px;padding:2px 7px;border-radius:10px;font-weight:700">🚚 รอยืนยันสุดท้าย</span>':'')
             +'</div>'
           +'<div class="trip-route">📍 '+(t.route||"—")+'</div>'
@@ -1402,8 +1533,14 @@ function renderTripList(){
           +(canClearTrip()?'<button class="btn btn-orange" data-tid="'+t.id+'" onclick="openClearTrip(this.dataset.tid)">💰 เคลียร์เที่ยว</button>':'')
           +(canClearTrip()?'<button class="btn btn-green" data-tid="'+t.id+'" onclick="closeTrip(this.dataset.tid)">✅ ปิดเที่ยว</button>':'')
           +'<button class="btn btn-blue" data-tid="'+t.id+'" onclick="printTripSummary(this.dataset.tid)">🖨 พิมพ์</button>'
-          +(t.settlement?'<button class="btn" data-tid="'+t.id+'" onclick="printTripProposal(this.dataset.tid)" style="background:#7c4dff;color:#fff">🖨 พิมพ์ใบเสนอ</button>':'')
-          +((_isProp||_isAppr)?'<button class="btn" data-tid="'+t.id+'" onclick="openSettlement(this.dataset.tid)" style="background:'+(_isProp?"#1D9E75":"#1565C0")+';color:#fff">'+(_isProp?"✅ อนุมัติ + ใส่คนรถ":"🔒 ยืนยันสุดท้าย")+'</button>':'')
+          +(t.settlement?'<button class="btn" data-tid="'+t.id+'" onclick="printTripProposal(this.dataset.tid)" style="background:#7c4dff;color:#fff">🖨 พิมพ์'+((t.driverName||t.driverUsername)?"ใบวิ่งงานจริง":"ใบจัดเที่ยว")+'</button>':'')
+          +(t.settlement?'<button class="btn" data-tid="'+t.id+'" onclick="printTripProposal(this.dataset.tid,true)" style="background:#c0392b;color:#fff">📄 PDF</button>':'')
+          +((_isProp||_isAppr)?(_isAdminU
+              ? '<button class="btn" data-tid="'+t.id+'" onclick="openSettlement(this.dataset.tid)" style="background:'+(_isProp?"#1D9E75":"#1565C0")+';color:#fff">'+(_isProp?"✅ อนุมัติ + ใส่คนรถ":"🔒 ยืนยันสุดท้าย")+'</button>'
+              : (_isProp?(_ready
+                  ? '<button class="btn btn-gray" data-tid="'+t.id+'" onclick="unmarkTripReady(this.dataset.tid)">↩️ ยกเลิกส่งอนุมัติ (แก้ไขต่อ)</button>'
+                  : '<button class="btn" data-tid="'+t.id+'" onclick="markTripReady(this.dataset.tid)" style="background:#E67E22;color:#fff">📦 ขึ้นของเสร็จ — ส่งอนุมัติ</button>'):'')
+            ):'')
         +'</div>'+'</div>'
       +'<div class="trip-stats">'
         +'<div class="trip-stat gray"><div class="tsl">บิลทั้งหมด</div><div class="tsv">'+(s.billCount||0)+'</div></div>'
@@ -1502,7 +1639,12 @@ function renderTripList(){
     +(isAdmin?'<button class="btn btn-gray" onclick="openClearPermSettings()" title="สิทธิ์เคลียร์เที่ยว">⚙️เที่ยว</button>':'')
     +(isAdmin?'<button class="btn btn-gray" onclick="openMonthlyPermSettings()" title="สิทธิ์สรุปเดือน">⚙️เดือน</button>':'')
     +(isAdmin?'<button class="btn btn-gray" onclick="openSpecialAreaSettings()" title="จัดการพื้นที่พิเศษ">⚙️พื้นที่</button>':'')
+    +(isAdmin?'<button class="btn btn-gray" onclick="openSpecialReceivers()" title="ขั้นต่ำปลายทางพิเศษ">🏢ปลายทาง</button>':'')
+    +(isAdmin?'<button class="btn btn-gray" onclick="openCustomerPrices()" title="ราคาลูกค้าพิเศษ">💰ราคาลูกค้า</button>':'')
+    +(isAdmin?'<button class="btn btn-gray" onclick="openRoutes()" title="ตั้งเส้นทางจัดส่ง">🛣️เส้นทาง</button>':'')
     +'<button class="btn btn-gray" onclick="renderTripTab()">🔄 รีเฟรช</button>'
+    +(isAdmin?'<button class="btn btn-gray" onclick="openAutoTrip()" title="จัดบิลเข้าเที่ยวอัตโนมัติตามเส้นทาง">🤖 ออโต้จัดเที่ยว</button>':'')
+    +(isAdmin?'<button class="btn btn-gray" onclick="openDupBills()" title="ตรวจบิลซ้ำ">🔁 บิลซ้ำ</button>':'')
     +'<button class="btn btn-green" onclick="openCreateTrip()">+ สร้างเที่ยวใหม่</button>'
     +'</div></div>'
     +(openCards||'<div style="text-align:center;padding:20px;color:#aaa">ไม่มีเที่ยวที่เปิดอยู่</div>')
@@ -1586,6 +1728,7 @@ function editTrip(tripId){
   _tripState.selectedBills = {};
   var trip = (_tripState.openTrips||[]).find(function(t){ return t.id===tripId; });
   _tripState.removalReqs = (trip && trip.billRemovalRequests) ? trip.billRemovalRequests.slice() : [];
+  _tripState.additionReqs = (trip && trip.billAdditionRequests) ? trip.billAdditionRequests.slice() : [];
   // โหลด bills ที่อยู่ใน BILLS ก่อน (เร็ว)
   if(trip && trip.billIds){
     trip.billIds.forEach(function(bno){
@@ -1612,25 +1755,22 @@ function editTrip(tripId){
 function pushTripToDriver(tripId){
   var t = (_tripState.openTrips||[]).find(function(x){ return x.id===tripId; });
   if(!t){ alert("ไม่พบเที่ยว ลองรีเฟรช"); return; }
-  if(!t.driverUsername){ alert("เที่ยวนี้ยังไม่มีคนขับ — กดแก้ไขเพื่อเลือกคนขับก่อน"); return; }
+  if(!t.driverUsername && !t.driverName){ alert("เที่ยวนี้ยังไม่มีคนขับ — กดแก้ไขเพื่อใส่ชื่อคนขับก่อน"); return; }
   if(!t.billIds || !t.billIds.length){ alert("เที่ยวนี้ไม่มีบิล"); return; }
   if(!confirm("ส่ง/ซิงค์เที่ยวให้ "+(t.driverName||t.driverUsername)+" ?\n\n• ส่งบิลในเที่ยว ("+t.billIds.length+") ให้คนรถ (บิลที่เพิ่งเพิ่มจะเข้าด้วย)\n• ถ้าเปลี่ยนคนรถ บิลจะย้ายไปคนใหม่ (ออกจากคนเก่าให้)\n• บิลที่เอาออกจากเที่ยว จะคืนกองรอจ่าย")) return;
   var curIds=(t.billIds||[]), now=new Date().toISOString();
   (GolodDB.getBillsByTripId?GolodDB.getBillsByTripId(t.id):Promise.resolve([])).then(function(claim){
     claim=claim||[];
-    // บิลที่ tripId ชี้มาที่เที่ยวนี้ แต่ไม่อยู่ใน billIds แล้ว = ถูกเอาออก → คืนกอง
-    var removed=claim.filter(function(b){ return b.billNo && curIds.indexOf(b.billNo)<0; });
-    var clearUps=removed.map(function(b){
-      return GolodDB.updateBill(b.billNo, {driver:"", driverName:"", tripId:"", status:"ออกบิลรับของ", updatedAt:now})
-        .then(function(){ var lb=BILLS.find(function(x){return x.billNo===b.billNo;}); if(lb){lb.driver="";lb.tripId="";lb.status="ออกบิลรับของ";} return {ok:true}; })
-        .catch(function(){ return {ok:false}; });
-    });
-    Promise.all(clearUps).then(function(){
+    // กู้คืน: บิลที่ tripId ชี้มาเที่ยวนี้ แต่ตกหล่นจาก billIds → ใส่กลับ ไม่ล้างทิ้ง (บิลที่ถอดจริงถูกล้าง tripId ตั้งแต่ตอนถอดแล้ว)
+    var recovered=[], mergedIds=curIds.slice();
+    claim.forEach(function(b){ if(b&&b.billNo && curIds.indexOf(b.billNo)<0){ recovered.push(b.billNo); if(mergedIds.indexOf(b.billNo)<0) mergedIds.push(b.billNo); } });
+    if(recovered.length){ t.billIds=mergedIds; curIds=mergedIds; if(GolodDB.updateTrip) GolodDB.updateTrip(t.id,{billIds:mergedIds}).catch(function(){}); }
+    Promise.resolve().then(function(){
       // ส่งบิลปัจจุบันให้คนรถ (เปลี่ยน driver ของบิลเป็นคนใหม่อัตโนมัติ → หลุดจากแอปคนเก่า)
       _dispatchTripBills(t).then(function(r){
         var msg;
         if(r.fail.length){ msg="⚠️ ส่งแล้ว แต่มี "+r.fail.length+" บิลไม่สำเร็จ:\n"+r.fail.map(function(x){ return "• "+x.bn; }).join("\n")+"\n\nลองกดซ้ำอีกครั้ง"; }
-        else { msg="✅ ส่งให้ "+(t.driverName||t.driverUsername)+" แล้ว "+curIds.length+" บิล"+(removed.length?(" · คืนกอง "+removed.length+" บิล"):"")+"\n\nบอกคนรถกด 🔄 รีเฟรชในแอป"; }
+        else { msg="✅ ส่งให้ "+(t.driverName||t.driverUsername)+" แล้ว "+curIds.length+" บิล"+(recovered.length?(" · กู้บิลตกหล่น "+recovered.length+" บิล"):"")+"\n\nบอกคนรถกด 🔄 รีเฟรชในแอป"; }
         alert(msg);
         renderTripTab();
       }).catch(function(e){ alert("❌ "+(e&&e.message||e)); });
@@ -1654,19 +1794,20 @@ function _dispatchTripBills(t){
 
 function renderCurrentTripBills(){
   var bills = Object.keys(_tripState.selectedBills).map(function(k){ return _tripState.selectedBills[k]; });
-  if(!bills.length) return '<div style="font-size:11px;color:#aaa;padding:6px">— ยังไม่มีบิลในเที่ยว —</div>';
   var isAdmin = CU && CU.role==="admin";
+  var addReqs = (_tripState.additionReqs||[]).filter(function(r){return r.status==="pending";});
+  if(!bills.length && !addReqs.length) return '<div style="font-size:11px;color:#aaa;padding:6px">— ยังไม่มีบิลในเที่ยว —</div>';
   var canDirect = isAdmin || !_editTripLive();
   var reqs = _tripState.removalReqs || [];
   var STMAP={"ส่งสำเร็จ":"✅","delivered":"✅","success":"✅","ส่งไม่สำเร็จ":"❌","นำกลับสาขา":"↩️","กำลังวิ่งส่งลูกค้า":"🚚","ออกบิลรับของ":"📦"};
-  return '<div style="border:1px solid #e0e0e0;border-radius:8px;max-height:220px;overflow-y:auto">'
+  var listHtml = (bills.length ? ('<div style="border:1px solid #e0e0e0;border-radius:8px;max-height:220px;overflow-y:auto">'
     + bills.map(function(b){
       var st=b.status||"";
       var ic=STMAP[st]||"•";
       var req=reqs.find(function(r){return r.billNo===b.billNo && r.status==="pending";});
       var btn;
       if(req && isAdmin){
-        btn = '<span style="color:#E67E22;font-size:10px">⏳ '+(req.byName||"")+' ขอเอาออก</span>'
+        btn = '<span style="color:#E67E22;font-size:10px">⏳ '+(req.byName||"")+' ขอเอาออก'+(req.reason?(": "+req.reason):"")+'</span>'
             +' <button onclick="approveRemoveTripBill(\''+b.billNo+'\')" style="background:#0F6E56;color:#fff;border:none;border-radius:5px;padding:2px 8px;cursor:pointer;font-size:11px">อนุมัติเอาออก</button>'
             +' <button onclick="rejectRemoveTripBill(\''+b.billNo+'\')" style="background:#eee;border:none;border-radius:5px;padding:2px 7px;cursor:pointer;font-size:11px">ปฏิเสธ</button>';
       } else if(req && !isAdmin){
@@ -1684,9 +1825,21 @@ function renderCurrentTripBills(){
         +'<span style="white-space:nowrap">'+btn+'</span>'
         +'</div>';
     }).join("")
-    + '</div>'
-    + (reqs.filter(function(r){return r.status==="pending";}).length && !isAdmin
+    + '</div>') : '');
+  var removalNote = (reqs.filter(function(r){return r.status==="pending";}).length && !isAdmin
        ? '<div style="font-size:10px;color:#E67E22;margin-top:4px">⏳ มีคำขอเอาบิลออก รอแอดมินอนุมัติ — บิลจะยังอยู่ในเที่ยวจนกว่าจะอนุมัติ</div>':'');
+  var addHtml = (addReqs.length ? ('<div style="border:1px solid #ffd599;border-radius:8px;margin-top:6px;background:#fff8ef">'
+    + '<div style="font-size:11px;font-weight:700;color:#E67E22;padding:5px 10px;border-bottom:1px solid #ffe9cc">⏳ คำขอเพิ่มบิล (รออนุมัติ '+addReqs.length+')</div>'
+    + addReqs.map(function(r){
+        var bb=BILLS.find(function(x){return x.billNo===r.billNo;})||{};
+        var info=(bb.receiverName||"")+' · '+((bb.destAmphoe||"")?(bb.destAmphoe+"·"):"")+(bb.destProv||"");
+        var ab = isAdmin
+          ? '<button onclick="approveAddTripBill(\''+r.billNo+'\')" style="background:#0F6E56;color:#fff;border:none;border-radius:5px;padding:2px 8px;cursor:pointer;font-size:11px">อนุมัติเพิ่ม</button> <button onclick="rejectAddTripBill(\''+r.billNo+'\')" style="background:#eee;border:none;border-radius:5px;padding:2px 7px;cursor:pointer;font-size:11px">ปฏิเสธ</button>'
+          : '<span style="color:#E67E22;font-size:10px">⏳ '+(r.byName||"")+' ขอเพิ่ม</span> <button onclick="cancelAddTripBill(\''+r.billNo+'\')" style="background:#eee;border:none;border-radius:5px;padding:2px 7px;cursor:pointer;font-size:10px">ยกเลิก</button>';
+        return '<div style="display:flex;align-items:center;gap:8px;padding:6px 10px;border-bottom:1px solid #ffe9cc;font-size:12px"><span style="font-weight:600;min-width:90px">'+r.billNo+'</span><span style="flex:1;color:#666">'+info+'</span><span style="white-space:nowrap">'+ab+'</span></div>';
+      }).join("")
+    + '</div>') : '');
+  return listHtml + removalNote + addHtml;
 }
 
 // แอดมินลบได้เลย
@@ -1696,27 +1849,54 @@ function _editTripLive(){
   var ex=(_tripState.openTrips||[]).find(function(x){return x.id===_tripState.editId;});
   if(!ex) return false;
   var stg=(ex.settlement&&ex.settlement.status)||ex.status||"";
-  if(stg==="proposed"||stg==="approved") return false;
+  if(stg==="proposed") return false; // ยังไม่อนุมัติ → เสมียนเพิ่ม/ลดบิลได้อิสระ
   return !!ex.driverUsername;
+}
+function _pickRemoveReason(billNo, cb){
+  var reasons=["ขึ้นรถไม่ได้","คนรถไม่เอาไป","จัดผิดเส้นทาง","อื่นๆ"];
+  var ov=document.createElement("div");
+  ov.style.cssText="position:fixed;inset:0;background:rgba(0,0,0,.45);z-index:99999;display:flex;align-items:center;justify-content:center;padding:20px";
+  ov.innerHTML='<div style="background:#fff;border-radius:14px;max-width:340px;width:100%;padding:18px;box-shadow:0 10px 40px rgba(0,0,0,.3)">'
+    +'<div style="font-weight:800;font-size:15px;color:#0F6E56;margin-bottom:4px">เอาบิล '+billNo+' ออก</div>'
+    +'<div style="font-size:12px;color:#888;margin-bottom:12px">เลือกเหตุผล</div>'
+    +reasons.map(function(r){return '<button data-r="'+r+'" style="display:block;width:100%;text-align:left;padding:12px 14px;margin-bottom:8px;border:1px solid #d8e8e2;border-radius:10px;background:#f8fffe;font-size:14px;cursor:pointer;color:#222">'+r+'</button>';}).join("")
+    +'<button id="_rr-cancel" style="display:block;width:100%;padding:10px;margin-top:4px;border:none;border-radius:10px;background:#eee;font-size:13px;cursor:pointer;color:#666">ยกเลิก</button>'
+    +'</div>';
+  document.body.appendChild(ov);
+  function close(){ try{document.body.removeChild(ov);}catch(e){} }
+  ov.addEventListener("click",function(e){ if(e.target===ov) close(); });
+  ov.querySelector("#_rr-cancel").onclick=close;
+  ov.querySelectorAll("button[data-r]").forEach(function(btn){
+    btn.onclick=function(){
+      var r=btn.getAttribute("data-r");
+      if(r==="อื่นๆ"){ var t=prompt("ระบุเหตุผล:",""); if(t===null) return; r=(t.trim()||"อื่นๆ"); }
+      close(); cb(r);
+    };
+  });
+}
+function _removalFields(reason){
+  var f={ removeReason: reason||"", removedBy: CU?(CU.name||CU.username):"", removedAt: new Date().toISOString() };
+  try{ f.removeLog = firebase.firestore.FieldValue.arrayUnion({reason:f.removeReason, by:f.removedBy, at:f.removedAt}); }catch(e){}
+  return f;
 }
 function removeTripBill(billNo){
   // เสมียน + เที่ยวส่งแล้ว = ต้องขออนุมัติ ; เที่ยวยังไม่ส่ง = ลบได้เลย
   if(!(CU&&CU.role==="admin") && _editTripLive()){ requestRemoveTripBill(billNo); return; }
-  if(!confirm("เอาบิล "+billNo+" ออกจากเที่ยวนี้?")) return;
-  var b=_tripState.selectedBills[billNo]||BILLS.find(function(x){return x.billNo===billNo;});
-  delete _tripState.selectedBills[billNo];
-  var DONE=["ส่งสำเร็จ","delivered","success","ส่งไม่สำเร็จ","นำกลับสาขา"];
-  var upd={tripId:""};
-  if(!b || DONE.indexOf(b.status)<0){ upd.status="ออกบิลรับของ"; upd.driver=""; upd.driverName=""; }
-  if(GolodDB.updateBill) GolodDB.updateBill(billNo, upd).then(function(){ var lb=BILLS.find(function(x){return x.billNo===billNo;}); if(lb){lb.tripId="";if(upd.status){lb.status=upd.status;lb.driver="";}} }).catch(function(){});
-  _persistTripBillIds();
-  _refreshCurrentBills();
+  _pickRemoveReason(billNo, function(reason){
+    var b=_tripState.selectedBills[billNo]||BILLS.find(function(x){return x.billNo===billNo;});
+    delete _tripState.selectedBills[billNo];
+    var DONE=["ส่งสำเร็จ","delivered","success","ส่งไม่สำเร็จ","นำกลับสาขา"];
+    var upd=Object.assign({tripId:""}, _removalFields(reason));
+    if(!b || DONE.indexOf(b.status)<0){ upd.status="ออกบิลรับของ"; upd.driver=""; upd.driverName=""; }
+    if(GolodDB.updateBill) GolodDB.updateBill(billNo, upd).then(function(){ var lb=BILLS.find(function(x){return x.billNo===billNo;}); if(lb){lb.tripId="";lb.removeReason=upd.removeReason;lb.removedBy=upd.removedBy;lb.removedAt=upd.removedAt;if(upd.status){lb.status=upd.status;lb.driver="";}} }).catch(function(){});
+    _persistTripBillIds();
+    _refreshCurrentBills();
+  });
 }
 
 // เสมียนขอเอาออก → เข้าคิวรออนุมัติ (บิลยังอยู่)
-function requestRemoveTripBill(billNo){
-  var reason = prompt("เหตุผลที่ขอเอาบิล "+billNo+" ออกจากเที่ยว (เช่น คนละเส้นทาง/ใส่ผิดคน):","");
-  if(reason===null) return;
+function requestRemoveTripBill(billNo, reason){
+  if(reason==null){ _pickRemoveReason(billNo, function(r){ requestRemoveTripBill(billNo, r); }); return; }
   _tripState.removalReqs = _tripState.removalReqs || [];
   if(_tripState.removalReqs.find(function(r){return r.billNo===billNo&&r.status==="pending";})){ _refreshCurrentBills(); return; }
   _tripState.removalReqs.push({billNo:billNo, reason:reason, status:"pending",
@@ -1731,11 +1911,108 @@ function cancelRemoveTripBill(billNo){
   _persistRemovalReqs(); _refreshCurrentBills();
 }
 
+// ===== คำขอ "เพิ่มบิล" เข้าเที่ยวที่อนุมัติแล้ว (เสมียนต้องรออนุมัติ — ปิดช่องดันบิลเข้าคนรถเอง) =====
+function requestAddTripBill(billNo){
+  _tripState.additionReqs = _tripState.additionReqs || [];
+  if(_tripState.additionReqs.find(function(r){return r.billNo===billNo&&r.status==="pending";})) return;
+  _tripState.additionReqs.push({billNo:billNo, status:"pending", by:CU?CU.username:"", byName:CU?(CU.name||CU.username):"", at:new Date().toISOString()});
+  _persistAdditionReqs(); _refreshCurrentBills();
+  alert("ส่งคำขอ \"เพิ่มบิล "+billNo+"\" แล้ว รอแอดมินอนุมัติ\nบิลจะยังไม่เข้าคนรถจนกว่าจะอนุมัติ");
+}
+function cancelAddTripBill(billNo){
+  _tripState.additionReqs = (_tripState.additionReqs||[]).filter(function(r){ return !(r.billNo===billNo&&r.status==="pending"); });
+  _persistAdditionReqs(); _refreshCurrentBills();
+}
+function approveAddTripBill(billNo){
+  if(!(CU&&CU.role==="admin")) return;
+  var t=(_tripState.openTrips||[]).find(function(x){return x.id===_tripState.editId;});
+  var b=BILLS.find(function(x){return x.billNo===billNo;});
+  function done(){
+    _tripState.selectedBills[billNo]= b || {billNo:billNo};
+    _tripState.additionReqs=(_tripState.additionReqs||[]).filter(function(r){return r.billNo!==billNo;});
+    _persistTripBillIds(); _persistAdditionReqs();
+    if(t && t.driverUsername && GolodDB.updateBill){
+      var DONE=["ส่งสำเร็จ","delivered","ส่งไม่สำเร็จ","ส่งไม่ได้","ปิดงาน","cleared"];
+      var upd={tripId:t.id, driver:t.driverUsername, driverName:t.driverName||t.driverUsername, updatedAt:new Date().toISOString()};
+      if(!b || DONE.indexOf(b.status)<0) upd.status="กำลังวิ่งส่งลูกค้า";
+      GolodDB.updateBill(billNo, upd).then(function(){ var lb=BILLS.find(function(x){return x.billNo===billNo;}); if(lb){lb.tripId=t.id;lb.driver=t.driverUsername;if(upd.status)lb.status=upd.status;} }).catch(function(){});
+    }
+    _refreshCurrentBills(); _syncPickerUI();
+  }
+  if(b){ done(); return; }
+  var db; try{db=firebase.firestore();}catch(e){}
+  if(db){ db.collection("bills").where("billNo","==",billNo).limit(1).get().then(function(snap){ if(snap&&!snap.empty) b=snap.docs[0].data(); done(); }).catch(done); }
+  else done();
+}
+function rejectAddTripBill(billNo){
+  if(!(CU&&CU.role==="admin")) return;
+  _tripState.additionReqs=(_tripState.additionReqs||[]).filter(function(r){return r.billNo!==billNo;});
+  _persistAdditionReqs(); _refreshCurrentBills(); _syncPickerUI();
+}
+function _persistAdditionReqs(){
+  if(!_tripState.editId || !GolodDB.updateTrip) return;
+  GolodDB.updateTrip(_tripState.editId, {billAdditionRequests: _tripState.additionReqs||[]}).catch(function(){});
+}
+
+function markTripReady(tid){
+  var t=(_tripState.openTrips||[]).find(function(x){return x.id===tid;});
+  if(!t){ alert("ไม่พบเที่ยว"); return; }
+  if(!t.driverUsername && !t.driverName){ _pickTripDriver(t, function(){ _doMarkTripReady(t); }); return; }
+  _doMarkTripReady(t);
+}
+function _doMarkTripReady(t){
+  if(!confirm("ยืนยัน \"ขึ้นของเสร็จ\" และส่งให้แอดมินอนุมัติ?\n\nคนขับ: "+(t.driverName||t.driverUsername||"-")+"\nบิลในเที่ยว "+((t.billIds||[]).length)+" ใบ\n(หลังส่งยังแก้ได้ แต่ต้องส่งอนุมัติใหม่)")) return;
+  var info={by:(CU&&(CU.name||CU.username))||"", at:new Date().toISOString()};
+  t.readyForApproval=info;
+  if(GolodDB.updateTrip) GolodDB.updateTrip(t.id,{readyForApproval:info}).catch(function(){});
+  if(typeof renderTripTab==="function") renderTripTab();
+  alert("✅ ส่งให้แอดมินอนุมัติแล้ว — รอแอดมินกดอนุมัติเพื่อส่งบิลเข้าแอปคนรถ");
+}
+function _setTripDriver(t, username, name, cb){
+  t.driverUsername=username; t.driverName=name;
+  if(GolodDB.updateTrip) GolodDB.updateTrip(t.id,{driverUsername:username, driverName:name}).then(function(){ cb&&cb(); }).catch(function(){ cb&&cb(); });
+  else cb&&cb();
+}
+function _pickTripDriver(t, cb){
+  var bm={"กรุงเทพ":"bkk","ปทุมธานี":"bkk","นครราชสีมา":"krt","ศรีสะเกษ":"ssk"};
+  var _dbr=function(x){ x=String(x||"").trim(); return bm[x]||x; };
+  var ub=getUserBranch(), ubn=_dbr(ub);
+  var ds=(_tripState.drivers||[]).filter(function(d){ return ub==="all"||_dbr(d.branch)===ubn; });
+  var ov=document.createElement("div");
+  ov.style.cssText="position:fixed;inset:0;background:rgba(0,0,0,.45);z-index:99999;display:flex;align-items:center;justify-content:center;padding:20px";
+  ov.innerHTML='<div style="background:#fff;border-radius:14px;max-width:360px;width:100%;max-height:80vh;overflow:auto;padding:18px;box-shadow:0 10px 40px rgba(0,0,0,.3)">'
+    +'<div style="font-weight:800;font-size:15px;color:#0F6E56;margin-bottom:4px">เลือกคนขับ</div>'
+    +'<div style="font-size:12px;color:#888;margin-bottom:12px">เลือกคนขับของสาขาก่อนส่งอนุมัติ</div>'
+    +(ds.length?ds.map(function(d){return '<button data-u="'+d.username+'" data-n="'+String(d.name||"").replace(/"/g,"&quot;")+'" style="display:block;width:100%;text-align:left;padding:12px 14px;margin-bottom:8px;border:1px solid #d8e8e2;border-radius:10px;background:#f8fffe;font-size:14px;cursor:pointer;color:#222">🚛 '+(d.name||d.username)+' <span style="color:#aaa;font-size:11px">('+(d.branch||"")+')</span></button>';}).join(""):'<div style="font-size:12px;color:#c0392b;margin-bottom:8px">— ไม่มีคนขับในสาขานี้ —</div>')
+    +'<button id="_pd-custom" style="display:block;width:100%;text-align:left;padding:12px 14px;margin-bottom:8px;border:1px dashed #f0c97a;border-radius:10px;background:#fff8ef;font-size:14px;cursor:pointer;color:#b7950b">✏️ พิมพ์ชื่อเอง (รถร่วม)</button>'
+    +'<button id="_pd-cancel" style="display:block;width:100%;padding:10px;border:none;border-radius:10px;background:#eee;font-size:13px;cursor:pointer;color:#666">ยกเลิก</button>'
+    +'</div>';
+  document.body.appendChild(ov);
+  function close(){ try{document.body.removeChild(ov);}catch(e){} }
+  ov.addEventListener("click",function(e){ if(e.target===ov) close(); });
+  ov.querySelector("#_pd-cancel").onclick=close;
+  ov.querySelector("#_pd-custom").onclick=function(){ var n=prompt("ชื่อคนขับ / รถร่วม:",""); if(n===null) return; n=(n||"").trim(); if(!n) return; close(); _setTripDriver(t,"",n,cb); };
+  ov.querySelectorAll("button[data-u]").forEach(function(b){ b.onclick=function(){ close(); _setTripDriver(t, b.getAttribute("data-u"), b.getAttribute("data-n"), cb); }; });
+}
+function unmarkTripReady(tid){
+  var t=(_tripState.openTrips||[]).find(function(x){return x.id===tid;});
+  if(!t) return;
+  if(!confirm("ยกเลิกการส่งอนุมัติ? (กลับมาแก้ไขบิลได้)")) return;
+  t.readyForApproval=null;
+  if(GolodDB.updateTrip) GolodDB.updateTrip(tid,{readyForApproval:null}).catch(function(){});
+  if(typeof renderTripTab==="function") renderTripTab();
+}
 function approveRemoveTripBill(billNo){
   if(!(CU&&CU.role==="admin")) return;
   if(!confirm("อนุมัติเอาบิล "+billNo+" ออกจากเที่ยว?")) return;
+  var req=(_tripState.removalReqs||[]).find(function(r){return r.billNo===billNo;});
+  var reason=req?(req.reason||""):"";
+  var b=_tripState.selectedBills[billNo]||BILLS.find(function(x){return x.billNo===billNo;});
   delete _tripState.selectedBills[billNo];
-  if(GolodDB.updateBill) GolodDB.updateBill(billNo, {tripId:""}).catch(function(){});
+  var DONE=["ส่งสำเร็จ","delivered","success","ส่งไม่สำเร็จ","นำกลับสาขา"];
+  var upd=Object.assign({tripId:""}, _removalFields(reason));
+  if(!b || DONE.indexOf(b.status)<0){ upd.status="ออกบิลรับของ"; upd.driver=""; upd.driverName=""; }
+  if(GolodDB.updateBill) GolodDB.updateBill(billNo, upd).then(function(){ var lb=BILLS.find(function(x){return x.billNo===billNo;}); if(lb){lb.tripId="";lb.removeReason=upd.removeReason;lb.removedBy=upd.removedBy;lb.removedAt=upd.removedAt;if(upd.status){lb.status=upd.status;lb.driver="";}} }).catch(function(){});
   _tripState.removalReqs = (_tripState.removalReqs||[]).filter(function(r){ return r.billNo!==billNo; });
   _persistTripBillIds(); _persistRemovalReqs(); _refreshCurrentBills();
 }
@@ -1770,10 +2047,13 @@ function renderTripForm(existingTrip){
   var isEdit = _tripState.mode === "edit";
   var isAdmin = CU && (CU.role==="admin");
   var ub = getUserBranch();
+  var bm={"กรุงเทพ":"bkk","ปทุมธานี":"bkk","นครราชสีมา":"krt","ศรีสะเกษ":"ssk"};
+  var _dbr=function(x){ x=String(x||"").trim(); return bm[x]||x; };
+  var _ubn=_dbr(ub);
+  // เฉพาะคนขับของสาขานี้ (จับคู่สาขาแบบ trim+map กันรูปแบบไม่ตรง)
   var drivers = _tripState.drivers.filter(function(d){
     if(ub==="all") return true;
-    var m={bkk:"กรุงเทพ",ptm:"ปทุมธานี",krt:"นครราชสีมา",ssk:"ศรีสะเกษ"};
-    return d.branch===m[ub];
+    return _dbr(d.branch)===_ubn;
   });
   var driverOpts = drivers.map(function(d){
     return '<option value="'+d.username+'" data-name="'+d.name+'"'+(t.driverUsername===d.username?" selected":"")+'>'+d.name+' ('+d.branch+')</option>';
@@ -1781,9 +2061,11 @@ function renderTripForm(existingTrip){
 
   // บิลที่เพิ่มเข้าเที่ยวได้ = เฉพาะบิลรอจ่าย (ออกบิลรับของ/issued/นำส่งใหม่) + บิลที่อยู่ในเที่ยวนี้อยู่แล้ว
   // ตัดบิลที่ "กำลังวิ่งส่งลูกค้า" กับรถคันอื่นออก
+  // กทม/แอดมิน = บิลรอจ่าย (ออกบิลรับของ/issued/นำส่งใหม่) · สาขา = บิลที่ส่งมาถึงสาขา (ระหว่างนำส่งสาขา)
+  var _poolSt = (ub==="all"||ub==="bkk") ? ["ออกบิลรับของ","issued","นำส่งใหม่"] : ["ระหว่างนำส่งสาขา","นำส่งใหม่"];
   var readyBills = BILLS.filter(function(b){
     if(_tripState.selectedBills[b.billNo]) return true;
-    return ["ออกบิลรับของ","issued","นำส่งใหม่"].indexOf(b.status||"") >= 0;
+    return _poolSt.indexOf(b.status||"") >= 0;
   });
 
   var billRows = readyBills.map(function(b){
@@ -1798,12 +2080,12 @@ function renderTripForm(existingTrip){
     if(String(pay).indexOf("dest")===0) pay="dest";
     var payLabel = {origin:"ต้นทาง",dest:"ปลายทาง",transfer:"โอน",credit:"เครดิต"};
     var amtColor = pay==="dest"?"color:#E67E22":"color:#555";
-    var stTag={"ออกบิลรับของ":["📦 รอจ่าย","#0F6E56"],"issued":["📦 รอจ่าย","#0F6E56"],"กำลังวิ่งส่งลูกค้า":["🚚 กำลังวิ่ง","#E67E22"],"นำส่งใหม่":["🔄 นำส่งใหม่","#1565C0"]}[b.status||""]||["",""];
+    var stTag={"ออกบิลรับของ":["📦 รอจ่าย","#0F6E56"],"issued":["📦 รอจ่าย","#0F6E56"],"ระหว่างนำส่งสาขา":["🏢 ระหว่างสาขา","#7c4dff"],"กำลังวิ่งส่งลูกค้า":["🚚 กำลังวิ่ง","#E67E22"],"นำส่งใหม่":["🔄 นำส่งใหม่","#1565C0"]}[b.status||""]||["",""];
     var stHtml=stTag[0]?' <span style="font-size:9px;color:'+stTag[1]+';font-weight:700">'+stTag[0]+'</span>':'';
     return '<div class="bill-pick-row'+(sel?" selected":"")+'" data-bno="'+b.billNo+'" onclick="toggleTripBill(this.dataset.bno)">'
       +'<input type="checkbox" class="bpr-check" '+(sel?"checked":"")+'>'
       +'<div class="bpr-no">'+b.billNo+'</div>'
-      +'<div class="bpr-info">'+recv+stHtml+'<br><span style="color:#aaa">'+(amph?amph+"·":"")+prov+'</span></div>'
+      +'<div class="bpr-info">'+recv+stHtml+'<br><span style="color:#aaa">'+(amph?amph+"·":"")+prov+'</span>'+(b.removeReason?'<br><span style="color:#E67E22;font-size:10px">↩ เคยถูกถอด: '+b.removeReason+(b.removedBy?(" ("+b.removedBy+")"):"")+'</span>':'')+'</div>'
       +'<div class="bpr-amt"><span style="'+amtColor+'">'+net.toLocaleString("th-TH")+'฿</span>'
       +(cod>0?'<br><span style="color:#c0392b;font-size:10px">COD '+cod.toLocaleString("th-TH")+'</span>':'')
       +'</div>'
@@ -1820,6 +2102,8 @@ function renderTripForm(existingTrip){
 
   var today = new Date();
   var todayStr = today.getFullYear()+"-"+String(today.getMonth()+1).padStart(2,"0")+"-"+String(today.getDate()).padStart(2,"0");
+  var _tripRt=null; for(var _ri=0;_ri<_routes.length;_ri++){ if(String(_routes[_ri].name||"").trim()===String(t.route||"").trim()){_tripRt=_routes[_ri];break;} }
+  var _tripTiers=(_tripRt&&_tripRt.tiers)||[];
 
   var html = '<div class="card">'
     +'<div style="display:flex;align-items:center;gap:10px;margin-bottom:14px">'
@@ -1831,21 +2115,36 @@ function renderTripForm(existingTrip){
     +'<div class="trip-section-title">▶ คนขับ & เส้นทาง</div>'
     +'<div class="trip-form-grid">'
     +'<div><div class="trip-lbl">คนขับ</div>'
-    +'<select id="tf-driver" class="trip-inp" onchange="updateTripDriverLabel()"><option value="">เลือกคนขับ</option>'+driverOpts+'</select></div>'
-    +'<div><div class="trip-lbl">เส้นทาง (เสมียนกรอก)</div>'
-    +'<input id="tf-route" class="trip-inp" placeholder="เช่น กทม.→โคราช" value="'+(t.route||"")+'"></div>'
+    +'<select id="tf-driver" class="trip-inp" onchange="updateTripDriverLabel()"><option value="">เลือกคนขับ</option>'+driverOpts+'<option value="__custom__"'+((t.driverName&&!t.driverUsername)?" selected":"")+'>✏️ พิมพ์ชื่อเอง (รถร่วม)</option></select>'
+    +'<input id="tf-driver-custom" class="trip-inp" placeholder="ชื่อคนขับ / รถร่วม" style="margin-top:6px;display:'+((t.driverName&&!t.driverUsername)?"block":"none")+'" value="'+((t.driverName&&!t.driverUsername)?String(t.driverName).replace(/"/g,"&quot;"):"")+'"></div>'
+    +'<div><div class="trip-lbl">เส้นทาง (เสมียนกรอก / เลือกเส้นที่ตั้งไว้)</div>'
+    +'<input id="tf-route" class="trip-inp" list="tf-route-dl" placeholder="เช่น กทม.→โคราช" value="'+(t.route||"").replace(/"/g,"&quot;")+'" onchange="tfSyncTiers()"></div>'
+    +'<datalist id="tf-route-dl">'+_routes.map(function(r){return '<option value="'+String(r.name||"").replace(/"/g,"&quot;")+'">';}).join("")+'</datalist>'
     +'</div>'
+    +'<div class="trip-form-grid">'
+    +'<div><div class="trip-lbl">ประเภทรถ (ดึงค่าเที่ยวอัตโนมัติ)</div>'
+    +'<select id="tf-vehicle" class="trip-inp" onchange="tfAutoFare()"><option value="">— เลือกประเภทรถ —</option>'+_vehTypes.map(function(v){return '<option value="'+String(v).replace(/"/g,"&quot;")+'"'+(t.vehicleType===v?" selected":"")+'>'+v+'</option>';}).join("")+'</select></div>'
+    +'<div><div class="trip-lbl">ปลายทางไกลสุด (เรท)</div>'
+    +'<div style="display:flex;gap:5px"><select id="tf-faretier" class="trip-inp" onchange="tfAutoFare()" style="flex:1"><option value="">'+(_tripTiers.length?'— เลือกปลายทาง —':'(เรทเดียว)')+'</option>'+_tripTiers.map(function(ti){var tl=_tierLabel(ti);return '<option value="'+String(tl).replace(/"/g,"&quot;")+'"'+(t.fareTier===tl?" selected":"")+'>'+tl+'</option>';}).join("")+'</select>'+(_tripTiers.length?'<button type="button" onclick="tfGuessTier(false)" style="background:#eef;border:1px solid #ccd;border-radius:7px;padding:0 10px;font-size:11px;cursor:pointer;white-space:nowrap">🤖 เดา</button>':'')+'</div></div>'
+    +'</div>'
+    +'<div id="tf-fare-hint" style="font-size:11px;line-height:1.3;margin:2px 0 6px"></div>'
     +'<div class="trip-form-grid cols3">'
     +'<div><div class="trip-lbl">วันที่ออก</div>'
     +'<input id="tf-depart" type="date" class="trip-inp" value="'+(t.departDate||todayStr)+'"></div>'
     +'<div><div class="trip-lbl">จำนวนวัน</div>'
-    +'<select id="tf-days" class="trip-inp">'
+    +'<select id="tf-days" class="trip-inp" onchange="tfAutoFare()">'
     +'<option value="1"'+(t.days===1?" selected":"")+'>1 วัน</option>'
     +'<option value="2"'+(t.days===2?" selected":"")+'>2 วัน</option>'
     +'<option value="0"'+(t.days===0?" selected":"")+'>🌙 ค้างคืน</option>'
     +'</select></div>'
     +'<div><div class="trip-lbl">หมายเหตุ</div>'
     +'<input id="tf-note" class="trip-inp" placeholder="หมายเหตุ" value="'+(t.note||"")+'"></div>'
+    +'</div>'
+    +'<div class="trip-form-grid">'
+    +'<div><div class="trip-lbl">วันที่ 1 วิ่ง (อำเภอ/จังหวัด)</div>'
+    +'<input id="tf-day1" class="trip-inp" placeholder="เช่น เมือง/ศรีสะเกษ" value="'+(t.day1||"").replace(/"/g,"&quot;")+'"></div>'
+    +'<div><div class="trip-lbl">วันที่ 2 วิ่ง (ถ้ามี)</div>'
+    +'<input id="tf-day2" class="trip-inp" placeholder="เช่น วารินฯ/อุบลฯ" value="'+(t.day2||"").replace(/"/g,"&quot;")+'"></div>'
     +'</div>'
 
     +'<div class="trip-section-title">▶ ค่าเที่ยว '+(isAdmin?'<span style="font-size:10px;color:#b7950b">[Admin]</span>':'')+' <span style="font-size:10px;color:#aaa">'+(isAdmin?'':'เสมียนดูได้อย่างเดียว')+'</span></div>'
@@ -1920,15 +2219,31 @@ function renderTripForm(existingTrip){
     +'</div>'
     +'<div style="font-size:11px;color:#888;margin-bottom:10px">รวมค่าแรงค่าตร.: <b id="tf-labor-sum" style="color:#0F6E56">0</b> ฿</div>'
 
-    +'<div class="trip-section-title">⛽ ค่าน้ำมัน</div>'
-    +'<div class="trip-form-grid cols3">'
-    /* ระยะทางคำนวณจากไมล์ ไม่ต้องกรอก */
+    +'<div class="trip-section-title">⛽ ค่าน้ำมัน / ต้นทุนเที่ยว</div>'
+    +'<div class="trip-form-grid">'
+    +'<div><div class="trip-lbl">ราคาน้ำมัน (฿/ลิตร)</div>'
+    +'<input id="tf-price" type="number" class="trip-inp" placeholder="40" value="'+(t.fuelPrice||"")+'"></div>'
+    +'<div><div class="trip-lbl">อัตราสิ้นเปลือง (กม./ลิตร)</div>'
+    +'<input id="tf-rate" type="number" class="trip-inp" placeholder="12" value="'+(t.fuelRate||"")+'"></div>'
+    +'</div>'
     +'<div class="trip-form-grid">'
     +'<div><div class="trip-lbl">เบิกล่วงหน้าน้ำมัน (฿)</div>'
     +'<input id="tf-adv" type="number" class="trip-inp" placeholder="0" value="'+(t.fuelAdvance||"")+'"></div>'
     +'<div><div class="trip-lbl">ไมล์เริ่ม</div>'
     +'<input id="tf-odo" type="number" class="trip-inp" placeholder="เลขไมล์เริ่ม" value="'+(t.odomStart||"")+'"></div>'
     +'</div>'
+    +'<div class="trip-form-grid">'
+    +'<div><div class="trip-lbl">ค่าทางด่วน (฿)</div>'
+    +'<input id="tf-toll" type="number" class="trip-inp" placeholder="0" value="'+(t.toll||"")+'"></div>'
+    +'<div><div class="trip-lbl">ภาษีหัก ณ ที่จ่าย 1% (฿)</div>'
+    +'<input id="tf-tax" type="number" class="trip-inp" placeholder="0" value="'+(t.tax||"")+'"></div>'
+    +'</div>'
+    +'<div class="trip-form-grid">'
+    +'<div><div class="trip-lbl">ค่าใช้จ่ายอื่น (฿)</div>'
+    +'<input id="tf-other" type="number" class="trip-inp" placeholder="0" value="'+(t.otherExpense||"")+'"></div>'
+    +'<div></div>'
+    +'</div>'
+    +'<input id="tf-dist" type="hidden" value="'+(t.fuelDist||0)+'">'
 
     +'<div class="trip-section-title">▶ บิลในเที่ยว (<span id="tf-bill-count">'+selCount+'</span> บิล)</div>'
     +'<div id="tf-current-bills" style="margin-bottom:10px">'+renderCurrentTripBills()+'</div>'
@@ -1966,8 +2281,63 @@ function renderTripForm(existingTrip){
     if(el) el.addEventListener("input", calcTotalFare);
   });
   calcTotalFare();
+  tfAutoFare();
+  if(!((document.getElementById("tf-faretier")||{}).value)) tfGuessTier(true);
 }
 
+function tfGuessTier(silent){
+  var sel=document.getElementById("tf-faretier"); if(!sel) return;
+  var rname=((document.getElementById("tf-route")||{}).value||"").trim();
+  var rt=null; for(var i=0;i<_routes.length;i++){ if(String(_routes[i].name||"").trim()===rname){rt=_routes[i];break;} }
+  var tiers=(rt&&rt.tiers)||[];
+  if(!tiers.length){ if(!silent) alert("เส้นนี้ไม่มีระดับปลายทาง — ไม่ต้องเดา"); return; }
+  var bills=[]; try{ bills=Object.keys(_tripState.selectedBills||{}).map(function(k){return _tripState.selectedBills[k];}); }catch(e){}
+  if(!bills.length){ if(!silent) alert("เที่ยวนี้ยังไม่มีบิลให้เดา"); return; }
+  var maxIdx=-1;
+  bills.forEach(function(b){
+    if(!b) return;
+    var amp=_normAmp(b.destAmphoe||""), tb=_normTb(b.destTambon||""), prov=_normProv(b.destProv||"");
+    for(var i=0;i<tiers.length;i++){
+      var kw=_tierKw(tiers[i]); if(!kw) continue;
+      var hit=kw.split(",").some(function(k){ k=_normAmp((k||"").trim()); if(!k) return false; return (amp&&(amp.indexOf(k)>=0||k.indexOf(amp)>=0))||(tb&&tb.indexOf(k)>=0)||(prov&&prov.indexOf(k)>=0); });
+      if(hit && i>maxIdx) maxIdx=i;
+    }
+  });
+  if(maxIdx<0){ if(!silent) alert("เดาไม่ได้ — ไม่มีบิลตรงกับคำค้นของระดับใด\nลองเพิ่มอำเภอในช่องคำค้นของแต่ละระดับ (ที่ปุ่ม 🛣️เส้นทาง)"); return; }
+  sel.value=_tierLabel(tiers[maxIdx]); tfAutoFare();
+}
+function tfSyncTiers(){
+  var sel=document.getElementById("tf-faretier");
+  var rname=((document.getElementById("tf-route")||{}).value||"").trim();
+  var rt=null; for(var i=0;i<_routes.length;i++){ if(String(_routes[i].name||"").trim()===rname){rt=_routes[i];break;} }
+  var tiers=(rt&&rt.tiers)||[];
+  if(sel){
+    var cur=sel.value;
+    sel.innerHTML='<option value="">'+(tiers.length?'— เลือกปลายทาง —':'(เรทเดียว)')+'</option>'+tiers.map(function(ti){var tl=_tierLabel(ti);return '<option value="'+String(tl).replace(/"/g,"&quot;")+'"'+(cur===tl?" selected":"")+'>'+tl+'</option>';}).join("");
+  }
+  tfAutoFare();
+}
+function tfAutoFare(){
+  var hintEl=document.getElementById("tf-fare-hint");
+  var veh=(document.getElementById("tf-vehicle")||{}).value||"";
+  var days=String((document.getElementById("tf-days")||{}).value||"");
+  var rname=((document.getElementById("tf-route")||{}).value||"").trim();
+  var baseEl=document.getElementById("tf-base");
+  var isAdm=(typeof CU!=="undefined"&&CU&&CU.role==="admin");
+  if(!veh){ if(hintEl){hintEl.style.color="#aaa";hintEl.textContent="เลือกประเภทรถเพื่อดึงค่าเที่ยว";} return; }
+  var rt=null; for(var i=0;i<_routes.length;i++){ if(String(_routes[i].name||"").trim()===rname){ rt=_routes[i]; break; } }
+  var dayLbl={"1":"1 วัน","2":"2 วัน","0":"ค้างคืน"}[days]||days;
+  if(!rt){ if(hintEl){hintEl.style.color="#c0392b";hintEl.textContent="⚠ ไม่พบเส้น \""+rname+"\" ในระบบเส้นทาง (พิมพ์/เลือกชื่อเส้นให้ตรง)";} return; }
+  var tier=((document.getElementById("tf-faretier")||{}).value||"");
+  if((rt.tiers||[]).length && !tier){ if(hintEl){hintEl.style.color="#E67E22";hintEl.textContent="เลือกปลายทางไกลสุดก่อน เพื่อดึงเรทให้ตรง";} return; }
+  var f=null; for(var j=0;j<(rt.fares||[]).length;j++){ if(rt.fares[j].veh===veh && String(rt.fares[j].days)===days && String(rt.fares[j].tier||"")===tier){ f=rt.fares[j]; break; } }
+  if(f){
+    if(isAdm && baseEl){ baseEl.value=f.fare; calcTotalFare(); }
+    if(hintEl){ hintEl.style.color="#0F6E56"; hintEl.textContent="✓ ค่าเที่ยว "+Number(f.fare).toLocaleString("th-TH")+"฿ ("+veh+"/"+dayLbl+")"+(isAdm?"":" — แก้โดยแอดมิน"); }
+  } else {
+    if(hintEl){ hintEl.style.color="#c0392b"; hintEl.textContent="เส้น "+rt.name+" ยังไม่ได้ตั้งเรท "+veh+"/"+dayLbl; }
+  }
+}
 function calcTotalFare(){
   var base  = parseFloat((document.getElementById("tf-base")||{}).value||0);
   var extra = parseFloat((document.getElementById("tf-extra")||{}).value||0);
@@ -2008,7 +2378,10 @@ function calcTotalFare(){
   if(hotelWrap && daysEl) hotelWrap.style.display = parseInt(daysEl.value||1)>=2 ? "" : "none";
 }
 
-function updateTripDriverLabel(){}
+function updateTripDriverLabel(){
+  var sel=document.getElementById("tf-driver"), cu=document.getElementById("tf-driver-custom");
+  if(sel&&cu) cu.style.display=(sel.value==="__custom__")?"block":"none";
+}
 
 function makeTfPickupRow(p){
   p = p||{};
@@ -2239,26 +2612,31 @@ function getTfPickupData(){
   return pickups;
 }
 
+function _isPendingAdd(billNo){ return (_tripState.additionReqs||[]).some(function(r){return r.billNo===billNo&&r.status==="pending";}); }
+function _syncPickerUI(){
+  document.querySelectorAll(".bill-pick-row").forEach(function(row){
+    var no=row.querySelector(".bpr-no"); if(!no) return;
+    var bno=no.textContent;
+    var sel = !!_tripState.selectedBills[bno] || _isPendingAdd(bno);
+    row.classList.toggle("selected", sel);
+    var cb=row.querySelector(".bpr-check"); if(cb) cb.checked=sel;
+  });
+  var cntEl=document.getElementById("tf-bill-count");
+  if(cntEl) cntEl.textContent = Object.keys(_tripState.selectedBills).length;
+}
 function toggleTripBill(billNo){
+  var liveClerk = !(CU&&CU.role==="admin") && _editTripLive();
   if(_tripState.selectedBills[billNo]){
     delete _tripState.selectedBills[billNo];
+  } else if(liveClerk){
+    if(_isPendingAdd(billNo)) cancelAddTripBill(billNo);
+    else requestAddTripBill(billNo);
+    _syncPickerUI(); return;
   } else {
     var b = BILLS.find(function(x){ return x.billNo===billNo; });
     if(b) _tripState.selectedBills[billNo] = b;
   }
-  // update UI
-  var rows = document.querySelectorAll(".bill-pick-row");
-  rows.forEach(function(row){
-    var no = row.querySelector(".bpr-no");
-    if(!no) return;
-    var bno = no.textContent;
-    var sel = !!_tripState.selectedBills[bno];
-    row.classList.toggle("selected", sel);
-    var cb = row.querySelector(".bpr-check");
-    if(cb) cb.checked = sel;
-  });
-  var cntEl = document.getElementById("tf-bill-count");
-  if(cntEl) cntEl.textContent = Object.keys(_tripState.selectedBills).length;
+  _syncPickerUI();
 }
 
 function filterTripBills(q){
@@ -2335,14 +2713,18 @@ function saveTrip(){
   var driverSel = document.getElementById("tf-driver");
   var driverUsername = driverSel ? driverSel.value : "";
   var driverName = driverSel && driverSel.selectedOptions[0] ? driverSel.selectedOptions[0].getAttribute("data-name")||driverSel.selectedOptions[0].text : "";
+  if(driverUsername==="__custom__"){ driverUsername=""; driverName=((document.getElementById("tf-driver-custom")||{}).value||"").trim(); }
   // คงสถานะเสนอ/อนุมัติตอนแก้ไข — เที่ยว "รออนุมัติ" (proposed) ยังไม่ต้องใส่คนรถ
   var _keepStatus = "open";
+  var _isAdminSave = CU && CU.role==="admin";
   if(_tripState.editId){
     var _exT=(_tripState.openTrips||[]).find(function(x){return x.id===_tripState.editId;});
     var _esT=_exT && ((_exT.settlement&&_exT.settlement.status)||_exT.status);
     if(_esT==="proposed"||_esT==="approved") _keepStatus=_esT;
+  } else if(!_isAdminSave){
+    _keepStatus="proposed"; // เสมียนสร้างเที่ยวจากหน้านี้ → ต้องรออนุมัติ
   }
-  if(!driverUsername && _keepStatus!=="proposed"){ alert("กรุณาเลือกคนขับ"); return; }
+  if(!driverUsername && !driverName && _keepStatus!=="proposed"){ alert("กรุณาเลือกหรือพิมพ์ชื่อคนขับ"); return; }
 
   var billIds = Object.keys(_tripState.selectedBills);
   var selBills = Object.values(_tripState.selectedBills);
@@ -2396,7 +2778,14 @@ function saveTrip(){
     fuelRate: parseFloat((document.getElementById("tf-rate")||{}).value||12),
     fuelAdvance: parseFloat((document.getElementById("tf-adv")||{}).value||0),
     odomStart: parseFloat((document.getElementById("tf-odo")||{}).value||0),
+    toll: parseFloat((document.getElementById("tf-toll")||{}).value||0),
+    tax: parseFloat((document.getElementById("tf-tax")||{}).value||0),
+    otherExpense: parseFloat((document.getElementById("tf-other")||{}).value||0),
     note: (document.getElementById("tf-note")||{}).value||"",
+    day1: (document.getElementById("tf-day1")||{}).value||"",
+    day2: (document.getElementById("tf-day2")||{}).value||"",
+    vehicleType: (document.getElementById("tf-vehicle")||{}).value||"",
+    fareTier: (document.getElementById("tf-faretier")||{}).value||"",
     hotelFare: parseFloat((document.getElementById("tf-hotel")||{}).value||0),
     phoneFare: parseFloat((document.getElementById("tf-phone")||{}).value||0),
     bonusFare: parseFloat((document.getElementById("tf-bonus")||{}).value||0),
@@ -2427,6 +2816,9 @@ function saveTrip(){
   if(trip.createdAt === undefined) delete trip.createdAt;
   // กรอง undefined ออกจากทุก field
   Object.keys(trip).forEach(function(k){ if(trip[k]===undefined) delete trip[k]; });
+  if(_keepStatus==="proposed" && !_tripState.editId){
+    trip.settlement={status:"proposed", proposedByName:(CU?(CU.name||CU.username):""), proposedAt:new Date().toISOString(), perBill:{}, adjustments:[], note:""};
+  }
 
   // เก็บ id งานรับที่ดึงมาจากคิว เพื่ออัปเดตสถานะหลังบันทึกเที่ยว
   var pulledPickupIds = (trip.pickups||[])
@@ -2444,11 +2836,9 @@ function saveTrip(){
     var clearRemoved = Promise.resolve();
     if(isEditTrip && GolodDB.getBillsByTripId){
       clearRemoved = GolodDB.getBillsByTripId(saved.id).then(function(claim){
-        var removed=(claim||[]).filter(function(b){ return b.billNo && billIds.indexOf(b.billNo)<0; });
-        return Promise.all(removed.map(function(b){
-          return GolodDB.updateBill(b.billNo, {driver:"",driverName:"",tripId:"",status:"ออกบิลรับของ",updatedAt:new Date().toISOString()})
-            .then(function(){ var lb=BILLS.find(function(x){return x.billNo===b.billNo;}); if(lb){lb.driver="";lb.tripId="";lb.status="ออกบิลรับของ";} }).catch(function(){});
-        }));
+        // กู้คืน: บิลที่ tripId ยังชี้มาเที่ยวนี้ แต่ตกหล่นจาก billIds → ใส่กลับ ไม่ล้างทิ้ง
+        var recov=(claim||[]).filter(function(b){ return b.billNo && billIds.indexOf(b.billNo)<0; }).map(function(b){return b.billNo;});
+        if(recov.length){ recov.forEach(function(bn){ if(billIds.indexOf(bn)<0) billIds.push(bn); }); if(GolodDB.updateTrip) return GolodDB.updateTrip(saved.id,{billIds:billIds}).catch(function(){}); }
       }).catch(function(){});
     }
     return clearRemoved.then(function(){
@@ -2510,7 +2900,7 @@ function saveTrip(){
       }));
     }
   }).then(function(){
-    alert("✅ "+(isEditTrip?"บันทึกเที่ยวแล้ว":"สร้างเที่ยวใหม่แล้ว")+"!");
+    alert("✅ "+(isEditTrip?"บันทึกเที่ยวแล้ว":(_keepStatus==="proposed"?"เสนอจัดเที่ยวแล้ว — รอแอดมินอนุมัติ + ใส่คนรถ":"สร้างเที่ยวใหม่แล้ว"))+"!");
     _tripState.mode = "list";
     _tripState.editId = null;
     _tripState.selectedBills = {};
@@ -2813,26 +3203,27 @@ function _renderClearForm(){
   }
 
   h+='<div style="border:1px solid #eee;border-radius:10px;padding:12px">'
-    +'<div style="font-weight:700;margin-bottom:4px">① คนรถส่งเงิน '+(t.clearData?'(ดึงจากแอปคนรถ — แก้ได้)':'(กรอกที่ส่งจริง)')+'</div>'
+    +'<div style="font-weight:700;margin-bottom:4px">① ไมล์จบ + เงินที่คนรถส่ง <span style="font-size:11px;color:#0F6E56;font-weight:400">(กรอกที่นี่)</span></div>'
     +'<div style="font-size:11px;color:#888;margin-bottom:8px">ต้องส่ง = ปลายทาง '+_clrFmt(c.dest)+' + COD '+_clrFmt(c.cod)+' = <b>'+_clrFmt(c.dest+c.cod)+'</b> บาท</div>'
+    +rowI("ไมล์สิ้นสุด (ไมล์จบ)","clr-me", v("odomEnd",(t.clearData&&t.clearData.odomEnd)||t.odomEnd||0))
     +rowI("ส่งเงินสด","clr-cash", v("clrCash",0))
     +rowI("ส่งโอน","clr-trans", v("clrTrans",0))
-    +'<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:2px"><span style="font-size:13px">บวก ภาษี ณ ที่จ่าย 1% (ลูกค้าปลายทางหักไว้)</span>'+inp("clr-tax", v("tax",0))+'</div>'
-    +'<div style="font-size:10px;color:#999;text-align:right;margin-bottom:8px">* WHT ที่ลูกค้าหัก = คนรถได้เงินสดน้อยลง · 1% ของปลายทาง = '+_clrFmt(Math.round(c.dest*0.01))+' (กรอกเฉพาะใบที่ถูกหัก)</div>'
+    +'<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:2px"><span style="font-size:13px">บวก ภาษี ณ ที่จ่าย 1% (ลูกค้าหัก)</span>'+inp("clr-tax", v("tax",t.tax||0))+'</div>'
+    +'<div style="font-size:10px;color:#999;text-align:right;margin-bottom:6px">* WHT 1% ของปลายทาง ≈ '+_clrFmt(Math.round(c.dest*0.01))+'</div>'
     +'<div id="clr-shortover" style="text-align:right;font-size:13px;font-weight:700;margin:4px 0 10px"></div>'
-    +'<div style="font-weight:700;margin:8px 0">② บริษัทจ่ายคนรถ</div>'
-    +rowI("ค่าเที่ยว","clr-fare", v("fare",t.baseFare||0))
-    +'<div style="background:#fafafa;border:1px solid #eee;border-radius:8px;padding:8px;margin-bottom:6px">'
-      +'<div style="font-size:12px;font-weight:700;color:#555;margin-bottom:6px">⛽ ค่าน้ำมัน (คำนวณจากไมล์)</div>'
-      +rowI("ไมล์เริ่มต้น","clr-ms", v("odomStart", t.odomStart||0))
-      +rowI("ไมล์สิ้นสุด","clr-me", v("odomEnd", (t.clearData&&t.clearData.odomEnd)||t.odomEnd||0))
-      +rowI("ราคาน้ำมัน (บาท/ลิตร)","clr-fp", v("fuelPrice", t.fuelPrice||40))
-      +rowI("อัตราสิ้นเปลือง (กม./ลิตร)","clr-fr", v("fuelRate", t.fuelRate||12))
-      +'<div id="clr-fuelcalc" style="text-align:right;font-size:12px;color:#0F6E56;margin-top:4px"></div>'
+    +'<div style="font-weight:700;margin:10px 0 4px">② ข้อมูลจากเที่ยว <span style="font-size:11px;color:#E67E22;font-weight:400">(แก้ที่หน้าจัดการเที่ยว)</span></div>'
+    +'<div style="background:#fafafa;border:1px solid #eee;border-radius:8px;padding:10px;margin-bottom:6px">'
+      +rowA("ไมล์เริ่ม", t.odomStart||0, "#666")
+      +rowA("ราคาน้ำมัน (฿/ลิตร)", t.fuelPrice||0, "#666")
+      +rowA("อัตราสิ้นเปลือง (กม./ลิตร)", t.fuelRate||0, "#666")
+      +'<div id="clr-fuelcalc" style="text-align:right;font-size:12px;color:#0F6E56;margin:2px 0 6px"></div>'
+      +'<div style="border-top:1px dashed #ddd;margin:4px 0"></div>'
+      +rowA("ค่าเที่ยว", t.baseFare||0, "#0F6E56")
+      +rowA("เบิกล่วงหน้าน้ำมัน (หักคนรถ)", t.fuelAdvance||0, "#c0392b")
     +'</div>'
-    +rowI("ค่าทางด่วน","clr-toll", v("toll",0))
-    +'<div style="font-weight:700;margin:8px 0">③ หักจากคนรถ</div>'
-    +rowI("น้ำมันเบิกล่วงหน้า","clr-adv", adv)
+    +'<div style="font-weight:700;margin:10px 0 4px">③ ค่าใช้จ่ายเที่ยวนี้ <span style="font-size:11px;color:#0F6E56;font-weight:400">(กรอกที่นี่ · บันทึกกลับเที่ยว)</span></div>'
+    +rowI("ค่าทางด่วน","clr-toll", v("toll",t.toll||0))
+    +rowI("ค่าใช้จ่ายอื่น","clr-other", v("otherExpense",t.otherExpense||0))
     +'<div id="clr-net" style="margin-top:12px;padding:12px;border-radius:8px;background:#f6f6f6;font-weight:800;text-align:center;font-size:16px"></div>'
     +'<div style="display:flex;gap:8px;margin-top:12px">'
     +'<button class="btn btn-green" onclick="_clrSave()" style="flex:1">💾 บันทึกการเคลียร์</button>'
@@ -2845,15 +3236,18 @@ function _renderClearForm(){
 }
 
 function _clrFuel(){
-  var ms=_clrNum("clr-ms"), me=_clrNum("clr-me"), fp=_clrNum("clr-fp"), fr=_clrNum("clr-fr");
-  var _t=_clearState.trip||{}; var dist=(me>ms)?(me-ms):(((_t.clearData&&_t.clearData.distReal)||_t.fuelDist)||0);
+  var t=_clearState.trip||{};
+  var ms=parseFloat(t.odomStart||0), me=_clrNum("clr-me");
+  var fp=parseFloat(t.fuelPrice||0), fr=parseFloat(t.fuelRate||0);
+  var dist=(me>ms)?(me-ms):(((t.clearData&&t.clearData.distReal)||t.fuelDist)||0);
   var liters=fr>0?(dist/fr):0;
   return {ms:ms,me:me,fp:fp,fr:fr,dist:dist,liters:liters,fuel:Math.round(liters*fp)};
 }
 function _clrRecalc(){
-  var c=_clrCompute();
+  var c=_clrCompute(); var t=_clearState.trip||{};
   var cash=_clrNum("clr-cash"), trans=_clrNum("clr-trans"), tax=_clrNum("clr-tax");
-  var fare=_clrNum("clr-fare"), toll=_clrNum("clr-toll"), adv=_clrNum("clr-adv");
+  var toll=_clrNum("clr-toll"), other=_clrNum("clr-other");
+  var fare=parseFloat(t.baseFare||0), adv=parseFloat(t.fuelAdvance||0);
   var f=_clrFuel(), fuel=f.fuel;
   var fe=document.getElementById("clr-fuelcalc");
   if(fe) fe.innerHTML='ระยะทาง '+_clrFmt(f.dist)+' กม. ÷ '+(f.fr||0)+' = '+_clrFmt(Math.round(f.liters))+' ลิตร × '+(f.fp||0)+' = <b style="font-size:14px">'+_clrFmt(fuel)+' บาท</b>';
@@ -2866,7 +3260,7 @@ function _clrRecalc(){
       : '<span style="color:#c0392b">เงินเก็บขาด '+_clrFmt(-diff)+' บาท</span>';
   }
   // สุทธิ: ไม่รวม tax (เป็นเครดิตภาษี ไม่ใช่เงินสด)
-  var companyPay=fare+fuel+toll, driverHand=cash+trans+adv, net=companyPay-driverHand;
+  var companyPay=fare+fuel+toll+other, driverHand=cash+trans+adv, net=companyPay-driverHand;
   var ne=document.getElementById("clr-net");
   if(ne){
     if(net>0){ ne.innerHTML='บริษัทต้องจ่ายคนรถ<br><span style="color:#0F6E56;font-size:20px">'+_clrFmt(net)+' บาท</span>'; ne.style.background="#eafaf3"; }
@@ -2879,21 +3273,23 @@ function _clrSave(){
   var t=_clearState.trip; if(!t){ alert("ยังไม่เลือกเที่ยว"); return; }
   var c=_clrCompute();
   var cash=_clrNum("clr-cash"),trans=_clrNum("clr-trans"),tax=_clrNum("clr-tax");
-  var fare=_clrNum("clr-fare"),toll=_clrNum("clr-toll"),adv=_clrNum("clr-adv");
+  var toll=_clrNum("clr-toll"),other=_clrNum("clr-other");
+  var fare=parseFloat(t.baseFare||0),adv=parseFloat(t.fuelAdvance||0);
   var f=_clrFuel(), fuel=f.fuel;
   var mustPay=c.dest+c.cod, submitted=cash+trans;
-  var companyPay=fare+fuel+toll, driverHand=submitted+adv, net=companyPay-driverHand;
+  var companyPay=fare+fuel+toll+other, driverHand=submitted+adv, net=companyPay-driverHand;
   var clearData=Object.assign({}, t.clearData||{}, {
     odomStart:f.ms, odomEnd:f.me, distReal:f.dist, fuelReal:fuel, fuelPrice:f.fp, fuelRate:f.fr,
     clrCash:cash, clrTrans:trans, mustPay:mustPay, diff:(submitted+tax)-mustPay,
     destExpected:c.dest, codExpected:c.cod, originTotal:c.origin, transferTotal:c.transfer, billCount:c.count, codCount:c.codCount,
-    fare:fare, toll:toll, advance:adv, tax:tax, companyPay:companyPay, net:net,
+    fare:fare, toll:toll, otherExpense:other, advance:adv, tax:tax, companyPay:companyPay, net:net,
     status:"cleared", clerkConfirmed:true, clearedBy:(CU?(CU.name||CU.username):""), clearedAt:new Date().toISOString()
   });
   t.clearData=clearData;
+  t.odomEnd=f.me; t.clrCash=cash; t.clrTrans=trans; t.toll=toll; t.tax=tax; t.otherExpense=other;
   if(GolodDB.updateTrip){
-    GolodDB.updateTrip(t.id,{clearData:clearData})
-      .then(function(){ alert("✅ บันทึกการเคลียร์แล้ว (รวมเป็นระบบเดียว · sync ทุกเครื่อง)"); })
+    GolodDB.updateTrip(t.id,{clearData:clearData, odomEnd:f.me, clrCash:cash, clrTrans:trans, toll:toll, tax:tax, otherExpense:other})
+      .then(function(){ alert("✅ บันทึกการเคลียร์แล้ว (เขียนกลับเที่ยว · sync ทุกเครื่อง)"); })
       .catch(function(){ alert("⚠️ บันทึกในเครื่องแล้ว แต่ sync Firestore ไม่สำเร็จ"); });
   } else { alert("บันทึกแล้ว"); }
   _renderClearForm();
@@ -2903,9 +3299,10 @@ function _clrPrint(){
   var t=_clearState.trip; if(!t){ alert("ยังไม่เลือกเที่ยว"); return; }
   var c=_clrCompute();
   var cash=_clrNum("clr-cash"),trans=_clrNum("clr-trans"),tax=_clrNum("clr-tax");
-  var fare=_clrNum("clr-fare"),toll=_clrNum("clr-toll"),adv=_clrNum("clr-adv");
+  var toll=_clrNum("clr-toll"),other=_clrNum("clr-other");
+  var fare=parseFloat(t.baseFare||0),adv=parseFloat(t.fuelAdvance||0);
   var f=_clrFuel(), fuel=f.fuel;
-  var companyPay=fare+fuel+toll, driverHand=cash+trans+adv, net=companyPay-driverHand;
+  var companyPay=fare+fuel+toll+other, driverHand=cash+trans+adv, net=companyPay-driverHand;
   var diff=(cash+trans+tax)-(c.dest+c.cod);
   var R=function(lb,val,clr){ return '<tr><td style="padding:4px 8px;border-bottom:1px solid #eee">'+lb+'</td><td style="padding:4px 8px;text-align:right;border-bottom:1px solid #eee'+(clr?(';color:'+clr):'')+'">'+_clrFmt(val)+'</td></tr>'; };
   var html='<div style="font-family:Sarabun,Arial,sans-serif;font-size:13px;padding:16px;max-width:520px;margin:0 auto">'
@@ -2919,8 +3316,9 @@ function _clrPrint(){
     +R("ส่งเงินสด", cash)+R("ส่งโอน", trans)+R("บวก ภาษี ณ ที่จ่าย 1% (ลูกค้าหัก)", tax, "#1565C0")
     +'<tr><td style="padding:4px 8px;border-bottom:1px solid #eee">เกิน/ขาด เงินเก็บ</td><td style="padding:4px 8px;text-align:right;border-bottom:1px solid #eee;color:'+(diff<0?"#c0392b":"#1565C0")+'">'+(diff>=0?"เกิน ":"ขาด ")+_clrFmt(Math.abs(diff))+'</td></tr>'
     +'<tr style="background:#f0faf5"><td colspan="2" style="padding:5px 8px;font-weight:700">บริษัทจ่ายคนรถ / หัก</td></tr>'
-    +R("ค่าเที่ยว", fare)+R("ค่าน้ำมัน ("+_clrFmt(f.dist)+"กม.÷"+(f.fr||0)+"×"+(f.fp||0)+")", fuel)+R("ค่าทางด่วน", toll)
+    +R("ค่าเที่ยว", fare)+R("ค่าน้ำมัน ("+_clrFmt(f.dist)+"กม.÷"+(f.fr||0)+"×"+(f.fp||0)+")", fuel)+R("ค่าทางด่วน", toll)+R("ค่าใช้จ่ายอื่น", other)
     +R("หัก น้ำมันเบิกล่วงหน้า", adv, "#c0392b")
+    +((t.clearRemarks||[]).filter(function(r){return r.type==="ปท.→โอน"&&r.status==="approved";}).length ? ('<tr style="background:#fff8ee"><td colspan="2" style="padding:5px 8px;font-weight:700;color:#b7950b">บิลปลายทาง → เปลี่ยนเป็นโอน (คนรถไม่ได้เก็บ · มีสลิป)</td></tr>'+(t.clearRemarks||[]).filter(function(r){return r.type==="ปท.→โอน"&&r.status==="approved";}).map(function(r){return '<tr><td style="padding:4px 8px;border-bottom:1px solid #eee">'+(r.billNo||"-")+(r.slipUrl?' · 📎มีสลิป':' · <span style="color:#c0392b">⚠ไม่มีสลิป</span>')+'</td><td style="padding:4px 8px;text-align:right;border-bottom:1px solid #eee;color:#c0392b">'+_clrFmt(r.amount)+'</td></tr>';}).join("")) : "")
     +'</tbody></table>'
     +'<div style="margin-top:12px;padding:12px;border-radius:8px;text-align:center;font-weight:800;font-size:16px;background:'+(net>=0?"#eafaf3":"#fdeaea")+'">'
     +(net>0?('บริษัทต้องจ่ายคนรถ '+_clrFmt(net)+' บาท'):net<0?('คนรถต้องส่งบริษัท '+_clrFmt(-net)+' บาท'):'พอดี 0 บาท')+'</div>'
@@ -3257,6 +3655,45 @@ var historyDateFrom = "";
 var historyDateTo = "";
 var historyFilter = "all"; // all | driver | branch
 
+var billLogFilter="all";
+function _blShort(v){ if(v===undefined||v===null) return "—"; var s=(typeof v==="object")?JSON.stringify(v):String(v); return s.length>40?(s.slice(0,40)+"…"):s; }
+function renderBillLogTab(){
+  var app=document.getElementById("app");
+  app.innerHTML='<div class="card"><div class="card-title">📜 ประวัติแก้ไข / ลบบิล</div>'
+    +'<div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:12px;align-items:center">'
+    +'<select onchange="billLogFilter=this.value;loadBillLogs()"><option value="all">ทั้งหมด</option><option value="edit">เฉพาะแก้ไข</option><option value="delete">เฉพาะลบ</option></select>'
+    +'<input id="bl-search" placeholder="ค้นเลขบิล/ชื่อ/คน" oninput="loadBillLogs()" style="flex:1;min-width:120px;padding:6px 10px;border:1px solid #ddd;border-radius:8px">'
+    +'<button class="btn btn-gray" onclick="loadBillLogs()">🔄 โหลด</button>'
+    +'</div><div id="billlog-body"><div class="loading">⏳ กำลังโหลด...</div></div></div>';
+  loadBillLogs();
+}
+function loadBillLogs(){
+  var el=document.getElementById("billlog-body"); if(!el) return;
+  if(!GolodDB.getEditLogs){ el.innerHTML='<div style="color:#c0392b;padding:12px">golod-firebase.js ยังไม่อัปเดต — กรุณา deploy ใหม่</div>'; return; }
+  el.innerHTML='<div class="loading">⏳ กำลังดึงข้อมูล...</div>';
+  GolodDB.getEditLogs({limitN:400}).then(function(logs){
+    var q=((document.getElementById("bl-search")||{}).value||"").trim().toLowerCase();
+    var rows=(logs||[]).filter(function(L){
+      var isDel=(L.action==="delete");
+      if(billLogFilter==="edit"&&isDel) return false;
+      if(billLogFilter==="delete"&&!isDel) return false;
+      if(q){ var hay=((L.billNo||"")+" "+(L.editedBy||"")+" "+JSON.stringify(L.deletedBill||L.changes||"")).toLowerCase(); if(hay.indexOf(q)<0) return false; }
+      return true;
+    });
+    if(!rows.length){ el.innerHTML='<div style="color:#888;padding:12px">— ไม่มีรายการ —</div>'; return; }
+    el.innerHTML=rows.map(function(L){
+      var isDel=(L.action==="delete");
+      var dt=L.editedAt?new Date(L.editedAt):null;
+      var when=dt?(dt.toLocaleDateString("th-TH")+" "+dt.toLocaleTimeString("th-TH",{hour:"2-digit",minute:"2-digit"})):"";
+      var head='<div style="display:flex;justify-content:space-between;gap:8px"><b style="color:'+(isDel?"#c0392b":"#0F6E56")+'">'+(isDel?"🗑️ ลบ ":"✏️ แก้ไข ")+(L.billNo||"")+'</b><span style="color:#aaa;font-size:11px;white-space:nowrap">'+when+'</span></div>';
+      var who='<div style="font-size:11px;color:#888">โดย '+(L.editedBy||"-")+(L.editorCode?(" ("+L.editorCode+")"):"")+'</div>';
+      var body="";
+      if(isDel){ var d=L.deletedBill||{}; var parts=[]; if(d.receiverName)parts.push("ผู้รับ: "+d.receiverName); if(d.freightNet)parts.push("ค่าส่ง "+d.freightNet); if(d.codTotal)parts.push("COD "+d.codTotal); if(d.status)parts.push(d.status); body='<div style="font-size:12px;color:#555;margin-top:4px">'+(parts.join(" · ")||"(ลบบิล)")+'</div>'; }
+      else { var ch=(L.changes||[]); body='<div style="font-size:12px;color:#555;margin-top:4px">'+(ch.length?ch.map(function(c){return '<div>• <b>'+c.field+'</b>: '+_blShort(c.from)+' → '+_blShort(c.to)+'</div>';}).join(""):"(ไม่มีรายละเอียด)")+'</div>'; }
+      return '<div style="border:1px solid #eee;border-radius:10px;padding:10px;margin-bottom:8px;background:'+(isDel?"#fff6f5":"#f8fffe")+'">'+head+who+body+'</div>';
+    }).join("");
+  }).catch(function(e){ el.innerHTML='<div style="color:#c0392b;padding:12px">โหลดไม่สำเร็จ: '+((e&&e.message)||e)+'</div>'; });
+}
 function renderHistoryTab(){
   var app = document.getElementById("app");
   app.innerHTML = '<div class="card"><div class="card-title">📋 ประวัติการจ่ายงาน</div>'
@@ -3833,7 +4270,7 @@ function openDispatch(mode){
     document.getElementById("modal-title").textContent="📝 เสนอจัดเที่ยว";
     document.getElementById("modal-bill-count").textContent="เลือก "+ids.length+" บิล · คนรถจะใส่ตอนแอดมินอนุมัติ";
     if(sel){ sel.innerHTML=""; sel.style.display="none"; }
-    if(propF){ propF.style.display="block"; var r=document.getElementById("mp-route"); if(r)r.value=""; var d1=document.getElementById("md-mpday1"); var rd=document.querySelector('input[name="mp-days"][value="1"]'); if(rd)rd.checked=true; }
+    if(propF){ propF.style.display="block"; var r=document.getElementById("mp-route"); if(r)r.value=""; var d1=document.getElementById("md-mpday1"); var rd=document.querySelector('input[name="mp-days"][value="1"]'); if(rd)rd.checked=true; ["mp-day1","mp-day2","mp-note"].forEach(function(id){var e=document.getElementById(id);if(e)e.value="";}); }
     if(cb) cb.textContent="📤 เสนอจัดเที่ยว";
     document.getElementById("modal-dispatch").classList.add("show");
     return;
@@ -3933,13 +4370,17 @@ function proposeTripFromDispatch(ids){
   var rEl=document.getElementById("mp-route"); var routeInput=(rEl&&rEl.value.trim())||"";
   if(routeInput) route=routeInput;
   var dEl=document.querySelector('input[name="mp-days"]:checked'); var days=dEl?parseInt(dEl.value,10):1;
+  var pDay1=(document.getElementById("mp-day1")||{}).value||"";
+  var pDay2=(document.getElementById("mp-day2")||{}).value||"";
+  var pNote=(document.getElementById("mp-note")||{}).value||"";
   var btn=document.getElementById("modal-confirm-btn"); if(btn){btn.disabled=true; btn.textContent="กำลังเสนอ...";}
   var trip={
     driverUsername:"", driverName:"", branch:_tb,
     route:route, departDate:now.slice(0,10), days:days, baseFare:0,
+    day1:pDay1, day2:pDay2, note:pNote,
     billIds:ids, status:"proposed", createdAt:now, createdBy:(CU?CU.username:""),
     summary:calcTripSummary(bills),
-    settlement:{ status:"proposed", route:route, note:"", perBill:{}, adjustments:[],
+    settlement:{ status:"proposed", route:route, note:pNote, day1:pDay1, day2:pDay2, perBill:{}, adjustments:[], source:"dispatch",
       totalFreight:total, adjustedTotal:total, byPay:byPay, codCount:codCount, billCount:bills.length,
       proposedByName:me, proposedAt:now }
   };
@@ -4201,28 +4642,38 @@ function getTripBills(trip){
 // ดึงบิลของเที่ยวตรงจาก Firestore — โดย doc id (=billNo) และ query tripId
 function fetchTripBillsFromDB(trip){
   var db; try{ db=firebase.firestore(); }catch(e){ return Promise.resolve([]); }
-  var ids=(trip&&trip.billIds)||[];
-  var tasks=[];
-  if(ids.length){
-    // มี billIds → ดึงเฉพาะตาม billIds เท่านั้น (รายการบิลในเที่ยวที่เป็นทางการ)
-    ids.forEach(function(id){
-      tasks.push(db.collection("bills").doc(String(id)).get()
-        .then(function(d){ return d.exists?d.data():null; }).catch(function(){ return null; }));
-    });
-  } else if(trip && trip.id){
-    // ไม่มี billIds → fallback ดึงด้วย tripId
-    tasks.push(db.collection("bills").where("tripId","==",trip.id).get()
-      .then(function(snap){ var a=[]; snap.forEach(function(d){a.push(d.data());}); return a; })
-      .catch(function(){ return []; }));
+  var ids=((trip&&trip.billIds)||[]).map(String);
+  if(!ids.length){
+    // ไม่มี billIds → ดึงด้วย field tripId
+    if(trip && trip.id){
+      return db.collection("bills").where("tripId","==",trip.id).get()
+        .then(function(snap){ var a=[]; snap.forEach(function(d){a.push(d.data());}); return a; })
+        .catch(function(){ return []; });
+    }
+    return Promise.resolve([]);
   }
-  return Promise.all(tasks).then(function(parts){
-    var seen={}, out=[];
-    parts.forEach(function(p){
-      if(!p) return;
-      var arr=Array.isArray(p)?p:[p];
-      arr.forEach(function(b){ if(b&&b.billNo&&!seen[b.billNo]){ seen[b.billNo]=true; out.push(b); } });
+  // 1) ลองดึงด้วย doc(billNo) ก่อน (กรณี document id = เลขบิล)
+  var docTasks=ids.map(function(id){
+    return db.collection("bills").doc(id).get()
+      .then(function(d){ return d.exists?d.data():null; }).catch(function(){ return null; });
+  });
+  return Promise.all(docTasks).then(function(docs){
+    var byNo={}, found={};
+    docs.forEach(function(b){ if(b&&b.billNo){ byNo[b.billNo]=b; found[b.billNo]=true; } });
+    ids.forEach(function(id,i){ if(docs[i]&&docs[i].billNo) found[id]=true; });
+    // 2) บิลที่ doc(billNo) หาไม่เจอ (document id เป็นค่าอัตโนมัติ) → query ด้วย field billNo
+    var missing=ids.filter(function(id){ return !found[id]; });
+    if(!missing.length){ return Object.keys(byNo).map(function(k){return byNo[k];}); }
+    var chunks=[]; for(var i=0;i<missing.length;i+=10) chunks.push(missing.slice(i,i+10));
+    var qTasks=chunks.map(function(ch){
+      return db.collection("bills").where("billNo","in",ch).get()
+        .then(function(snap){ var a=[]; snap.forEach(function(d){a.push(d.data());}); return a; })
+        .catch(function(){ return []; });
     });
-    return out;
+    return Promise.all(qTasks).then(function(parts){
+      parts.forEach(function(arr){ arr.forEach(function(b){ if(b&&b.billNo&&!byNo[b.billNo]) byNo[b.billNo]=b; }); });
+      return Object.keys(byNo).map(function(k){return byNo[k];});
+    });
   });
 }
 
@@ -4245,12 +4696,15 @@ function renderClearRemarks(){
       : '';
     var delBtn = (isAdmin || r.status==="pending")
       ? ' <button onclick="deleteRemark(\''+r.id+'\')" style="background:#eee;border:none;border-radius:5px;padding:2px 7px;font-size:10px;cursor:pointer">🗑</button>' : '';
+    var convBtn = (isAdmin && r.type!=="ปท.→โอน" && r.amount>0)
+      ? ' <button onclick="convertRemarkToTransfer(\''+r.id+'\')" style="background:#fff3e0;border:1px solid #f0c97a;border-radius:5px;padding:2px 7px;font-size:10px;cursor:pointer;color:#b7950b">🔄 ปท.→โอน</button>' : '';
     return '<div style="background:#fff;border:1px solid #e5dcf5;border-radius:6px;padding:6px 8px;margin-bottom:4px;font-size:11px">'
       +'<div style="display:flex;justify-content:space-between;gap:8px;flex-wrap:wrap;align-items:center">'
       +'<div><b>'+r.type+'</b>'+(r.billNo?' · '+r.billNo:'')+(r.note?' · '+r.note:'')+'</div>'
-      +'<div style="white-space:nowrap"><b style="color:'+amtClr+'">'+(r.amount>=0?"+":"")+Math.round(r.amount).toLocaleString("th-TH")+' ฿</b> '+stBadge+adminBtns+delBtn+'</div>'
+      +'<div style="white-space:nowrap"><b style="color:'+amtClr+'">'+(r.amount>=0?"+":"")+Math.round(r.amount).toLocaleString("th-TH")+' ฿</b> '+stBadge+adminBtns+convBtn+delBtn+'</div>'
       +'</div>'
       +'<div style="font-size:9px;color:#aaa;margin-top:2px">โดย '+(r.byName||r.by||"-")+(r.approvedByName?' · อนุมัติโดย '+r.approvedByName:'')+'</div>'
+      +(r.type==="ปท.→โอน" ? ('<div style="margin-top:3px">'+(r._uploading?'<span style="color:#E67E22;font-size:10px">⏳ กำลังอัปโหลดสลิป...</span>':((r.slipUrl?'<a href="'+r.slipUrl+'" target="_blank" style="color:#0F6E56;font-size:10px;font-weight:700">📎 ดูสลิป</a>':'<span style="color:#c0392b;font-size:10px;font-weight:700">⚠ ยังไม่แนบสลิป</span>')+' <button onclick="uploadRemarkSlip(\''+r.id+'\')" style="background:#eef;border:1px solid #ccd;border-radius:5px;padding:2px 7px;font-size:10px;cursor:pointer">📷 '+(r.slipUrl?'เปลี่ยน':'แนบสลิป')+'</button>'))+'</div>') : '')
       +'</div>';
   }).join("");
 }
@@ -4260,6 +4714,12 @@ function addClearRemark(){
   var billNo=(document.getElementById("ct-rmk-bill")||{}).value||"";
   var note=(document.getElementById("ct-rmk-note")||{}).value||"";
   var amount=parseFloat((document.getElementById("ct-rmk-amount")||{}).value||0);
+  if(type==="ปท.→โอน"){
+    if(!billNo){ alert("ใส่เลขบิลที่เปลี่ยน ปท.→โอน ด้วยครับ"); return; }
+    var _qf=Math.abs(amount)||0;
+    note=(note?note+" ":"")+"ปลายทางจ่ายผ่านโอน"+(_qf?" (฿"+_qf.toLocaleString("th-TH")+")":"")+" — บันทึก/สลิป ไม่กระทบยอด";
+    amount = 0;
+  }
   if(!note && !billNo){ alert("กรอกรายละเอียดหรือเลขบิลด้วยครับ"); return; }
   var isAdmin = CU && CU.role==="admin";
   _clearRemarks.push({
@@ -4274,6 +4734,29 @@ function addClearRemark(){
   document.getElementById("ct-rmk-note").value="";
   document.getElementById("ct-rmk-amount").value="";
   renderClearRemarks(); calcClearTrip();
+}
+function convertRemarkToTransfer(id){
+  var r=_clearRemarks.find(function(x){return x.id===id;}); if(!r) return;
+  if(!(CU&&CU.role==="admin")){ alert("เฉพาะแอดมิน"); return; }
+  if(!confirm("แปลงรายการนี้เป็น \"ปลายทาง→โอน\" (บันทึก+สลิป ไม่กระทบยอดคนรถ)?\n"+(r.billNo||"")+" — ยอดปรับจะกลายเป็น 0\nอย่าลืมแนบสลิปก่อนบันทึก")) return;
+  var _af=Math.abs(r.amount)||0;
+  r.type="ปท.→โอน";
+  r.note=(r.note?r.note+" ":"")+"(จ่ายผ่านโอน"+(_af?" ฿"+_af.toLocaleString("th-TH"):"")+" — ไม่กระทบยอด)";
+  r.amount=0;
+  renderClearRemarks(); calcClearTrip();
+}
+function uploadRemarkSlip(id){
+  var r=_clearRemarks.find(function(x){return x.id===id;}); if(!r) return;
+  if(typeof GolodStorage==="undefined"||!GolodStorage.uploadFile){ alert("ระบบ Storage ไม่พร้อม"); return; }
+  var inp=document.createElement("input"); inp.type="file"; inp.accept="image/*"; inp.capture="environment";
+  inp.onchange=function(){
+    var f=inp.files&&inp.files[0]; if(!f) return;
+    r._uploading=true; renderClearRemarks();
+    GolodStorage.uploadFile("clearslip/"+(_clearTripId||"t")+"_"+((r.billNo||"x").replace(/[^A-Za-z0-9]/g,""))+"_"+Date.now(), f)
+      .then(function(url){ r.slipUrl=url; r._uploading=false; renderClearRemarks(); })
+      .catch(function(e){ r._uploading=false; renderClearRemarks(); alert("อัปโหลดสลิปไม่สำเร็จ: "+((e&&e.message)||e)); });
+  };
+  inp.click();
 }
 function approveRemark(id){
   var r=_clearRemarks.find(function(x){return x.id===id;}); if(!r) return;
@@ -4291,7 +4774,7 @@ function deleteRemark(id){
   renderClearRemarks(); calcClearTrip();
 }
 function remarksApprovedSum(){
-  return _clearRemarks.filter(function(r){return r.status==="approved";})
+  return _clearRemarks.filter(function(r){return r.status==="approved" && r.type!=="ปท.→โอน";})
     .reduce(function(a,r){return a+parseFloat(r.amount||0);},0);
 }
 function remarksPendingSum(){
@@ -4344,6 +4827,13 @@ function _settlePay(b){ var p=b.freightPay||(b.form&&b.form.freightPay)||"origin
 function _settleNet(b){ var bn=b.billNo; if(_settle && _settle.perBill[bn]!=null && _settle.perBill[bn]!=="") return parseFloat(_settle.perBill[bn])||0; return parseFloat(b.freightNet||0); }
 function _settleProvJoin(bills){ var seen={},arr=[]; bills.forEach(function(b){ var p=b.destProv||(b.form&&b.form.destProv)||""; if(p&&!seen[p]){seen[p]=1;arr.push(p);} }); return arr.join(" / "); }
 
+function settleSaveRoute(){
+  if(!_settle) return;
+  var t=_settle.trip; var ex=t.settlement||{};
+  ex.route=_settle.route; ex.day1=_settle.day1; ex.day2=_settle.day2; ex.note=_settle.note;
+  t.settlement=ex;
+  if(GolodDB.updateTrip){ GolodDB.updateTrip(t.id,{settlement:ex}).then(function(){ alert("✅ บันทึกเส้นทาง/วันที่/หมายเหตุแล้ว"); }).catch(function(){ alert("⚠️ บันทึกไม่สำเร็จ"); }); }
+}
 function openSettlement(tripId){
   var t=(_tripState.openTrips||[]).find(function(x){return x.id===tripId;});
   if(!t){ alert("ไม่พบเที่ยว"); return; }
@@ -4354,7 +4844,8 @@ function openSettlement(tripId){
     var ex=t.settlement||{};
     _settle={ tripId:t.id, trip:t, bills:tb,
       route: ex.route || t.routeName || t.name || _settleProvJoin(tb),
-      perBill: ex.perBill || {}, adjustments:(ex.adjustments||[]).slice(), note: ex.note||"",
+      day1: ex.day1||t.day1||"", day2: ex.day2||t.day2||"", source: ex.source||"",
+      perBill: ex.perBill || {}, adjustments:(ex.adjustments||[]).slice(), note: ex.note||t.note||"",
       status: ex.status||"draft", proposedByName: ex.proposedByName||"", proposedAt: ex.proposedAt||"",
       approvedByName: ex.approvedByName||"", approvedAt: ex.approvedAt||"",
       confirmedByName: ex.confirmedByName||"", confirmedAt: ex.confirmedAt||"" };
@@ -4363,7 +4854,7 @@ function openSettlement(tripId){
 }
 function closeSettlement(){ document.getElementById("modal-settlement").style.display="none"; _settle=null; }
 
-function printTripProposal(tripId){
+function printTripProposal(tripId, asPdf){
   var t=(_tripState.openTrips||[]).find(function(x){return x.id===tripId;});
   if(!t){ alert("ไม่พบเที่ยว"); return; }
   if(!t.settlement){ alert("เที่ยวนี้ยังไม่มีใบเสนอ"); return; }
@@ -4372,11 +4863,12 @@ function printTripProposal(tripId){
     var ex=t.settlement||{};
     _settle={ tripId:t.id, trip:t, bills:tb,
       route: ex.route || t.routeName || t.name || _settleProvJoin(tb),
-      perBill: ex.perBill || {}, adjustments:(ex.adjustments||[]).slice(), note: ex.note||"",
+      day1: ex.day1||t.day1||"", day2: ex.day2||t.day2||"", source: ex.source||"",
+      perBill: ex.perBill || {}, adjustments:(ex.adjustments||[]).slice(), note: ex.note||t.note||"",
       status: ex.status||"draft", proposedByName: ex.proposedByName||"", proposedAt: ex.proposedAt||"",
       approvedByName: ex.approvedByName||"", approvedAt: ex.approvedAt||"",
       confirmedByName: ex.confirmedByName||"", confirmedAt: ex.confirmedAt||"" };
-    printSettlement();
+    printSettlement(asPdf);
   }).catch(function(e){ alert("ดึงบิลไม่สำเร็จ: "+(e&&e.message||e)); });
 }
 
@@ -4397,7 +4889,7 @@ function renderSettlement(){
   var isAdmin=canClearTrip();
   var c=settleCompute();
   var h='';
-  h+='<h3 style="color:#0F6E56;margin-bottom:2px">📝 ใบเสนอจัดเที่ยว</h3>';
+  h+='<h3 style="color:#0F6E56;margin-bottom:2px">📝 '+((_settle.trip&&(_settle.trip.driverName||_settle.trip.driverUsername))?"ใบวิ่งงานจริง":"ใบจัดเที่ยว")+'</h3>';
   h+='<div style="font-size:11px;color:#888;margin-bottom:8px">'+(_settle.trip.driverName||_settle.trip.driverUsername||"")+' · วันที่ออก '+(_settle.trip.departDate||"-")+'</div>';
   var stMap={draft:["ร่าง","#888"],proposed:["เสนอแล้ว รออนุมัติ","#E67E22"],approved:["อนุมัติแล้ว · ใส่คนรถแล้ว (ยังไม่ส่ง)","#E67E22"],confirmed:["ยืนยันสุดท้าย · ส่งให้คนรถแล้ว","#0F6E56"]};
   var st=stMap[_settle.status]||stMap.draft;
@@ -4407,6 +4899,10 @@ function renderSettlement(){
   if(_settle.confirmedByName) h+='<div style="font-size:11px;color:#1565C0;font-weight:700">ยืนยันรอบสุดท้าย: '+_settle.confirmedByName+(_settle.confirmedAt?(' · '+_settleDate(_settle.confirmedAt)):'')+'</div>';
   h+='<div style="margin:10px 0"><label style="font-size:12px;color:#666;font-weight:700">เส้นทาง (จังหวัดไกลเป็นหลัก)</label>';
   h+='<input id="settle-route" value="'+String(_settle.route||"").replace(/"/g,"&quot;")+'" oninput="_settle.route=this.value" placeholder="เช่น ศรีสะเกษ / อุบลฯ" style="width:100%;padding:8px;border:1px solid #ddd;border-radius:7px;box-sizing:border-box;margin-top:3px"></div>';
+  // (วันที่ 1/2 ย้ายไปไว้ท้ายฟอร์มแล้ว)
+  h+='<div style="margin:8px 0"><label style="font-size:12px;color:#666;font-weight:700">📝 หมายเหตุ (พิมพ์ตรงนี้ → แสดงท้ายใบเสนอ)</label>';
+  h+='<textarea id="settle-note" oninput="_settle.note=this.value" placeholder="พิมพ์หมายเหตุที่นี่..." style="width:100%;padding:8px;border:1px solid #ddd;border-radius:7px;box-sizing:border-box;margin-top:3px;min-height:52px;font-family:inherit;font-size:13px">'+String(_settle.note||"").replace(/</g,"&lt;").replace(/>/g,"&gt;")+'</textarea></div>';
+  h+='<button class="btn btn-gray" onclick="settleSaveRoute()" style="font-size:12px;padding:5px 12px;margin-bottom:6px">💾 บันทึกเส้นทาง/วันที่/หมายเหตุ</button>';
   h+='<div style="background:#f8fffe;border:1px solid #d0ede5;border-radius:8px;padding:10px;margin:10px 0">';
   h+='<div style="font-weight:700;font-size:13px;margin-bottom:6px">บิลทั้งหมด '+c.count+' บิล</div>';
   h+='<div style="display:flex;flex-wrap:wrap;gap:6px;font-size:12px">';
@@ -4416,14 +4912,13 @@ function renderSettlement(){
   h+='<div style="margin:10px 0"><div style="font-weight:700;font-size:12px;color:#666;margin-bottom:4px">แยกตามจังหวัด</div><div style="font-size:12px;color:#555">';
   Object.keys(c.byProv).sort(function(a,b){return c.byProv[b]-c.byProv[a];}).forEach(function(p){ h+='<span style="display:inline-block;margin:2px 6px 2px 0;background:#f3f0ff;border-radius:5px;padding:2px 8px">'+p+' ('+c.byProv[p]+')</span>'; });
   h+='</div></div>';
-  h+='<div style="font-weight:700;font-size:12px;color:#666;margin:10px 0 4px">รายการบิล'+(isAdmin?' (แก้ค่าส่งรายบิลได้)':'')+'</div>';
+  h+='<div style="font-weight:700;font-size:12px;color:#666;margin:10px 0 4px">รายการบิล <span style="font-size:10px;color:#aaa;font-weight:400">(ค่าส่งจากบิล · แก้ไม่ได้)</span></div>';
   h+='<table style="width:100%;border-collapse:collapse;font-size:11px"><thead><tr style="border-bottom:1px solid #eee;color:#888"><th style="text-align:left;padding:4px">เลขบิล</th><th style="text-align:left">จังหวัด</th><th style="text-align:left">ประเภท</th><th style="text-align:right">ค่าส่ง</th></tr></thead><tbody>';
   _settle.bills.forEach(function(b){
     var bn=b.billNo, prov=b.destProv||(b.form&&b.form.destProv)||"-", pay=_SETTLE_PAYLBL[_settlePay(b)]||"-";
     var net=_settleNet(b), over=(_settle.perBill[bn]!=null&&_settle.perBill[bn]!=="");
     h+='<tr style="border-bottom:1px solid #f5f5f5"><td style="padding:4px">'+bn+'</td><td>'+prov+'</td><td>'+pay+'</td><td style="text-align:right">';
-    if(isAdmin){ h+='<input value="'+net+'" onchange="settleSetBill(\''+bn+'\',this.value)" style="width:72px;text-align:right;padding:3px;border:1px solid '+(over?"#E67E22":"#ddd")+';border-radius:5px">'; }
-    else { h+='<b>'+_settleFmt(net)+'</b>'; }
+    h+='<b>'+_settleFmt(net)+'</b>';
     h+='</td></tr>';
   });
   h+='</tbody></table>';
@@ -4446,7 +4941,10 @@ function renderSettlement(){
   h+='<div style="display:flex;justify-content:space-between;font-size:13px;color:#666"><span>ปรับ (+/-)</span><span id="settle-adj">'+_settleFmt(c.adj)+' ฿</span></div>';
   h+='<div style="display:flex;justify-content:space-between;font-size:16px;font-weight:800;color:#0F6E56;margin-top:4px"><span>ยอดสุทธิ</span><span id="settle-net">'+_settleFmt(c.adjusted)+' ฿</span></div>';
   h+='</div>';
-  h+='<div style="margin:10px 0"><label style="font-size:12px;color:#666">หมายเหตุ</label><textarea oninput="_settle.note=this.value" rows="2" style="width:100%;padding:8px;border:1px solid #ddd;border-radius:7px;box-sizing:border-box;margin-top:3px">'+String(_settle.note||"")+'</textarea></div>';
+  h+='<div style="display:flex;gap:8px;margin:12px 0 4px"><div style="flex:1"><label style="font-size:12px;color:#666;font-weight:700">วันที่ 1 — อำเภอ/จังหวัดที่วิ่ง</label>';
+  h+='<input id="settle-day1" value="'+String(_settle.day1||"").replace(/"/g,"&quot;")+'" oninput="_settle.day1=this.value" placeholder="เช่น เมือง/ศรีสะเกษ, กันทรลักษ์" style="width:100%;padding:8px;border:1px solid #ddd;border-radius:7px;box-sizing:border-box;margin-top:3px"></div>';
+  h+='<div style="flex:1"><label style="font-size:12px;color:#666;font-weight:700">วันที่ 2 — อำเภอ/จังหวัดที่วิ่ง (ถ้ามี)</label>';
+  h+='<input id="settle-day2" value="'+String(_settle.day2||"").replace(/"/g,"&quot;")+'" oninput="_settle.day2=this.value" placeholder="เช่น วารินฯ/อุบลฯ" style="width:100%;padding:8px;border:1px solid #ddd;border-radius:7px;box-sizing:border-box;margin-top:3px"></div></div>';
   // คนรถ — แอดมินใส่ตอนอนุมัติขั้นแรก (เลือก/แก้ได้จนกว่าจะยืนยันสุดท้าย)
   if(isAdmin && _settle.status!=="confirmed"){
     var _brNorm=function(b){ b=b||""; if(["ปทุมธานี","กรุงเทพ","bkk","ptm","กทม"].indexOf(b)>=0) return "กรุงเทพ"; if(["krt","โคราช","นครราชสีมา"].indexOf(b)>=0) return "นครราชสีมา"; if(["ssk","ศรีสะเกษ"].indexOf(b)>=0) return "ศรีสะเกษ"; return b; };
@@ -4523,70 +5021,73 @@ function saveSettlement(approve){
   }).catch(function(e){ alert("บันทึกไม่สำเร็จ: "+(e&&e.message||e)); });
 }
 
-function printSettlement(){
+function printSettlement(asPdf){
   if(!_settle) return;
+  var _hasDrv=!!(_settle.trip&&(_settle.trip.driverName||_settle.trip.driverUsername));
+  var _ttl=_hasDrv?"ใบวิ่งงานจริง":"ใบจัดเที่ยว";
   var c=settleCompute();
   var rows=_settle.bills.map(function(b){
     var its=Array.isArray(b.items)?b.items:(b.form&&Array.isArray(b.form.items)?b.form.items:[]);
     var f0=its[0]||{};
     var pq=its.reduce(function(s,i){return s+(parseInt(i.qty)||1);},0);
     var prod=(f0.desc||"-")+(its.length>1?(" +"+(its.length-1)):"")+(pq?(" ×"+pq):"");
-    return '<tr><td>'+b.billNo+'</td><td>'+prod+'</td><td>'+(b.destAmphoe||(b.form&&b.form.destAmphoe)||"-")+'</td><td>'+(b.destProv||(b.form&&b.form.destProv)||"-")+'</td><td>'+(_SETTLE_PAYLBL[_settlePay(b)]||"-")+'</td><td style="text-align:right">'+_settleFmt(_settleNet(b))+'</td></tr>';
+    return '<tr><td>'+b.billNo+'</td><td>'+(b.destAmphoe||(b.form&&b.form.destAmphoe)||"-")+'</td><td>'+(b.destProv||(b.form&&b.form.destProv)||"-")+'</td><td>'+(_SETTLE_PAYLBL[_settlePay(b)]||"-")+'</td><td style="text-align:right">'+_settleFmt(_settleNet(b))+'</td></tr>';
   }).join("");
-  var adjRows=_settle.adjustments.map(function(a){ return '<tr><td colspan="5">ปรับ: '+(a.note||"-")+'</td><td style="text-align:right">'+_settleFmt(a.amount)+'</td></tr>'; }).join("");
-  var w=window.open("","_blank");
+  var adjRows=_settle.adjustments.map(function(a){ return '<tr><td colspan="4">ปรับ: '+(a.note||"-")+'</td><td style="text-align:right">'+_settleFmt(a.amount)+'</td></tr>'; }).join("");
   var stLbl={draft:"ร่าง",proposed:"เสนอ — รออนุมัติ",approved:"อนุมัติเบื้องต้น — รอยืนยันสุดท้าย",confirmed:"ยืนยันสุดท้ายแล้ว"}[_settle.status]||"";
-  var html='<html><head><meta charset="utf-8"><title>ใบเสนอจัดเที่ยว</title>'
+  var pay=[];
+  if(c.byPay.origin) pay.push('ต้นทาง('+c.byPay.origin+', '+_settleFmt(c.payAmt.origin||0)+'.-)');
+  if(c.byPay.dest) pay.push('ปลายทาง('+c.byPay.dest+', '+_settleFmt(c.payAmt.dest||0)+'.-)');
+  if(c.byPay.transfer) pay.push('โอน('+c.byPay.transfer+', '+_settleFmt(c.payAmt.transfer||0)+'.-)');
+  if(c.byPay.credit) pay.push('เครดิต('+c.byPay.credit+', '+_settleFmt(c.payAmt.credit||0)+'.-)');
+  if(c.codCount) pay.push('COD('+c.codCount+')');
+  var _stNote=_settle.note||(_settle.trip&&_settle.trip.note)||"";
+  var html='<html><head><meta charset="utf-8"><title>'+_ttl+' '+(_settle.trip.driverName||'')+' '+(_settle.trip.departDate||'')+'</title>'
     +'<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Sarabun:wght@400;700;800;900&display=swap">'
-    +'<style>@page{size:A4;margin:12mm}body{font-family:Sarabun,sans-serif;font-size:13px;color:#000;margin:0;-webkit-print-color-adjust:exact;print-color-adjust:exact}'
-    +'table{width:100%;border-collapse:collapse;margin-top:6px}td,th{border:1px solid #999;padding:5px 6px}th{background:#f0f0f0}'
-    +'.hd{text-align:center;border-bottom:2px solid #0F6E56;padding-bottom:6px;margin-bottom:8px}'
-    +'.sig{display:flex;justify-content:space-between;gap:16px;margin-top:46px;text-align:center;font-size:12px}'
-    +'.sig>div{flex:1}.sigline{border-top:1px dotted #000;margin:34px 10px 4px}</style></head><body>';
-  html+='<div class="hd">'
-    +'<div style="font-size:15px;font-weight:800;color:#0F6E56">บริษัท โกโลด ทรานสปอร์ต จำกัด</div>'
-    +'<div style="font-size:11px;font-weight:700;letter-spacing:1px">GOLOD TRANSPORT Co.,Ltd.</div>'
-    +'<div style="font-size:10px">527 ถ.ลัดนิ่มไสว แขวงทวีวัฒนา เขตทวีวัฒนา กรุงเทพฯ 10170</div>'
-    +'<div style="font-size:10px">เลขภาษี: 0105556152968 | โทร: 099-1015858, 098-4518141</div>'
-    +'</div>';
-  html+='<div style="text-align:center;font-size:16px;font-weight:800;margin-bottom:6px">ใบเสนอจัดเที่ยว'+(stLbl?(' <span style="font-size:11px;font-weight:700;color:#888">('+stLbl+')</span>'):'')+'</div>';
-  html+='<div style="display:flex;justify-content:space-between"><div>เส้นทาง: <b>'+(_settle.route||"-")+'</b></div><div>วันที่ออก: <b>'+(_settle.trip.departDate||"-")+'</b></div></div>';
-  html+='<div>คนรถ: <b>'+(_settle.trip.driverName||_settle.trip.driverUsername||"— (ยังไม่กำหนด)")+'</b></div>';
-  html+='<div style="margin-top:4px;font-weight:700">บิลทั้งหมด '+c.count+' บิล · COD '+c.codCount+' บิล</div>';
-  html+='<table style="width:auto;min-width:55%;margin-top:4px"><thead><tr><th style="text-align:left">ประเภทการจ่าย</th><th>จำนวนบิล</th><th style="text-align:right">ยอดค่าส่ง</th></tr></thead><tbody>'
-    +'<tr><td>ต้นทาง</td><td style="text-align:center">'+(c.byPay.origin||0)+'</td><td style="text-align:right">'+_settleFmt(c.payAmt.origin||0)+' ฿</td></tr>'
-    +'<tr><td>ปลายทาง</td><td style="text-align:center">'+(c.byPay.dest||0)+'</td><td style="text-align:right">'+_settleFmt(c.payAmt.dest||0)+' ฿</td></tr>'
-    +'<tr><td>โอน</td><td style="text-align:center">'+(c.byPay.transfer||0)+'</td><td style="text-align:right">'+_settleFmt(c.payAmt.transfer||0)+' ฿</td></tr>'
-    +'<tr><td>เครดิต</td><td style="text-align:center">'+(c.byPay.credit||0)+'</td><td style="text-align:right">'+_settleFmt(c.payAmt.credit||0)+' ฿</td></tr>'
-    +'</tbody></table>';
-  html+='<table><thead><tr><th style="text-align:left">เลขบิล</th><th style="text-align:left">สินค้า</th><th style="text-align:left">อำเภอ</th><th style="text-align:left">จังหวัด</th><th>ประเภท</th><th style="text-align:right">ค่าส่ง</th></tr></thead><tbody>'+rows+adjRows+'</tbody></table>';
-  html+='<div style="text-align:right;margin-top:8px">ยอดค่าส่งรวม: '+_settleFmt(c.total)+' ฿<br>ปรับ: '+_settleFmt(c.adj)+' ฿<br><b style="font-size:16px">ยอดสุทธิ: '+_settleFmt(c.adjusted)+' ฿</b></div>';
+    +'<style>@page{size:A4;margin:8mm 10mm}body{font-family:Sarabun,sans-serif;font-size:11px;color:#000;margin:0;-webkit-print-color-adjust:exact;print-color-adjust:exact}'
+    +'@media screen{body{max-width:210mm;margin:0 auto;padding:14px 10mm;box-sizing:border-box;background:#fff}}'
+    +'table{width:100%;border-collapse:collapse;margin-top:4px}td,th{border:1px solid #999;padding:2px 5px;font-size:13px}th{background:#f0f0f0}'
+    +'.hd{text-align:center;border-bottom:2px solid #0F6E56;padding-bottom:4px;margin-bottom:6px}'
+    +'.info{font-size:13px;line-height:1.55}'
+    +'.sig{display:flex;justify-content:space-between;gap:16px;margin-top:24px;text-align:center;font-size:11px}'
+    +'.sig>div{flex:1}.sigline{border-top:1px dotted #000;margin:22px 8px 3px}</style></head><body>';
+  html+='<div class="hd"><div style="font-size:12px;font-weight:700;color:#0F6E56">บริษัท โกโลด ทรานสปอร์ต จำกัด</div>'
+    +'<div style="font-size:19px;font-weight:800;margin-top:1px">'+_ttl+(stLbl?(' <span style="font-size:11px;font-weight:700;color:#888">('+stLbl+')</span>'):'')+'</div></div>';
+  html+='<div class="info" style="display:flex;justify-content:space-between"><div>เส้นทาง: <b>'+(_settle.route||"-")+'</b></div><div>วันที่ออก: <b>'+(_settle.trip.departDate||"-")+'</b></div></div>';
+  html+='<div class="info">คนรถ: <b>'+(_settle.trip.driverName||_settle.trip.driverUsername||"— (ยังไม่กำหนด)")+'</b></div>';
+  html+='<div class="info" style="margin-top:3px"><b>บิลทั้งหมด '+c.count+' บิล</b> · '+pay.join(' · ')+'</div>';
+  html+='<table><thead><tr><th style="text-align:left">เลขบิล</th><th style="text-align:left">อำเภอ</th><th style="text-align:left">จังหวัด</th><th>ประเภท</th><th style="text-align:right">ค่าส่ง</th></tr></thead><tbody>'+rows+adjRows+'</tbody></table>';
+  html+='<div style="text-align:right;margin-top:6px;font-size:13px">ยอดค่าส่งรวม: '+_settleFmt(c.total)+' ฿'+(c.adj?(' · ปรับ: '+_settleFmt(c.adj)+' ฿'):'')+' · <b style="font-size:15px">สุทธิ: '+_settleFmt(c.adjusted)+' ฿</b></div>';
+  if(_stNote) html+='<div style="margin-top:6px;font-size:13px;border-top:1px dashed #999;padding-top:4px">หมายเหตุ: <b>'+_stNote+'</b></div>';
+  if(_settle.day1 || _settle.day2){ html+='<div class="info" style="margin-top:10px;border-top:1px dashed #999;padding-top:6px"><b>วันที่วิ่งจริง</b>&nbsp;&nbsp; '+(_settle.day1?('วันที่ 1: <b>'+_settle.day1+'</b>'):'')+(_settle.day2?('&nbsp;&nbsp;·&nbsp;&nbsp; วันที่ 2: <b>'+_settle.day2+'</b>'):'')+'</div>'; }
   html+='<div class="sig">'
-    +'<div><div class="sigline"></div>ผู้เสนอ<br><span style="font-size:11px;color:#555">'+(_settle.proposedByName||"")+'</span></div>'
-    +'<div><div class="sigline"></div>ผู้อนุมัติ<br><span style="font-size:11px;color:#555">'+(_settle.approvedByName||"")+'</span></div>'
-    +'<div><div class="sigline"></div>ผู้รับงาน (คนรถ)<br><span style="font-size:11px;color:#555">'+(_settle.trip.driverName||"")+'</span></div>'
+    +'<div><div class="sigline"></div>ผู้เสนอ<br><span style="font-size:10px;color:#555">'+(_settle.proposedByName||"")+'</span></div>'
+    +'<div><div class="sigline"></div>ผู้อนุมัติ<br><span style="font-size:10px;color:#555">'+(_settle.approvedByName||"")+'</span></div>'
+    +'<div><div class="sigline"></div>ผู้รับงาน (คนรถ)<br><span style="font-size:10px;color:#555">'+(_settle.trip.driverName||"")+'</span></div>'
     +'</div>';
   html+='</body></html>';
-  w.document.write(html); w.document.close(); w.focus(); setTimeout(function(){w.print();},400);
+  if(asPdf){ alert("📄 ในหน้าพิมพ์ที่จะเปิด ให้เลือกเครื่องพิมพ์เป็น \"บันทึกเป็น PDF / Save as PDF\" แล้วกดบันทึก"); }
+  var w=window.open("","_blank");
+  if(!w){ alert("เบราว์เซอร์บล็อกหน้าต่างใหม่ — อนุญาต popup ของเว็บนี้ในตั้งค่าเบราว์เซอร์ แล้วลองใหม่"); return; }
+  w.document.write(html); w.document.close(); w.focus(); setTimeout(function(){ try{ w.print(); }catch(e){} }, 500);
 }
 
 function confirmSettlement(){
   if(!_settle) return;
-  if(!_settle.trip.driverUsername){ alert("เที่ยวนี้ยังไม่มีคนขับ"); return; }
+  if(!_settle.trip.driverUsername && !_settle.trip.driverName){ alert("เที่ยวนี้ยังไม่มีคนขับ — กดแก้ไขเพื่อใส่ชื่อคนขับก่อน"); return; }
   if(!confirm("ยืนยันจัดเที่ยว \"รอบสุดท้าย\" ? (ใช้หลังขึ้นของเสร็จ)\n\nระบบจะ:\n• ดึงบิลล่าสุดของเที่ยวมาสรุปยอดจริง\n• ส่งบิลที่เพิ่มเข้ามาให้คนรถ\n• ถอดบิลที่เอาออก ไม่ให้ค้างในแอปคนรถ\n• ล็อกใบนี้เป็น \"ยืนยันแล้ว\"")) return;
   var now=new Date().toISOString(), me=(CU&&(CU.name||CU.username))||"";
   var t=_settle.trip, curIds=(t.billIds||[]);
   // 1) ดึงบิลล่าสุดในเที่ยว + บิลที่ field tripId ยังชี้มาที่เที่ยวนี้ (เพื่อหาบิลที่ถูกถอด)
   Promise.all([ fetchTripBillsFromDB(t), (GolodDB.getBillsByTripId?GolodDB.getBillsByTripId(t.id):Promise.resolve([])) ]).then(function(rr){
     var tb=rr[0]||[], claim=rr[1]||[];
-    _settle.bills=tb;
-    // บิลที่ tripId==เที่ยวนี้ แต่ไม่อยู่ใน billIds แล้ว = ถูกถอด → คืนสู่กอง (ล้าง driver/tripId)
-    var removed=claim.filter(function(b){ return b.billNo && curIds.indexOf(b.billNo)<0; });
-    var clearUps=removed.map(function(b){
-      return GolodDB.updateBill(b.billNo, {driver:"", driverName:"", tripId:"", status:"ออกบิลรับของ", updatedAt:now})
-        .then(function(){return {bn:b.billNo,ok:true};}).catch(function(){return {bn:b.billNo,ok:false};});
-    });
-    Promise.all(clearUps).then(function(clr){
+    // กู้คืน: บิลที่ tripId ยังชี้มาเที่ยวนี้ แต่ตกหล่นจาก billIds (sync ไม่ทัน/บิล auto-id) → ใส่กลับ ไม่ล้างทิ้ง
+    // (บิลที่ถอดออกจริงถูกล้าง tripId ตั้งแต่ตอนถอดแล้ว จึงไม่อยู่ใน claim → ไม่ถูกกู้)
+    var byNo={}; tb.forEach(function(b){ if(b&&b.billNo) byNo[b.billNo]=b; });
+    var mergedIds=curIds.slice(), recovered=[];
+    claim.forEach(function(b){ if(b&&b.billNo && curIds.indexOf(b.billNo)<0){ recovered.push(b.billNo); if(mergedIds.indexOf(b.billNo)<0) mergedIds.push(b.billNo); if(!byNo[b.billNo]) byNo[b.billNo]=b; } });
+    _settle.bills=Object.keys(byNo).map(function(k){return byNo[k];}); t.billIds=mergedIds;
+    Promise.resolve().then(function(){
       // 2) ส่งบิลปัจจุบันให้คนรถ (บิลที่เพิ่มมาจะได้ driver/สถานะ)
       _dispatchTripBills(t).then(function(disp){
         var c=settleCompute(), s=t.settlement||{};
@@ -4598,10 +5099,10 @@ function confirmSettlement(){
           proposedByName:s.proposedByName||me, proposedAt:s.proposedAt||now,
           approvedByName:s.approvedByName||me, approvedAt:s.approvedAt||now
         });
-        GolodDB.updateTrip(t.id,{settlement:out, status:"open"}).then(function(){
+        GolodDB.updateTrip(t.id,{settlement:out, status:"open", billIds:mergedIds}).then(function(){
           t.settlement=out; t.status="open"; _settle.status="confirmed"; _settle.confirmedByName=me; _settle.confirmedAt=now;
-          var nRemoved=removed.length, nFailDisp=disp.fail.length;
-          alert("🔒 ยืนยันจัดเที่ยวรอบสุดท้ายแล้ว\n\n• บิลในเที่ยว: "+c.count+" ใบ\n• ถอดออกจากคนรถ: "+nRemoved+" ใบ"+(nFailDisp?("\n• ⚠️ ส่งไม่สำเร็จ "+nFailDisp+" ใบ"):"")+"\n\nบอกคนรถกด 🔄 รีเฟรช");
+          var nRemoved=recovered.length, nFailDisp=disp.fail.length;
+          alert("🔒 ยืนยันจัดเที่ยวรอบสุดท้ายแล้ว\n\n• บิลในเที่ยว: "+c.count+" ใบ\n• กู้บิลตกหล่นกลับ: "+nRemoved+" ใบ"+(nFailDisp?("\n• ⚠️ ส่งไม่สำเร็จ "+nFailDisp+" ใบ"):"")+"\n\nบอกคนรถกด 🔄 รีเฟรช");
           renderSettlement(); if(typeof renderTripTab==="function") renderTripTab();
         }).catch(function(e){ alert("บันทึกไม่สำเร็จ: "+(e&&e.message||e)); });
       });
@@ -4785,6 +5286,8 @@ function calcClearDiff(){
 
 function saveClearTrip(){
   if(!_clearTripId) return;
+  var _noSlip=_clearRemarks.filter(function(r){return r.type==="ปท.→โอน" && r.status!=="rejected" && !r.slipUrl;});
+  if(_noSlip.length){ alert("⚠ มีบิล ปท.→โอน "+_noSlip.length+" รายการยังไม่ได้แนบสลิป — แนบสลิปให้ครบก่อนบันทึกครับ"); return; }
   var trip = _clearTripData||{};
   var s = trip.summary||{};
   var fuelPrice = parseFloat((document.getElementById("ct-fuel-price")||{}).value||trip.fuelPrice||40);
@@ -4870,7 +5373,7 @@ function renderSpecialAreaList(){
       +'<tr style="background:#f0faf5"><th style="padding:6px;text-align:left">อำเภอ</th><th>จังหวัด</th><th>ขั้นต่ำ (฿)</th><th>ลบ</th></tr>'
       +_specialAreas.map(function(sa, i){
         return '<tr style="border-bottom:1px solid #f0f0f0">'
-          +'<td style="padding:6px">'+sa.amphoe+'</td>'
+          +'<td style="padding:6px">'+sa.amphoe+(sa.tambon?'<div style="font-size:10px;color:#999">📍 ต.'+sa.tambon+'</div>':'')+'</td>'
           +'<td style="text-align:center;color:#888">'+( sa.prov||"ทุกจังหวัด")+'</td>'
           +'<td style="text-align:center;font-weight:700;color:#0F6E56">'+sa.min.toLocaleString("th-TH")+'</td>'
           +'<td style="text-align:center"><button onclick="removeSpecialArea('+i+')" style="background:#fee;border:1px solid #fcc;border-radius:5px;padding:2px 8px;cursor:pointer;font-size:11px;color:#c0392b">ลบ</button></td>'
@@ -4882,12 +5385,14 @@ function renderSpecialAreaList(){
 
 function addSpecialArea(){
   var amphoe = document.getElementById("sa-amphoe").value.trim();
+  var tambon = document.getElementById("sa-tambon").value.trim();
   var prov   = document.getElementById("sa-prov").value.trim();
   var min    = parseInt(document.getElementById("sa-min").value)||0;
   if(!amphoe){ alert("กรอกชื่ออำเภอด้วยครับ"); return; }
   if(min <= 0){ alert("กรอกค่าขั้นต่ำด้วยครับ"); return; }
-  _specialAreas.push({amphoe:amphoe, prov:prov, min:min});
+  _specialAreas.push({amphoe:amphoe, tambon:tambon, prov:prov, min:min});
   document.getElementById("sa-amphoe").value = "";
+  document.getElementById("sa-tambon").value = "";
   document.getElementById("sa-prov").value = "";
   document.getElementById("sa-min").value = "";
   renderSpecialAreaList();
@@ -4904,6 +5409,514 @@ function saveSpecialAreas(){
     alert("✅ บันทึกพื้นที่พิเศษแล้ว "+_specialAreas.length+" รายการ");
     closeSpecialAreas();
   }).catch(function(e){ alert("❌ "+e.message); });
+}
+
+var _specialReceivers = []; // [{name, prov, min}]
+function loadSpecialReceivers(){
+  if(!GolodDB.getSetting) return;
+  GolodDB.getSetting("specialReceivers").then(function(val){
+    if(val && Array.isArray(val)) _specialReceivers = val;
+  }).catch(function(){});
+}
+var _srEditIdx = -1;
+function editSpecialReceiver(i){
+  var sr=_specialReceivers[i]; if(!sr) return;
+  document.getElementById("sr-name").value=sr.name||"";
+  document.getElementById("sr-loc").value=sr.loc||"";
+  document.getElementById("sr-prov").value=sr.prov||"";
+  document.getElementById("sr-min").value=sr.min||"";
+  if(document.getElementById("sr-queue")) document.getElementById("sr-queue").value=sr.queue||"";
+  _srEditIdx=i;
+  var b=document.getElementById("sr-add-btn"); if(b) b.textContent="💾 บันทึกแก้ไข";
+}
+function openSpecialReceivers(){
+  if(!CU || CU.role!=="admin"){ alert("เฉพาะ Admin"); return; }
+  renderSpecialReceiverList();
+  document.getElementById("modal-special-receivers").style.display = "flex";
+}
+function closeSpecialReceivers(){
+  document.getElementById("modal-special-receivers").style.display = "none";
+}
+function renderSpecialReceiverList(){
+  var html = _specialReceivers.length === 0
+    ? '<div style="text-align:center;padding:20px;color:#aaa">ยังไม่มีปลายทางพิเศษ</div>'
+    : '<table style="width:100%;border-collapse:collapse;font-size:12px">'
+      +'<tr style="background:#f0faf5"><th style="padding:6px;text-align:left">บริษัท/ผู้รับ</th><th>จังหวัด</th><th>ขั้นต่ำ (฿)</th><th>ค่าส่งพิเศษ (฿)</th><th>ลบ</th></tr>'
+      +_specialReceivers.map(function(sr, i){
+        return '<tr style="border-bottom:1px solid #f0f0f0">'
+          +'<td style="padding:6px">'+(sr.name||"(ตามโลเคชั่น)")+(sr.loc?'<div style="font-size:10px;color:#999">📍 '+sr.loc+'</div>':'')+'</td>'
+          +'<td style="text-align:center;color:#888">'+(sr.prov||"ทุกจังหวัด")+'</td>'
+          +'<td style="text-align:center;font-weight:700;color:#0F6E56">'+(parseInt(sr.min)||0).toLocaleString("th-TH")+'</td>'+'<td style="text-align:center;font-weight:700;color:#E67E22">'+((parseInt(sr.queue)||0)?(parseInt(sr.queue)).toLocaleString("th-TH"):'-')+'</td>'
+          +'<td style="text-align:center;white-space:nowrap"><button onclick="editSpecialReceiver('+i+')" style="background:#eef;border:1px solid #ccd;border-radius:5px;padding:2px 8px;cursor:pointer;font-size:11px;color:#33518a;margin-right:4px">แก้ไข</button><button onclick="removeSpecialReceiver('+i+')" style="background:#fee;border:1px solid #fcc;border-radius:5px;padding:2px 8px;cursor:pointer;font-size:11px;color:#c0392b">ลบ</button></td>'
+          +'</tr>';
+      }).join("")
+      +'</table>';
+  document.getElementById("sr-list").innerHTML = html;
+}
+function addSpecialReceiver(){
+  var name = document.getElementById("sr-name").value.trim();
+  var loc  = document.getElementById("sr-loc").value.trim();
+  var prov = document.getElementById("sr-prov").value.trim();
+  var min  = parseInt(document.getElementById("sr-min").value)||0;
+  var queue= parseInt((document.getElementById("sr-queue")||{}).value)||0;
+  if(!name && !loc){ alert("กรอกชื่อบริษัท/ผู้รับ หรือโลเคชั่น อย่างน้อยหนึ่งอย่าง"); return; }
+  if(min <= 0){ alert("กรอกค่าขั้นต่ำด้วยครับ"); return; }
+  if(_srEditIdx>=0){ _specialReceivers[_srEditIdx]={name:name, loc:loc, prov:prov, min:min, queue:queue}; _srEditIdx=-1; var _b=document.getElementById("sr-add-btn"); if(_b) _b.textContent="+ เพิ่ม"; }
+  else { _specialReceivers.push({name:name, loc:loc, prov:prov, min:min, queue:queue}); }
+  document.getElementById("sr-name").value="";
+  document.getElementById("sr-loc").value="";
+  document.getElementById("sr-prov").value="";
+  document.getElementById("sr-min").value="";
+  if(document.getElementById("sr-queue")) document.getElementById("sr-queue").value="";
+  renderSpecialReceiverList();
+}
+function removeSpecialReceiver(idx){
+  _specialReceivers.splice(idx, 1);
+  renderSpecialReceiverList();
+}
+function saveSpecialReceivers(){
+  if(!GolodDB.saveSetting){ alert("golod-firebase.js ยังไม่อัปเดต"); return; }
+  GolodDB.saveSetting("specialReceivers", _specialReceivers).then(function(){
+    alert("✅ บันทึกปลายทางพิเศษแล้ว "+_specialReceivers.length+" รายการ");
+    closeSpecialReceivers();
+  }).catch(function(e){ alert("❌ "+e.message); });
+}
+
+var _customerPrices = []; // [{name, code, pricePerPiece}]
+function loadCustomerPrices(){
+  if(!GolodDB.getSetting) return;
+  GolodDB.getSetting("customerPrices").then(function(val){
+    if(val && Array.isArray(val)) _customerPrices = val;
+  }).catch(function(){});
+}
+function openCustomerPrices(){
+  if(!CU || CU.role!=="admin"){ alert("เฉพาะ Admin"); return; }
+  renderCustomerPriceList();
+  document.getElementById("modal-cust-prices").style.display = "flex";
+}
+function closeCustomerPrices(){
+  document.getElementById("modal-cust-prices").style.display = "none";
+}
+function renderCustomerPriceList(){
+  var html = _customerPrices.length === 0
+    ? '<div style="text-align:center;padding:20px;color:#aaa">ยังไม่มีลูกค้าราคาพิเศษ</div>'
+    : '<table style="width:100%;border-collapse:collapse;font-size:12px">'
+      +'<tr style="background:#f0faf5"><th style="padding:6px;text-align:left">ลูกค้า/ผู้ส่ง</th><th>รหัส</th><th>ราคา/ชิ้น (฿)</th><th>ลบ</th></tr>'
+      +_customerPrices.map(function(cp, i){
+        return '<tr style="border-bottom:1px solid #f0f0f0">'
+          +'<td style="padding:6px">'+(cp.name||"")+'</td>'
+          +'<td style="text-align:center;color:#888">'+(cp.code||"-")+'</td>'
+          +'<td style="text-align:center;font-weight:700;color:#0F6E56">'+(parseFloat(cp.pricePerPiece)||0).toLocaleString("th-TH")+'</td>'
+          +'<td style="text-align:center"><button onclick="removeCustomerPrice('+i+')" style="background:#fee;border:1px solid #fcc;border-radius:5px;padding:2px 8px;cursor:pointer;font-size:11px;color:#c0392b">ลบ</button></td>'
+          +'</tr>';
+      }).join("")
+      +'</table>';
+  document.getElementById("cp-list").innerHTML = html;
+}
+function addCustomerPrice(){
+  var name = document.getElementById("cp-name").value.trim();
+  var code = document.getElementById("cp-code").value.trim().toUpperCase();
+  var price= parseFloat(document.getElementById("cp-price").value)||0;
+  if(!name && !code){ alert("กรอกชื่อลูกค้า หรือรหัส อย่างน้อยหนึ่งอย่าง"); return; }
+  if(price <= 0){ alert("กรอกราคาต่อชิ้นด้วยครับ"); return; }
+  _customerPrices.push({name:name, code:code, pricePerPiece:price});
+  document.getElementById("cp-name").value="";
+  document.getElementById("cp-code").value="";
+  document.getElementById("cp-price").value="";
+  renderCustomerPriceList();
+}
+function removeCustomerPrice(idx){
+  _customerPrices.splice(idx, 1);
+  renderCustomerPriceList();
+}
+function saveCustomerPrices(){
+  if(!GolodDB.saveSetting){ alert("golod-firebase.js ยังไม่อัปเดต"); return; }
+  GolodDB.saveSetting("customerPrices", _customerPrices).then(function(){
+    alert("✅ บันทึกราคาลูกค้าพิเศษแล้ว "+_customerPrices.length+" รายการ");
+    closeCustomerPrices();
+  }).catch(function(e){ alert("❌ "+e.message); });
+}
+
+// ===== ระบบเส้นทาง (route) + ออโต้จัดเที่ยว =====
+var _routes = [];        // [{name, group, min, rules:[{prov, amphoes:[]}]}]
+var _rtEditIdx = -1;
+var _vehTypes = [];
+var _rtFares = [];
+var _rtTiers = [];
+var _autoTripGroups = {};
+var _autoTripExp = {};
+var _autoTripExcl = {};
+function loadRoutes(){
+  if(!GolodDB.getSetting) return;
+  GolodDB.getSetting("routes").then(function(v){ if(Array.isArray(v)) _routes=v; }).catch(function(){});
+  GolodDB.getSetting("vehicleTypes").then(function(v){ if(Array.isArray(v)) _vehTypes=v; }).catch(function(){});
+}
+function _rtParseRules(text){
+  return (text||"").split("\n").map(function(line){
+    line=line.trim(); if(!line) return null;
+    if(line.indexOf(">")>=0){
+      var pp=line.split(">").map(function(s){return s.trim();});
+      var tb=(pp[2]? pp[2].split(",").map(function(s){return s.trim();}).filter(Boolean):[]);
+      return pp[0]? {prov:pp[0], amphoe:(pp[1]||""), tambons:tb} : null;
+    }
+    if(line.indexOf(":")>=0){
+      var c=line.split(":"); var prov=c[0].trim();
+      var amphoes=c[1].split(",").map(function(s){return s.trim();}).filter(Boolean);
+      return prov? {prov:prov, amphoes:amphoes} : null;
+    }
+    return {prov:line, amphoes:[]};
+  }).filter(Boolean);
+}
+function _rtRulesToText(rules){
+  return (rules||[]).map(function(r){
+    if(r.amphoe!==undefined && r.amphoe!==null){
+      return r.prov+(r.amphoe? (" > "+r.amphoe+(r.tambons&&r.tambons.length?(" > "+r.tambons.join(", ")):"")):"");
+    }
+    return r.prov+(r.amphoes&&r.amphoes.length?(": "+r.amphoes.join(", ")):"");
+  }).join("\n");
+}
+var _PROV_ALIAS={"โคราช":"นครราชสีมา","กทม":"กรุงเทพมหานคร","กรุงเทพ":"กรุงเทพมหานคร","กรุงเทพฯ":"กรุงเทพมหานคร","อยุธยา":"พระนครศรีอยุธยา"};
+function _normProv(p){ p=String(p||"").trim().replace(/^จังหวัด\s*/,"").replace(/^จ\.?\s*/,""); return _PROV_ALIAS[p]||p; }
+function _normAmp(a){ return String(a||"").trim().replace(/^อำเภอ\s*/,"").replace(/^อ\.?\s*/,"").replace(/^เขต\s*/,""); }
+function _normTb(a){ return String(a||"").trim().replace(/^ตำบล\s*/,"").replace(/^ต\.?\s*/,"").replace(/^แขวง\s*/,""); }
+function _eqAmp(rule, bill){ var r=_normAmp(rule), b=_normAmp(bill); return r===b || (r==="เมือง" && b.indexOf("เมือง")===0); }
+function getRouteForBill(prov, amphoe, tambon){
+  var p=_normProv(prov), t=_normTb(tambon);
+  var best=null, rank=0; // 3=ตำบล 2=อำเภอ 1=จังหวัด
+  for(var i=0;i<_routes.length;i++){
+    var rt=_routes[i]; if(!rt||!rt.rules) continue;
+    for(var j=0;j<rt.rules.length;j++){
+      var ru=rt.rules[j]; if(!ru||_normProv(ru.prov)!==p) continue;
+      var r=0;
+      if(ru.amphoe!==undefined){
+        if(!ru.amphoe){ r=1; }
+        else { if(!_eqAmp(ru.amphoe, amphoe)) continue;
+          if(ru.tambons && ru.tambons.length){ if(!ru.tambons.some(function(x){return _normTb(x)===t;})) continue; r=3; }
+          else { r=2; } }
+      } else {
+        if(!ru.amphoes || !ru.amphoes.length){ r=1; }
+        else { if(!ru.amphoes.some(function(x){return _eqAmp(x,amphoe);})) continue; r=2; }
+      }
+      if(r>rank){ rank=r; best=rt; if(r===3) return rt; }
+    }
+  }
+  return best;
+}
+function openRoutes(){
+  if(!CU || CU.role!=="admin"){ alert("เฉพาะ Admin"); return; }
+  _rtEditIdx=-1; _rtClearForm(); renderVehTypes(); renderRouteList();
+  document.getElementById("modal-routes").style.display="flex";
+}
+function closeRoutes(){ document.getElementById("modal-routes").style.display="none"; }
+function _rtClearForm(){
+  document.getElementById("rt-name").value="";
+  document.getElementById("rt-group").value="";
+  document.getElementById("rt-min").value="";
+  document.getElementById("rt-rules").value="";
+  var b=document.getElementById("rt-save-btn"); if(b) b.textContent="+ เพิ่มเส้น";
+  _rtFares=[]; renderRtFares();
+  _rtTiers=[]; renderRtTiers();
+}
+function saveRouteEntry(){
+  var name=document.getElementById("rt-name").value.trim();
+  var group=document.getElementById("rt-group").value.trim();
+  var min=parseInt(document.getElementById("rt-min").value)||0;
+  var rules=_rtParseRules(document.getElementById("rt-rules").value);
+  if(!name){ alert("กรอกชื่อเส้นด้วยครับ"); return; }
+  if(!rules.length){ alert("กรอกจังหวัด/อำเภอ อย่างน้อย 1 บรรทัด"); return; }
+  var fares=_rtFares.filter(function(f){return f.veh && f.fare!=="" && f.fare!=null && !isNaN(parseFloat(f.fare));}).map(function(f){return {tier:(f.tier||""), veh:f.veh, days:String(f.days), fare:parseFloat(f.fare)};});
+  var entry={name:name, group:group, min:min, rules:rules, tiers:_rtTiers.map(function(t){return {label:_tierLabel(t).trim(), kw:_tierKw(t).trim()};}).filter(function(t){return t.label;}), fares:fares};
+  if(_rtEditIdx>=0){ _routes[_rtEditIdx]=entry; _rtEditIdx=-1; } else { _routes.push(entry); }
+  _rtClearForm(); renderRouteList();
+}
+function editRoute(i){
+  var rt=_routes[i]; if(!rt) return; _rtEditIdx=i;
+  document.getElementById("rt-name").value=rt.name||"";
+  document.getElementById("rt-group").value=rt.group||"";
+  document.getElementById("rt-min").value=rt.min||"";
+  document.getElementById("rt-rules").value=_rtRulesToText(rt.rules);
+  _rtTiers=(rt.tiers||[]).map(function(t){return {label:_tierLabel(t), kw:_tierKw(t)};}); renderRtTiers();
+  _rtFares=(rt.fares||[]).map(function(f){return {tier:(f.tier||""), veh:f.veh, days:String(f.days), fare:f.fare};}); renderRtFares();
+  var b=document.getElementById("rt-save-btn"); if(b) b.textContent="💾 บันทึกการแก้ไข";
+}
+function removeRoute(i){ if(!confirm("ลบเส้น "+((_routes[i]||{}).name||"")+"?")) return; _routes.splice(i,1); if(_rtEditIdx===i){_rtEditIdx=-1;_rtClearForm();} renderRouteList(); }
+function renderRouteList(){
+  var el=document.getElementById("rt-list");
+  if(!_routes.length){ el.innerHTML='<div style="text-align:center;padding:16px;color:#aaa">ยังไม่มีเส้นทาง</div>'; return; }
+  el.innerHTML=_routes.map(function(rt,i){
+    var summary=(rt.rules||[]).map(function(r){ if(r.amphoe!==undefined&&r.amphoe!==null){ return r.prov+(r.amphoe?("/"+r.amphoe+(r.tambons&&r.tambons.length?("("+r.tambons.length+"ต.)"):"")):""); } return r.prov+(r.amphoes&&r.amphoes.length?("("+r.amphoes.length+"อ.)"):""); }).join(", ");
+    return '<div style="border:1px solid #eee;border-radius:9px;padding:10px;margin-bottom:8px">'
+      +'<div style="display:flex;justify-content:space-between;align-items:center">'
+      +'<span style="font-weight:700;color:#0F6E56">'+rt.name+(rt.group?' <span style="font-size:10px;color:#999">· '+rt.group+'</span>':'')+'</span>'
+      +'<span style="font-size:11px;color:#b7950b;font-weight:700">ขั้นต่ำ '+(parseInt(rt.min)||0).toLocaleString("th-TH")+'฿'+((rt.fares&&rt.fares.length)?' · 💵'+rt.fares.length+' เรท':' · <span style=\'color:#c0392b\'>ยังไม่ตั้งเรท</span>')+'</span></div>'
+      +'<div style="font-size:11px;color:#777;margin-top:3px">'+summary+'</div>'
+      +'<div style="margin-top:5px;display:flex;gap:6px">'
+      +'<button onclick="editRoute('+i+')" style="background:#eef;border:1px solid #cce;border-radius:5px;padding:2px 10px;font-size:11px;cursor:pointer">แก้</button>'
+      +'<button onclick="removeRoute('+i+')" style="background:#fee;border:1px solid #fcc;border-radius:5px;padding:2px 10px;font-size:11px;color:#c0392b;cursor:pointer">ลบ</button>'
+      +'</div></div>';
+  }).join("");
+}
+function renderVehTypes(){
+  var el=document.getElementById("rt-veh-types"); if(!el) return;
+  el.innerHTML = _vehTypes.length ? _vehTypes.map(function(v,i){
+    return '<span style="display:inline-flex;align-items:center;gap:5px;background:#fff;border:1px solid #cce;border-radius:14px;padding:3px 7px 3px 11px;font-size:12px">'+v+'<span onclick="removeVehType('+i+')" style="cursor:pointer;color:#c00;font-weight:700;background:#fee;border-radius:50%;width:17px;height:17px;display:inline-flex;align-items:center;justify-content:center;font-size:12px">×</span></span>';
+  }).join("") : '<span style="font-size:11px;color:#aaa">ยังไม่มี — เพิ่มประเภทรถก่อนตั้งเรท</span>';
+}
+function addVehType(){
+  var inp=document.getElementById("rt-veh-new"); var v=(inp.value||"").trim();
+  if(!v) return;
+  if(_vehTypes.indexOf(v)>=0){ alert("มี \""+v+"\" อยู่แล้ว"); return; }
+  _vehTypes.push(v); inp.value=""; renderVehTypes(); renderRtFares();
+}
+function removeVehType(i){ _vehTypes.splice(i,1); renderVehTypes(); renderRtFares(); }
+var _RT_DAYS=[["1","1 วัน"],["2","2 วัน"],["0","ค้างคืน"]];
+function _tierLabel(t){ return (t&&typeof t==="object")?(t.label||""):String(t||""); }
+function _tierKw(t){ return (t&&typeof t==="object")?(t.kw||""):""; }
+function renderRtTiers(){
+  var el=document.getElementById("rt-tiers"); if(!el) return;
+  if(!_rtTiers.length){ el.innerHTML='<div style="font-size:11px;color:#aaa">— ไม่มี (เส้นนี้เรทเดียว) —</div>'; return; }
+  el.innerHTML = _rtTiers.map(function(t,i){
+    return '<div style="display:flex;gap:5px;align-items:center;margin-bottom:5px">'
+      +'<input value="'+_tierLabel(t).replace(/"/g,"&quot;")+'" oninput="_rtTierSet('+i+',\'label\',this.value)" placeholder="ชื่อระดับ เช่น เดชอุดม" style="width:120px;padding:5px;border:1px solid #f0c97a;border-radius:6px;font-size:12px">'
+      +'<input value="'+_tierKw(t).replace(/"/g,"&quot;")+'" oninput="_rtTierSet('+i+',\'kw\',this.value)" placeholder="อำเภอ/คำค้น คั่นด้วย , (ให้ระบบเดาจากบิล)" style="flex:1;padding:5px;border:1px solid #ddd;border-radius:6px;font-size:12px">'
+      +'<button onclick="moveRtTier('+i+',-1)" style="background:#eee;border:none;border-radius:5px;padding:3px 7px;font-size:11px;cursor:pointer">↑</button>'
+      +'<button onclick="moveRtTier('+i+',1)" style="background:#eee;border:none;border-radius:5px;padding:3px 7px;font-size:11px;cursor:pointer">↓</button>'
+      +'<span onclick="removeRtTier('+i+')" style="cursor:pointer;color:#c00;font-weight:700">✕</span></div>';
+  }).join("");
+}
+function addRtTier(){ _rtTiers.push({label:"",kw:""}); renderRtTiers(); renderRtFares(); }
+function _rtTierSet(i,k,v){ if(!_rtTiers[i]) return; if(typeof _rtTiers[i]!=="object") _rtTiers[i]={label:String(_rtTiers[i]),kw:""}; _rtTiers[i][k]=v; if(k==="label") renderRtFares(); }
+function moveRtTier(i,d){ var j=i+d; if(j<0||j>=_rtTiers.length) return; var x=_rtTiers[i]; _rtTiers[i]=_rtTiers[j]; _rtTiers[j]=x; renderRtTiers(); renderRtFares(); }
+function removeRtTier(i){ _rtTiers.splice(i,1); renderRtTiers(); renderRtFares(); }
+function _rtFareRow(f,i){
+  var vOpts='<option value="">— รถ —</option>'+_vehTypes.map(function(v){return '<option value="'+v+'"'+(f.veh===v?" selected":"")+'>'+v+'</option>';}).join("");
+  var dOpts=_RT_DAYS.map(function(d){return '<option value="'+d[0]+'"'+(String(f.days)===d[0]?" selected":"")+'>'+d[1]+'</option>';}).join("");
+  var tCell = _rtTiers.length ? ('<select onchange="_rtFareSet('+i+',\'tier\',this.value)" style="width:104px;padding:5px;border:1px solid #f0c97a;border-radius:6px;font-size:12px"><option value="">(ไกลสุด/ทั้งเส้น)</option>'+_rtTiers.map(function(ti){var tl=_tierLabel(ti);return '<option value="'+tl.replace(/"/g,"&quot;")+'"'+(f.tier===tl?" selected":"")+'>'+tl+'</option>';}).join("")+'</select>') : '';
+  return '<div style="display:flex;gap:5px;align-items:center;margin-bottom:5px">'
+    +tCell
+    +'<select onchange="_rtFareSet('+i+',\'veh\',this.value)" style="flex:1;padding:5px;border:1px solid #ddd;border-radius:6px;font-size:12px">'+vOpts+'</select>'
+    +'<select onchange="_rtFareSet('+i+',\'days\',this.value)" style="width:88px;padding:5px;border:1px solid #ddd;border-radius:6px;font-size:12px">'+dOpts+'</select>'
+    +'<input type="number" value="'+(f.fare!==undefined&&f.fare!==null?f.fare:"")+'" oninput="_rtFareSet('+i+',\'fare\',this.value)" placeholder="฿" style="width:84px;padding:5px;border:1px solid #ddd;border-radius:6px;font-size:12px;text-align:right">'
+    +'<span onclick="removeRtFare('+i+')" style="cursor:pointer;color:#c00;font-weight:700">✕</span></div>';
+}
+function renderRtFares(){
+  var el=document.getElementById("rt-fares-list"); if(!el) return;
+  if(!_vehTypes.length){ el.innerHTML='<div style="font-size:11px;color:#aaa">เพิ่มประเภทรถด้านบนก่อน แล้วค่อยตั้งเรท</div>'; return; }
+  el.innerHTML = _rtFares.length ? _rtFares.map(function(f,i){return _rtFareRow(f,i);}).join("") : '<div style="font-size:11px;color:#aaa;margin-bottom:4px">ยังไม่ได้ตั้งเรทเส้นนี้</div>';
+}
+function addRtFare(){ if(!_vehTypes.length){ alert("เพิ่มประเภทรถก่อนครับ"); return; } _rtFares.push({tier:"", veh:_vehTypes[0]||"", days:"1", fare:""}); renderRtFares(); }
+function removeRtFare(i){ _rtFares.splice(i,1); renderRtFares(); }
+function _rtFareSet(i,k,v){ if(_rtFares[i]) _rtFares[i][k]=v; }
+function persistRoutes(){
+  if(!GolodDB.saveSetting){ alert("golod-firebase.js ยังไม่อัปเดต"); return; }
+  Promise.all([
+    GolodDB.saveSetting("routes", _routes),
+    GolodDB.saveSetting("vehicleTypes", _vehTypes)
+  ]).then(function(){
+    alert("✅ บันทึกแล้ว — เส้นทาง "+_routes.length+" เส้น · ประเภทรถ "+_vehTypes.length+" แบบ"); closeRoutes();
+  }).catch(function(e){ alert("❌ "+e.message); });
+}
+function _atTarget(){ var v=parseInt((document.getElementById("at-target")||{}).value)||20; return v<1?20:v; }
+function openAutoTrip(){
+  if(!CU || CU.role!=="admin"){ alert("เฉพาะ Admin"); return; }
+  if(typeof BILLS==="undefined" || !Array.isArray(BILLS)){ alert("ยังโหลดบิลไม่เสร็จ ลองรีเฟรชก่อนครับ"); return; }
+  if(!_routes.length){ alert("ยังไม่ได้ตั้งเส้นทาง — กดปุ่ม 🛣️ เส้นทาง เพื่อตั้งก่อนครับ"); return; }
+  var pool=["ออกบิลรับของ","issued","นำส่งใหม่","ระหว่างนำส่งสาขา",""];
+  var maxAge=parseInt((document.getElementById("at-maxage")||{}).value); if(isNaN(maxAge)) maxAge=14;
+  var nowMs=Date.now();
+  var groups={};
+  BILLS.forEach(function(b){
+    if(!b||!b.billNo||b.tripId) return;
+    if(pool.indexOf(b.status||"")<0) return;
+    if(maxAge>0){ var ds=billDateStr(b); if(ds){ var tms=new Date(ds+"T00:00:00").getTime(); if(!isNaN(tms) && (nowMs-tms)/86400000 > maxAge) return; } }
+    var dp=b.destProv||(b.form&&b.form.destProv)||"";
+    var da=b.destAmphoe||(b.form&&b.form.destAmphoe)||"";
+    var dt=b.destTambon||(b.form&&b.form.destTambon)||b.receiverTambon||(b.form&&b.form.receiverTambon)||"";
+    var rt=getRouteForBill(dp,da,dt);
+    var key=rt?rt.name:"ไม่ระบุเส้น";
+    if(!groups[key]) groups[key]={bills:[], total:0, min:(rt?(parseInt(rt.min)||0):0), sel:true, hasRoute:!!rt};
+    groups[key].bills.push(b); groups[key].total+=parseFloat(b.freightNet||0)||0;
+  });
+  Object.keys(groups).forEach(function(k){ var g=groups[k];
+    if(!g.hasRoute) g.sel=false; else if(g.min>0 && g.total<g.min) g.sel=false; });
+  _autoTripGroups=groups; _autoTripExp={}; _autoTripExcl={}; renderAutoTripPreview();
+  document.getElementById("modal-auto-trip").style.display="flex";
+}
+function renderAutoTripPreview(){
+  var keys=Object.keys(_autoTripGroups), body=document.getElementById("at-body"), N=_atTarget();
+  if(!keys.length){ body.innerHTML='<div style="text-align:center;padding:24px;color:#aaa">ไม่มีบิลที่ยังไม่ได้จัดเที่ยว 🎉</div>';
+    var b0=document.getElementById("at-confirm-btn"); if(b0) b0.style.display="none"; return; }
+  function effBills(g){ return g.bills.filter(function(b){return !_autoTripExcl[b.billNo];}); }
+  var html='<table style="width:100%;border-collapse:collapse;font-size:12px">'
+    +'<tr style="background:#f0faf5"><th style="padding:6px">เลือก</th><th style="text-align:left">เส้นทาง (กดดูบิล)</th><th>บิล</th><th>ยอดรวม</th><th>เที่ยว</th></tr>';
+  keys.forEach(function(k){
+    var g=_autoTripGroups[k], eff=effBills(g);
+    var effTotal=eff.reduce(function(s,b){return s+(parseFloat(b.freightNet||0)||0);},0);
+    var chunks=Math.max(1,Math.ceil((eff.length||1)/N));
+    var noRt=!g.hasRoute, low=g.hasRoute&&g.min>0&&effTotal<g.min, exp=!!_autoTripExp[k];
+    var safek=String(k).replace(/'/g,"");
+    var warn=noRt?'<div style="font-size:10px;color:#c0392b">⚠️ ไม่อยู่ในเส้นใด — ตั้งเส้นเพิ่ม/จัดเอง</div>'
+            :(low?'<div style="font-size:10px;color:#c0392b">⚠️ ต่ำกว่าขั้นต่ำ '+g.min.toLocaleString("th-TH")+' — แนะนำพักไว้</div>':'');
+    html+='<tr style="border-bottom:1px solid #f0f0f0'+((low||noRt)?';background:#fff8f5':'')+'">'
+      +'<td style="text-align:center"><input type="checkbox" '+(g.sel?"checked":"")+' onchange="toggleAutoZone(\''+safek+'\')"></td>'
+      +'<td style="padding:6px;font-weight:700;color:'+(noRt?"#c0392b":"#0F6E56")+';cursor:pointer" onclick="toggleAutoExpand(\''+safek+'\')">'+(exp?"\u25be ":"\u25b8 ")+k+warn+'</td>'
+      +'<td style="text-align:center">'+eff.length+(eff.length<g.bills.length?(' <span style="color:#c0392b;font-size:10px">/'+g.bills.length+'</span>'):'')+'</td>'
+      +'<td style="text-align:right;font-weight:700">'+effTotal.toLocaleString("th-TH")+'</td>'
+      +'<td style="text-align:center">'+(eff.length?chunks:0)+'</td></tr>';
+    if(exp){
+      html+='<tr><td colspan="5" style="padding:4px 6px 8px 24px;background:#fafafa">'
+        +'<div style="max-height:240px;overflow-y:auto;font-size:11px">'
+        + g.bills.map(function(b){
+            var ex=!!_autoTripExcl[b.billNo];
+            var rn=b.receiverName||(b.form&&b.form.receiverName)||"-";
+            var da=b.destAmphoe||(b.form&&b.form.destAmphoe)||"";
+            var dp=b.destProv||(b.form&&b.form.destProv)||"";
+            var bn=String(b.billNo||"").replace(/'/g,"");
+            return '<div style="display:flex;justify-content:space-between;gap:8px;padding:3px 0;border-bottom:1px dotted #eee;opacity:'+(ex?'0.45':'1')+'">'
+              +'<span style="color:#0F6E56;font-weight:600;white-space:nowrap;'+(ex?'text-decoration:line-through':'')+'">'+(b.billNo||"")+'</span>'
+              +'<span style="flex:1;color:#555;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">'+rn+' \u00b7 '+da+' '+dp+'</span>'
+              +'<span style="color:#333;font-weight:600;white-space:nowrap">'+(parseFloat(b.freightNet||0)||0).toLocaleString("th-TH")+'</span>'
+              +'<span onclick="toggleAutoExclBill(\''+bn+'\')" title="'+(ex?'ใส่กลับ':'ตัดออก')+'" style="cursor:pointer;font-weight:700;white-space:nowrap;color:'+(ex?'#0F6E56':'#c0392b')+'">'+(ex?'\u21a9':'\u2715')+'</span>'
+              +'</div>';
+          }).join("")
+        +'</div></td></tr>';
+    }
+  });
+  html+='</table>'; body.innerHTML=html;
+  var selKeys=keys.filter(function(k){return _autoTripGroups[k].sel && effBills(_autoTripGroups[k]).length;});
+  var totTrips=selKeys.reduce(function(s,k){return s+Math.max(1,Math.ceil(effBills(_autoTripGroups[k]).length/N));},0);
+  var btn=document.getElementById("at-confirm-btn"); if(btn){ btn.style.display=""; btn.textContent="\u2705 \u0e2a\u0e23\u0e49\u0e32\u0e07 "+totTrips+" \u0e40\u0e17\u0e35\u0e48\u0e22\u0e27 ("+selKeys.length+" \u0e40\u0e2a\u0e49\u0e19)"; }
+}
+function toggleAutoExpand(k){ _autoTripExp[k]=!_autoTripExp[k]; renderAutoTripPreview(); }
+function toggleAutoExclBill(bn){ _autoTripExcl[bn]=!_autoTripExcl[bn]; renderAutoTripPreview(); }
+function toggleAutoExpand(k){ _autoTripExp[k]=!_autoTripExp[k]; renderAutoTripPreview(); }
+function toggleAutoZone(k){ if(_autoTripGroups[k]){ _autoTripGroups[k].sel=!_autoTripGroups[k].sel; renderAutoTripPreview(); } }
+function closeAutoTrip(){ document.getElementById("modal-auto-trip").style.display="none"; }
+function confirmAutoTrip(){
+  var ub=getUserBranch(), N=_atTarget();
+  var keys=Object.keys(_autoTripGroups).filter(function(k){return _autoTripGroups[k].sel && _autoTripGroups[k].bills.length;});
+  if(!keys.length){ alert("ยังไม่ได้เลือกเส้น"); return; }
+  if(!GolodDB.saveTrip){ alert("golod-firebase.js ยังไม่อัปเดต"); return; }
+  var totTrips=keys.reduce(function(s,k){var ef=_autoTripGroups[k].bills.filter(function(b){return !_autoTripExcl[b.billNo];});return s+(ef.length?Math.max(1,Math.ceil(ef.length/N)):0);},0);
+  if(!confirm("สร้าง "+totTrips+" เที่ยว จาก "+keys.length+" เส้น?\nบิลจะถูกจัดเข้าเที่ยวอัตโนมัติ (ยังไม่ใส่คนรถ)")) return;
+  var now=new Date().toISOString(), today=new Date().toLocaleDateString("th-TH"), isAdmin=CU&&CU.role==="admin";
+  var btn=document.getElementById("at-confirm-btn"); if(btn){ btn.disabled=true; btn.textContent="⏳ กำลังสร้าง..."; }
+  var tasks=[];
+  keys.forEach(function(k){
+    var g=_autoTripGroups[k], bills=g.bills.filter(function(b){return !_autoTripExcl[b.billNo];}); if(!bills.length) return; var nChunks=Math.max(1,Math.ceil(bills.length/N));
+    for(var c=0;c<nChunks;c++){
+      var chunk=bills.slice(c*N,(c+1)*N), billIds=chunk.map(function(b){return b.billNo;});
+      var firstBranch=(chunk[0]&&chunk[0].branch)||"", label=k+(nChunks>1?(" #"+(c+1)):"");
+      var trip={ branch:(ub!=="all"?ub:firstBranch), zone:k, route:k, billIds:billIds,
+        driverName:"", driverUsername:"", status:"proposed", source:"auto",
+        note:"ออโต้จัดเที่ยว "+today+" · เส้น "+label, createdAt:now, createdBy:CU.username,
+        settlement:{status:"proposed", source:"auto"} };
+      (function(billIds){
+        tasks.push(GolodDB.saveTrip(trip).then(function(saved){
+          var tid=saved&&saved.id;
+          if(tid && GolodDB.updateBill){
+            billIds.forEach(function(bn){ GolodDB.updateBill(bn,{tripId:tid}).catch(function(){});
+              var bb=BILLS.find(function(x){return x.billNo===bn;}); if(bb) bb.tripId=tid; });
+          }
+          return tid;
+        }));
+      })(billIds);
+    }
+  });
+  Promise.all(tasks).then(function(ids){
+    alert("✅ สร้าง "+ids.filter(Boolean).length+" เที่ยวแล้ว!"+(isAdmin?"":" (รออนุมัติ)"));
+    closeAutoTrip(); if(typeof renderTripTab==="function") renderTripTab();
+  }).catch(function(e){
+    alert("❌ "+((e&&e.message)||e));
+    if(btn){ btn.disabled=false; renderAutoTripPreview(); }
+  });
+}
+
+// ===== ตรวจบิลซ้ำ (admin) =====
+var _dupGroups=[], _dupDel={};
+function _dupUid(b){ return (b.billNo||"")+"|"+(b.createdAt||""); }
+function openDupBills(){
+  if(!CU||CU.role!=="admin"){ alert("เฉพาะ Admin"); return; }
+  if(typeof BILLS==="undefined"||!Array.isArray(BILLS)){ alert("ยังโหลดบิลไม่เสร็จ ลองรีเฟรชก่อนครับ"); return; }
+  var map={};
+  BILLS.forEach(function(b){
+    if(!b||!b.billNo) return;
+    if((b.status||"")==="ยกเลิก") return;
+    var sn=String(b.senderName||(b.form&&b.form.senderName)||"").trim();
+    var rn=String(b.receiverName||(b.form&&b.form.receiverName)||"").trim();
+    var dp=String(b.destProv||(b.form&&b.form.destProv)||"").trim();
+    var da=String(b.destAmphoe||(b.form&&b.form.destAmphoe)||"").trim();
+    var fr=String(parseFloat(b.freightNet||0)||0);
+    var dt=(typeof billDateStr==="function"?billDateStr(b):"")||"";
+    var key=dt+"|"+sn+"|"+rn+"|"+dp+"|"+da+"|"+fr;
+    (map[key]=map[key]||[]).push(b);
+  });
+  _dupGroups=Object.keys(map).map(function(k){return {key:k,bills:map[k]};}).filter(function(g){return g.bills.length>1;});
+  _dupGroups.sort(function(a,b){return b.bills.length-a.bills.length;});
+  _dupDel={};
+  _dupGroups.forEach(function(g){
+    g.bills.sort(function(a,b){return String(a.createdAt||"").localeCompare(String(b.createdAt||""));});
+    var keeperIdx=g.bills.findIndex(function(b){return b.tripId;});
+    if(keeperIdx<0) keeperIdx=0;
+    g.bills.forEach(function(b,i){ if(i!==keeperIdx && !b.tripId) _dupDel[_dupUid(b)]=true; });
+  });
+  renderDupBills();
+  document.getElementById("modal-dup-bills").style.display="flex";
+}
+function renderDupBills(){
+  var el=document.getElementById("dup-body");
+  if(!_dupGroups.length){ el.innerHTML='<div style="text-align:center;padding:24px;color:#2e7d32">ไม่พบบิลซ้ำ 🎉</div>';
+    var b0=document.getElementById("dup-del-btn"); if(b0) b0.style.display="none"; return; }
+  var html="";
+  _dupGroups.forEach(function(g){
+    var f=g.bills[0];
+    var sn=String(f.senderName||(f.form&&f.form.senderName)||"-");
+    var rn=String(f.receiverName||(f.form&&f.form.receiverName)||"-");
+    var dp=String(f.destProv||"")+" "+String(f.destAmphoe||"");
+    html+='<div style="border:1px solid #f0d0c0;border-radius:9px;padding:10px;margin-bottom:10px;background:#fffaf8">'
+      +'<div style="font-size:12px;font-weight:700;color:#c0392b;margin-bottom:4px">'+g.bills.length+' ใบซ้ำ · '+sn+' → '+rn+'</div>'
+      +'<div style="font-size:11px;color:#777;margin-bottom:6px">'+dp+' · '+(parseFloat(f.freightNet||0)||0).toLocaleString("th-TH")+'฿</div>';
+    g.bills.forEach(function(b){
+      var uid=_dupUid(b), del=!!_dupDel[uid], inTrip=!!b.tripId, tm="";
+      try{ tm=new Date(b.createdAt).toLocaleString("th-TH",{hour:"2-digit",minute:"2-digit",day:"2-digit",month:"2-digit"}); }catch(e){}
+      html+='<div style="display:flex;align-items:center;gap:8px;padding:4px 0;border-top:1px dotted #eee">'
+        +'<input type="checkbox" '+(del?"checked":"")+' '+(inTrip?"disabled":"")+' onchange="toggleDupDel(\''+uid.replace(/'/g,"")+'\')">'
+        +'<span style="font-weight:600;color:#0F6E56;white-space:nowrap">'+(b.billNo||"")+'</span>'
+        +'<span style="flex:1;color:#888;font-size:11px">'+tm+' · '+(b.status||"ว่าง")+(inTrip?' · <span style="color:#b7950b">อยู่ในเที่ยว</span>':'')+'</span>'
+        +(inTrip?'<span style="color:#b7950b;font-size:11px;font-weight:700">เก็บ(เที่ยว)</span>':(del?'<span style="color:#c0392b;font-size:11px;font-weight:700">จะลบ</span>':'<span style="color:#2e7d32;font-size:11px;font-weight:700">เก็บ</span>'))
+        +'</div>';
+    });
+    html+='</div>';
+  });
+  el.innerHTML=html;
+  var n=Object.keys(_dupDel).filter(function(k){return _dupDel[k];}).length;
+  var btn=document.getElementById("dup-del-btn"); if(btn){ btn.style.display=""; btn.textContent="🗑️ ลบที่เลือก ("+n+")"; }
+}
+function toggleDupDel(uid){ _dupDel[uid]=!_dupDel[uid]; renderDupBills(); }
+function closeDupBills(){ document.getElementById("modal-dup-bills").style.display="none"; }
+function confirmDeleteDups(){
+  var dels=[];
+  _dupGroups.forEach(function(g){ g.bills.forEach(function(b){ if(_dupDel[_dupUid(b)] && !b.tripId) dels.push(b); }); });
+  if(!dels.length){ alert("ยังไม่ได้เลือกบิลที่จะลบ"); return; }
+  if(!GolodDB.findBillDocs||!GolodDB.deleteBillDoc){ alert("golod-firebase.js ยังไม่อัปเดต"); return; }
+  if(!confirm("ลบ "+dels.length+" บิลถาวร?\n\n"+dels.map(function(b){return b.billNo;}).join(", ")+"\n\n⚠️ ลบแล้วกู้คืนไม่ได้")) return;
+  var btn=document.getElementById("dup-del-btn"); if(btn){ btn.disabled=true; btn.textContent="⏳ กำลังลบ..."; }
+  var tasks=dels.map(function(b){
+    return GolodDB.findBillDocs(b.billNo).then(function(docs){
+      if(!docs||!docs.length) return;
+      var target = docs.length===1 ? docs[0] : (docs.find(function(d){return d.createdAt===b.createdAt;})||docs[0]);
+      return GolodDB.deleteBillDoc(target._id).then(function(){
+        if(GolodDB.saveDeleteLog) GolodDB.saveDeleteLog({ billNo:b.billNo, editedBy:(CU&&(CU.name||CU.username))||"", editorCode:(CU&&(CU.clerkCode||CU.username))||"", deletedBill:{ billNo:b.billNo, receiverName:b.receiverName||b.recipientName||"", senderName:b.senderName||"", freightNet:b.freightNet||0, codTotal:b.codTotal||0, status:b.status||"", createdAt:b.createdAt||"" } });
+        var i=BILLS.findIndex(function(x){return x.billNo===b.billNo && (x.createdAt||"")===(b.createdAt||"");}); if(i>=0) BILLS.splice(i,1);
+      });
+    });
+  });
+  Promise.all(tasks).then(function(){
+    if(btn){ btn.disabled=false; }
+    alert("✅ ลบ "+dels.length+" บิลแล้ว");
+    openDupBills();
+    if(typeof renderTripTab==="function") renderTripTab();
+  }).catch(function(e){ if(btn){btn.disabled=false;} alert("❌ ลบไม่สำเร็จบางส่วน: "+((e&&e.message)||e)); openDupBills(); });
 }
 
 function saveDispatchLogNow(bills, targetId, targetName){
