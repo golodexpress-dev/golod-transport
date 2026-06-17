@@ -668,7 +668,7 @@ tr:hover td{background:#f8fffe}
 <div class="topbar">
   <span class="title">🚛 จัดการขนส่ง</span>
   <span id="session-info" style="font-size:11px;opacity:.8"></span>
-  <span style="font-size:10px;opacity:.65;margin-left:auto">build 2026-06-10z41</span>
+  <span style="font-size:10px;opacity:.65;margin-left:auto">build 2026-06-10z46</span>
   <a href="GolodApp.html" style="margin-left:10px">← หน้าหลัก</a>
 </div>
 <div class="container">
@@ -1227,7 +1227,7 @@ function renderApp(){
       // รอส่งใหม่ — นับจาก BILLS เสมอ (บิลค้าง active อยู่ใน BILLS)
       cnt = BILLS.filter(function(b){return REDO_STATUS.indexOf(b.status||"")>=0 && billBelongsToUserBranch(b);}).length;
     } else if(t.k==="trip"){
-      var _rc=((_tripState&&_tripState.openTrips)||[]).filter(function(x){ var sp=(x.status==="proposed"||((x.settlement&&x.settlement.status)==="proposed")); return sp && x.readyForApproval && x.readyForApproval.at; }).length;
+      var _rc=((_tripState&&_tripState.openTrips)||[]).filter(function(x){ var sp=(x.status==="proposed"||((x.settlement&&x.settlement.status)==="proposed")); var ready=sp && x.readyForApproval && x.readyForApproval.at; var pa=(x.billAdditionRequests||[]).some(function(r){return r.status==="pending";}); var pr=(x.billRemovalRequests||[]).some(function(r){return r.status==="pending";}); return ready||pa||pr; }).length;
       cnt = _rc>0?_rc:"";
     } else if(t.k==="history" || t.k==="monthly" || t.k==="clearing"){
       cnt = "";
@@ -1501,6 +1501,7 @@ function renderTripList(){
     var fuelEst = t.fuelDist&&t.fuelRate&&t.fuelPrice ? Math.round((t.fuelDist/t.fuelRate)*t.fuelPrice) : 0;
     var pendRmk = ((t.clearRemarks||(t.clearData&&t.clearData.remarks)||[]).filter(function(r){return r.status==="pending";})).length;
     var pendDel = ((t.billRemovalRequests||[]).filter(function(r){return r.status==="pending";})).length;
+    var pendAdd = ((t.billAdditionRequests||[]).filter(function(r){return r.status==="pending";})).length;
     var _sst=(t.settlement&&t.settlement.status)||"";
     var _isProp=(t.status==="proposed"||_sst==="proposed");
     var _isAppr=(t.status==="approved"||_sst==="approved");
@@ -1512,6 +1513,7 @@ function renderTripList(){
           +'<div class="trip-driver">🚛 '+t.driverName
             +(pendRmk>0?' <span style="background:#E67E22;color:#fff;font-size:10px;padding:2px 7px;border-radius:10px;font-weight:700">⏳ รออนุมัติหมายเหตุ '+pendRmk+'</span>':'')
             +(pendDel>0?' <span style="background:#c0392b;color:#fff;font-size:10px;padding:2px 7px;border-radius:10px;font-weight:700">⏳ ขอเอาบิลออก '+pendDel+'</span>':'')
+            +(pendAdd>0?' <span style="background:#0F6E56;color:#fff;font-size:10px;padding:2px 7px;border-radius:10px;font-weight:700">⏳ ขอเพิ่มบิล '+pendAdd+'</span>':'')
             +(_isProp&&!_ready?' <span style="background:#7c4dff;color:#fff;font-size:10px;padding:2px 7px;border-radius:10px;font-weight:700">📝 เสมียนกำลังจัด/ขึ้นของ</span>':'')
             +(_isProp&&_ready?' <span style="background:#E67E22;color:#fff;font-size:10px;padding:2px 7px;border-radius:10px;font-weight:700">🔔 ขึ้นของเสร็จ รออนุมัติ'+(t.readyForApproval.by?(" · "+t.readyForApproval.by):"")+'</span>':'')
             +(_isAppr?' <span style="background:#E67E22;color:#fff;font-size:10px;padding:2px 7px;border-radius:10px;font-weight:700">🚚 รอยืนยันสุดท้าย</span>':'')
@@ -1748,7 +1750,7 @@ function editTrip(tripId){
 function pushTripToDriver(tripId){
   var t = (_tripState.openTrips||[]).find(function(x){ return x.id===tripId; });
   if(!t){ alert("ไม่พบเที่ยว ลองรีเฟรช"); return; }
-  if(!t.driverUsername){ alert("เที่ยวนี้ยังไม่มีคนขับ — กดแก้ไขเพื่อเลือกคนขับก่อน"); return; }
+  if(!t.driverUsername && !t.driverName){ alert("เที่ยวนี้ยังไม่มีคนขับ — กดแก้ไขเพื่อใส่ชื่อคนขับก่อน"); return; }
   if(!t.billIds || !t.billIds.length){ alert("เที่ยวนี้ไม่มีบิล"); return; }
   if(!confirm("ส่ง/ซิงค์เที่ยวให้ "+(t.driverName||t.driverUsername)+" ?\n\n• ส่งบิลในเที่ยว ("+t.billIds.length+") ให้คนรถ (บิลที่เพิ่งเพิ่มจะเข้าด้วย)\n• ถ้าเปลี่ยนคนรถ บิลจะย้ายไปคนใหม่ (ออกจากคนเก่าให้)\n• บิลที่เอาออกจากเที่ยว จะคืนกองรอจ่าย")) return;
   var curIds=(t.billIds||[]), now=new Date().toISOString();
@@ -1800,7 +1802,7 @@ function renderCurrentTripBills(){
       var req=reqs.find(function(r){return r.billNo===b.billNo && r.status==="pending";});
       var btn;
       if(req && isAdmin){
-        btn = '<span style="color:#E67E22;font-size:10px">⏳ '+(req.byName||"")+' ขอเอาออก</span>'
+        btn = '<span style="color:#E67E22;font-size:10px">⏳ '+(req.byName||"")+' ขอเอาออก'+(req.reason?(": "+req.reason):"")+'</span>'
             +' <button onclick="approveRemoveTripBill(\''+b.billNo+'\')" style="background:#0F6E56;color:#fff;border:none;border-radius:5px;padding:2px 8px;cursor:pointer;font-size:11px">อนุมัติเอาออก</button>'
             +' <button onclick="rejectRemoveTripBill(\''+b.billNo+'\')" style="background:#eee;border:none;border-radius:5px;padding:2px 7px;cursor:pointer;font-size:11px">ปฏิเสธ</button>';
       } else if(req && !isAdmin){
@@ -1845,24 +1847,51 @@ function _editTripLive(){
   if(stg==="proposed") return false; // ยังไม่อนุมัติ → เสมียนเพิ่ม/ลดบิลได้อิสระ
   return !!ex.driverUsername;
 }
+function _pickRemoveReason(billNo, cb){
+  var reasons=["ขึ้นรถไม่ได้","คนรถไม่เอาไป","จัดผิดเส้นทาง","อื่นๆ"];
+  var ov=document.createElement("div");
+  ov.style.cssText="position:fixed;inset:0;background:rgba(0,0,0,.45);z-index:99999;display:flex;align-items:center;justify-content:center;padding:20px";
+  ov.innerHTML='<div style="background:#fff;border-radius:14px;max-width:340px;width:100%;padding:18px;box-shadow:0 10px 40px rgba(0,0,0,.3)">'
+    +'<div style="font-weight:800;font-size:15px;color:#0F6E56;margin-bottom:4px">เอาบิล '+billNo+' ออก</div>'
+    +'<div style="font-size:12px;color:#888;margin-bottom:12px">เลือกเหตุผล</div>'
+    +reasons.map(function(r){return '<button data-r="'+r+'" style="display:block;width:100%;text-align:left;padding:12px 14px;margin-bottom:8px;border:1px solid #d8e8e2;border-radius:10px;background:#f8fffe;font-size:14px;cursor:pointer;color:#222">'+r+'</button>';}).join("")
+    +'<button id="_rr-cancel" style="display:block;width:100%;padding:10px;margin-top:4px;border:none;border-radius:10px;background:#eee;font-size:13px;cursor:pointer;color:#666">ยกเลิก</button>'
+    +'</div>';
+  document.body.appendChild(ov);
+  function close(){ try{document.body.removeChild(ov);}catch(e){} }
+  ov.addEventListener("click",function(e){ if(e.target===ov) close(); });
+  ov.querySelector("#_rr-cancel").onclick=close;
+  ov.querySelectorAll("button[data-r]").forEach(function(btn){
+    btn.onclick=function(){
+      var r=btn.getAttribute("data-r");
+      if(r==="อื่นๆ"){ var t=prompt("ระบุเหตุผล:",""); if(t===null) return; r=(t.trim()||"อื่นๆ"); }
+      close(); cb(r);
+    };
+  });
+}
+function _removalFields(reason){
+  var f={ removeReason: reason||"", removedBy: CU?(CU.name||CU.username):"", removedAt: new Date().toISOString() };
+  try{ f.removeLog = firebase.firestore.FieldValue.arrayUnion({reason:f.removeReason, by:f.removedBy, at:f.removedAt}); }catch(e){}
+  return f;
+}
 function removeTripBill(billNo){
   // เสมียน + เที่ยวส่งแล้ว = ต้องขออนุมัติ ; เที่ยวยังไม่ส่ง = ลบได้เลย
   if(!(CU&&CU.role==="admin") && _editTripLive()){ requestRemoveTripBill(billNo); return; }
-  if(!confirm("เอาบิล "+billNo+" ออกจากเที่ยวนี้?")) return;
-  var b=_tripState.selectedBills[billNo]||BILLS.find(function(x){return x.billNo===billNo;});
-  delete _tripState.selectedBills[billNo];
-  var DONE=["ส่งสำเร็จ","delivered","success","ส่งไม่สำเร็จ","นำกลับสาขา"];
-  var upd={tripId:""};
-  if(!b || DONE.indexOf(b.status)<0){ upd.status="ออกบิลรับของ"; upd.driver=""; upd.driverName=""; }
-  if(GolodDB.updateBill) GolodDB.updateBill(billNo, upd).then(function(){ var lb=BILLS.find(function(x){return x.billNo===billNo;}); if(lb){lb.tripId="";if(upd.status){lb.status=upd.status;lb.driver="";}} }).catch(function(){});
-  _persistTripBillIds();
-  _refreshCurrentBills();
+  _pickRemoveReason(billNo, function(reason){
+    var b=_tripState.selectedBills[billNo]||BILLS.find(function(x){return x.billNo===billNo;});
+    delete _tripState.selectedBills[billNo];
+    var DONE=["ส่งสำเร็จ","delivered","success","ส่งไม่สำเร็จ","นำกลับสาขา"];
+    var upd=Object.assign({tripId:""}, _removalFields(reason));
+    if(!b || DONE.indexOf(b.status)<0){ upd.status="ออกบิลรับของ"; upd.driver=""; upd.driverName=""; }
+    if(GolodDB.updateBill) GolodDB.updateBill(billNo, upd).then(function(){ var lb=BILLS.find(function(x){return x.billNo===billNo;}); if(lb){lb.tripId="";lb.removeReason=upd.removeReason;lb.removedBy=upd.removedBy;lb.removedAt=upd.removedAt;if(upd.status){lb.status=upd.status;lb.driver="";}} }).catch(function(){});
+    _persistTripBillIds();
+    _refreshCurrentBills();
+  });
 }
 
 // เสมียนขอเอาออก → เข้าคิวรออนุมัติ (บิลยังอยู่)
-function requestRemoveTripBill(billNo){
-  var reason = prompt("เหตุผลที่ขอเอาบิล "+billNo+" ออกจากเที่ยว (เช่น คนละเส้นทาง/ใส่ผิดคน):","");
-  if(reason===null) return;
+function requestRemoveTripBill(billNo, reason){
+  if(reason==null){ _pickRemoveReason(billNo, function(r){ requestRemoveTripBill(billNo, r); }); return; }
   _tripState.removalReqs = _tripState.removalReqs || [];
   if(_tripState.removalReqs.find(function(r){return r.billNo===billNo&&r.status==="pending";})){ _refreshCurrentBills(); return; }
   _tripState.removalReqs.push({billNo:billNo, reason:reason, status:"pending",
@@ -1941,8 +1970,14 @@ function unmarkTripReady(tid){
 function approveRemoveTripBill(billNo){
   if(!(CU&&CU.role==="admin")) return;
   if(!confirm("อนุมัติเอาบิล "+billNo+" ออกจากเที่ยว?")) return;
+  var req=(_tripState.removalReqs||[]).find(function(r){return r.billNo===billNo;});
+  var reason=req?(req.reason||""):"";
+  var b=_tripState.selectedBills[billNo]||BILLS.find(function(x){return x.billNo===billNo;});
   delete _tripState.selectedBills[billNo];
-  if(GolodDB.updateBill) GolodDB.updateBill(billNo, {tripId:""}).catch(function(){});
+  var DONE=["ส่งสำเร็จ","delivered","success","ส่งไม่สำเร็จ","นำกลับสาขา"];
+  var upd=Object.assign({tripId:""}, _removalFields(reason));
+  if(!b || DONE.indexOf(b.status)<0){ upd.status="ออกบิลรับของ"; upd.driver=""; upd.driverName=""; }
+  if(GolodDB.updateBill) GolodDB.updateBill(billNo, upd).then(function(){ var lb=BILLS.find(function(x){return x.billNo===billNo;}); if(lb){lb.tripId="";lb.removeReason=upd.removeReason;lb.removedBy=upd.removedBy;lb.removedAt=upd.removedAt;if(upd.status){lb.status=upd.status;lb.driver="";}} }).catch(function(){});
   _tripState.removalReqs = (_tripState.removalReqs||[]).filter(function(r){ return r.billNo!==billNo; });
   _persistTripBillIds(); _persistRemovalReqs(); _refreshCurrentBills();
 }
@@ -1977,10 +2012,13 @@ function renderTripForm(existingTrip){
   var isEdit = _tripState.mode === "edit";
   var isAdmin = CU && (CU.role==="admin");
   var ub = getUserBranch();
-  var drivers = _tripState.drivers.filter(function(d){
-    if(ub==="all") return true;
-    var bm={"กรุงเทพ":"bkk","ปทุมธานี":"bkk","นครราชสีมา":"krt","ศรีสะเกษ":"ssk"};
-    return (bm[d.branch]||d.branch)===ub;
+  var bm={"กรุงเทพ":"bkk","ปทุมธานี":"bkk","นครราชสีมา":"krt","ศรีสะเกษ":"ssk"};
+  var _dbr=function(d){ return bm[d.branch]||d.branch; };
+  // โชว์คนขับทุกคน (กันคนขับข้ามสาขาถูกซ่อน) — เรียงสาขาของผู้ใช้ขึ้นก่อน
+  var drivers = _tripState.drivers.slice().sort(function(a,b){
+    var aw=(_dbr(a)===ub)?0:1, bw=(_dbr(b)===ub)?0:1;
+    if(aw!==bw) return aw-bw;
+    return String(a.name||"").localeCompare(String(b.name||""));
   });
   var driverOpts = drivers.map(function(d){
     return '<option value="'+d.username+'" data-name="'+d.name+'"'+(t.driverUsername===d.username?" selected":"")+'>'+d.name+' ('+d.branch+')</option>';
@@ -2012,7 +2050,7 @@ function renderTripForm(existingTrip){
     return '<div class="bill-pick-row'+(sel?" selected":"")+'" data-bno="'+b.billNo+'" onclick="toggleTripBill(this.dataset.bno)">'
       +'<input type="checkbox" class="bpr-check" '+(sel?"checked":"")+'>'
       +'<div class="bpr-no">'+b.billNo+'</div>'
-      +'<div class="bpr-info">'+recv+stHtml+'<br><span style="color:#aaa">'+(amph?amph+"·":"")+prov+'</span></div>'
+      +'<div class="bpr-info">'+recv+stHtml+'<br><span style="color:#aaa">'+(amph?amph+"·":"")+prov+'</span>'+(b.removeReason?'<br><span style="color:#E67E22;font-size:10px">↩ เคยถูกถอด: '+b.removeReason+(b.removedBy?(" ("+b.removedBy+")"):"")+'</span>':'')+'</div>'
       +'<div class="bpr-amt"><span style="'+amtColor+'">'+net.toLocaleString("th-TH")+'฿</span>'
       +(cod>0?'<br><span style="color:#c0392b;font-size:10px">COD '+cod.toLocaleString("th-TH")+'</span>':'')
       +'</div>'
@@ -2042,7 +2080,8 @@ function renderTripForm(existingTrip){
     +'<div class="trip-section-title">▶ คนขับ & เส้นทาง</div>'
     +'<div class="trip-form-grid">'
     +'<div><div class="trip-lbl">คนขับ</div>'
-    +'<select id="tf-driver" class="trip-inp" onchange="updateTripDriverLabel()"><option value="">เลือกคนขับ</option>'+driverOpts+'</select></div>'
+    +'<select id="tf-driver" class="trip-inp" onchange="updateTripDriverLabel()"><option value="">เลือกคนขับ</option>'+driverOpts+'<option value="__custom__"'+((t.driverName&&!t.driverUsername)?" selected":"")+'>✏️ พิมพ์ชื่อเอง (รถร่วม)</option></select>'
+    +'<input id="tf-driver-custom" class="trip-inp" placeholder="ชื่อคนขับ / รถร่วม" style="margin-top:6px;display:'+((t.driverName&&!t.driverUsername)?"block":"none")+'" value="'+((t.driverName&&!t.driverUsername)?String(t.driverName).replace(/"/g,"&quot;"):"")+'"></div>'
     +'<div><div class="trip-lbl">เส้นทาง (เสมียนกรอก / เลือกเส้นที่ตั้งไว้)</div>'
     +'<input id="tf-route" class="trip-inp" list="tf-route-dl" placeholder="เช่น กทม.→โคราช" value="'+(t.route||"").replace(/"/g,"&quot;")+'" onchange="tfSyncTiers()"></div>'
     +'<datalist id="tf-route-dl">'+_routes.map(function(r){return '<option value="'+String(r.name||"").replace(/"/g,"&quot;")+'">';}).join("")+'</datalist>'
@@ -2304,7 +2343,10 @@ function calcTotalFare(){
   if(hotelWrap && daysEl) hotelWrap.style.display = parseInt(daysEl.value||1)>=2 ? "" : "none";
 }
 
-function updateTripDriverLabel(){}
+function updateTripDriverLabel(){
+  var sel=document.getElementById("tf-driver"), cu=document.getElementById("tf-driver-custom");
+  if(sel&&cu) cu.style.display=(sel.value==="__custom__")?"block":"none";
+}
 
 function makeTfPickupRow(p){
   p = p||{};
@@ -2636,6 +2678,7 @@ function saveTrip(){
   var driverSel = document.getElementById("tf-driver");
   var driverUsername = driverSel ? driverSel.value : "";
   var driverName = driverSel && driverSel.selectedOptions[0] ? driverSel.selectedOptions[0].getAttribute("data-name")||driverSel.selectedOptions[0].text : "";
+  if(driverUsername==="__custom__"){ driverUsername=""; driverName=((document.getElementById("tf-driver-custom")||{}).value||"").trim(); }
   // คงสถานะเสนอ/อนุมัติตอนแก้ไข — เที่ยว "รออนุมัติ" (proposed) ยังไม่ต้องใส่คนรถ
   var _keepStatus = "open";
   var _isAdminSave = CU && CU.role==="admin";
@@ -2646,7 +2689,7 @@ function saveTrip(){
   } else if(!_isAdminSave){
     _keepStatus="proposed"; // เสมียนสร้างเที่ยวจากหน้านี้ → ต้องรออนุมัติ
   }
-  if(!driverUsername && _keepStatus!=="proposed"){ alert("กรุณาเลือกคนขับ"); return; }
+  if(!driverUsername && !driverName && _keepStatus!=="proposed"){ alert("กรุณาเลือกหรือพิมพ์ชื่อคนขับ"); return; }
 
   var billIds = Object.keys(_tripState.selectedBills);
   var selBills = Object.values(_tripState.selectedBills);
@@ -4957,7 +5000,7 @@ function printSettlement(asPdf){
 
 function confirmSettlement(){
   if(!_settle) return;
-  if(!_settle.trip.driverUsername){ alert("เที่ยวนี้ยังไม่มีคนขับ"); return; }
+  if(!_settle.trip.driverUsername && !_settle.trip.driverName){ alert("เที่ยวนี้ยังไม่มีคนขับ — กดแก้ไขเพื่อใส่ชื่อคนขับก่อน"); return; }
   if(!confirm("ยืนยันจัดเที่ยว \"รอบสุดท้าย\" ? (ใช้หลังขึ้นของเสร็จ)\n\nระบบจะ:\n• ดึงบิลล่าสุดของเที่ยวมาสรุปยอดจริง\n• ส่งบิลที่เพิ่มเข้ามาให้คนรถ\n• ถอดบิลที่เอาออก ไม่ให้ค้างในแอปคนรถ\n• ล็อกใบนี้เป็น \"ยืนยันแล้ว\"")) return;
   var now=new Date().toISOString(), me=(CU&&(CU.name||CU.username))||"";
   var t=_settle.trip, curIds=(t.billIds||[]);
