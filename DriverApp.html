@@ -149,7 +149,7 @@ body{font-family:'Sarabun',Arial,sans-serif;background:#f0f4f0;min-height:100vh;
 <!-- Main app -->
 <div id="main-screen" style="display:none">
   <div class="topbar">
-    <span class="title">🚛 งานของฉัน <span style="font-size:9px;opacity:.6;font-weight:400">b0610b</span></span>
+    <span class="title">🚛 งานของฉัน <span style="font-size:9px;opacity:.6;font-weight:400">b0617a</span></span>
     <span class="driver-name" id="driver-label"></span>
     <button class="btn-logout" onclick="doLogout()">ออก</button>
   </div>
@@ -996,6 +996,7 @@ function saveDriverClearTrip(){
 
 // ====== PICKUP BILL ======
 var _pbBillNo = null;
+var _pbLastSaved = null;
 var _pbPickupIdx = null, _pbPickupTripId = null;
 
 function genPickupBillNo(){
@@ -1007,17 +1008,19 @@ function genPickupBillNo(){
   return "DR"+yy+mm+"-"+ts;
 }
 // เช็กบิลซ้ำตามรายละเอียด (กันออกบิลงานรับเดิมหลายใบ)
+function _pbNorm(s){ return (s||"").replace(/\s+/g,"").trim().toLowerCase(); }
+function _pbSig(bill){ return _pbNorm(bill.receiverName)+"|"+_pbNorm(bill.destProv)+"|"+(parseFloat(bill.freightNet||0)||0); }
 function _pbFindDuplicate(bill){
   var pool=[];
   try{ pool=JSON.parse(localStorage.getItem("golod_bills")||"[]"); }catch(e){}
   if(typeof BILLS!=="undefined" && Array.isArray(BILLS)) pool=pool.concat(BILLS);
-  var rn=(bill.receiverName||"").trim(), rp=(bill.receiverPhone||"").trim(), dp=(bill.destProv||"").trim(), fr=parseFloat(bill.freightNet||0)||0;
-  if(!rn && !rp) return null;
+  var rn=_pbNorm(bill.receiverName), dp=_pbNorm(bill.destProv), fr=parseFloat(bill.freightNet||0)||0;
+  if(!rn) return null;
   return pool.find(function(b){
     if(!b||!b.billNo||b.billNo===bill.billNo) return false;
     var st=b.status||""; if(st==="ปฏิเสธ"||st==="ยกเลิก") return false;
-    return (b.receiverName||"").trim()===rn && (b.receiverPhone||"").trim()===rp
-        && (b.destProv||"").trim()===dp && (parseFloat(b.freightNet||0)||0)===fr;
+    if(!b.isDriverBill) return false; // เทียบเฉพาะบิลที่คนรถออก
+    return _pbNorm(b.receiverName)===rn && _pbNorm(b.destProv)===dp && (parseFloat(b.freightNet||0)||0)===fr;
   })||null;
 }
 
@@ -1343,6 +1346,10 @@ function submitPickupBill(){
 
   if(!GolodDB.saveBill){ alert("ระบบยังไม่พร้อม"); return; }
   // เตือนถ้ามีบิลรายละเอียดเหมือนกันอยู่แล้ว (กันออกซ้ำงานรับเดิม)
+  var _sig=_pbSig(bill);
+  if(_pbLastSaved && _pbLastSaved.sig===_sig && (Date.now()-_pbLastSaved.at)<300000){
+    if(!confirm("⚠️ เพิ่งบันทึกงานนี้ไปเมื่อสักครู่ (เลขบิล "+_pbLastSaved.billNo+")\nผู้รับ/ปลายทาง/ค่าส่ง เหมือนกันเป๊ะ\n\nออกบิลซ้ำอีกใบจริงหรือไม่?")){ window._pbSubmitting=false; return; }
+  }
   var _dupB=_pbFindDuplicate(bill);
   if(_dupB && !confirm("⚠️ มีบิลรายละเอียดเหมือนกันอยู่แล้ว!\n\nเลขบิล: "+_dupB.billNo+"\nผู้รับ: "+(_dupB.receiverName||"-")+"\nปลายทาง: "+(_dupB.destProv||"-")+"\nค่าส่ง: "+(parseFloat(_dupB.freightNet||0)||0).toLocaleString("th-TH")+" ฿\n\nออกบิลใบใหม่ซ้ำหรือไม่?")){
     window._pbSubmitting=false; return;
@@ -1361,6 +1368,7 @@ function submitPickupBill(){
     if(photoUrls && photoUrls.length>0) bill.pickupPhotos = photoUrls;
     GolodDB.saveBill(bill).then(function(){
       window._pbSubmitting = false; _pbBillNo = null; // เปิดใหม่ = เลขใหม่
+      _pbLastSaved = {sig:_pbSig(bill), billNo:bill.billNo, at:Date.now()};
       try{
         if(_pbPickupIdx!=null && _pbPickupTripId){
           var _tr=DRIVER_TRIPS.find(function(t){return t.id===_pbPickupTripId;});
