@@ -668,7 +668,7 @@ tr:hover td{background:#f8fffe}
 <div class="topbar">
   <span class="title">🚛 จัดการขนส่ง</span>
   <span id="session-info" style="font-size:11px;opacity:.8"></span>
-  <span style="font-size:10px;opacity:.65;margin-left:auto">build 2026-06-10z38</span>
+  <span style="font-size:10px;opacity:.65;margin-left:auto">build 2026-06-10z41</span>
   <a href="GolodApp.html" style="margin-left:10px">← หน้าหลัก</a>
 </div>
 <div class="container">
@@ -1721,6 +1721,7 @@ function editTrip(tripId){
   _tripState.selectedBills = {};
   var trip = (_tripState.openTrips||[]).find(function(t){ return t.id===tripId; });
   _tripState.removalReqs = (trip && trip.billRemovalRequests) ? trip.billRemovalRequests.slice() : [];
+  _tripState.additionReqs = (trip && trip.billAdditionRequests) ? trip.billAdditionRequests.slice() : [];
   // โหลด bills ที่อยู่ใน BILLS ก่อน (เร็ว)
   if(trip && trip.billIds){
     trip.billIds.forEach(function(bno){
@@ -1753,19 +1754,16 @@ function pushTripToDriver(tripId){
   var curIds=(t.billIds||[]), now=new Date().toISOString();
   (GolodDB.getBillsByTripId?GolodDB.getBillsByTripId(t.id):Promise.resolve([])).then(function(claim){
     claim=claim||[];
-    // บิลที่ tripId ชี้มาที่เที่ยวนี้ แต่ไม่อยู่ใน billIds แล้ว = ถูกเอาออก → คืนกอง
-    var removed=claim.filter(function(b){ return b.billNo && curIds.indexOf(b.billNo)<0; });
-    var clearUps=removed.map(function(b){
-      return GolodDB.updateBill(b.billNo, {driver:"", driverName:"", tripId:"", status:"ออกบิลรับของ", updatedAt:now})
-        .then(function(){ var lb=BILLS.find(function(x){return x.billNo===b.billNo;}); if(lb){lb.driver="";lb.tripId="";lb.status="ออกบิลรับของ";} return {ok:true}; })
-        .catch(function(){ return {ok:false}; });
-    });
-    Promise.all(clearUps).then(function(){
+    // กู้คืน: บิลที่ tripId ชี้มาเที่ยวนี้ แต่ตกหล่นจาก billIds → ใส่กลับ ไม่ล้างทิ้ง (บิลที่ถอดจริงถูกล้าง tripId ตั้งแต่ตอนถอดแล้ว)
+    var recovered=[], mergedIds=curIds.slice();
+    claim.forEach(function(b){ if(b&&b.billNo && curIds.indexOf(b.billNo)<0){ recovered.push(b.billNo); if(mergedIds.indexOf(b.billNo)<0) mergedIds.push(b.billNo); } });
+    if(recovered.length){ t.billIds=mergedIds; curIds=mergedIds; if(GolodDB.updateTrip) GolodDB.updateTrip(t.id,{billIds:mergedIds}).catch(function(){}); }
+    Promise.resolve().then(function(){
       // ส่งบิลปัจจุบันให้คนรถ (เปลี่ยน driver ของบิลเป็นคนใหม่อัตโนมัติ → หลุดจากแอปคนเก่า)
       _dispatchTripBills(t).then(function(r){
         var msg;
         if(r.fail.length){ msg="⚠️ ส่งแล้ว แต่มี "+r.fail.length+" บิลไม่สำเร็จ:\n"+r.fail.map(function(x){ return "• "+x.bn; }).join("\n")+"\n\nลองกดซ้ำอีกครั้ง"; }
-        else { msg="✅ ส่งให้ "+(t.driverName||t.driverUsername)+" แล้ว "+curIds.length+" บิล"+(removed.length?(" · คืนกอง "+removed.length+" บิล"):"")+"\n\nบอกคนรถกด 🔄 รีเฟรชในแอป"; }
+        else { msg="✅ ส่งให้ "+(t.driverName||t.driverUsername)+" แล้ว "+curIds.length+" บิล"+(recovered.length?(" · กู้บิลตกหล่น "+recovered.length+" บิล"):"")+"\n\nบอกคนรถกด 🔄 รีเฟรชในแอป"; }
         alert(msg);
         renderTripTab();
       }).catch(function(e){ alert("❌ "+(e&&e.message||e)); });
@@ -1789,12 +1787,13 @@ function _dispatchTripBills(t){
 
 function renderCurrentTripBills(){
   var bills = Object.keys(_tripState.selectedBills).map(function(k){ return _tripState.selectedBills[k]; });
-  if(!bills.length) return '<div style="font-size:11px;color:#aaa;padding:6px">— ยังไม่มีบิลในเที่ยว —</div>';
   var isAdmin = CU && CU.role==="admin";
+  var addReqs = (_tripState.additionReqs||[]).filter(function(r){return r.status==="pending";});
+  if(!bills.length && !addReqs.length) return '<div style="font-size:11px;color:#aaa;padding:6px">— ยังไม่มีบิลในเที่ยว —</div>';
   var canDirect = isAdmin || !_editTripLive();
   var reqs = _tripState.removalReqs || [];
   var STMAP={"ส่งสำเร็จ":"✅","delivered":"✅","success":"✅","ส่งไม่สำเร็จ":"❌","นำกลับสาขา":"↩️","กำลังวิ่งส่งลูกค้า":"🚚","ออกบิลรับของ":"📦"};
-  return '<div style="border:1px solid #e0e0e0;border-radius:8px;max-height:220px;overflow-y:auto">'
+  var listHtml = (bills.length ? ('<div style="border:1px solid #e0e0e0;border-radius:8px;max-height:220px;overflow-y:auto">'
     + bills.map(function(b){
       var st=b.status||"";
       var ic=STMAP[st]||"•";
@@ -1819,9 +1818,21 @@ function renderCurrentTripBills(){
         +'<span style="white-space:nowrap">'+btn+'</span>'
         +'</div>';
     }).join("")
-    + '</div>'
-    + (reqs.filter(function(r){return r.status==="pending";}).length && !isAdmin
+    + '</div>') : '');
+  var removalNote = (reqs.filter(function(r){return r.status==="pending";}).length && !isAdmin
        ? '<div style="font-size:10px;color:#E67E22;margin-top:4px">⏳ มีคำขอเอาบิลออก รอแอดมินอนุมัติ — บิลจะยังอยู่ในเที่ยวจนกว่าจะอนุมัติ</div>':'');
+  var addHtml = (addReqs.length ? ('<div style="border:1px solid #ffd599;border-radius:8px;margin-top:6px;background:#fff8ef">'
+    + '<div style="font-size:11px;font-weight:700;color:#E67E22;padding:5px 10px;border-bottom:1px solid #ffe9cc">⏳ คำขอเพิ่มบิล (รออนุมัติ '+addReqs.length+')</div>'
+    + addReqs.map(function(r){
+        var bb=BILLS.find(function(x){return x.billNo===r.billNo;})||{};
+        var info=(bb.receiverName||"")+' · '+((bb.destAmphoe||"")?(bb.destAmphoe+"·"):"")+(bb.destProv||"");
+        var ab = isAdmin
+          ? '<button onclick="approveAddTripBill(\''+r.billNo+'\')" style="background:#0F6E56;color:#fff;border:none;border-radius:5px;padding:2px 8px;cursor:pointer;font-size:11px">อนุมัติเพิ่ม</button> <button onclick="rejectAddTripBill(\''+r.billNo+'\')" style="background:#eee;border:none;border-radius:5px;padding:2px 7px;cursor:pointer;font-size:11px">ปฏิเสธ</button>'
+          : '<span style="color:#E67E22;font-size:10px">⏳ '+(r.byName||"")+' ขอเพิ่ม</span> <button onclick="cancelAddTripBill(\''+r.billNo+'\')" style="background:#eee;border:none;border-radius:5px;padding:2px 7px;cursor:pointer;font-size:10px">ยกเลิก</button>';
+        return '<div style="display:flex;align-items:center;gap:8px;padding:6px 10px;border-bottom:1px solid #ffe9cc;font-size:12px"><span style="font-weight:600;min-width:90px">'+r.billNo+'</span><span style="flex:1;color:#666">'+info+'</span><span style="white-space:nowrap">'+ab+'</span></div>';
+      }).join("")
+    + '</div>') : '');
+  return listHtml + removalNote + addHtml;
 }
 
 // แอดมินลบได้เลย
@@ -1864,6 +1875,49 @@ function requestRemoveTripBill(billNo){
 function cancelRemoveTripBill(billNo){
   _tripState.removalReqs = (_tripState.removalReqs||[]).filter(function(r){ return !(r.billNo===billNo&&r.status==="pending"); });
   _persistRemovalReqs(); _refreshCurrentBills();
+}
+
+// ===== คำขอ "เพิ่มบิล" เข้าเที่ยวที่อนุมัติแล้ว (เสมียนต้องรออนุมัติ — ปิดช่องดันบิลเข้าคนรถเอง) =====
+function requestAddTripBill(billNo){
+  _tripState.additionReqs = _tripState.additionReqs || [];
+  if(_tripState.additionReqs.find(function(r){return r.billNo===billNo&&r.status==="pending";})) return;
+  _tripState.additionReqs.push({billNo:billNo, status:"pending", by:CU?CU.username:"", byName:CU?(CU.name||CU.username):"", at:new Date().toISOString()});
+  _persistAdditionReqs(); _refreshCurrentBills();
+  alert("ส่งคำขอ \"เพิ่มบิล "+billNo+"\" แล้ว รอแอดมินอนุมัติ\nบิลจะยังไม่เข้าคนรถจนกว่าจะอนุมัติ");
+}
+function cancelAddTripBill(billNo){
+  _tripState.additionReqs = (_tripState.additionReqs||[]).filter(function(r){ return !(r.billNo===billNo&&r.status==="pending"); });
+  _persistAdditionReqs(); _refreshCurrentBills();
+}
+function approveAddTripBill(billNo){
+  if(!(CU&&CU.role==="admin")) return;
+  var t=(_tripState.openTrips||[]).find(function(x){return x.id===_tripState.editId;});
+  var b=BILLS.find(function(x){return x.billNo===billNo;});
+  function done(){
+    _tripState.selectedBills[billNo]= b || {billNo:billNo};
+    _tripState.additionReqs=(_tripState.additionReqs||[]).filter(function(r){return r.billNo!==billNo;});
+    _persistTripBillIds(); _persistAdditionReqs();
+    if(t && t.driverUsername && GolodDB.updateBill){
+      var DONE=["ส่งสำเร็จ","delivered","ส่งไม่สำเร็จ","ส่งไม่ได้","ปิดงาน","cleared"];
+      var upd={tripId:t.id, driver:t.driverUsername, driverName:t.driverName||t.driverUsername, updatedAt:new Date().toISOString()};
+      if(!b || DONE.indexOf(b.status)<0) upd.status="กำลังวิ่งส่งลูกค้า";
+      GolodDB.updateBill(billNo, upd).then(function(){ var lb=BILLS.find(function(x){return x.billNo===billNo;}); if(lb){lb.tripId=t.id;lb.driver=t.driverUsername;if(upd.status)lb.status=upd.status;} }).catch(function(){});
+    }
+    _refreshCurrentBills(); _syncPickerUI();
+  }
+  if(b){ done(); return; }
+  var db; try{db=firebase.firestore();}catch(e){}
+  if(db){ db.collection("bills").where("billNo","==",billNo).limit(1).get().then(function(snap){ if(snap&&!snap.empty) b=snap.docs[0].data(); done(); }).catch(done); }
+  else done();
+}
+function rejectAddTripBill(billNo){
+  if(!(CU&&CU.role==="admin")) return;
+  _tripState.additionReqs=(_tripState.additionReqs||[]).filter(function(r){return r.billNo!==billNo;});
+  _persistAdditionReqs(); _refreshCurrentBills(); _syncPickerUI();
+}
+function _persistAdditionReqs(){
+  if(!_tripState.editId || !GolodDB.updateTrip) return;
+  GolodDB.updateTrip(_tripState.editId, {billAdditionRequests: _tripState.additionReqs||[]}).catch(function(){});
 }
 
 function markTripReady(tid){
@@ -2481,26 +2535,31 @@ function getTfPickupData(){
   return pickups;
 }
 
+function _isPendingAdd(billNo){ return (_tripState.additionReqs||[]).some(function(r){return r.billNo===billNo&&r.status==="pending";}); }
+function _syncPickerUI(){
+  document.querySelectorAll(".bill-pick-row").forEach(function(row){
+    var no=row.querySelector(".bpr-no"); if(!no) return;
+    var bno=no.textContent;
+    var sel = !!_tripState.selectedBills[bno] || _isPendingAdd(bno);
+    row.classList.toggle("selected", sel);
+    var cb=row.querySelector(".bpr-check"); if(cb) cb.checked=sel;
+  });
+  var cntEl=document.getElementById("tf-bill-count");
+  if(cntEl) cntEl.textContent = Object.keys(_tripState.selectedBills).length;
+}
 function toggleTripBill(billNo){
+  var liveClerk = !(CU&&CU.role==="admin") && _editTripLive();
   if(_tripState.selectedBills[billNo]){
     delete _tripState.selectedBills[billNo];
+  } else if(liveClerk){
+    if(_isPendingAdd(billNo)) cancelAddTripBill(billNo);
+    else requestAddTripBill(billNo);
+    _syncPickerUI(); return;
   } else {
     var b = BILLS.find(function(x){ return x.billNo===billNo; });
     if(b) _tripState.selectedBills[billNo] = b;
   }
-  // update UI
-  var rows = document.querySelectorAll(".bill-pick-row");
-  rows.forEach(function(row){
-    var no = row.querySelector(".bpr-no");
-    if(!no) return;
-    var bno = no.textContent;
-    var sel = !!_tripState.selectedBills[bno];
-    row.classList.toggle("selected", sel);
-    var cb = row.querySelector(".bpr-check");
-    if(cb) cb.checked = sel;
-  });
-  var cntEl = document.getElementById("tf-bill-count");
-  if(cntEl) cntEl.textContent = Object.keys(_tripState.selectedBills).length;
+  _syncPickerUI();
 }
 
 function filterTripBills(q){
@@ -2699,11 +2758,9 @@ function saveTrip(){
     var clearRemoved = Promise.resolve();
     if(isEditTrip && GolodDB.getBillsByTripId){
       clearRemoved = GolodDB.getBillsByTripId(saved.id).then(function(claim){
-        var removed=(claim||[]).filter(function(b){ return b.billNo && billIds.indexOf(b.billNo)<0; });
-        return Promise.all(removed.map(function(b){
-          return GolodDB.updateBill(b.billNo, {driver:"",driverName:"",tripId:"",status:"ออกบิลรับของ",updatedAt:new Date().toISOString()})
-            .then(function(){ var lb=BILLS.find(function(x){return x.billNo===b.billNo;}); if(lb){lb.driver="";lb.tripId="";lb.status="ออกบิลรับของ";} }).catch(function(){});
-        }));
+        // กู้คืน: บิลที่ tripId ยังชี้มาเที่ยวนี้ แต่ตกหล่นจาก billIds → ใส่กลับ ไม่ล้างทิ้ง
+        var recov=(claim||[]).filter(function(b){ return b.billNo && billIds.indexOf(b.billNo)<0; }).map(function(b){return b.billNo;});
+        if(recov.length){ recov.forEach(function(bn){ if(billIds.indexOf(bn)<0) billIds.push(bn); }); if(GolodDB.updateTrip) return GolodDB.updateTrip(saved.id,{billIds:billIds}).catch(function(){}); }
       }).catch(function(){});
     }
     return clearRemoved.then(function(){
@@ -4468,28 +4525,38 @@ function getTripBills(trip){
 // ดึงบิลของเที่ยวตรงจาก Firestore — โดย doc id (=billNo) และ query tripId
 function fetchTripBillsFromDB(trip){
   var db; try{ db=firebase.firestore(); }catch(e){ return Promise.resolve([]); }
-  var ids=(trip&&trip.billIds)||[];
-  var tasks=[];
-  if(ids.length){
-    // มี billIds → ดึงเฉพาะตาม billIds เท่านั้น (รายการบิลในเที่ยวที่เป็นทางการ)
-    ids.forEach(function(id){
-      tasks.push(db.collection("bills").doc(String(id)).get()
-        .then(function(d){ return d.exists?d.data():null; }).catch(function(){ return null; }));
-    });
-  } else if(trip && trip.id){
-    // ไม่มี billIds → fallback ดึงด้วย tripId
-    tasks.push(db.collection("bills").where("tripId","==",trip.id).get()
-      .then(function(snap){ var a=[]; snap.forEach(function(d){a.push(d.data());}); return a; })
-      .catch(function(){ return []; }));
+  var ids=((trip&&trip.billIds)||[]).map(String);
+  if(!ids.length){
+    // ไม่มี billIds → ดึงด้วย field tripId
+    if(trip && trip.id){
+      return db.collection("bills").where("tripId","==",trip.id).get()
+        .then(function(snap){ var a=[]; snap.forEach(function(d){a.push(d.data());}); return a; })
+        .catch(function(){ return []; });
+    }
+    return Promise.resolve([]);
   }
-  return Promise.all(tasks).then(function(parts){
-    var seen={}, out=[];
-    parts.forEach(function(p){
-      if(!p) return;
-      var arr=Array.isArray(p)?p:[p];
-      arr.forEach(function(b){ if(b&&b.billNo&&!seen[b.billNo]){ seen[b.billNo]=true; out.push(b); } });
+  // 1) ลองดึงด้วย doc(billNo) ก่อน (กรณี document id = เลขบิล)
+  var docTasks=ids.map(function(id){
+    return db.collection("bills").doc(id).get()
+      .then(function(d){ return d.exists?d.data():null; }).catch(function(){ return null; });
+  });
+  return Promise.all(docTasks).then(function(docs){
+    var byNo={}, found={};
+    docs.forEach(function(b){ if(b&&b.billNo){ byNo[b.billNo]=b; found[b.billNo]=true; } });
+    ids.forEach(function(id,i){ if(docs[i]&&docs[i].billNo) found[id]=true; });
+    // 2) บิลที่ doc(billNo) หาไม่เจอ (document id เป็นค่าอัตโนมัติ) → query ด้วย field billNo
+    var missing=ids.filter(function(id){ return !found[id]; });
+    if(!missing.length){ return Object.keys(byNo).map(function(k){return byNo[k];}); }
+    var chunks=[]; for(var i=0;i<missing.length;i+=10) chunks.push(missing.slice(i,i+10));
+    var qTasks=chunks.map(function(ch){
+      return db.collection("bills").where("billNo","in",ch).get()
+        .then(function(snap){ var a=[]; snap.forEach(function(d){a.push(d.data());}); return a; })
+        .catch(function(){ return []; });
     });
-    return out;
+    return Promise.all(qTasks).then(function(parts){
+      parts.forEach(function(arr){ arr.forEach(function(b){ if(b&&b.billNo&&!byNo[b.billNo]) byNo[b.billNo]=b; }); });
+      return Object.keys(byNo).map(function(k){return byNo[k];});
+    });
   });
 }
 
@@ -4897,14 +4964,13 @@ function confirmSettlement(){
   // 1) ดึงบิลล่าสุดในเที่ยว + บิลที่ field tripId ยังชี้มาที่เที่ยวนี้ (เพื่อหาบิลที่ถูกถอด)
   Promise.all([ fetchTripBillsFromDB(t), (GolodDB.getBillsByTripId?GolodDB.getBillsByTripId(t.id):Promise.resolve([])) ]).then(function(rr){
     var tb=rr[0]||[], claim=rr[1]||[];
-    _settle.bills=tb;
-    // บิลที่ tripId==เที่ยวนี้ แต่ไม่อยู่ใน billIds แล้ว = ถูกถอด → คืนสู่กอง (ล้าง driver/tripId)
-    var removed=claim.filter(function(b){ return b.billNo && curIds.indexOf(b.billNo)<0; });
-    var clearUps=removed.map(function(b){
-      return GolodDB.updateBill(b.billNo, {driver:"", driverName:"", tripId:"", status:"ออกบิลรับของ", updatedAt:now})
-        .then(function(){return {bn:b.billNo,ok:true};}).catch(function(){return {bn:b.billNo,ok:false};});
-    });
-    Promise.all(clearUps).then(function(clr){
+    // กู้คืน: บิลที่ tripId ยังชี้มาเที่ยวนี้ แต่ตกหล่นจาก billIds (sync ไม่ทัน/บิล auto-id) → ใส่กลับ ไม่ล้างทิ้ง
+    // (บิลที่ถอดออกจริงถูกล้าง tripId ตั้งแต่ตอนถอดแล้ว จึงไม่อยู่ใน claim → ไม่ถูกกู้)
+    var byNo={}; tb.forEach(function(b){ if(b&&b.billNo) byNo[b.billNo]=b; });
+    var mergedIds=curIds.slice(), recovered=[];
+    claim.forEach(function(b){ if(b&&b.billNo && curIds.indexOf(b.billNo)<0){ recovered.push(b.billNo); if(mergedIds.indexOf(b.billNo)<0) mergedIds.push(b.billNo); if(!byNo[b.billNo]) byNo[b.billNo]=b; } });
+    _settle.bills=Object.keys(byNo).map(function(k){return byNo[k];}); t.billIds=mergedIds;
+    Promise.resolve().then(function(){
       // 2) ส่งบิลปัจจุบันให้คนรถ (บิลที่เพิ่มมาจะได้ driver/สถานะ)
       _dispatchTripBills(t).then(function(disp){
         var c=settleCompute(), s=t.settlement||{};
@@ -4916,10 +4982,10 @@ function confirmSettlement(){
           proposedByName:s.proposedByName||me, proposedAt:s.proposedAt||now,
           approvedByName:s.approvedByName||me, approvedAt:s.approvedAt||now
         });
-        GolodDB.updateTrip(t.id,{settlement:out, status:"open"}).then(function(){
+        GolodDB.updateTrip(t.id,{settlement:out, status:"open", billIds:mergedIds}).then(function(){
           t.settlement=out; t.status="open"; _settle.status="confirmed"; _settle.confirmedByName=me; _settle.confirmedAt=now;
-          var nRemoved=removed.length, nFailDisp=disp.fail.length;
-          alert("🔒 ยืนยันจัดเที่ยวรอบสุดท้ายแล้ว\n\n• บิลในเที่ยว: "+c.count+" ใบ\n• ถอดออกจากคนรถ: "+nRemoved+" ใบ"+(nFailDisp?("\n• ⚠️ ส่งไม่สำเร็จ "+nFailDisp+" ใบ"):"")+"\n\nบอกคนรถกด 🔄 รีเฟรช");
+          var nRemoved=recovered.length, nFailDisp=disp.fail.length;
+          alert("🔒 ยืนยันจัดเที่ยวรอบสุดท้ายแล้ว\n\n• บิลในเที่ยว: "+c.count+" ใบ\n• กู้บิลตกหล่นกลับ: "+nRemoved+" ใบ"+(nFailDisp?("\n• ⚠️ ส่งไม่สำเร็จ "+nFailDisp+" ใบ"):"")+"\n\nบอกคนรถกด 🔄 รีเฟรช");
           renderSettlement(); if(typeof renderTripTab==="function") renderTripTab();
         }).catch(function(e){ alert("บันทึกไม่สำเร็จ: "+(e&&e.message||e)); });
       });
