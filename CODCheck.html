@@ -112,7 +112,7 @@ td.r,th.r{text-align:right}
 <div class="app hidden" id="app-main">
   <div class="hdr">
     <div>
-      <div class="hdr-logo">GOLOD · ตรวจสอบ COD <span style="font-size:10px;opacity:.6;font-weight:400">build 2026-06-06·b5</span></div>
+      <div class="hdr-logo">GOLOD · ตรวจสอบ COD <span style="font-size:10px;opacity:.6;font-weight:400">build 2026-06-06·b6</span></div>
       <div class="hdr-sub">เช็คเงินปลายทางที่เก็บแทนลูกค้าต้นทาง — เก็บครบไหม / โอนคืนเท่าไหร่</div>
     </div>
     <div class="hdr-pills" id="hdr-pills"></div>
@@ -662,6 +662,8 @@ function remitPrintBatch(){
 var VC_SENDER="";          // ลูกค้าต้นทางที่เลือก
 var VC_SEL={};             // billNo -> true (บิลที่ติ๊กจ่าย)
 var VC_SHOW=false;         // แสดงใบจ่ายแล้วหรือยัง
+var VC_AUTO=false;         // โหมดออโต้ (รายการที่ควรจ่าย)
+var VC_AUTO_DAYS=14;       // เกณฑ์อายุบิล (วัน) สำหรับออโต้
 
 function vcSenders(){
   var s={};
@@ -671,6 +673,56 @@ function vcSenders(){
 function vcBills(){
   return codBillsFiltered().filter(function(b){ return getSender(b)===VC_SENDER; })
          .sort(function(a,b){ return billDate(a)<billDate(b)?-1:1; });
+}
+function vcBillAgeDays(b){ var d=parseDate(billDate(b)); if(!d) return 0; return Math.floor((Date.now()-d.getTime())/86400000); }
+function vcQualify(b){
+  if(b.codRemit&&b.codRemit.remitted) return "";        // โอนคืน/จ่ายแล้ว ตัดออก
+  if(deliveredDate(b)) return "ส่งสำเร็จ";                // ส่งสำเร็จแล้ว
+  var age=vcBillAgeDays(b);
+  if(age>VC_AUTO_DAYS) return "เกิน "+age+" วัน";          // เกินกำหนด
+  return "";
+}
+function vcAutoGroups(){
+  var map={};
+  codBillsFiltered().forEach(function(b){
+    var r=vcQualify(b); if(!r) return;
+    var s=getSender(b)||"(ไม่ระบุชื่อต้นทาง)";
+    if(!map[s]) map[s]={sender:s, bills:[], sumCOD:0, sumFee:0, sumNet:0};
+    map[s].bills.push({b:b, reason:r});
+    map[s].sumCOD+=getCOD(b); map[s].sumFee+=codFee(b); map[s].sumNet+=codNet(b);
+  });
+  return Object.keys(map).map(function(k){ map[k].bills.sort(function(x,y){return billDate(x.b)<billDate(y.b)?-1:1;}); return map[k]; })
+              .sort(function(a,b){ return b.sumNet-a.sumNet; });
+}
+function vcToggleAuto(){ VC_AUTO=!VC_AUTO; VC_SHOW=false; renderVoucher(); }
+function vcPickAuto(sender){
+  VC_AUTO=false; VC_SENDER=sender; VC_SEL={}; VC_SHOW=false;
+  vcBills().forEach(function(b){ if(vcQualify(b)) VC_SEL[b.billNo]=true; });
+  renderVoucher();
+  var box=document.getElementById("page-voucher"); if(box) box.scrollIntoView({behavior:"smooth"});
+}
+function vcAutoSection(){
+  var groups=vcAutoGroups();
+  if(!groups.length) return '<div class="empty">ไม่มีบิลเข้าเงื่อนไข (ส่งสำเร็จ หรือ เกิน '+VC_AUTO_DAYS+' วัน + ยังไม่โอนคืน) ในช่วงวันที่ที่เลือก<br><span style="font-size:11px;color:#aaa">* ถ้าต้องการบิลเก่ากว่านี้ ให้เลื่อน "ตั้งแต่วันที่" ให้ครอบคลุม</span></div>';
+  var totNet=0, totBills=0; groups.forEach(function(g){ totNet+=g.sumNet; totBills+=g.bills.length; });
+  var head='<div style="background:#FFF8E1;border:1px solid #F0C97A;border-radius:10px;padding:12px;margin-bottom:12px">'
+    +'<b style="color:#B07400">🤖 รายการที่ควรจ่าย — '+groups.length+' ลูกค้า · '+totBills+' บิล · รวมสุทธิ '+money(totNet)+' ฿</b>'
+    +'<div style="font-size:11px;color:#888;margin-top:4px">เงื่อนไข: ส่งสำเร็จแล้ว <b>หรือ</b> บิลเกิน '+VC_AUTO_DAYS+' วัน และยังไม่โอนคืน — กดปุ่มลูกค้าเพื่อออกใบจ่าย (บิลถูกติ๊กให้อัตโนมัติ)</div></div>';
+  var body=groups.map(function(g){
+    var rows=g.bills.map(function(it){ var b=it.b;
+      return '<tr><td>'+billDate(b)+'</td><td>'+(b.billNo||"")+'</td><td>'+(BILL_DRIVER[b.billNo]||"—")+'</td>'
+        +'<td><span class="badge '+(it.reason==="ส่งสำเร็จ"?"b-green":"b-amber")+'">'+it.reason+'</span></td>'
+        +'<td class="r">'+fmt(getCOD(b))+'</td><td class="r"><b>'+money(codNet(b))+'</b></td></tr>';
+    }).join("");
+    var c=Accounts.code(g.sender);
+    return '<div style="background:#fff;border:0.5px solid #eee;border-radius:10px;padding:10px;margin-bottom:10px">'
+      +'<div style="display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:6px">'
+      +'<b>'+(c?'['+c+'] ':'')+g.sender+' <span style="color:#888;font-weight:400">· '+g.bills.length+' บิล · สุทธิ '+money(g.sumNet)+' ฿</span></b>'
+      +'<button class="btn btn-green" onclick="vcPickAuto(\''+g.sender.replace(/'/g,"\\'")+'\')">🧾 ออกใบจ่ายลูกค้านี้</button></div>'
+      +'<table><thead><tr><th>วันที่</th><th>เลขบิล</th><th>คนรถ</th><th>เหตุผล</th><th class="r">COD</th><th class="r">สุทธิ</th></tr></thead><tbody>'+rows+'</tbody></table>'
+      +'</div>';
+  }).join("");
+  return head+body;
 }
 function renderVoucher(){
   var box=document.getElementById("page-voucher");
@@ -682,11 +734,13 @@ function renderVoucher(){
   var ctrl='<div class="vc-noprint" style="background:#fff;border-radius:10px;padding:12px;border:0.5px solid #eee;margin-bottom:12px">'+
     '<div style="display:flex;gap:10px;flex-wrap:wrap;align-items:flex-end">'+
       '<div class="fld"><label style="font-size:10px;color:#888">ลูกค้าต้นทาง</label><select class="inp" id="vc-sender" onchange="vcPick(this.value)">'+opts+'</select></div>'+
+      '<button class="btn '+(VC_AUTO?'btn-green':'btn-ghost')+'" onclick="vcToggleAuto()">🤖 ออโต้: รายการที่ควรจ่าย</button>'+
       (VC_SENDER?'<button class="btn btn-ghost" onclick="vcCheckAll(true)">เลือกทั้งหมด</button><button class="btn btn-ghost" onclick="vcCheckAll(false)">ล้าง</button>'+
         '<button class="btn btn-ghost" onclick="vcCheckUnpaid()">เฉพาะที่ยังไม่จ่าย</button>':'')+
     '</div></div>';
 
-  if(!VC_SENDER){ box.innerHTML=ctrl+'<div class="empty">เลือกลูกค้าต้นทางเพื่อออกใบจ่ายเงิน COD</div>'; return; }
+  if(VC_AUTO){ box.innerHTML=ctrl+vcAutoSection(); return; }
+  if(!VC_SENDER){ box.innerHTML=ctrl+'<div class="empty">เลือกลูกค้าต้นทางเพื่อออกใบจ่ายเงิน COD &nbsp;หรือกด 🤖 ออโต้</div>'; return; }
 
   var bills=vcBills();
   if(!bills.length){ box.innerHTML=ctrl+'<div class="empty">ไม่พบบิล COD ของลูกค้ารายนี้ในช่วงวันที่ที่เลือก</div>'; return; }
