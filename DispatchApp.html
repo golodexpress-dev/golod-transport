@@ -668,7 +668,7 @@ tr:hover td{background:#f8fffe}
 <div class="topbar">
   <span class="title">🚛 จัดการขนส่ง</span>
   <span id="session-info" style="font-size:11px;opacity:.8"></span>
-  <span style="font-size:10px;opacity:.65;margin-left:auto">build 2026-06-10z48</span>
+  <span style="font-size:10px;opacity:.65;margin-left:auto">build 2026-06-10z49</span>
   <a href="GolodApp.html" style="margin-left:10px">← หน้าหลัก</a>
 </div>
 <div class="container">
@@ -1516,6 +1516,7 @@ function renderTripList(){
       +'<div class="trip-head">'
         +'<div style="flex:1">'
           +'<div class="trip-driver">🚛 '+t.driverName
+            +(_planDeliverLabel(t)?' <span style="background:#1565C0;color:#fff;font-size:10px;padding:2px 7px;border-radius:10px;font-weight:700">📅 ส่ง '+_planDeliverLabel(t)+'</span>':'')
             +(pendRmk>0?' <span style="background:#E67E22;color:#fff;font-size:10px;padding:2px 7px;border-radius:10px;font-weight:700">⏳ รออนุมัติหมายเหตุ '+pendRmk+'</span>':'')
             +(pendDel>0?' <span style="background:#c0392b;color:#fff;font-size:10px;padding:2px 7px;border-radius:10px;font-weight:700">⏳ ขอเอาบิลออก '+pendDel+'</span>':'')
             +(pendAdd>0?' <span style="background:#0F6E56;color:#fff;font-size:10px;padding:2px 7px;border-radius:10px;font-weight:700">⏳ ขอเพิ่มบิล '+pendAdd+'</span>':'')
@@ -1783,7 +1784,7 @@ function _dispatchTripBills(t){
   var stMap = {};
   (BILLS||[]).forEach(function(b){ if(b && b.billNo) stMap[b.billNo] = b.status; });
   var ups = (t.billIds||[]).map(function(bn){
-    var upd = {tripId:t.id, driver:t.driverUsername, driverName:t.driverName||t.driverUsername, updatedAt:new Date().toISOString()};
+    var upd = {tripId:t.id, driver:t.driverUsername, driverName:t.driverName||t.driverUsername, updatedAt:new Date().toISOString(), planDeliverFrom:(t.day1Date||""), planDeliverTo:(t.day2Date||t.day1Date||"")};
     if(DONE_ST.indexOf(stMap[bn]) < 0) upd.status = "กำลังวิ่งส่งลูกค้า";
     return GolodDB.updateBill(bn, upd)
       .then(function(){ return {bn:bn, ok:true}; })
@@ -1792,6 +1793,13 @@ function _dispatchTripBills(t){
   return Promise.all(ups).then(function(res){ return {fail:(res||[]).filter(function(r){ return r && !r.ok; })}; });
 }
 
+function _planDeliverLabel(t){
+  var a=(t&&t.day1Date)||"", b=(t&&t.day2Date)||"";
+  if(!a&&!b) return "";
+  function f(d){ var x=new Date(d+"T00:00:00"); if(isNaN(x.getTime())) return d; return x.toLocaleDateString("th-TH",{day:"numeric",month:"short"}); }
+  if(a&&b&&b!==a) return f(a)+"–"+f(b);
+  return f(a||b);
+}
 function renderCurrentTripBills(){
   var bills = Object.keys(_tripState.selectedBills).map(function(k){ return _tripState.selectedBills[k]; });
   var isAdmin = CU && CU.role==="admin";
@@ -2142,9 +2150,13 @@ function renderTripForm(existingTrip){
     +'</div>'
     +'<div class="trip-form-grid">'
     +'<div><div class="trip-lbl">วันที่ 1 วิ่ง (อำเภอ/จังหวัด)</div>'
-    +'<input id="tf-day1" class="trip-inp" placeholder="เช่น เมือง/ศรีสะเกษ" value="'+(t.day1||"").replace(/"/g,"&quot;")+'"></div>'
+    +'<input id="tf-day1" class="trip-inp" placeholder="เช่น เมือง/ศรีสะเกษ" value="'+(t.day1||"").replace(/"/g,"&quot;")+'">'
+    +'<div class="trip-lbl" style="margin-top:5px">📅 วันที่จะส่ง (วันที่ 1)</div>'
+    +'<input id="tf-day1date" type="date" class="trip-inp" value="'+(t.day1Date||"")+'"></div>'
     +'<div><div class="trip-lbl">วันที่ 2 วิ่ง (ถ้ามี)</div>'
-    +'<input id="tf-day2" class="trip-inp" placeholder="เช่น วารินฯ/อุบลฯ" value="'+(t.day2||"").replace(/"/g,"&quot;")+'"></div>'
+    +'<input id="tf-day2" class="trip-inp" placeholder="เช่น วารินฯ/อุบลฯ" value="'+(t.day2||"").replace(/"/g,"&quot;")+'">'
+    +'<div class="trip-lbl" style="margin-top:5px">📅 วันที่จะส่ง (วันที่ 2)</div>'
+    +'<input id="tf-day2date" type="date" class="trip-inp" value="'+(t.day2Date||"")+'"></div>'
     +'</div>'
 
     +'<div class="trip-section-title">▶ ค่าเที่ยว '+(isAdmin?'<span style="font-size:10px;color:#b7950b">[Admin]</span>':'')+' <span style="font-size:10px;color:#aaa">'+(isAdmin?'':'เสมียนดูได้อย่างเดียว')+'</span></div>'
@@ -2784,6 +2796,8 @@ function saveTrip(){
     note: (document.getElementById("tf-note")||{}).value||"",
     day1: (document.getElementById("tf-day1")||{}).value||"",
     day2: (document.getElementById("tf-day2")||{}).value||"",
+    day1Date: (document.getElementById("tf-day1date")||{}).value||"",
+    day2Date: (document.getElementById("tf-day2date")||{}).value||"",
     vehicleType: (document.getElementById("tf-vehicle")||{}).value||"",
     fareTier: (document.getElementById("tf-faretier")||{}).value||"",
     hotelFare: parseFloat((document.getElementById("tf-hotel")||{}).value||0),
@@ -4844,7 +4858,7 @@ function openSettlement(tripId){
     var ex=t.settlement||{};
     _settle={ tripId:t.id, trip:t, bills:tb,
       route: ex.route || t.routeName || t.name || _settleProvJoin(tb),
-      day1: ex.day1||t.day1||"", day2: ex.day2||t.day2||"", source: ex.source||"",
+      day1: ex.day1||t.day1||"", day2: ex.day2||t.day2||"", day1Date: ex.day1Date||t.day1Date||"", day2Date: ex.day2Date||t.day2Date||"", source: ex.source||"",
       perBill: ex.perBill || {}, adjustments:(ex.adjustments||[]).slice(), note: ex.note||t.note||"",
       status: ex.status||"draft", proposedByName: ex.proposedByName||"", proposedAt: ex.proposedAt||"",
       approvedByName: ex.approvedByName||"", approvedAt: ex.approvedAt||"",
@@ -4863,7 +4877,7 @@ function printTripProposal(tripId, asPdf){
     var ex=t.settlement||{};
     _settle={ tripId:t.id, trip:t, bills:tb,
       route: ex.route || t.routeName || t.name || _settleProvJoin(tb),
-      day1: ex.day1||t.day1||"", day2: ex.day2||t.day2||"", source: ex.source||"",
+      day1: ex.day1||t.day1||"", day2: ex.day2||t.day2||"", day1Date: ex.day1Date||t.day1Date||"", day2Date: ex.day2Date||t.day2Date||"", source: ex.source||"",
       perBill: ex.perBill || {}, adjustments:(ex.adjustments||[]).slice(), note: ex.note||t.note||"",
       status: ex.status||"draft", proposedByName: ex.proposedByName||"", proposedAt: ex.proposedAt||"",
       approvedByName: ex.approvedByName||"", approvedAt: ex.approvedAt||"",
