@@ -668,7 +668,7 @@ tr:hover td{background:#f8fffe}
 <div class="topbar">
   <span class="title">🚛 จัดการขนส่ง</span>
   <span id="session-info" style="font-size:11px;opacity:.8"></span>
-  <span style="font-size:10px;opacity:.65;margin-left:auto">build 2026-06-10z50</span>
+  <span style="font-size:10px;opacity:.65;margin-left:auto">build 2026-06-10z52</span>
   <a href="GolodApp.html" style="margin-left:10px">← หน้าหลัก</a>
 </div>
 <div class="container">
@@ -1516,6 +1516,7 @@ function renderTripList(){
       +'<div class="trip-head">'
         +'<div style="flex:1">'
           +'<div class="trip-driver">🚛 '+t.driverName
+            +(t.runNo?' <span style="background:#5B3FB3;color:#fff;font-size:10px;padding:2px 7px;border-radius:10px;font-weight:700">'+t.runNo+'</span>':'')
             +(_planDeliverLabel(t)?' <span style="background:#1565C0;color:#fff;font-size:10px;padding:2px 7px;border-radius:10px;font-weight:700">📅 ส่ง '+_planDeliverLabel(t)+'</span>':'')
             +(pendRmk>0?' <span style="background:#E67E22;color:#fff;font-size:10px;padding:2px 7px;border-radius:10px;font-weight:700">⏳ รออนุมัติหมายเหตุ '+pendRmk+'</span>':'')
             +(pendDel>0?' <span style="background:#c0392b;color:#fff;font-size:10px;padding:2px 7px;border-radius:10px;font-weight:700">⏳ ขอเอาบิลออก '+pendDel+'</span>':'')
@@ -2877,7 +2878,7 @@ function saveTrip(){
     });
   }).then(function(){
     // เขียนประวัติจ่ายงาน (เฉพาะตอนสร้างเที่ยวใหม่ กันบันทึกซ้ำตอนแก้ไข)
-    if(!isEditTrip && GolodDB.saveDispatchLog && selBills.length > 0){
+    if(!isEditTrip && driverName && GolodDB.saveDispatchLog && selBills.length > 0){
       var totO=0,totD=0,totT=0,totC=0,totCOD=0,totF=0;
       var snap = selBills.map(function(b){
         var net=parseFloat(b.freightNet||0), cod=parseFloat(b.codTotal||0);
@@ -3795,7 +3796,7 @@ function loadHistory(){
       var modeLabel = l.mode==="driver"?"🚛":"📦";
       return '<tr onclick="openHistoryDetail(\''+l._docId+'\')" style="cursor:pointer">'
         +'<td style="white-space:nowrap;color:#888;font-size:11px">'+fmtDT(l.dispatchAt)+'</td>'
-        +'<td>'+modeLabel+' '+l.targetName+'</td>'
+        +'<td>'+modeLabel+' '+(l.targetName||'<span style="color:#c0392b">— (ยังไม่กำหนดคนรถ)</span>')+(l.runNo?(' <b style="color:#5B3FB3">['+l.runNo+']</b>'):'')+'</td>'
         +'<td style="text-align:center">'+l.billCount+'</td>'
         +'<td style="text-align:right;color:#1D9E75">'+fmt(l.totalOrigin||0)+'</td>'
         +'<td style="text-align:right;color:#E67E22">'+fmt(l.totalDest||0)+'</td>'
@@ -5016,24 +5017,43 @@ function saveSettlement(approve){
   }
   var c=settleCompute(), now=new Date().toISOString(), me=(CU&&(CU.name||CU.username))||"";
   var s=_settle.trip.settlement||{};
-  var out={ route:_settle.route||"", perBill:_settle.perBill||{}, adjustments:_settle.adjustments||[], note:_settle.note||"",
-    totalFreight:c.total, adjustedTotal:c.adjusted, byPay:c.byPay, codCount:c.codCount, billCount:c.count,
-    status: approve?"approved":(s.status||"proposed"),
-    proposedByName: s.proposedByName||me, proposedAt: s.proposedAt||now };
-  if(approve){ out.approvedByName=me; out.approvedAt=now; }
-  else if(s.approvedByName){ out.approvedByName=s.approvedByName; out.approvedAt=s.approvedAt; }
-  if(s.confirmedByName){ out.confirmedByName=s.confirmedByName; out.confirmedAt=s.confirmedAt; }
-  var tripUpd={settlement:out, driverUsername:_settle.trip.driverUsername||"", driverName:_settle.trip.driverName||""};
-  if(approve){ tripUpd.status="approved"; }
-  GolodDB.updateTrip(_settle.tripId,tripUpd).then(function(){
-    _settle.trip.settlement=out; _settle.status=out.status;
-    if(approve) _settle.trip.status="approved";
-    _settle.proposedByName=out.proposedByName; _settle.proposedAt=out.proposedAt;
-    _settle.approvedByName=out.approvedByName||""; _settle.approvedAt=out.approvedAt||"";
-    alert(approve?("✅ อนุมัติแล้ว — กำหนดคนรถ "+_settle.trip.driverName+"\n\nขั้นต่อไป: หลังขึ้นของเสร็จ กด 🔒 ยืนยันสุดท้าย เพื่อส่งเข้าแอปคนรถ"):("💾 บันทึกแล้ว"+(_settle.trip.driverName?(" · คนรถ: "+_settle.trip.driverName):"")));
-    renderSettlement();
-    if(typeof renderTripTab==="function") renderTripTab();
-  }).catch(function(e){ alert("บันทึกไม่สำเร็จ: "+(e&&e.message||e)); });
+  function _finish(runNo){
+    var out={ route:_settle.route||"", perBill:_settle.perBill||{}, adjustments:_settle.adjustments||[], note:_settle.note||"",
+      totalFreight:c.total, adjustedTotal:c.adjusted, byPay:c.byPay, codCount:c.codCount, billCount:c.count,
+      status: approve?"approved":(s.status||"proposed"),
+      proposedByName: s.proposedByName||me, proposedAt: s.proposedAt||now };
+    if(runNo) out.runNo=runNo;
+    if(approve){ out.approvedByName=me; out.approvedAt=now; }
+    else if(s.approvedByName){ out.approvedByName=s.approvedByName; out.approvedAt=s.approvedAt; }
+    if(s.confirmedByName){ out.confirmedByName=s.confirmedByName; out.confirmedAt=s.confirmedAt; }
+    var tripUpd={settlement:out, driverUsername:_settle.trip.driverUsername||"", driverName:_settle.trip.driverName||""};
+    if(runNo) tripUpd.runNo=runNo;
+    if(approve){ tripUpd.status="approved"; }
+    GolodDB.updateTrip(_settle.tripId,tripUpd).then(function(){
+      _settle.trip.settlement=out; _settle.trip.runNo=runNo||_settle.trip.runNo||""; _settle.status=out.status;
+      if(approve) _settle.trip.status="approved";
+      _settle.proposedByName=out.proposedByName; _settle.proposedAt=out.proposedAt;
+      _settle.approvedByName=out.approvedByName||""; _settle.approvedAt=out.approvedAt||"";
+      if(approve && GolodDB.saveDispatchLog && _settle.bills.length){
+        var totO=0,totD=0,totT=0,totC=0,totCOD=0,totF=0;
+        var snap=_settle.bills.map(function(b){
+          var net=_settleNet(b), cod=parseFloat(b.codTotal||0)||0, pay=_settlePay(b);
+          totF+=net; if(cod>0) totCOD+=cod;
+          if(pay==="dest")totD+=net; else if(pay==="transfer")totT+=net; else if(pay==="credit")totC+=net; else totO+=net;
+          var its=Array.isArray(b.items)?b.items:(b.form&&Array.isArray(b.form.items)?b.form.items:[]); var f0=its[0]||{};
+          var pq=its.reduce(function(ss,i){return ss+(parseInt(i.qty)||1);},0);
+          return {billNo:b.billNo, receiverName:b.receiverName||(b.form&&b.form.receiverName)||"", destProv:b.destProv||(b.form&&b.form.destProv)||"", destAmphoe:b.destAmphoe||(b.form&&b.form.destAmphoe)||"", freightNet:net, codTotal:cod, freightPay:pay, product:(f0.desc||""), qty:pq};
+        });
+        GolodDB.saveDispatchLog({ dispatchAt:now, dispatchBy:(CU&&CU.username)||"", dispatchByName:me, mode:"driver", targetId:_settle.trip.driverUsername||"", targetName:_settle.trip.driverName||"", runNo:runNo||_settle.trip.runNo||"", billCount:_settle.bills.length, totalFreight:totF, totalOrigin:totO, totalDest:totD, totalTransfer:totT, totalCredit:totC, totalCOD:totCOD, tripId:_settle.tripId, bills:snap, source:"approve" }).catch(function(e){ console.warn("saveDispatchLog(approve):",e); });
+      }
+      alert(approve?("✅ อนุมัติแล้ว — เลขเที่ยว "+(runNo||_settle.trip.runNo||"-")+" · คนรถ "+_settle.trip.driverName+"\n\nขั้นต่อไป: หลังขึ้นของเสร็จ กด 🔒 ยืนยันสุดท้าย เพื่อส่งเข้าแอปคนรถ"):("💾 บันทึกแล้ว"+(_settle.trip.driverName?(" · คนรถ: "+_settle.trip.driverName):"")));
+      renderSettlement();
+      if(typeof renderTripTab==="function") renderTripTab();
+    }).catch(function(e){ alert("บันทึกไม่สำเร็จ: "+(e&&e.message||e)); });
+  }
+  var _runNo=(s.runNo)||(_settle.trip.runNo)||"";
+  if(approve && !_runNo && GolodDB.nextSeq){ GolodDB.nextSeq("trip").then(function(n){ _finish("R"+String(n).padStart(4,"0")); }); }
+  else { _finish(_runNo); }
 }
 
 function _printDoc(title, innerHtml){
@@ -5088,7 +5108,7 @@ function printBranchSummary(tripId){
     var planLbl=(typeof _planDeliverLabel==="function")?_planDeliverLabel(t):"";
     var body='<div class="hd"><div style="font-size:12px;font-weight:700;color:#0F6E56">บริษัท โกโลด ทรานสปอร์ต จำกัด</div>'
       +'<div style="font-size:18px;font-weight:800">ใบสรุปส่งสาขา <span style="font-size:11px;color:#888">(แยกจังหวัด × ประเภทเก็บเงิน)</span></div></div>';
-    body+='<div class="info">คนรถ: <b>'+driver+'</b>'+(planLbl?(' · กำหนดส่ง <b>'+planLbl+'</b>'):'')+' · วันออก <b>'+(t.departDate||"-")+'</b>'+((t.routeName||t.name)?(' · เส้นทาง <b>'+(t.routeName||t.name)+'</b>'):'')+'</div>';
+    body+='<div class="info">'+(t.runNo?('เลขเที่ยว <b style="color:#5B3FB3">'+t.runNo+'</b> · '):'')+'คนรถ: <b>'+driver+'</b>'+(planLbl?(' · กำหนดส่ง <b>'+planLbl+'</b>'):'')+' · วันออก <b>'+(t.departDate||"-")+'</b>'+((t.routeName||t.name)?(' · เส้นทาง <b>'+(t.routeName||t.name)+'</b>'):'')+'</div>';
     body+='<div class="info" style="margin:4px 0 6px"><b>รวม '+grand+' บิล</b> · ค่าส่งรวม <b>'+_settleFmt(gf)+' ฿</b> · '+keys.length+' จังหวัด</div>';
     keys.forEach(function(p){
       var g=prov[p];
@@ -5097,9 +5117,12 @@ function printBranchSummary(tripId){
       ["origin","dest","transfer","credit"].forEach(function(k){ if(g.pay[k]) body+='<tr><td>'+(_SETTLE_PAYLBL[k]||k)+'</td><td style="text-align:right">'+g.pay[k]+'</td><td style="text-align:right">'+_settleFmt(g.payAmt[k]||0)+'</td></tr>'; });
       if(g.cod) body+='<tr><td style="color:#c0392b">★ COD (เก็บปลายทาง)</td><td style="text-align:right;color:#c0392b">'+g.cod+'</td><td style="text-align:right;color:#c0392b">'+_settleFmt(g.codAmt)+'</td></tr>';
       body+='</tbody></table>';
-      body+='<table style="margin-top:3px"><thead><tr><th style="text-align:left">เลขบิล</th><th style="text-align:left">อำเภอ</th><th style="text-align:left">ผู้รับ</th><th>ประเภท</th><th style="text-align:right">ค่าส่ง</th><th style="text-align:right">COD</th></tr></thead><tbody>';
+      body+='<table style="margin-top:3px"><thead><tr><th style="text-align:left">เลขบิล</th><th style="text-align:left">อำเภอ</th><th style="text-align:left">ผู้รับ</th><th>ประเภท</th><th style="text-align:left">สินค้า (×จำนวน)</th><th style="text-align:right">ค่าส่ง</th><th style="text-align:right">COD</th></tr></thead><tbody>';
       g.bills.forEach(function(b){
-        body+='<tr><td>'+(b.billNo||"")+'</td><td>'+(b.destAmphoe||(b.form&&b.form.destAmphoe)||"-")+'</td><td>'+(b.receiverName||(b.form&&b.form.receiverName)||"-")+'</td><td>'+(_SETTLE_PAYLBL[_settlePay(b)]||"-")+'</td><td style="text-align:right">'+_settleFmt(_settleNet(b))+'</td><td style="text-align:right">'+(parseFloat(b.codTotal||0)>0?_settleFmt(b.codTotal):"-")+'</td></tr>';
+        var its=Array.isArray(b.items)?b.items:(b.form&&Array.isArray(b.form.items)?b.form.items:[]); var f0=its[0]||{};
+        var pq=its.reduce(function(s,i){return s+(parseInt(i.qty)||1);},0);
+        var prod=(f0.desc||"-")+(its.length>1?(" +"+(its.length-1)):"")+(pq?(" ×"+pq):"");
+        body+='<tr><td>'+(b.billNo||"")+'</td><td>'+(b.destAmphoe||(b.form&&b.form.destAmphoe)||"-")+'</td><td>'+(b.receiverName||(b.form&&b.form.receiverName)||"-")+'</td><td>'+(_SETTLE_PAYLBL[_settlePay(b)]||"-")+'</td><td>'+prod+'</td><td style="text-align:right">'+_settleFmt(_settleNet(b))+'</td><td style="text-align:right">'+(parseFloat(b.codTotal||0)>0?_settleFmt(b.codTotal):"-")+'</td></tr>';
       });
       body+='</tbody></table>';
     });
@@ -5117,9 +5140,9 @@ function printSettlement(asPdf){
     var f0=its[0]||{};
     var pq=its.reduce(function(s,i){return s+(parseInt(i.qty)||1);},0);
     var prod=(f0.desc||"-")+(its.length>1?(" +"+(its.length-1)):"")+(pq?(" ×"+pq):"");
-    return '<tr><td>'+b.billNo+'</td><td>'+(b.destAmphoe||(b.form&&b.form.destAmphoe)||"-")+'</td><td>'+(b.destProv||(b.form&&b.form.destProv)||"-")+'</td><td>'+(_SETTLE_PAYLBL[_settlePay(b)]||"-")+'</td><td style="text-align:right">'+_settleFmt(_settleNet(b))+'</td></tr>';
+    return '<tr><td>'+b.billNo+'</td><td>'+(b.destAmphoe||(b.form&&b.form.destAmphoe)||"-")+'</td><td>'+(b.destProv||(b.form&&b.form.destProv)||"-")+'</td><td>'+(_SETTLE_PAYLBL[_settlePay(b)]||"-")+'</td><td>'+prod+'</td><td style="text-align:right">'+_settleFmt(_settleNet(b))+'</td></tr>';
   }).join("");
-  var adjRows=_settle.adjustments.map(function(a){ return '<tr><td colspan="4">ปรับ: '+(a.note||"-")+'</td><td style="text-align:right">'+_settleFmt(a.amount)+'</td></tr>'; }).join("");
+  var adjRows=_settle.adjustments.map(function(a){ return '<tr><td colspan="5">ปรับ: '+(a.note||"-")+'</td><td style="text-align:right">'+_settleFmt(a.amount)+'</td></tr>'; }).join("");
   var stLbl={draft:"ร่าง",proposed:"เสนอ — รออนุมัติ",approved:"อนุมัติเบื้องต้น — รอยืนยันสุดท้าย",confirmed:"ยืนยันสุดท้ายแล้ว"}[_settle.status]||"";
   var pay=[];
   if(c.byPay.origin) pay.push('ต้นทาง('+c.byPay.origin+', '+_settleFmt(c.payAmt.origin||0)+'.-)');
@@ -5132,9 +5155,9 @@ function printSettlement(asPdf){
   html+='<div class="hd"><div style="font-size:12px;font-weight:700;color:#0F6E56">บริษัท โกโลด ทรานสปอร์ต จำกัด</div>'
     +'<div style="font-size:19px;font-weight:800;margin-top:1px">'+_ttl+(stLbl?(' <span style="font-size:11px;font-weight:700;color:#888">('+stLbl+')</span>'):'')+'</div></div>';
   html+='<div class="info" style="display:flex;justify-content:space-between"><div>เส้นทาง: <b>'+(_settle.route||"-")+'</b></div><div>วันที่ออก: <b>'+(_settle.trip.departDate||"-")+'</b></div></div>';
-  html+='<div class="info">คนรถ: <b>'+(_settle.trip.driverName||_settle.trip.driverUsername||"— (ยังไม่กำหนด)")+'</b></div>';
+  html+='<div class="info">'+(_settle.trip.runNo?('เลขเที่ยว <b style="color:#5B3FB3">'+_settle.trip.runNo+'</b> · '):'')+'คนรถ: <b>'+(_settle.trip.driverName||_settle.trip.driverUsername||"— (ยังไม่กำหนด)")+'</b></div>';
   html+='<div class="info" style="margin-top:3px"><b>บิลทั้งหมด '+c.count+' บิล</b> · '+pay.join(' · ')+'</div>';
-  html+='<table><thead><tr><th style="text-align:left">เลขบิล</th><th style="text-align:left">อำเภอ</th><th style="text-align:left">จังหวัด</th><th>ประเภท</th><th style="text-align:right">ค่าส่ง</th></tr></thead><tbody>'+rows+adjRows+'</tbody></table>';
+  html+='<table><thead><tr><th style="text-align:left">เลขบิล</th><th style="text-align:left">อำเภอ</th><th style="text-align:left">จังหวัด</th><th>ประเภท</th><th style="text-align:left">สินค้า (×จำนวน)</th><th style="text-align:right">ค่าส่ง</th></tr></thead><tbody>'+rows+adjRows+'</tbody></table>';
   html+='<div style="text-align:right;margin-top:6px;font-size:13px">ยอดค่าส่งรวม: '+_settleFmt(c.total)+' ฿'+(c.adj?(' · ปรับ: '+_settleFmt(c.adj)+' ฿'):'')+' · <b style="font-size:15px">สุทธิ: '+_settleFmt(c.adjusted)+' ฿</b></div>';
   if(_stNote) html+='<div style="margin-top:6px;font-size:13px;border-top:1px dashed #999;padding-top:4px">หมายเหตุ: <b>'+_stNote+'</b></div>';
   if(_settle.day1 || _settle.day2){ html+='<div class="info" style="margin-top:10px;border-top:1px dashed #999;padding-top:6px"><b>วันที่วิ่งจริง</b>&nbsp;&nbsp; '+(_settle.day1?('วันที่ 1: <b>'+_settle.day1+'</b>'):'')+(_settle.day2?('&nbsp;&nbsp;·&nbsp;&nbsp; วันที่ 2: <b>'+_settle.day2+'</b>'):'')+'</div>'; }

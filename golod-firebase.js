@@ -441,6 +441,20 @@ var GolodDB = (function() {
       });
     });
   }
+  function nextSeq(key) {
+    return new Promise(function(resolve) {
+      ready(function() {
+        var ref = db.collection("counters").doc(key || "default");
+        db.runTransaction(function(tx) {
+          return tx.get(ref).then(function(d) {
+            var n = ((d.exists && d.data().n) || 0) + 1;
+            tx.set(ref, { n: n, updatedAt: new Date().toISOString() }, { merge: true });
+            return n;
+          });
+        }).then(resolve).catch(function(e) { console.warn("nextSeq:", e); resolve(Date.now() % 100000); });
+      });
+    });
+  }
 
   function getDispatchLogs(opts) {
     // opts: { limitN, targetId, mode, dateFrom, dateTo }
@@ -697,7 +711,7 @@ var GolodDB = (function() {
     getBillsByTripId,
     saveContact, getContacts,
     saveUser, getUsers,
-    saveEditLog, getEditLogs, saveDeleteLog,
+    saveEditLog, getEditLogs, saveDeleteLog, nextSeq,
     listenBills, getAllBills, getBillsNew,
     saveDispatchLog, getDispatchLogs,
     getBillsDispatch,
