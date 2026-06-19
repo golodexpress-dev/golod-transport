@@ -668,7 +668,7 @@ tr:hover td{background:#f8fffe}
 <div class="topbar">
   <span class="title">🚛 จัดการขนส่ง</span>
   <span id="session-info" style="font-size:11px;opacity:.8"></span>
-  <span style="font-size:10px;opacity:.65;margin-left:auto">build 2026-06-10z56</span>
+  <span style="font-size:10px;opacity:.65;margin-left:auto">build 2026-06-10z57</span>
   <a href="GolodApp.html" style="margin-left:10px">← หน้าหลัก</a>
 </div>
 <div class="container">
@@ -1781,7 +1781,7 @@ function pushTripToDriver(tripId){
     if(recovered.length){ t.billIds=mergedIds; curIds=mergedIds; if(GolodDB.updateTrip) GolodDB.updateTrip(t.id,{billIds:mergedIds}).catch(function(){}); }
     Promise.resolve().then(function(){
       // ส่งบิลปัจจุบันให้คนรถ (เปลี่ยน driver ของบิลเป็นคนใหม่อัตโนมัติ → หลุดจากแอปคนเก่า)
-      _dispatchTripBills(t).then(function(r){
+      _dispatchTripBills(t, claim).then(function(r){
         var msg;
         if(r.fail.length){ msg="⚠️ ส่งแล้ว แต่มี "+r.fail.length+" บิลไม่สำเร็จ:\n"+r.fail.map(function(x){ return "• "+x.bn; }).join("\n")+"\n\nลองกดซ้ำอีกครั้ง"; }
         else { msg="✅ ส่งให้ "+(t.driverName||t.driverUsername)+" แล้ว "+curIds.length+" บิล"+(recovered.length?(" · กู้บิลตกหล่น "+recovered.length+" บิล"):"")+"\n\nบอกคนรถกด 🔄 รีเฟรชในแอป"; }
@@ -1791,14 +1791,44 @@ function pushTripToDriver(tripId){
     });
   }).catch(function(e){ alert("❌ "+(e&&e.message||e)); });
 }
+function repairDeliveredStatus(){
+  if(!(CU&&CU.role==="admin")){ alert("เฉพาะแอดมิน"); return; }
+  if(!GolodDB.getBillsNew||!GolodDB.updateBill){ alert("ระบบยังไม่พร้อม"); return; }
+  if(!confirm("สแกนบิลทั้งหมดเพื่อกู้สถานะ \"ส่งสำเร็จ/ส่งไม่สำเร็จ\" ที่ถูกเขียนทับกลับเป็นวิ่งส่ง?\n\nใช้ deliveredAt + หลักฐาน (รูป/ลายเซ็น/เหตุผล) เป็นตัวระบุ")) return;
+  var DONE=["ส่งสำเร็จ","delivered","ส่งไม่สำเร็จ","ส่งไม่ได้","ปิดงาน","cleared","นำกลับสาขา","ลูกค้ารับกลับ"];
+  GolodDB.getBillsNew().then(function(bills){
+    bills=bills||[];
+    var fixOk=[], fixFail=[], review=[];
+    bills.forEach(function(b){
+      if(!b||!b.deliveredAt) return;
+      if(DONE.indexOf(b.status)>=0) return;
+      if(b.failReason) fixFail.push(b);
+      else if(b.signatureUrl||b.photoUrl||b.slipUrl) fixOk.push(b);
+      else review.push(b);
+    });
+    var total=fixOk.length+fixFail.length;
+    if(!total && !review.length){ alert("✅ ไม่พบบิลที่สถานะถูกเขียนทับ (ทุกบิลที่เคยส่ง สถานะถูกต้องอยู่แล้ว)"); return; }
+    if(!confirm("พบบิลที่น่าจะโดนรีเซ็ต:\n• ส่งสำเร็จ (มีรูป/ลายเซ็น): "+fixOk.length+"\n• ส่งไม่สำเร็จ (มีเหตุผล): "+fixFail.length+(review.length?("\n• มี deliveredAt แต่ไม่มีหลักฐาน — จะไม่แตะ: "+review.length):"")+"\n\nกู้สถานะ "+total+" บิลตอนนี้?")) return;
+    var now=new Date().toISOString();
+    var ups=[];
+    fixOk.forEach(function(b){ ups.push(GolodDB.updateBill(b.billNo,{status:"ส่งสำเร็จ",updatedAt:now,statusRepairedAt:now}).catch(function(){return null;})); });
+    fixFail.forEach(function(b){ ups.push(GolodDB.updateBill(b.billNo,{status:"ส่งไม่สำเร็จ",updatedAt:now,statusRepairedAt:now}).catch(function(){return null;})); });
+    Promise.all(ups).then(function(){
+      alert("✅ กู้สถานะเรียบร้อย "+total+" บิล"+(review.length?("\n\n⚠️ เหลือ "+review.length+" บิลที่มี deliveredAt แต่ไม่มีรูป/ลายเซ็น — ต้องตรวจเอง (ดู console)"):""));
+      if(review.length) console.log("[repair] ต้องตรวจเอง:", review.map(function(b){return b.billNo+" ("+b.status+")";}));
+    });
+  }).catch(function(e){ alert("ดึงบิลไม่สำเร็จ: "+(e&&e.message||e)); });
+}
 // ส่งงานให้คนรถ: ตั้ง driver/tripId/สถานะบิลให้เข้าหน้าคนรถ — คืน Promise<{fail:[]}>
-function _dispatchTripBills(t){
-  var DONE_ST = ["ส่งสำเร็จ","delivered","ส่งไม่สำเร็จ","ส่งไม่ได้","ปิดงาน","cleared"];
+function _dispatchTripBills(t, knownBills){
+  var DONE_ST = ["ส่งสำเร็จ","delivered","ส่งไม่สำเร็จ","ส่งไม่ได้","ปิดงาน","cleared","นำกลับสาขา","ลูกค้ารับกลับ"];
   var stMap = {};
   (BILLS||[]).forEach(function(b){ if(b && b.billNo) stMap[b.billNo] = b.status; });
+  (knownBills||[]).forEach(function(b){ if(b && b.billNo) stMap[b.billNo] = b.status; }); // สถานะจริงจาก DB override
   var ups = (t.billIds||[]).map(function(bn){
     var upd = {tripId:t.id, driver:t.driverUsername, driverName:t.driverName||t.driverUsername, updatedAt:new Date().toISOString(), planDeliverFrom:(t.day1Date||""), planDeliverTo:(t.day2Date||t.day1Date||"")};
-    if(DONE_ST.indexOf(stMap[bn]) < 0) upd.status = "กำลังวิ่งส่งลูกค้า";
+    var _cur = stMap[bn];
+    if(_cur !== undefined && DONE_ST.indexOf(_cur) < 0) upd.status = "กำลังวิ่งส่งลูกค้า"; // ไม่แตะ status ถ้าไม่รู้สถานะจริง (กันทับส่งสำเร็จ)
     return GolodDB.updateBill(bn, upd)
       .then(function(){ return {bn:bn, ok:true}; })
       .catch(function(e){ console.warn("dispatch",bn,e&&e.message); return {bn:bn, ok:false}; });
@@ -1807,7 +1837,7 @@ function _dispatchTripBills(t){
 }
 
 var AUTO_DISPATCH_MIN = 60;        // นาที หลังใส่ชื่อคนรถ → ออโต้อนุมัติ+ส่งงาน
-var AUTO_DISPATCH_ENABLED = true;  // ปิดทั้งระบบได้โดยตั้งเป็น false
+var AUTO_DISPATCH_ENABLED = false; // ⛔ ปิดชั่วคราว (กันเขียนทับสถานะ) — เปิดกลับเป็น true เมื่อยืนยันข้อมูลปกติ
 function _autoEligible(t){
   if(!AUTO_DISPATCH_ENABLED || !t) return false;
   if(t.autoDispatched) return false;
@@ -1837,7 +1867,7 @@ function _autoDispatchTrip(t){
     var perBill=(t.settlement&&t.settlement.perBill)||{};
     var getRun = t.runNo ? Promise.resolve(t.runNo) : (GolodDB.nextSeq ? GolodDB.nextSeq("trip").then(function(n){return "R"+String(n).padStart(4,"0");}) : Promise.resolve(""));
     return getRun.then(function(runNo){
-      return _dispatchTripBills(t).then(function(disp){
+      return _dispatchTripBills(t, tb).then(function(disp){
         var now=new Date().toISOString(), me="ระบบออโต้";
         var totO=0,totD=0,totT=0,totC=0,totCOD=0,totF=0;
         var snap=tb.map(function(b){
@@ -2953,11 +2983,13 @@ function saveTrip(){
         if(notDispatched){
           // เที่ยวยังไม่ส่ง (รออนุมัติ/รอยืนยัน): แค่ผูก tripId + ออกจากกองรอจ่าย — ไม่ใส่คนรถ ไม่เข้าแอปคนรถ
           upd = {tripId:saved.id, driver:"", driverName:"", updatedAt:new Date().toISOString()};
-          if(DONE_ST.indexOf(stMap[bn]) < 0) upd.status = "รออนุมัติจัดเที่ยว";
+          var _curP = stMap[bn];
+          if(_curP !== undefined && DONE_ST.indexOf(_curP) < 0) upd.status = "รออนุมัติจัดเที่ยว"; // กันทับสถานะจบงาน
         } else {
           // เที่ยววิ่งจริง: ผูก tripId + ใส่คนขับ + ส่งเข้าแอปคนรถ
           upd = {tripId:saved.id, driver:driverUsername, driverName:driverName, updatedAt:new Date().toISOString()};
-          if(DONE_ST.indexOf(stMap[bn]) < 0) upd.status = "กำลังวิ่งส่งลูกค้า";
+          var _cur = stMap[bn];
+    if(_cur !== undefined && DONE_ST.indexOf(_cur) < 0) upd.status = "กำลังวิ่งส่งลูกค้า"; // ไม่แตะ status ถ้าไม่รู้สถานะจริง (กันทับส่งสำเร็จ)
         }
         return GolodDB.updateBill(bn, upd);
       });
@@ -3782,6 +3814,7 @@ function renderBillLogTab(){
     +'<select onchange="billLogFilter=this.value;loadBillLogs()"><option value="all">ทั้งหมด</option><option value="edit">เฉพาะแก้ไข</option><option value="delete">เฉพาะลบ</option></select>'
     +'<input id="bl-search" placeholder="ค้นเลขบิล/ชื่อ/คน" oninput="loadBillLogs()" style="flex:1;min-width:120px;padding:6px 10px;border:1px solid #ddd;border-radius:8px">'
     +'<button class="btn btn-gray" onclick="loadBillLogs()">🔄 โหลด</button>'
+    +'<button class="btn" onclick="repairDeliveredStatus()" style="background:#c0392b;color:#fff">🔧 ซ่อมสถานะส่งสำเร็จที่หาย</button>'
     +'</div><div id="billlog-body"><div class="loading">⏳ กำลังโหลด...</div></div></div>';
   loadBillLogs();
 }
@@ -5312,7 +5345,7 @@ function confirmSettlement(){
     _settle.bills=Object.keys(byNo).map(function(k){return byNo[k];}); t.billIds=mergedIds;
     Promise.resolve().then(function(){
       // 2) ส่งบิลปัจจุบันให้คนรถ (บิลที่เพิ่มมาจะได้ driver/สถานะ)
-      _dispatchTripBills(t).then(function(disp){
+      _dispatchTripBills(t, tb).then(function(disp){
         var c=settleCompute(), s=t.settlement||{};
         var out=Object.assign({}, s, {
           route:_settle.route||s.route||"", perBill:_settle.perBill||{}, adjustments:_settle.adjustments||[], note:_settle.note||"",
