@@ -144,7 +144,7 @@ var _canStaff = ["admin","branch","driver"].includes(_role);
 </head>
 <body>
 <div id="golod-session-bar" style="background:#0F6E56;padding:0 14px;display:flex;align-items:center;gap:10px;height:44px;position:sticky;top:0;z-index:999">
-  <div style="color:#fff;font-size:13px;font-weight:700;flex:1">โกโลด ทรานสปอร์ต <span style="font-size:10px;color:#9FE1CB;margin-left:6px">ระบบติดตาม</span></div>
+  <div style="color:#fff;font-size:13px;font-weight:700;flex:1">โกโลด ทรานสปอร์ต <span style="font-size:10px;color:#9FE1CB;margin-left:6px">ระบบติดตาม</span> <span style="font-size:9px;color:#7FBFA8;opacity:.7;font-weight:400">TS 2026-06-19a</span></div>
   <div id="golod-user-chip"></div>
   <a href="AuthSystem.html" style="font-size:11px;color:#9FE1CB;text-decoration:none;background:rgba(255,255,255,.15);padding:3px 10px;border-radius:20px">← เมนูหลัก</a>
 </div>
@@ -688,6 +688,22 @@ function saveStatus(){
     note:document.getElementById("staff-note").value||STATUSES[selectedNewStatus].label,
     photo:!!photoDataUrl,sig:hasSig};
   BILLS[selectedBillNo].timeline.push(ev);
+  // === บันทึกลง Firestore จริง (เดิมบันทึกแค่ในจอ → รีเฟรชแล้วหาย) ===
+  (function(){
+    var REV={issued:"ออกบิลรับของ",hub:"ระหว่างนำส่งสาขา",transit:"กำลังวิ่งส่งลูกค้า",delivered:"ส่งสำเร็จ",nocontact:"ส่งไม่สำเร็จ",refused:"ลูกค้ารับกลับ",returned:"นำกลับสาขา",reschedule:"นำส่งใหม่"};
+    var thai=REV[selectedNewStatus]; if(!thai) return;
+    if(typeof GolodDB==="undefined"||!GolodDB.updateBill){ console.warn("ไม่พบ GolodDB.updateBill — สถานะไม่ถูกบันทึก"); return; }
+    var nowISO=new Date().toISOString();
+    var by=(_S&&(_S.name||_S.fullName||_S.username))||"เจ้าหน้าที่";
+    var isDrv=(_S&&_S.role==="driver");
+    var hist={status:thai, at:nowISO, by:by, driverName:(isDrv?by:""), note:ev.note||"", loc:ev.loc||""};
+    var upd={status:thai, updatedAt:nowISO, statusByName:by};
+    if(selectedNewStatus==="delivered"){ upd.deliveredAt=nowISO; if(isDrv) upd.driverName=by; }
+    try{ upd.statusHistory=firebase.firestore.FieldValue.arrayUnion(hist); }catch(e){}
+    GolodDB.updateBill(selectedBillNo, upd)
+      .then(function(){ console.log("[TrackingSystem] saved status",selectedBillNo,"→",thai); })
+      .catch(function(e){ console.warn("[TrackingSystem] persist fail",e&&e.message); alert("⚠️ บันทึกสถานะลงฐานข้อมูลไม่สำเร็จ ลองใหม่อีกครั้ง"); });
+  })();
   // reset
   document.getElementById("staff-note").value="";
   document.getElementById("staff-loc").value="";
