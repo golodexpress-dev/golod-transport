@@ -692,7 +692,7 @@ tr:hover td{background:#f8fffe}
 <div class="topbar">
   <span class="title">🚛 จัดการขนส่ง</span>
   <span id="session-info" style="font-size:11px;opacity:.8"></span>
-  <span style="font-size:10px;opacity:.65;margin-left:auto">build 2026-06-10z69</span>
+  <span style="font-size:10px;opacity:.65;margin-left:auto">build 2026-06-10z70</span>
   <a href="GolodApp.html" style="margin-left:10px">← หน้าหลัก</a>
 </div>
 <div class="container">
@@ -6485,6 +6485,9 @@ function showSummaryModal(bills, driverKey, driverLabel, dispatchAtISO, dispatch
   var dateStr = _dt.getDate()+"/"+((_dt.getMonth()+1))+"/"+((_dt.getFullYear())+543);
   var timeStr = String(_dt.getHours()).padStart(2,"0")+":"+String(_dt.getMinutes()).padStart(2,"0");
   var byStr = dispatchByName ? " | ผู้จ่าย: "+dispatchByName : "";
+  var _isBr = dispatchMode!=="driver";
+  var brDrv="", brEta="";
+  if(_isBr){ bills.forEach(function(b){ if(!brDrv&&b.lineDriver) brDrv=b.lineDriver; if(!brEta&&b.etaBranch) brEta=b.etaBranch; }); }
 
   // คำนวณยอด
   var totalOrigin=0, totalDest=0, totalTransfer=0, totalCredit=0, totalCOD=0, totalFreight=0;
@@ -6524,22 +6527,26 @@ function showSummaryModal(bills, driverKey, driverLabel, dispatchAtISO, dispatch
     var pay = b.freightPay||(b.form&&b.form.freightPay)||"origin";
     var recv = b.receiverName||(b.form&&b.form.receiverName)||"";
     var prov = b.destProv||(b.form&&b.form.destProv)||"";
+    var _its=Array.isArray(b.items)?b.items:(b.form&&Array.isArray(b.form.items)?b.form.items:[]);
+    var _f0=_its[0]||{}; var _pq=_its.reduce(function(s,it){return s+(parseInt(it.qty)||1);},0);
+    var _prod=(_f0.desc||"-")+(_its.length>1?(" +"+(_its.length-1)):"");
     return '<tr>'
       +'<td style="color:#aaa;font-size:10px">'+(i+1)+'</td>'
       +'<td style="font-weight:700">'+b.billNo+'</td>'
-      +'<td>'+recv+'</td>'
+      +(_isBr?'':('<td>'+recv+'</td>'))
       +'<td>'+prov+'</td>'
       +'<td style="font-size:10px;color:#666">'+(PAY_LABEL[pay]||pay)+'</td>'
+      +(_isBr?('<td style="font-size:11px">'+_prod+'</td><td style="text-align:center">'+(_pq||"-")+'</td>'):'')
       +'<td style="font-weight:600;color:#0F6E56">'+fmt(net)+'</td>'
       +'<td style="color:#c0392b;font-weight:600">'+(cod>0?fmt(cod):"—")+'</td>'
       +'</tr>';
   }).join("");
 
   var tableHTML = '<table class="sum-table">'
-    +'<tr><th>#</th><th>เลขบิล</th><th>ผู้รับ</th><th>จังหวัด</th><th>ชำระ</th><th>ค่าขนส่ง</th><th>COD</th></tr>'
+    +(_isBr?'<tr><th>#</th><th>เลขบิล</th><th>จังหวัด</th><th>ชำระ</th><th>สินค้า</th><th>จำนวน</th><th>ค่าขนส่ง</th><th>COD</th></tr>':'<tr><th>#</th><th>เลขบิล</th><th>ผู้รับ</th><th>จังหวัด</th><th>ชำระ</th><th>ค่าขนส่ง</th><th>COD</th></tr>')
     +rowsHTML
     +'<tr style="background:#f0faf5;font-weight:700;border-top:2px solid #d0ede5">'
-    +'<td colspan="5" style="color:#0F6E56">รวม '+bills.length+' บิล</td>'
+    +'<td colspan="'+(_isBr?6:5)+'" style="color:#0F6E56">รวม '+bills.length+' บิล</td>'
     +'<td style="color:#0F6E56">'+fmt(totalFreight)+'</td>'
     +'<td style="color:#c0392b">'+fmt(totalCOD)+'</td>'
     +'</tr>'
@@ -6549,7 +6556,7 @@ function showSummaryModal(bills, driverKey, driverLabel, dispatchAtISO, dispatch
   var isDriver = dispatchMode==="driver";
   _smBills=bills; _smLabel=driverLabel;
   document.getElementById("sm-title").textContent = (isDriver?"🚛 จ่ายงานคนขับ: ":"📦 จ่ายให้สาขา: ")+driverLabel;
-  document.getElementById("sm-sub").textContent = "วันที่ "+dateStr+" เวลา "+timeStr+" | "+bills.length+" บิล"+byStr;
+  document.getElementById("sm-sub").textContent = "วันที่ "+dateStr+" เวลา "+timeStr+" | "+bills.length+" บิล"+byStr+(_isBr&&brDrv?(" · คนรถ: "+brDrv):"")+(_isBr&&brEta?(" · คาดถึง "+_etaFmt(brEta)):"");
   document.getElementById("sm-body").innerHTML = statHTML + tableHTML
     +'<div class="sum-btn-row no-print">'
     +'<button class="btn btn-gray" onclick="closeSummary()">ปิด</button>'
@@ -6561,8 +6568,9 @@ function showSummaryModal(bills, driverKey, driverLabel, dispatchAtISO, dispatch
   var printHTML = '<div style="font-family:Sarabun,Arial,sans-serif;font-size:13px;padding:10px">'
     +'<div style="text-align:center;margin-bottom:12px">'
     +'<div style="font-size:11px;color:#555">บริษัท โกโลด ทรานสปอร์ต จำกัด</div>'
-    +'<div style="font-size:16px;font-weight:800;color:#0F6E56;margin:4px 0">ใบสรุปการจ่ายงานขนส่ง</div>'
+    +'<div style="font-size:16px;font-weight:800;color:#0F6E56;margin:4px 0">'+(_isBr?'ใบส่งของถึงสาขา':'ใบสรุปการจ่ายงานขนส่ง')+'</div>'
     +'<div style="font-size:12px">'+(isDriver?"คนขับ: ":"สาขา: ")+driverLabel+' | '+dateStr+' '+timeStr+'</div>'
+    +(_isBr&&(brDrv||brEta)?('<div style="font-size:12px;color:#1565C0;margin-top:2px">🚛 คนรถ: '+(brDrv||"-")+(brEta?(' · คาดถึงสาขา '+_etaFmt(brEta)):'')+'</div>'):'')
     +'</div>'
     +'<table style="width:100%;border-collapse:collapse;font-size:12px;margin-bottom:10px">'
     +'<tr style="background:#0F6E56;color:#fff"><td style="padding:5px 7px">รายการสรุป</td><td style="padding:5px 7px;text-align:right">จำนวน (฿)</td></tr>'
@@ -6577,9 +6585,10 @@ function showSummaryModal(bills, driverKey, driverLabel, dispatchAtISO, dispatch
     +'<table style="width:100%;border-collapse:collapse;font-size:11px">'
     +'<tr style="background:#f0faf5"><th style="padding:5px 6px;text-align:left;border-bottom:1px solid #ddd">#</th>'
     +'<th style="padding:5px 6px;text-align:left;border-bottom:1px solid #ddd">เลขบิล</th>'
-    +'<th style="padding:5px 6px;text-align:left;border-bottom:1px solid #ddd">ผู้รับ</th>'
+    +(_isBr?'':'<th style="padding:5px 6px;text-align:left;border-bottom:1px solid #ddd">ผู้รับ</th>')
     +'<th style="padding:5px 6px;text-align:left;border-bottom:1px solid #ddd">จังหวัด</th>'
     +'<th style="padding:5px 6px;text-align:right;border-bottom:1px solid #ddd">ชำระ</th>'
+    +(_isBr?'<th style="padding:5px 6px;text-align:left;border-bottom:1px solid #ddd">สินค้า</th><th style="padding:5px 6px;text-align:center;border-bottom:1px solid #ddd">จำนวน</th>':'')
     +'<th style="padding:5px 6px;text-align:right;border-bottom:1px solid #ddd">ค่าส่ง</th>'
     +'<th style="padding:5px 6px;text-align:right;border-bottom:1px solid #ddd">COD</th></tr>'
     + bills.map(function(b,i){
@@ -6587,19 +6596,23 @@ function showSummaryModal(bills, driverKey, driverLabel, dispatchAtISO, dispatch
         var pay=b.freightPay||(b.form&&b.form.freightPay)||"origin";
         var recv=b.receiverName||(b.form&&b.form.receiverName)||"";
         var prov=b.destProv||(b.form&&b.form.destProv)||"";
+        var _its2=Array.isArray(b.items)?b.items:(b.form&&Array.isArray(b.form.items)?b.form.items:[]);
+        var _f02=_its2[0]||{}; var _pq2=_its2.reduce(function(s,it){return s+(parseInt(it.qty)||1);},0);
+        var _prod2=(_f02.desc||"-")+(_its2.length>1?(" +"+(_its2.length-1)):"");
         var PAY2={origin:"ต้นทาง",dest:"ปลายทาง",transfer:"โอน",credit:"เครดิต"};
         return '<tr style="border-bottom:1px solid #f5f5f5">'
           +'<td style="padding:4px 6px;color:#aaa">'+(i+1)+'</td>'
           +'<td style="padding:4px 6px;font-weight:700">'+b.billNo+'</td>'
-          +'<td style="padding:4px 6px">'+recv+'</td>'
+          +(_isBr?'':('<td style="padding:4px 6px">'+recv+'</td>'))
           +'<td style="padding:4px 6px">'+prov+'</td>'
           +'<td style="padding:4px 6px;text-align:right;font-size:10px">'+(PAY2[pay]||pay)+'</td>'
+          +(_isBr?('<td style="padding:4px 6px;font-size:11px">'+_prod2+'</td><td style="padding:4px 6px;text-align:center">'+(_pq2||"-")+'</td>'):'')
           +'<td style="padding:4px 6px;text-align:right;font-weight:600">'+fmt(net)+'</td>'
           +'<td style="padding:4px 6px;text-align:right;color:#c0392b">'+(cod>0?fmt(cod):"—")+'</td>'
           +'</tr>';
       }).join("")
     +'<tr style="background:#f0faf5;font-weight:700">'
-    +'<td colspan="5" style="padding:5px 6px;color:#0F6E56">รวม '+bills.length+' บิล</td>'
+    +'<td colspan="'+(_isBr?6:5)+'" style="padding:5px 6px;color:#0F6E56">รวม '+bills.length+' บิล</td>'
     +'<td style="padding:5px 6px;text-align:right;color:#0F6E56">'+fmt(totalFreight)+'</td>'
     +'<td style="padding:5px 6px;text-align:right;color:#c0392b">'+fmt(totalCOD)+'</td>'
     +'</tr>'
