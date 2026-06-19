@@ -369,10 +369,11 @@ tr:hover td{background:#f8fffe}
       <div id="ct-remarks-list" style="margin-bottom:8px"></div>
       <div style="display:grid;grid-template-columns:1.1fr 0.9fr 1.6fr 0.9fr auto;gap:6px;align-items:end">
         <div><div style="font-size:9px;color:#888">ประเภท</div>
-          <select id="ct-rmk-type" style="width:100%;padding:6px;border:1px solid #ddd;border-radius:6px;font-size:11px">
+          <select id="ct-rmk-type" onchange="onCrTypeChange()" style="width:100%;padding:6px;border:1px solid #ddd;border-radius:6px;font-size:11px">
             <option value="บิลไม่เข้าระบบ">บิลไม่เข้าระบบ</option>
             <option value="หาบิลไม่เจอ">หาบิลไม่เจอ</option>
             <option value="ยอดไม่ตรง">ยอดไม่ตรง</option>
+            <option value="รับงานนอกระบบ">📦 รายการรับงาน (เพิ่มภายหลัง · หักคอม)</option>
             <option value="ปท.→โอน">ปลายทาง→โอน (บันทึก+สลิป ไม่กระทบยอด)</option>
             <option value="อื่นๆ">อื่นๆ</option>
           </select></div>
@@ -380,8 +381,13 @@ tr:hover td{background:#f8fffe}
           <input id="ct-rmk-bill" style="width:100%;padding:6px;border:1px solid #ddd;border-radius:6px;font-size:11px"></div>
         <div><div style="font-size:9px;color:#888">รายละเอียด</div>
           <input id="ct-rmk-note" style="width:100%;padding:6px;border:1px solid #ddd;border-radius:6px;font-size:11px"></div>
-        <div><div style="font-size:9px;color:#888">ปรับยอด +/−</div>
-          <input id="ct-rmk-amount" type="number" placeholder="0" style="width:100%;padding:6px;border:1px solid #ddd;border-radius:6px;font-size:11px"></div>
+        <div><div style="font-size:9px;color:#888"><span id="ct-rmk-amt-lbl">ปรับยอด +/−</span></div>
+          <input id="ct-rmk-amount" type="number" placeholder="0" style="width:100%;padding:6px;border:1px solid #ddd;border-radius:6px;font-size:11px">
+          <select id="ct-rmk-comm" style="display:none;width:100%;margin-top:3px;padding:6px;border:1px solid #ddd;border-radius:6px;font-size:11px">
+            <option value="0">ค่าคอม 0%</option>
+            <option value="15" selected>ค่าคอม 15%</option>
+            <option value="20">ค่าคอม 20%</option>
+          </select></div>
         <button class="btn" onclick="addClearRemark()" style="background:#6a3fb5;color:#fff;font-size:11px;white-space:nowrap">+ เพิ่ม</button>
       </div>
       <div style="font-size:9px;color:#999;margin-top:4px">💡 ยอด + = พขร.ต้องคืนเพิ่ม (เช่น เก็บเงินบิลนอกระบบ), − = ลดยอดต้องคืน</div>
@@ -680,7 +686,7 @@ tr:hover td{background:#f8fffe}
 <div class="topbar">
   <span class="title">🚛 จัดการขนส่ง</span>
   <span id="session-info" style="font-size:11px;opacity:.8"></span>
-  <span style="font-size:10px;opacity:.65;margin-left:auto">build 2026-06-10z63</span>
+  <span style="font-size:10px;opacity:.65;margin-left:auto">build 2026-06-10z66</span>
   <a href="GolodApp.html" style="margin-left:10px">← หน้าหลัก</a>
 </div>
 <div class="container">
@@ -987,6 +993,7 @@ function stClass(v){
 var selectedBills  = {};
 var currentTab     = "pending";
 var dispatchMode   = "";
+var _smBills=[]; var _smLabel="";
 var statusTargetBill = null;
 var _statusBill = null;
 var _statusNewSlip = null;
@@ -1232,7 +1239,6 @@ function renderApp(){
     {k:"done",     l:"✅ ส่งสำเร็จ"},
     {k:"all",      l:"ทั้งหมด"},
     {k:"trip",     l:"🚛 จัดการเที่ยว"},
-    {k:"clearing", l:"💰 เคลียร์เงิน"},
     ...(canViewMonthly()?[{k:"monthly",l:"📅 สรุปสิ้นเดือน"}]:[]),
     {k:"history",  l:"📋 ประวัติจ่ายงาน"},
     ...((CU&&CU.role==="admin")?[{k:"billlog", l:"📜 ประวัติแก้/ลบบิล"}]:[])
@@ -1558,7 +1564,7 @@ function renderTripList(){
           +(canClearTrip()?'<button class="btn btn-orange" data-tid="'+t.id+'" onclick="openClearTrip(this.dataset.tid)">💰 เคลียร์เที่ยว</button>':'')
           +(canClearTrip()?'<button class="btn btn-green" data-tid="'+t.id+'" onclick="closeTrip(this.dataset.tid)">✅ ปิดเที่ยว</button>':'')
           +'<button class="btn btn-blue" data-tid="'+t.id+'" onclick="printTripSummary(this.dataset.tid)">🖨 พิมพ์</button>'
-          +'<button class="btn" data-tid="'+t.id+'" onclick="printBranchSummary(this.dataset.tid)" style="background:#0F6E56;color:#fff">🧾 สรุปส่งสาขา</button>'
+          +'' /* สรุปส่งสาขา ย้ายไปหน้าจ่ายให้สาขา (z64) */
           +(t.settlement?'<button class="btn" data-tid="'+t.id+'" onclick="printTripProposal(this.dataset.tid)" style="background:#7c4dff;color:#fff">🖨 พิมพ์'+((t.driverName||t.driverUsername)?"ใบวิ่งงานจริง":"ใบจัดเที่ยว")+'</button>':'')
           +(t.settlement?'<button class="btn" data-tid="'+t.id+'" onclick="printTripProposal(this.dataset.tid,true)" style="background:#c0392b;color:#fff">📄 PDF</button>':'')
           +((_isProp||_isAppr)?(_isAdminU
@@ -4939,26 +4945,34 @@ function renderClearRemarks(){
     var stBadge = r.status==="approved" ? '<span style="color:#0F6E56;font-weight:700">✅ อนุมัติ</span>'
                 : r.status==="rejected" ? '<span style="color:#c0392b;font-weight:700">❌ ไม่อนุมัติ</span>'
                 : '<span style="color:#E67E22;font-weight:700">⏳ รออนุมัติ</span>';
-    var amtClr = r.amount>=0 ? "#0F6E56" : "#c0392b";
+    var eff = _remarkEffective(r);
+    var amtClr = eff>=0 ? "#0F6E56" : "#c0392b";
     var adminBtns = (isAdmin && r.status==="pending")
       ? ' <button onclick="approveRemark(\''+r.id+'\')" style="background:#0F6E56;color:#fff;border:none;border-radius:5px;padding:2px 8px;font-size:10px;cursor:pointer">อนุมัติ</button>'
         +' <button onclick="rejectRemark(\''+r.id+'\')" style="background:#c0392b;color:#fff;border:none;border-radius:5px;padding:2px 8px;font-size:10px;cursor:pointer">ไม่อนุมัติ</button>'
       : '';
     var delBtn = (isAdmin || r.status==="pending")
       ? ' <button onclick="deleteRemark(\''+r.id+'\')" style="background:#eee;border:none;border-radius:5px;padding:2px 7px;font-size:10px;cursor:pointer">🗑</button>' : '';
-    var convBtn = (isAdmin && r.type!=="ปท.→โอน" && r.amount>0)
+    var convBtn = (isAdmin && r.type!=="ปท.→โอน" && r.type!=="รับงานนอกระบบ" && r.amount>0)
       ? ' <button onclick="convertRemarkToTransfer(\''+r.id+'\')" style="background:#fff3e0;border:1px solid #f0c97a;border-radius:5px;padding:2px 7px;font-size:10px;cursor:pointer;color:#b7950b">🔄 ปท.→โอน</button>' : '';
     return '<div style="background:#fff;border:1px solid #e5dcf5;border-radius:6px;padding:6px 8px;margin-bottom:4px;font-size:11px">'
       +'<div style="display:flex;justify-content:space-between;gap:8px;flex-wrap:wrap;align-items:center">'
       +'<div><b>'+r.type+'</b>'+(r.billNo?' · '+r.billNo:'')+(r.note?' · '+r.note:'')+'</div>'
-      +'<div style="white-space:nowrap"><b style="color:'+amtClr+'">'+(r.amount>=0?"+":"")+Math.round(r.amount).toLocaleString("th-TH")+' ฿</b> '+stBadge+adminBtns+convBtn+delBtn+'</div>'
+      +'<div style="white-space:nowrap"><b style="color:'+amtClr+'">'+(eff>=0?"+":"")+Math.round(eff).toLocaleString("th-TH")+' ฿</b> '+stBadge+adminBtns+convBtn+delBtn+'</div>'
       +'</div>'
       +'<div style="font-size:9px;color:#aaa;margin-top:2px">โดย '+(r.byName||r.by||"-")+(r.approvedByName?' · อนุมัติโดย '+r.approvedByName:'')+'</div>'
+      +(r.type==="รับงานนอกระบบ" ? ('<div style="font-size:9px;color:#6a3fb5;margin-top:2px">ค่าขนส่งรับงาน '+Math.round(parseFloat(r.amount||0)).toLocaleString("th-TH")+' − คอม '+(r.commRate||0)+'% = สุทธิเข้ายอด +'+Math.round(_remarkEffective(r)).toLocaleString("th-TH")+' ฿</div>') : '')
       +(r.type==="ปท.→โอน" ? ('<div style="margin-top:3px">'+(r._uploading?'<span style="color:#E67E22;font-size:10px">⏳ กำลังอัปโหลดสลิป...</span>':((r.slipUrl?'<a href="'+r.slipUrl+'" target="_blank" style="color:#0F6E56;font-size:10px;font-weight:700">📎 ดูสลิป</a>':'<span style="color:#c0392b;font-size:10px;font-weight:700">⚠ ยังไม่แนบสลิป</span>')+' <button onclick="uploadRemarkSlip(\''+r.id+'\')" style="background:#eef;border:1px solid #ccd;border-radius:5px;padding:2px 7px;font-size:10px;cursor:pointer">📷 '+(r.slipUrl?'เปลี่ยน':'แนบสลิป')+'</button>'))+'</div>') : '')
       +'</div>';
   }).join("");
 }
 
+function onCrTypeChange(){
+  var t=(document.getElementById("ct-rmk-type")||{}).value||"";
+  var isPk=(t==="รับงานนอกระบบ");
+  var cm=document.getElementById("ct-rmk-comm"); if(cm) cm.style.display=isPk?"block":"none";
+  var lbl=document.getElementById("ct-rmk-amt-lbl"); if(lbl) lbl.textContent=isPk?"ค่าขนส่งรับงาน (฿)":"ปรับยอด +/−";
+}
 function addClearRemark(){
   var type=(document.getElementById("ct-rmk-type")||{}).value||"อื่นๆ";
   var billNo=(document.getElementById("ct-rmk-bill")||{}).value||"";
@@ -4970,11 +4984,18 @@ function addClearRemark(){
     note=(note?note+" ":"")+"ปลายทางจ่ายผ่านโอน"+(_qf?" (฿"+_qf.toLocaleString("th-TH")+")":"")+" — บันทึก/สลิป ไม่กระทบยอด";
     amount = 0;
   }
+  var commRate=0;
+  if(type==="รับงานนอกระบบ"){
+    commRate=parseFloat((document.getElementById("ct-rmk-comm")||{}).value||0)||0;
+    amount=Math.abs(amount); // ค่าขนส่งรับงาน = พขร.เก็บมา (บวกเสมอ)
+    if(!amount){ alert("ใส่ค่าขนส่งรับงานด้วยครับ"); return; }
+    if(!note) note="รับงานเพิ่มภายหลัง (นอกระบบ)";
+  }
   if(!note && !billNo){ alert("กรอกรายละเอียดหรือเลขบิลด้วยครับ"); return; }
   var isAdmin = CU && CU.role==="admin";
   _clearRemarks.push({
     id: "rmk_"+Date.now()+"_"+Math.floor(Math.random()*1000),
-    type:type, billNo:billNo, note:note, amount:amount,
+    type:type, billNo:billNo, note:note, amount:amount, commRate:commRate,
     status: isAdmin?"approved":"pending",
     by: CU?CU.username:"", byName: CU?(CU.name||CU.username):"",
     at: new Date().toISOString(),
@@ -5023,13 +5044,18 @@ function deleteRemark(id){
   _clearRemarks=_clearRemarks.filter(function(x){return x.id!==id;});
   renderClearRemarks(); calcClearTrip();
 }
+function _remarkEffective(r){
+  var amt=parseFloat(r.amount||0);
+  if(r.type==="รับงานนอกระบบ"){ var cr=parseFloat(r.commRate||0)||0; return amt*(1-cr/100); }
+  return amt;
+}
 function remarksApprovedSum(){
   return _clearRemarks.filter(function(r){return r.status==="approved" && r.type!=="ปท.→โอน";})
-    .reduce(function(a,r){return a+parseFloat(r.amount||0);},0);
+    .reduce(function(a,r){return a+_remarkEffective(r);},0);
 }
 function remarksPendingSum(){
   return _clearRemarks.filter(function(r){return r.status==="pending";})
-    .reduce(function(a,r){return a+parseFloat(r.amount||0);},0);
+    .reduce(function(a,r){return a+_remarkEffective(r);},0);
 }
 
 function refreshTripSummary(tripId){
@@ -5363,6 +5389,40 @@ function printBranchSummary(tripId){
     body+='<div style="text-align:right;margin-top:10px;font-size:14px;border-top:2px solid #0F6E56;padding-top:6px"><b>รวมทั้งเที่ยว '+grand+' บิล · ค่าส่งรวม '+_settleFmt(gf)+' ฿</b></div>';
     _printDoc("สรุปส่งสาขา "+driver+" "+(t.departDate||""), body);
   }).catch(function(e){ alert("ดึงบิลไม่สำเร็จ: "+(e&&e.message||e)); });
+}
+function printBranchHandover(bills, branchLabel){
+  var tb = bills||[];
+  if(!tb.length){ alert("ไม่มีบิล"); return; }
+  var prov={};
+  tb.forEach(function(b){
+    var p=b.destProv||(b.form&&b.form.destProv)||"-";
+    var pay=_settlePay(b), net=_settleNet(b), cod=parseFloat(b.codTotal||0)||0;
+    if(!prov[p]) prov[p]={bills:[],pay:{},payAmt:{},cod:0,codAmt:0,total:0};
+    var g=prov[p]; g.bills.push(b);
+    g.pay[pay]=(g.pay[pay]||0)+1; g.payAmt[pay]=(g.payAmt[pay]||0)+net;
+    if(cod>0){ g.cod++; g.codAmt+=cod; } g.total+=net;
+  });
+  var keys=Object.keys(prov).sort(function(a,b){return prov[b].bills.length-prov[a].bills.length;});
+  var grand=tb.length, gf=0; keys.forEach(function(p){ gf+=prov[p].total; });
+  var d=new Date(); var dstr=d.getDate()+"/"+(d.getMonth()+1)+"/"+(d.getFullYear()+543);
+  var body='<div class="hd"><div style="font-size:12px;font-weight:700;color:#0F6E56">บริษัท โกโลด ทรานสปอร์ต จำกัด</div>'
+    +'<div style="font-size:18px;font-weight:800">ใบส่งของถึงสาขา <span style="font-size:11px;color:#888">(แยกจังหวัด x ประเภทเก็บเงิน)</span></div></div>';
+  body+='<div class="info">สาขาปลายทาง: <b>'+(branchLabel||"-")+'</b> &middot; วันที่ <b>'+dstr+'</b></div>';
+  body+='<div class="info" style="margin:4px 0 6px"><b>รวม '+grand+' บิล</b> &middot; ค่าส่งรวม <b>'+_settleFmt(gf)+' บาท</b> &middot; '+keys.length+' จังหวัด</div>';
+  keys.forEach(function(pp){
+    var g=prov[pp];
+    body+='<div style="margin-top:11px;background:#f0faf5;border:1px solid #0F6E56;border-radius:6px;padding:5px 9px;font-weight:800;font-size:14px;color:#0F6E56;display:flex;justify-content:space-between"><span>&#128205; '+pp+'</span><span>'+g.bills.length+' บิล &middot; '+_settleFmt(g.total)+' บาท</span></div>';
+    body+='<table style="margin-top:3px"><thead><tr><th style="text-align:left">เลขบิล</th><th style="text-align:left">อำเภอ</th><th style="text-align:left">ผู้รับ</th><th>ประเภท</th><th style="text-align:left">สินค้า (xจำนวน)</th><th style="text-align:right">ค่าส่ง</th><th style="text-align:right">COD</th></tr></thead><tbody>';
+    g.bills.forEach(function(b){
+      var its=Array.isArray(b.items)?b.items:(b.form&&Array.isArray(b.form.items)?b.form.items:[]); var f0=its[0]||{};
+      var pq=its.reduce(function(s,i){return s+(parseInt(i.qty)||1);},0);
+      var prod=(f0.desc||"-")+(its.length>1?(" +"+(its.length-1)):"")+(pq?(" x"+pq):"");
+      body+='<tr><td>'+(b.billNo||"")+'</td><td>'+(b.destAmphoe||(b.form&&b.form.destAmphoe)||"-")+'</td><td>'+(b.receiverName||(b.form&&b.form.receiverName)||"-")+'</td><td>'+(_SETTLE_PAYLBL[_settlePay(b)]||"-")+'</td><td>'+prod+'</td><td style="text-align:right">'+_settleFmt(_settleNet(b))+'</td><td style="text-align:right">'+(parseFloat(b.codTotal||0)>0?_settleFmt(b.codTotal):"-")+'</td></tr>';
+    });
+    body+='</tbody></table>';
+  });
+  body+='<div style="text-align:right;margin-top:10px;font-size:14px;border-top:2px solid #0F6E56;padding-top:6px"><b>รวมทั้งหมด '+grand+' บิล &middot; ค่าส่งรวม '+_settleFmt(gf)+' บาท</b></div>';
+  _printDoc("ใบส่งของถึงสาขา "+(branchLabel||"")+" "+dstr, body);
 }
 function printSettlement(asPdf){
   if(!_settle) return;
@@ -6364,11 +6424,13 @@ function showSummaryModal(bills, driverKey, driverLabel, dispatchAtISO, dispatch
 
   // set modal content
   var isDriver = dispatchMode==="driver";
+  _smBills=bills; _smLabel=driverLabel;
   document.getElementById("sm-title").textContent = (isDriver?"🚛 จ่ายงานคนขับ: ":"📦 จ่ายให้สาขา: ")+driverLabel;
   document.getElementById("sm-sub").textContent = "วันที่ "+dateStr+" เวลา "+timeStr+" | "+bills.length+" บิล"+byStr;
   document.getElementById("sm-body").innerHTML = statHTML + tableHTML
     +'<div class="sum-btn-row no-print">'
     +'<button class="btn btn-gray" onclick="closeSummary()">ปิด</button>'
+    +(isDriver?'':'<button class="btn" onclick="printBranchHandover(_smBills,_smLabel)" style="background:#0F6E56;color:#fff">🧾 สรุปส่งสาขา (แยกจังหวัด)</button>')
     +'<button class="btn btn-green" onclick="printSummary()">🖨 พิมพ์ใบสรุป</button>'
     +'</div>';
 
