@@ -110,7 +110,7 @@ const blank=(branch,clerk)=>({
   items:["","",""], goods:"",
   receiverName:"", receiverPhone:"", destProv:"", destAmphoe:"", destTambon:"",
   freight:"", rate:0, commission:"", paidOnPickup:false,
-  pickupDate:todayISO(), note:"", photos:[], status:"pending"
+  pickupDate:todayISO(), note:"", photos:[], payType:"cash_origin", slipUrl:"", status:"pending"
 });
 
 // แปลงข้อมูลเก่าให้มีฟิลด์ใหม่ครบ (กันฟอร์มพัง ตอนกดแก้ไขงานเก่า)
@@ -120,7 +120,7 @@ function normalizeRec(r){
   return Object.assign({}, r, {
     items: items,
     originAmphoe: r.originAmphoe||"", originTambon: r.originTambon||"",
-    senderPhone: r.senderPhone||"", photos: r.photos||[]
+    senderPhone: r.senderPhone||"", photos: r.photos||[], payType: r.payType||"cash_origin", slipUrl: r.slipUrl||""
   });
 }
 
@@ -148,6 +148,7 @@ function App(){
   const [filter,setFilter]=useState("wait");
   const [q,setQ]=useState("");
   const fileRef=useRef();
+  const slipRef=useRef();
 
   const flash=m=>{setToast(m);setTimeout(()=>setToast(""),1900);};
   const set=(k,v)=>setF(p=>({...p,[k]:v}));
@@ -170,6 +171,7 @@ function App(){
     files.forEach(file=>compress(file,d=>setF(p=>({...p,photos:[...p.photos,d]}))));
     e.target.value="";};
   const removePhoto=i=>setF(p=>({...p,photos:p.photos.filter((_,j)=>j!==i)}));
+  const pickSlip=e=>{const file=e.target.files[0];if(file)compress(file,d=>set("slipUrl",d));e.target.value="";};
 
   const genRef=()=>{
     const d=new Date();const yy=String(d.getFullYear()+543).slice(-2);
@@ -228,7 +230,7 @@ function App(){
   return (
    <div className="wrap">
     <header>
-      <h1>📦 ฟอร์มรับงาน — เสมียน</h1>
+      <h1>📦 ฟอร์มรับงาน — เสมียน <span style="font-size:11px;color:#9bb0a3;font-weight:400">PI 2026-06-19a</span></h1>
       <div className="who">บันทึกงานล่วงหน้า แล้วดึงไปจ่ายให้คนรถวันจัดเที่ยว</div>
       {loggedIn
         ? <div className="topinfo">
@@ -316,6 +318,25 @@ function App(){
           <input type="checkbox" checked={f.paidOnPickup} onChange={e=>set("paidOnPickup",e.target.checked)}/>
           เก็บค่าส่งตอนรับแล้ว (นำมาบวกยอดเคลียร์)
         </label>
+
+        <div className="sec">💳 ประเภทการเก็บเงิน</div>
+        <div className="row">
+          <div className="fld"><label>ประเภทการเก็บเงิน</label>
+            <select className="in" value={f.payType} onChange={e=>set("payType",e.target.value)}>
+              <option value="cash_origin">เงินสด (ต้นทาง)</option>
+              <option value="cash_dest">เงินสด (ปลายทาง)</option>
+              <option value="credit">เครดิต</option>
+              <option value="transfer">โอน (แนบสลิป)</option>
+            </select></div>
+        </div>
+        {f.payType==="transfer" &&
+          <div className="fld"><label>สลิปโอน (เสมียนหรือคนรถแนบ)</label>
+            <div className="photos">
+              {f.slipUrl && <div className="ph-wrap"><img className="ph" src={f.slipUrl}/><button className="ph-x" onClick={()=>set("slipUrl","")}>×</button></div>}
+              {!f.slipUrl && <div className="addph" onClick={()=>slipRef.current.click()}>＋</div>}
+            </div>
+            <input ref={slipRef} type="file" accept="image/*" capture="environment" style={{display:"none"}} onChange={pickSlip}/>
+          </div>}
 
         <div className="sec">🗓️ นัดหมาย / หมายเหตุ / รูป</div>
         <div className="row">
