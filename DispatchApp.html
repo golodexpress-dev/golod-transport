@@ -686,7 +686,7 @@ tr:hover td{background:#f8fffe}
 <div class="topbar">
   <span class="title">🚛 จัดการขนส่ง</span>
   <span id="session-info" style="font-size:11px;opacity:.8"></span>
-  <span style="font-size:10px;opacity:.65;margin-left:auto">build 2026-06-10z66</span>
+  <span style="font-size:10px;opacity:.65;margin-left:auto">build 2026-06-10z67</span>
   <a href="GolodApp.html" style="margin-left:10px">← หน้าหลัก</a>
 </div>
 <div class="container">
@@ -806,6 +806,25 @@ tr:hover td{background:#f8fffe}
     <div class="btn-row" style="margin-top:12px">
       <button class="btn btn-gray" onclick="closeSpecialReceivers()">ปิด</button>
       <button class="btn btn-green" onclick="saveSpecialReceivers()">💾 บันทึกทั้งหมด</button>
+    </div>
+  </div>
+</div>
+
+<div class="modal-bg" id="modal-special-senders" style="display:none">
+  <div class="modal" style="max-width:560px;max-height:92vh;overflow-y:auto">
+    <h3 style="color:#0F6E56;margin-bottom:4px">🏷️ ค่าพิเศษต้นทาง</h3>
+    <div style="font-size:11px;color:#888;margin-bottom:12px">กำหนดค่าพิเศษมาตรฐานต่อบิลตามชื่อบริษัท/ผู้ส่งต้นทาง หรือคำในที่อยู่ — ตอนออกบิลจะเติมให้อัตโนมัติ เสมียนปรับเพิ่ม/ลดได้</div>
+    <div style="display:flex;gap:8px;margin-bottom:10px;flex-wrap:wrap">
+      <input id="ss-name" placeholder="ชื่อบริษัท/ผู้ส่งต้นทาง" style="flex:2;min-width:160px;padding:8px 10px;border:1px solid #ddd;border-radius:7px;font-size:12px">
+      <input id="ss-loc" placeholder="โลเคชั่น/คำในที่อยู่ (ไม่บังคับ)" style="flex:2;min-width:150px;padding:8px 10px;border:1px solid #ddd;border-radius:7px;font-size:12px">
+      <input id="ss-prov" placeholder="จังหวัด (ไม่บังคับ)" style="flex:1;min-width:110px;padding:8px 10px;border:1px solid #ddd;border-radius:7px;font-size:12px">
+      <input id="ss-fee" type="number" placeholder="ค่าพิเศษ ฿" style="width:100px;padding:8px 10px;border:1px solid #f0c97a;border-radius:7px;font-size:12px">
+      <button class="btn btn-green" id="ss-add-btn" onclick="addSpecialSender()">+ เพิ่ม</button>
+    </div>
+    <div id="ss-list" style="max-height:400px;overflow-y:auto"></div>
+    <div class="btn-row" style="margin-top:12px">
+      <button class="btn btn-gray" onclick="closeSpecialSenders()">ปิด</button>
+      <button class="btn btn-green" onclick="saveSpecialSenders()">💾 บันทึกทั้งหมด</button>
     </div>
   </div>
 </div>
@@ -1116,6 +1135,7 @@ function loadData(){
   loadMonthlyAllowedUsers();
   loadSpecialAreas();
   loadSpecialReceivers();
+  loadSpecialSenders();
   loadCustomerPrices();
   loadRoutes();
     Promise.all([
@@ -1672,6 +1692,7 @@ function renderTripList(){
     +(isAdmin?'<button class="btn btn-gray" onclick="openMonthlyPermSettings()" title="สิทธิ์สรุปเดือน">⚙️เดือน</button>':'')
     +(isAdmin?'<button class="btn btn-gray" onclick="openSpecialAreaSettings()" title="จัดการพื้นที่พิเศษ">⚙️พื้นที่</button>':'')
     +(isAdmin?'<button class="btn btn-gray" onclick="openSpecialReceivers()" title="ขั้นต่ำปลายทางพิเศษ">🏢ปลายทาง</button>':'')
+    +(isAdmin?'<button class="btn btn-gray" onclick="openSpecialSenders()" title="ค่าพิเศษต้นทาง">🏷️ต้นทาง</button>':'')
     +(isAdmin?'<button class="btn btn-gray" onclick="openCustomerPrices()" title="ราคาลูกค้าพิเศษ">💰ราคาลูกค้า</button>':'')
     +(isAdmin?'<button class="btn btn-gray" onclick="openRoutes()" title="ตั้งเส้นทางจัดส่ง">🛣️เส้นทาง</button>':'')
     +'<button class="btn btn-gray" onclick="renderTripTab()">🔄 รีเฟรช</button>'
@@ -5873,6 +5894,73 @@ function saveSpecialReceivers(){
   }).catch(function(e){ alert("❌ "+e.message); });
 }
 
+var _specialSenders = []; // [{name, loc, prov, fee}]
+function loadSpecialSenders(){
+  if(!GolodDB.getSetting) return;
+  GolodDB.getSetting("specialSenders").then(function(val){
+    if(val && Array.isArray(val)) _specialSenders = val;
+  }).catch(function(){});
+}
+var _ssEditIdx = -1;
+function editSpecialSender(i){
+  var ss=_specialSenders[i]; if(!ss) return;
+  document.getElementById("ss-name").value=ss.name||"";
+  document.getElementById("ss-loc").value=ss.loc||"";
+  document.getElementById("ss-prov").value=ss.prov||"";
+  document.getElementById("ss-fee").value=ss.fee||"";
+  _ssEditIdx=i;
+  var b=document.getElementById("ss-add-btn"); if(b) b.textContent="💾 บันทึกแก้ไข";
+}
+function openSpecialSenders(){
+  if(!CU || CU.role!=="admin"){ alert("เฉพาะ Admin"); return; }
+  renderSpecialSenderList();
+  document.getElementById("modal-special-senders").style.display = "flex";
+}
+function closeSpecialSenders(){
+  document.getElementById("modal-special-senders").style.display = "none";
+}
+function renderSpecialSenderList(){
+  var html = _specialSenders.length === 0
+    ? '<div style="text-align:center;padding:20px;color:#aaa">ยังไม่มีต้นทางพิเศษ</div>'
+    : '<table style="width:100%;border-collapse:collapse;font-size:12px">'
+      +'<tr style="background:#f0faf5"><th style="padding:6px;text-align:left">บริษัท/ผู้ส่ง</th><th>จังหวัด</th><th>ค่าพิเศษ (฿)</th><th>ลบ</th></tr>'
+      +_specialSenders.map(function(ss, i){
+        return '<tr style="border-bottom:1px solid #f0f0f0">'
+          +'<td style="padding:6px">'+(ss.name||"(ตามโลเคชั่น)")+(ss.loc?'<div style="font-size:10px;color:#999">📍 '+ss.loc+'</div>':'')+'</td>'
+          +'<td style="text-align:center;color:#888">'+(ss.prov||"ทุกจังหวัด")+'</td>'
+          +'<td style="text-align:center;font-weight:700;color:#E67E22">'+(parseInt(ss.fee)||0).toLocaleString("th-TH")+'</td>'
+          +'<td style="text-align:center;white-space:nowrap"><button onclick="editSpecialSender('+i+')" style="background:#eef;border:1px solid #ccd;border-radius:5px;padding:2px 8px;cursor:pointer;font-size:11px;color:#33518a;margin-right:4px">แก้ไข</button><button onclick="removeSpecialSender('+i+')" style="background:#fee;border:1px solid #fcc;border-radius:5px;padding:2px 8px;cursor:pointer;font-size:11px;color:#c0392b">ลบ</button></td>'
+          +'</tr>';
+      }).join("")
+      +'</table>';
+  document.getElementById("ss-list").innerHTML = html;
+}
+function addSpecialSender(){
+  var name = document.getElementById("ss-name").value.trim();
+  var loc  = document.getElementById("ss-loc").value.trim();
+  var prov = document.getElementById("ss-prov").value.trim();
+  var fee  = parseInt(document.getElementById("ss-fee").value)||0;
+  if(!name && !loc){ alert("กรอกชื่อบริษัท/ผู้ส่ง หรือโลเคชั่น อย่างน้อยหนึ่งอย่าง"); return; }
+  if(fee <= 0){ alert("กรอกค่าพิเศษด้วยครับ"); return; }
+  if(_ssEditIdx>=0){ _specialSenders[_ssEditIdx]={name:name, loc:loc, prov:prov, fee:fee}; _ssEditIdx=-1; var _b=document.getElementById("ss-add-btn"); if(_b) _b.textContent="+ เพิ่ม"; }
+  else { _specialSenders.push({name:name, loc:loc, prov:prov, fee:fee}); }
+  document.getElementById("ss-name").value="";
+  document.getElementById("ss-loc").value="";
+  document.getElementById("ss-prov").value="";
+  document.getElementById("ss-fee").value="";
+  renderSpecialSenderList();
+}
+function removeSpecialSender(idx){
+  _specialSenders.splice(idx, 1);
+  renderSpecialSenderList();
+}
+function saveSpecialSenders(){
+  if(!GolodDB.saveSetting){ alert("golod-firebase.js ยังไม่อัปเดต"); return; }
+  GolodDB.saveSetting("specialSenders", _specialSenders).then(function(){
+    alert("✅ บันทึกค่าพิเศษต้นทางแล้ว "+_specialSenders.length+" รายการ");
+    closeSpecialSenders();
+  }).catch(function(e){ alert("❌ "+e.message); });
+}
 var _customerPrices = []; // [{name, code, pricePerPiece}]
 function loadCustomerPrices(){
   if(!GolodDB.getSetting) return;
