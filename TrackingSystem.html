@@ -144,7 +144,7 @@ var _canStaff = ["admin","branch","driver"].includes(_role);
 </head>
 <body>
 <div id="golod-session-bar" style="background:#0F6E56;padding:0 14px;display:flex;align-items:center;gap:10px;height:44px;position:sticky;top:0;z-index:999">
-  <div style="color:#fff;font-size:13px;font-weight:700;flex:1">โกโลด ทรานสปอร์ต <span style="font-size:10px;color:#9FE1CB;margin-left:6px">ระบบติดตาม</span> <span style="font-size:9px;color:#7FBFA8;opacity:.7;font-weight:400">TS 2026-06-19a</span></div>
+  <div style="color:#fff;font-size:13px;font-weight:700;flex:1">โกโลด ทรานสปอร์ต <span style="font-size:10px;color:#9FE1CB;margin-left:6px">ระบบติดตาม</span> <span style="font-size:9px;color:#7FBFA8;opacity:.7;font-weight:400">TS 2026-06-19b</span></div>
   <div id="golod-user-chip"></div>
   <a href="AuthSystem.html" style="font-size:11px;color:#9FE1CB;text-decoration:none;background:rgba(255,255,255,.15);padding:3px 10px;border-radius:20px">← เมนูหลัก</a>
 </div>
@@ -336,6 +336,31 @@ function firestoreBillToTracking(b){
       timeline.push({status:"returned", dt:fmtISO(b.updatedAt), loc:(b.destAmphoe||form.destAmphoe||""), note:"นำกลับสาขา", photo:false, sig:false, by:(b.driverName||"")});
     }
   }
+  // === FIX: สะท้อนสถานะปัจจุบันจริง (b.status) เป็นขั้นสุดท้ายเสมอ ===
+  // DriverApp ตอนส่งสำเร็จเขียนแค่ status ไม่ได้ append เข้า statusHistory
+  // → timeline ที่สร้างจาก statusHistory เลยจบแค่ "ไปสาขา" ทั้งที่ส่งสำเร็จแล้ว
+  (function(){
+    var curKey = (st==="out") ? "transit" : st;
+    if(curKey==="issued") return;
+    var last = timeline[timeline.length-1];
+    if(last && last.status===curKey) return;            // สะท้อนแล้ว
+    var curStep = (STATUSES[curKey]&&STATUSES[curKey].step)||0;
+    var lastStep = (last&&STATUSES[last.status]&&STATUSES[last.status].step)||0;
+    if(curStep < lastStep) return;                       // ไม่แสดงถอยหลัง
+    if(curKey==="delivered"){
+      timeline.push({status:"delivered", dt:fmtISO(b.deliveredAt||b.updatedAt), loc:(b.destAmphoe||form.destAmphoe||""), note:"ส่งถึงมือผู้รับแล้ว", photo:!!b.photoUrl, sig:!!b.signatureUrl, photoUrl:b.photoUrl||"", signatureUrl:b.signatureUrl||"", by:(b.driverName||b.deliveredByName||b.statusByName||"")});
+    } else if(curKey==="transit"){
+      timeline.push({status:"transit", dt:updatedDt, loc:(b.destAmphoe||form.destAmphoe||""), note:"กำลังวิ่งส่งลูกค้า", photo:false, sig:false, by:(b.driverName||"")});
+    } else if(curKey==="hub"){
+      timeline.push({status:"hub", dt:updatedDt, loc:"ระหว่างนำส่ง", note:"กำลังนำส่งสาขา", photo:false, sig:false});
+    } else if(curKey==="nocontact"){
+      timeline.push({status:"nocontact", dt:fmtISO(b.updatedAt), loc:(b.destAmphoe||form.destAmphoe||""), note:b.failReason||"ส่งไม่สำเร็จ", photo:false, sig:false, by:(b.driverName||"")});
+    } else if(curKey==="returned"){
+      timeline.push({status:"returned", dt:fmtISO(b.updatedAt), loc:(b.destAmphoe||form.destAmphoe||""), note:"นำกลับสาขา", photo:false, sig:false, by:(b.driverName||"")});
+    } else if(STATUSES[curKey]){
+      timeline.push({status:curKey, dt:fmtISO(b.updatedAt), loc:(b.destAmphoe||form.destAmphoe||""), note:STATUSES[curKey].label, photo:false, sig:false, by:(b.driverName||"")});
+    }
+  })();
   return {
     billNo: b.billNo,
     destProv: b.destProv||form.destProv||"",
