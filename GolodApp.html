@@ -3,6 +3,7 @@
 <head>
 <meta charset="UTF-8"/>
 <meta name="viewport" content="width=device-width,initial-scale=1"/>
+<!-- GA build 2026-06-18a -->
 <title>โกโลด ทรานสปอร์ต</title>
 <style>
 *{box-sizing:border-box;margin:0;padding:0}
@@ -1131,7 +1132,8 @@ function doTrack(){
   h+='<div style="display:flex;gap:8px;flex-wrap:wrap;font-size:12px;color:#555;margin-bottom:8px">';
   h+='<span>📦 '+b.senderName+'</span><span>→</span><span>📍 '+b.receiverName+'</span></div>';
   h+='<div style="font-size:12px;color:#555">ปลายทาง: <b>'+b.destAmphoe+' · '+b.destProv+'</b> | Zone: <b>'+b.zone+'</b></div>';
-  if(b.driverName||b.planDeliverFrom){ h+='<div style="font-size:12px;color:#555;margin-top:5px">🚛 คนรถ: <b>'+(b.driverName||"-")+'</b>'+(_planDeliverLabel2(b)?' <span style="background:#1565C0;color:#fff;font-size:11px;padding:2px 9px;border-radius:9px;font-weight:700;margin-left:6px">📅 ส่ง '+_planDeliverLabel2(b)+'</span>':'')+'</div>'; }
+  var _isStaff = CU && CU.role!=="customer" && CU.role!=="driver";
+  if(b.driverName||(_isStaff&&b.planDeliverFrom)){ h+='<div style="font-size:12px;color:#555;margin-top:5px">🚛 คนรถ: <b>'+(b.driverName||"-")+'</b>'+((_isStaff&&_planDeliverLabel2(b))?' <span style="background:#1565C0;color:#fff;font-size:11px;padding:2px 9px;border-radius:9px;font-weight:700;margin-left:6px">📅 ส่ง '+_planDeliverLabel2(b)+'</span>':'')+'</div>'; }
   h+='<div style="margin-top:8px;display:flex;justify-content:space-between"><span style="font-size:12px;color:#888">ค่าขนส่ง</span><span style="font-size:16px;font-weight:700;color:#085041">'+fmt(b.freightNet)+' ฿</span></div>';
   if(b.codTotal>0)h+='<div style="display:flex;justify-content:space-between"><span style="font-size:12px;color:#854F0B">★ COD</span><span style="font-size:14px;font-weight:700;color:#854F0B">'+fmt(b.codTotal)+' ฿</span></div>';
   h+="</div>";
@@ -1158,9 +1160,10 @@ function filterTrack(){
   }).slice(0,30);
   var cnt=document.getElementById("tcnt");if(cnt)cnt.textContent=data.length+" บิล";
   var tbl=document.getElementById("track-table");if(!tbl)return;
-  var h='<table><thead><tr><th>เลขบิล</th><th>ผู้รับ</th><th>ปลายทาง</th><th>ค่าส่ง</th><th>สถานะปัจจุบัน</th><th>อัปเดต</th></tr></thead><tbody>';
+  var h='<table><thead><tr><th>เลขบิล</th><th>ผู้รับ</th><th>ปลายทาง</th><th>วันส่ง</th><th>ค่าส่ง</th><th>สถานะปัจจุบัน</th><th>อัปเดต</th></tr></thead><tbody>';
   data.forEach(function(b){
     h+="<tr><td style='font-weight:600;color:#0F6E56'>"+b.billNo+"</td><td>"+b.receiverName+"</td><td>"+b.destProv+"</td>";
+    h+="<td>"+(_planDeliverLabel2(b)?('<span style=\'background:#E3F2FD;color:#1565C0;font-size:11px;padding:2px 7px;border-radius:8px;font-weight:700\'>'+_planDeliverLabel2(b)+'</span>'):'<span style=\'color:#ccc\'>—</span>')+"</td>";
     h+="<td>"+fmt(b.freightNet)+"฿</td>";
     h+="<td><span class='pill "+(STCLS[b.status]||"px")+"'>"+(STLAB[b.status]||b.status)+"</span></td>";
     h+="<td><select onchange=\"updateStatusDirect('"+b.billNo+"',this.value)\" style='font-size:11px;padding:3px 6px'>";
