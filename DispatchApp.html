@@ -692,7 +692,7 @@ tr:hover td{background:#f8fffe}
 <div class="topbar">
   <span class="title">🚛 จัดการขนส่ง</span>
   <span id="session-info" style="font-size:11px;opacity:.8"></span>
-  <span style="font-size:10px;opacity:.65;margin-left:auto">build 2026-06-10z70</span>
+  <span style="font-size:10px;opacity:.65;margin-left:auto">build 2026-06-10z71</span>
   <a href="GolodApp.html" style="margin-left:10px">← หน้าหลัก</a>
 </div>
 <div class="container">
@@ -6450,7 +6450,9 @@ function saveDispatchLogNow(bills, targetId, targetName, extra){
       receiverName: b.receiverName||(b.form&&b.form.receiverName)||"",
       destProv: b.destProv||(b.form&&b.form.destProv)||"",
       destAmphoe: b.destAmphoe||(b.form&&b.form.destAmphoe)||"",
-      freightNet: net, codTotal: cod, freightPay: pay
+      freightNet: net, codTotal: cod, freightPay: pay,
+      items: (Array.isArray(b.items)?b.items:(b.form&&Array.isArray(b.form.items)?b.form.items:[])),
+      note: b.note||""
     };
   });
   var log = {
@@ -6488,6 +6490,17 @@ function showSummaryModal(bills, driverKey, driverLabel, dispatchAtISO, dispatch
   var _isBr = dispatchMode!=="driver";
   var brDrv="", brEta="";
   if(_isBr){ bills.forEach(function(b){ if(!brDrv&&b.lineDriver) brDrv=b.lineDriver; if(!brEta&&b.etaBranch) brEta=b.etaBranch; }); }
+  function _billGoods(b){
+    var its=Array.isArray(b.items)?b.items:(b.form&&Array.isArray(b.form.items)?b.form.items:[]);
+    var nt=b.note||"";
+    if(!its.length && typeof BILLS!=="undefined" && BILLS){
+      var full=BILLS.find(function(x){return x.billNo===b.billNo;});
+      if(full){ its=Array.isArray(full.items)?full.items:(full.form&&Array.isArray(full.form.items)?full.form.items:[]); if(!nt) nt=full.note||""; }
+    }
+    var f0=its[0]||{};
+    var pq=its.reduce(function(s,it){return s+(parseInt(it.qty)||1);},0);
+    return { prod:(f0.desc||nt||"-")+(its.length>1?(" +"+(its.length-1)):""), qty:pq };
+  }
 
   // คำนวณยอด
   var totalOrigin=0, totalDest=0, totalTransfer=0, totalCredit=0, totalCOD=0, totalFreight=0;
@@ -6527,9 +6540,7 @@ function showSummaryModal(bills, driverKey, driverLabel, dispatchAtISO, dispatch
     var pay = b.freightPay||(b.form&&b.form.freightPay)||"origin";
     var recv = b.receiverName||(b.form&&b.form.receiverName)||"";
     var prov = b.destProv||(b.form&&b.form.destProv)||"";
-    var _its=Array.isArray(b.items)?b.items:(b.form&&Array.isArray(b.form.items)?b.form.items:[]);
-    var _f0=_its[0]||{}; var _pq=_its.reduce(function(s,it){return s+(parseInt(it.qty)||1);},0);
-    var _prod=(_f0.desc||"-")+(_its.length>1?(" +"+(_its.length-1)):"");
+    var _g=_billGoods(b); var _prod=_g.prod, _pq=_g.qty;
     return '<tr>'
       +'<td style="color:#aaa;font-size:10px">'+(i+1)+'</td>'
       +'<td style="font-weight:700">'+b.billNo+'</td>'
@@ -6596,9 +6607,7 @@ function showSummaryModal(bills, driverKey, driverLabel, dispatchAtISO, dispatch
         var pay=b.freightPay||(b.form&&b.form.freightPay)||"origin";
         var recv=b.receiverName||(b.form&&b.form.receiverName)||"";
         var prov=b.destProv||(b.form&&b.form.destProv)||"";
-        var _its2=Array.isArray(b.items)?b.items:(b.form&&Array.isArray(b.form.items)?b.form.items:[]);
-        var _f02=_its2[0]||{}; var _pq2=_its2.reduce(function(s,it){return s+(parseInt(it.qty)||1);},0);
-        var _prod2=(_f02.desc||"-")+(_its2.length>1?(" +"+(_its2.length-1)):"");
+        var _g2=_billGoods(b); var _prod2=_g2.prod, _pq2=_g2.qty;
         var PAY2={origin:"ต้นทาง",dest:"ปลายทาง",transfer:"โอน",credit:"เครดิต"};
         return '<tr style="border-bottom:1px solid #f5f5f5">'
           +'<td style="padding:4px 6px;color:#aaa">'+(i+1)+'</td>'
