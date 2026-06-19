@@ -151,10 +151,22 @@ tr:hover td{background:#f8fffe}
 
       <!-- ค่าน้ำมัน -->
       <div style="font-size:11px;font-weight:700;color:#0F6E56;margin-bottom:6px">⛽ ค่าน้ำมัน</div>
+      <input id="md-dist" type="hidden" value="0">
       <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;margin-bottom:8px">
-        <input id="md-dist" type="hidden" value="0">
-          <input id="md-price" type="number" style="width:100%;padding:7px 10px;border:1px solid #ddd;border-radius:7px;font-size:12px;font-family:inherit" placeholder="กรอกราคา" oninput="calcModalFuel()">
+        <div>
+          <div style="font-size:10px;color:#888;margin-bottom:3px">ราคาน้ำมัน/ลิตร (฿)</div>
+          <input id="md-price" type="number" step="0.01" style="width:100%;padding:7px 10px;border:1px solid #ddd;border-radius:7px;font-size:12px;font-family:inherit" placeholder="กรอกราคา" oninput="calcModalFuel()">
           <div id="md-price-total" style="font-size:10px;color:#0F6E56;margin-top:2px">รวม — ฿/ล</div>
+        </div>
+        <div>
+          <div style="font-size:10px;color:#888;margin-bottom:3px">บวกเพิ่ม/ลิตร (฿)</div>
+          <select id="md-fuel-addon" onchange="onMdFuelAddonChange()" style="width:100%;padding:7px 6px;border:1px solid #ddd;border-radius:7px;font-size:12px;font-family:inherit">
+            <option value="0">+0 (ไม่บวก)</option>
+            <option value="0.2">+0.20</option>
+            <option value="0.3">+0.30</option>
+            <option value="custom">กำหนดเอง</option>
+          </select>
+          <input id="md-fuel-addon-custom" type="number" step="0.01" placeholder="ระบุ +" oninput="calcModalFuel()" style="display:none;width:100%;margin-top:4px;padding:6px 10px;border:1px solid #ffb74d;border-radius:7px;font-size:12px;font-family:inherit">
         </div>
         <div>
           <div style="font-size:10px;color:#888;margin-bottom:3px">อัตราสิ้นเปลือง (กม./ลิตร)</div>
@@ -668,7 +680,7 @@ tr:hover td{background:#f8fffe}
 <div class="topbar">
   <span class="title">🚛 จัดการขนส่ง</span>
   <span id="session-info" style="font-size:11px;opacity:.8"></span>
-  <span style="font-size:10px;opacity:.65;margin-left:auto">build 2026-06-10z57</span>
+  <span style="font-size:10px;opacity:.65;margin-left:auto">build 2026-06-10z60</span>
   <a href="GolodApp.html" style="margin-left:10px">← หน้าหลัก</a>
 </div>
 <div class="container">
@@ -1513,7 +1525,7 @@ function renderTripList(){
     var codShow  = _live ? _live.cod  : (s.codTotal||0);
     var destFix  = _live && Math.round(_live.dest)!==Math.round(s.destTotal||0);
     var codFix   = _live && Math.round(_live.cod )!==Math.round(s.codTotal||0);
-    var fuelEst = t.fuelDist&&t.fuelRate&&t.fuelPrice ? Math.round((t.fuelDist/t.fuelRate)*t.fuelPrice) : 0;
+    var fuelEst = t.fuelDist&&t.fuelRate&&t.fuelPrice ? Math.round((t.fuelDist/t.fuelRate)*(parseFloat(t.fuelPrice||0)+parseFloat(t.fuelPriceAddon||0))) : 0;
     var pendRmk = ((t.clearRemarks||(t.clearData&&t.clearData.remarks)||[]).filter(function(r){return r.status==="pending";})).length;
     var pendDel = ((t.billRemovalRequests||[]).filter(function(r){return r.status==="pending";})).length;
     var pendAdd = ((t.billAdditionRequests||[]).filter(function(r){return r.status==="pending";})).length;
@@ -1837,7 +1849,7 @@ function _dispatchTripBills(t, knownBills){
 }
 
 var AUTO_DISPATCH_MIN = 60;        // นาที หลังใส่ชื่อคนรถ → ออโต้อนุมัติ+ส่งงาน
-var AUTO_DISPATCH_ENABLED = false; // ⛔ ปิดชั่วคราว (กันเขียนทับสถานะ) — เปิดกลับเป็น true เมื่อยืนยันข้อมูลปกติ
+var AUTO_DISPATCH_ENABLED = true; // ✅ เปิดใช้งาน — guard กันทับสถานะ + ดึงสถานะจริงจาก Firestore ก่อน (ปลอดภัยแล้ว)
 function _autoEligible(t){
   if(!AUTO_DISPATCH_ENABLED || !t) return false;
   if(t.autoDispatched) return false;
@@ -2353,7 +2365,9 @@ function renderTripForm(existingTrip){
     +'<div class="trip-section-title">⛽ ค่าน้ำมัน / ต้นทุนเที่ยว</div>'
     +'<div class="trip-form-grid">'
     +'<div><div class="trip-lbl">ราคาน้ำมัน (฿/ลิตร)</div>'
-    +'<input id="tf-price" type="number" class="trip-inp" placeholder="40" value="'+(t.fuelPrice||"")+'"></div>'
+    +'<input id="tf-price" type="number" step="0.01" class="trip-inp" placeholder="40" value="'+(t.fuelPrice||"")+'"></div>'
+    +'<div><div class="trip-lbl">บวกเพิ่ม/ลิตร (฿)</div>'
+    +'<input id="tf-addon" type="number" step="0.01" class="trip-inp" placeholder="0 / 0.2 / 0.3" value="'+(t.fuelPriceAddon||"")+'"></div>'
     +'<div><div class="trip-lbl">อัตราสิ้นเปลือง (กม./ลิตร)</div>'
     +'<input id="tf-rate" type="number" class="trip-inp" placeholder="12" value="'+(t.fuelRate||"")+'"></div>'
     +'</div>'
@@ -2907,6 +2921,7 @@ function saveTrip(){
     fuelDist: parseFloat((document.getElementById("tf-dist")||{}).value||0),
     fuelPrice: parseFloat((document.getElementById("tf-price")||{}).value||40),
     fuelRate: parseFloat((document.getElementById("tf-rate")||{}).value||12),
+    fuelPriceAddon: parseFloat((document.getElementById("tf-addon")||{}).value||0)||0,
     fuelAdvance: parseFloat((document.getElementById("tf-adv")||{}).value||0),
     odomStart: parseFloat((document.getElementById("tf-odo")||{}).value||0),
     toll: parseFloat((document.getElementById("tf-toll")||{}).value||0),
@@ -3071,7 +3086,7 @@ function printTripSummary(tripId){
   var s = trip.summary||{};
   var fmt = function(n){ return (Math.round(n)||0).toLocaleString("th-TH"); };
   var fuelEst = trip.fuelDist&&trip.fuelRate&&trip.fuelPrice
-    ? Math.round((trip.fuelDist/trip.fuelRate)*trip.fuelPrice) : 0;
+    ? Math.round((trip.fuelDist/trip.fuelRate)*(parseFloat(trip.fuelPrice||0)+parseFloat(trip.fuelPriceAddon||0))) : 0;
   var fuelNet = fuelEst - (trip.fuelAdvance||0);
 
   // ดึง bill details
@@ -3373,7 +3388,7 @@ function _renderClearForm(){
 function _clrFuel(){
   var t=_clearState.trip||{};
   var ms=parseFloat(t.odomStart||0), me=_clrNum("clr-me");
-  var fp=parseFloat(t.fuelPrice||0), fr=parseFloat(t.fuelRate||0);
+  var fp=parseFloat(t.fuelPrice||0)+parseFloat(t.fuelPriceAddon||0), fr=parseFloat(t.fuelRate||0);
   var dist=(me>ms)?(me-ms):(((t.clearData&&t.clearData.distReal)||t.fuelDist)||0);
   var liters=fr>0?(dist/fr):0;
   return {ms:ms,me:me,fp:fp,fr:fr,dist:dist,liters:liters,fuel:Math.round(liters*fp)};
@@ -4385,8 +4400,24 @@ function getFuelAddon(){
   return 0; // ssk และอื่นๆ
 }
 
+function _mdFuelAddon(){
+  var sel=(document.getElementById("md-fuel-addon")||{}).value;
+  if(sel==="custom") return parseFloat((document.getElementById("md-fuel-addon-custom")||{}).value||0)||0;
+  return parseFloat(sel||0)||0;
+}
+function onMdFuelAddonChange(){
+  var sel=(document.getElementById("md-fuel-addon")||{}).value;
+  var ci=document.getElementById("md-fuel-addon-custom");
+  if(ci) ci.style.display=(sel==="custom")?"block":"none";
+  calcModalFuel();
+}
 function setFuelPriceByBranch(){
-  // ไม่ override ราคาฐานที่เสมียนกรอก แค่อัปเดต label
+  // preset ตัวบวกอัตโนมัติตามสาขา+จำนวนวัน (เสมียนเปลี่ยนเองได้)
+  var auto = (typeof getFuelAddon==="function") ? getFuelAddon() : 0;
+  var sel = document.getElementById("md-fuel-addon");
+  if(sel && sel.value!=="custom"){
+    sel.value = (auto===0.3) ? "0.3" : (auto===0.2) ? "0.2" : "0";
+  }
   calcModalFuel();
 }
 
@@ -4404,7 +4435,7 @@ function calcModalFuel(){
   var dist  = parseFloat((document.getElementById("md-dist")||{}).value||0);
   var base  = parseFloat((document.getElementById("md-price")||{}).value||40);
   var rate  = parseFloat((document.getElementById("md-rate")||{}).value||8);
-  var addon = getFuelAddon ? getFuelAddon() : 0;
+  var addon = _mdFuelAddon();
   var total = base + addon;
   var pt = document.getElementById("md-price-total");
   if(pt){
@@ -5426,7 +5457,7 @@ function openClearTrip(tripId){
   var cd=trip.clearData||{};
   var addonEl=document.getElementById("ct-fuel-addon");
   if(addonEl){
-    var av=cd.fuelAddon!=null?String(cd.fuelAddon):"0";
+    var av=cd.fuelAddon!=null?String(cd.fuelAddon):String(trip.fuelPriceAddon||0);
     if(["0","0.2","0.3"].indexOf(av)>=0){ addonEl.value=av; document.getElementById("ct-fuel-addon-custom").style.display="none"; }
     else { addonEl.value="custom"; var ci=document.getElementById("ct-fuel-addon-custom"); ci.style.display="block"; ci.value=av; }
   }
