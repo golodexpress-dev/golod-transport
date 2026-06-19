@@ -680,7 +680,7 @@ tr:hover td{background:#f8fffe}
 <div class="topbar">
   <span class="title">🚛 จัดการขนส่ง</span>
   <span id="session-info" style="font-size:11px;opacity:.8"></span>
-  <span style="font-size:10px;opacity:.65;margin-left:auto">build 2026-06-10z60</span>
+  <span style="font-size:10px;opacity:.65;margin-left:auto">build 2026-06-10z62</span>
   <a href="GolodApp.html" style="margin-left:10px">← หน้าหลัก</a>
 </div>
 <div class="container">
@@ -1699,6 +1699,7 @@ function openTripVehiclePhoto(tripId){
   if(ex.openTail)conds.push("เปิดท้าย");
   if(ex.longLoad)conds.push("ยื่นยาว");
   if(ex.overHeight)conds.push("สูงเกิน");
+  if(ex.twoMan)conds.push("ไป 2 คน");
   if(ex.overweight)conds.push("น้ำหนักเกิน");
   var condText=conds.length>0?'<div style="font-size:12px;color:#c0392b;background:#fef0f0;border-radius:7px;padding:8px;margin-bottom:10px">⚠️ เที่ยวนี้: '+conds.join(", ")+' — ควรมีรูปยืนยัน</div>':'<div style="font-size:12px;color:#888;margin-bottom:10px">รูปรถตอนขึ้นของที่บริษัท</div>';
   var existHtml=existing.length>0?'<div style="font-size:12px;color:#0F6E56;margin-bottom:10px">มีรูปแล้ว '+existing.length+' รูป: '+existing.map(function(u,i){return '<a href="'+u+'" target="_blank">รูป'+(i+1)+'</a>';}).join(", ")+'</div>':'';
@@ -2359,6 +2360,7 @@ function renderTripForm(existingTrip){
     +'<div style="display:flex;align-items:center;gap:6px"><label style="display:flex;align-items:center;gap:4px;font-size:12px;white-space:nowrap"><input type="checkbox" id="tf-c2" '+(t.extras&&(t.extras.openTailChk||(parseFloat(t.extras.openTail)>0))?"checked":"")+' style="accent-color:#0F6E56">เปิดท้าย</label><input id="tf-x2" type="number" class="trip-inp" placeholder="฿" value="'+(t.extras&&t.extras.openTail||"")+'" '+(isAdmin?'':'readonly style="background:#f5f5f5;color:#888"')+' oninput="calcTotalFare()"></div>'
     +'<div style="display:flex;align-items:center;gap:6px"><label style="display:flex;align-items:center;gap:4px;font-size:12px;white-space:nowrap"><input type="checkbox" id="tf-c3" '+(t.extras&&(t.extras.longLoadChk||(parseFloat(t.extras.longLoad)>0))?"checked":"")+' style="accent-color:#0F6E56">ยื่นยาว</label><input id="tf-x3" type="number" class="trip-inp" placeholder="฿" value="'+(t.extras&&t.extras.longLoad||"")+'" '+(isAdmin?'':'readonly style="background:#f5f5f5;color:#888"')+' oninput="calcTotalFare()"></div>'
     +'<div style="display:flex;align-items:center;gap:6px"><label style="display:flex;align-items:center;gap:4px;font-size:12px;white-space:nowrap"><input type="checkbox" id="tf-c4" '+(t.extras&&(t.extras.overHeightChk||(parseFloat(t.extras.overHeight)>0))?"checked":"")+' style="accent-color:#0F6E56">สูงเกิน</label><input id="tf-x4" type="number" class="trip-inp" placeholder="฿" value="'+(t.extras&&t.extras.overHeight||"")+'" '+(isAdmin?'':'readonly style="background:#f5f5f5;color:#888"')+' oninput="calcTotalFare()"></div>'
+    +'<div style="display:flex;align-items:center;gap:6px"><label style="display:flex;align-items:center;gap:4px;font-size:12px;white-space:nowrap"><input type="checkbox" id="tf-c5" '+(t.extras&&(t.extras.twoManChk||(parseFloat(t.extras.twoMan)>0))?"checked":"")+' style="accent-color:#0F6E56">ไป 2 คน</label><input id="tf-x5" type="number" class="trip-inp" placeholder="฿" value="'+(t.extras&&t.extras.twoMan||"")+'" '+(isAdmin?'':'readonly style="background:#f5f5f5;color:#888"')+' oninput="calcTotalFare()"></div>'
     +'</div>'
     +'<div style="font-size:11px;color:#888;margin-bottom:10px">รวมค่าแรงค่าตร.: <b id="tf-labor-sum" style="color:#0F6E56">0</b> ฿</div>'
 
@@ -2496,7 +2498,8 @@ function calcTotalFare(){
   var laborSum = parseFloat((document.getElementById("tf-x1")||{}).value||0)
                + parseFloat((document.getElementById("tf-x2")||{}).value||0)
                + parseFloat((document.getElementById("tf-x3")||{}).value||0)
-               + parseFloat((document.getElementById("tf-x4")||{}).value||0);
+               + parseFloat((document.getElementById("tf-x4")||{}).value||0)
+               + parseFloat((document.getElementById("tf-x5")||{}).value||0);
   var lsEl=document.getElementById("tf-labor-sum"); if(lsEl) lsEl.textContent=laborSum.toLocaleString("th-TH");
   var fareTotal = base + extra + hotel;
   var incomeTotal = fareTotal + phone + bonus + rateTotal + laborSum;
@@ -2950,7 +2953,9 @@ function saveTrip(){
       overweightChk: !!(document.getElementById("tf-c1")||{}).checked,
       openTailChk:   !!(document.getElementById("tf-c2")||{}).checked,
       longLoadChk:   !!(document.getElementById("tf-c3")||{}).checked,
-      overHeightChk: !!(document.getElementById("tf-c4")||{}).checked
+      overHeightChk: !!(document.getElementById("tf-c4")||{}).checked,
+      twoMan:    parseFloat((document.getElementById("tf-x5")||{}).value||0),
+      twoManChk: !!(document.getElementById("tf-c5")||{}).checked
     },
     billIds: billIds,
     pickups: getTfPickupData(),
