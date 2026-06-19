@@ -680,7 +680,7 @@ tr:hover td{background:#f8fffe}
 <div class="topbar">
   <span class="title">🚛 จัดการขนส่ง</span>
   <span id="session-info" style="font-size:11px;opacity:.8"></span>
-  <span style="font-size:10px;opacity:.65;margin-left:auto">build 2026-06-10z62</span>
+  <span style="font-size:10px;opacity:.65;margin-left:auto">build 2026-06-10z63</span>
   <a href="GolodApp.html" style="margin-left:10px">← หน้าหลัก</a>
 </div>
 <div class="container">
@@ -1925,6 +1925,13 @@ function _autoScanTick(){
   if(currentTab==="trip"){ if(typeof renderTripTab==="function") renderTripTab(); return; }
   if(typeof GolodDB!=="undefined" && GolodDB.getTrips){ GolodDB.getTrips({limitN:300}).then(function(tr){ _tripState.openTrips=tr||_tripState.openTrips; runAutoDispatchScan(); }).catch(function(){}); }
 }
+function _settleDayDate(iso){
+  if(!iso) return "";
+  var d=new Date(String(iso)+"T00:00:00");
+  if(isNaN(d.getTime())) return "";
+  var yy=(d.getFullYear()+543)%100;
+  return " ("+d.getDate()+"/"+(d.getMonth()+1)+"/"+(yy<10?("0"+yy):yy)+")";
+}
 function _planDeliverLabel(t){
   var a=(t&&t.day1Date)||"", b=(t&&t.day2Date)||"";
   if(!a&&!b) return "";
@@ -2531,12 +2538,29 @@ function updateTripDriverLabel(){
   if(sel&&cu) cu.style.display=(sel.value==="__custom__")?"block":"none";
 }
 
+function onPuPayTypeChange(sel){
+  var row=sel.closest(".tf-pu-row"); if(!row) return;
+  var w=row.querySelector(".pu-slip-wrap");
+  if(w) w.style.display=(sel.value==="transfer")?"block":"none";
+}
+function onPuSlipUpload(input){
+  var row=input.closest(".tf-pu-row"); if(!row||!input.files||!input.files[0]) return;
+  var f=input.files[0];
+  var st=row.querySelector(".pu-slip-status");
+  if(!(typeof GolodStorage!=="undefined"&&GolodStorage.uploadFile)){ if(st)st.textContent="❌ อัปโหลดไม่ได้ (ไม่พบ Storage)"; return; }
+  if(st) st.textContent="⏳ กำลังอัปโหลดสลิป...";
+  GolodStorage.uploadFile("pickup-slip/"+Date.now()+"_"+(f.name||"slip.jpg"), f).then(function(url){
+    var u=row.querySelector(".pu-slip-url"); if(u) u.value=url;
+    if(st) st.innerHTML='✓ อัปโหลดสลิปแล้ว — <a href="'+url+'" target="_blank">ดู</a>';
+  }).catch(function(e){ if(st) st.textContent="❌ อัปโหลดสลิปไม่สำเร็จ: "+((e&&e.message)||e); });
+}
 function makeTfPickupRow(p){
   p = p||{};
   var rate = p.rate||15;
   var freight = p.freight||"";
   var comm = p.commission||"";
   var paid = p.paidOnPickup ? "checked" : "";
+  var payType = p.payType || "cash_origin";
   var pid = p.pickupId || p.id || "";
   var gi = (p.items && p.items.length) ? p.items : (p.goods ? String(p.goods).split(" / ") : []);
   var g0=(gi[0]||""), g1=(gi[1]||""), g2=(gi[2]||"");
@@ -2594,6 +2618,19 @@ function makeTfPickupRow(p){
     +'<input type="checkbox" class="pu-paid" '+paid+' style="accent-color:#0F6E56;width:14px;height:14px" onchange="calcTfPickupTotal()">'
     +'เก็บค่าส่งตอนรับแล้ว (นำมาบวกยอดเคลียร์)</label>'
     +'<div class="pu-paid-label" style="font-size:11px;color:#c0392b;font-weight:700"></div>'
+    +'</div>'
+    +'<div style="margin-top:6px"><div style="font-size:10px;color:#888;margin-bottom:2px">ประเภทการเก็บเงิน</div>'
+    +'<select class="pu-paytype trip-inp" onchange="onPuPayTypeChange(this)">'
+    +'<option value="cash_origin"'+(payType==="cash_origin"?" selected":"")+'>เงินสด (ต้นทาง)</option>'
+    +'<option value="cash_dest"'+(payType==="cash_dest"?" selected":"")+'>เงินสด (ปลายทาง)</option>'
+    +'<option value="credit"'+(payType==="credit"?" selected":"")+'>เครดิต</option>'
+    +'<option value="transfer"'+(payType==="transfer"?" selected":"")+'>โอน (แนบสลิป)</option>'
+    +'</select></div>'
+    +'<div class="pu-slip-wrap" style="margin-top:6px;'+(payType==="transfer"?"":"display:none")+'">'
+    +'<div style="font-size:10px;color:#888;margin-bottom:2px">สลิปโอน (เสมียนหรือคนรถแนบ)</div>'
+    +'<input type="hidden" class="pu-slip-url" value="'+(p.slipUrl||"")+'">'
+    +'<input type="file" accept="image/*" class="pu-slip-file" onchange="onPuSlipUpload(this)" style="font-size:11px">'
+    +'<div class="pu-slip-status" style="font-size:11px;margin-top:2px;color:#0F6E56">'+(p.slipUrl?('✓ มีสลิปแล้ว — <a href="'+p.slipUrl+'" target="_blank">ดู</a>'):'')+'</div>'
     +'</div>'
     +'</div>';
 }
@@ -2741,6 +2778,8 @@ function getTfPickupData(){
     var comm=commEl?parseFloat(commEl.value||0):Math.round(freight*rate/100);
     var paidEl=row.querySelector(".pu-paid");
     var paid=paidEl?paidEl.checked:false;
+    var payType=(row.querySelector(".pu-paytype")||{}).value||"cash_origin";
+    var slipUrl=(row.querySelector(".pu-slip-url")||{}).value||"";
     var recv=(row.querySelector(".pu-recv")||{}).value||"";
     var recvPhone=(row.querySelector(".pu-recv-phone")||{}).value||"";
     var prov=(row.querySelector(".pu-prov")||{}).value||"";
@@ -2752,7 +2791,7 @@ function getTfPickupData(){
     var senderPhone=(row.querySelector(".pu-sender-phone")||{}).value||"";
     var pickupId=row.getAttribute("data-pickup-id")||"";
     if(loc||goods||freight>0||recv||prov){
-      pickups.push({location:loc,goods:goods,items:items,freight:freight,rate:rate,commission:comm,paidOnPickup:paid,
+      pickups.push({location:loc,goods:goods,items:items,freight:freight,rate:rate,commission:comm,paidOnPickup:paid,payType:payType,slipUrl:slipUrl,
         receiverName:recv,receiverPhone:recvPhone,destProv:prov,destAmphoe:amphoe,destTambon:tambon,
         originProv:originProv,originAmphoe:originAmphoe,originTambon:originTambon,senderPhone:senderPhone,pickupId:pickupId});
     }
@@ -5355,7 +5394,7 @@ function printSettlement(asPdf){
   html+='<table><thead><tr><th style="text-align:left">เลขบิล</th><th style="text-align:left">อำเภอ</th><th style="text-align:left">จังหวัด</th><th>ประเภท</th><th style="text-align:left">สินค้า (×จำนวน)</th><th style="text-align:right">ค่าส่ง</th></tr></thead><tbody>'+rows+adjRows+'</tbody></table>';
   html+='<div style="text-align:right;margin-top:6px;font-size:13px">ยอดค่าส่งรวม: '+_settleFmt(c.total)+' ฿'+(c.adj?(' · ปรับ: '+_settleFmt(c.adj)+' ฿'):'')+' · <b style="font-size:15px">สุทธิ: '+_settleFmt(c.adjusted)+' ฿</b></div>';
   if(_stNote) html+='<div style="margin-top:6px;font-size:13px;border-top:1px dashed #999;padding-top:4px">หมายเหตุ: <b>'+_stNote+'</b></div>';
-  if(_settle.day1 || _settle.day2){ html+='<div class="info" style="margin-top:10px;border-top:1px dashed #999;padding-top:6px"><b>วันที่วิ่งจริง</b>&nbsp;&nbsp; '+(_settle.day1?('วันที่ 1: <b>'+_settle.day1+'</b>'):'')+(_settle.day2?('&nbsp;&nbsp;·&nbsp;&nbsp; วันที่ 2: <b>'+_settle.day2+'</b>'):'')+'</div>'; }
+  if(_settle.day1 || _settle.day2){ html+='<div class="info" style="margin-top:10px;border-top:1px dashed #999;padding-top:6px"><b>วันที่วิ่งจริง</b>&nbsp;&nbsp; '+(_settle.day1?('วันที่ 1'+_settleDayDate(_settle.day1Date)+': <b>'+_settle.day1+'</b>'):'')+(_settle.day2?('&nbsp;&nbsp;·&nbsp;&nbsp; วันที่ 2'+_settleDayDate(_settle.day2Date)+': <b>'+_settle.day2+'</b>'):'')+'</div>'; }
   html+='<div class="sig">'
     +'<div><div class="sigline"></div>ผู้เสนอ<br><span style="font-size:10px;color:#555">'+(_settle.proposedByName||"")+'</span></div>'
     +'<div><div class="sigline"></div>ผู้อนุมัติ<br><span style="font-size:10px;color:#555">'+(_settle.approvedByName||"")+'</span></div>'
