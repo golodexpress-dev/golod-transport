@@ -692,7 +692,7 @@ tr:hover td{background:#f8fffe}
 <div class="topbar">
   <span class="title">🚛 จัดการขนส่ง</span>
   <span id="session-info" style="font-size:11px;opacity:.8"></span>
-  <span style="font-size:10px;opacity:.65;margin-left:auto">build 2026-06-10z73</span>
+  <span style="font-size:10px;opacity:.65;margin-left:auto">build 2026-06-10z76</span>
   <a href="GolodApp.html" style="margin-left:10px">← หน้าหลัก</a>
 </div>
 <div class="container">
@@ -3649,8 +3649,9 @@ function renderMonthlyView(drivers, allTrips, selMonth, selDriver, dateFrom, dat
       var phoneT    = parseFloat(t.phoneFare||0);
       var workFee   = parseFloat(t.ratePerBill||0) * (delivered!=null?delivered:billCount);
       var bonus = parseFloat(t.bonusFare||0);
-      var fareTotal = fare+hotel+labor+parseFloat(cd.pickupComm||0);
-      var grandTotal = fareTotal+workFee+bonus;
+      var pkComm = parseFloat(cd.pickupComm||0) + (Array.isArray(t.pickups)?t.pickups.reduce(function(s,p){return s+(parseFloat(p.commission)||0);},0):0);
+      var fareTotal = fare+hotel+labor;
+      var grandTotal = fareTotal+pkComm+workFee+bonus;
       var fuel = parseFloat(cd.fuelReal||t.fuelEst||0);
       var dest = parseFloat(s.destTotal||0);
       var cod  = parseFloat(s.codTotal||0);
@@ -3663,7 +3664,7 @@ function renderMonthlyView(drivers, allTrips, selMonth, selDriver, dateFrom, dat
       var clrT = parseFloat(cd.clrTrans||0);
       var diff = parseFloat(cd.diff||0);
       var fine = parseFloat(cd.fine||0);
-      tot.fare+=fare; tot.hotel+=hotel; tot.labor+=labor; tot.fareTotal+=fareTotal; tot.bonus=(tot.bonus||0)+bonus; tot.grandTotal=(tot.grandTotal||0)+grandTotal;
+      tot.fare+=fare; tot.hotel+=hotel; tot.labor+=labor; tot.fareTotal+=fareTotal; tot.pkComm=(tot.pkComm||0)+pkComm; tot.bonus=(tot.bonus||0)+bonus; tot.grandTotal=(tot.grandTotal||0)+grandTotal;
       tot.fuel+=fuel; tot.dest+=dest; tot.cod+=cod;
       tot.pkCash+=pkC; tot.pkDest+=pkD; tot.mustPay+=mustP;
       tot.advance+=adv; tot.drawFee+=drawF;
@@ -3690,6 +3691,7 @@ function renderMonthlyView(drivers, allTrips, selMonth, selDriver, dateFrom, dat
           +'<td style="text-align:right;font-size:11px">'+fmt(hotel)+'</td>'
           +'<td style="text-align:right;font-size:11px">'+fmt(labor)+'</td>'
           +'<td style="text-align:right;font-size:11px;font-weight:700;color:#0F6E56">'+fmt(fareTotal)+'</td>'
+          +'<td style="text-align:right;font-size:11px;color:#16a085">'+fmt(pkComm)+'</td>'
           +'<td style="text-align:right;font-size:11px;color:#0F6E56">'+fmt(workFee)+'</td>'
           +'<td style="text-align:right;font-size:11px;color:#8e44ad">'+fmt(bonus)+'</td>'
           +'<td style="text-align:right;font-size:11px;font-weight:800;color:#0F6E56">'+fmt(grandTotal)+'</td>'
@@ -3722,6 +3724,7 @@ function renderMonthlyView(drivers, allTrips, selMonth, selDriver, dateFrom, dat
         +'<td style="text-align:right">'+fmt(tot.hotel)+'</td>'
         +'<td style="text-align:right">'+fmt(tot.labor)+'</td>'
         +'<td style="text-align:right;color:#0F6E56">'+fmt(tot.fareTotal)+'</td>'
+        +'<td style="text-align:right;color:#16a085">'+fmt(tot.pkComm||0)+'</td>'
         +'<td style="text-align:right;color:#0F6E56">'+fmt(tot.workFee)+'</td>'
         +'<td style="text-align:right;color:#8e44ad">'+fmt(tot.bonus||0)+'</td>'
         +'<td style="text-align:right;font-weight:800;color:#0F6E56">'+fmt(tot.grandTotal||0)+'</td>'
@@ -3756,7 +3759,7 @@ function renderMonthlyView(drivers, allTrips, selMonth, selDriver, dateFrom, dat
       var insCarryOut = insCarry + insDeduct - insDraw;
       var capReached = insCap>0 && insCarry>=insCap;
 
-      var incomeTotal = tot.fareTotal + bonus + tot.workFee;
+      var incomeTotal = tot.fareTotal + (tot.pkComm||0) + bonus + tot.workFee;
       var netIncome   = incomeTotal - tot.diff - tot.fine - insDeduct;
 
       var insPanel = '<div style="background:#fff8e1;border:1px solid #ffe082;border-radius:8px;padding:10px;margin-top:8px">'
@@ -3778,6 +3781,8 @@ function renderMonthlyView(drivers, allTrips, selMonth, selDriver, dateFrom, dat
         +'<div><div style="font-size:9px;opacity:.8">เบี้ยขยัน</div><div style="font-weight:800">'+fmt(bonus)+'</div></div>'
         +'<div style="opacity:.5">+</div>'
         +'<div><div style="font-size:9px;opacity:.8">ค่าส่งงาน</div><div style="font-weight:800">'+fmt(tot.workFee)+'</div></div>'
+        +'<div style="opacity:.5">+</div>'
+        +'<div><div style="font-size:9px;opacity:.8">ค่ารับงาน</div><div style="font-weight:800">'+fmt(tot.pkComm||0)+'</div></div>'
         +'<div style="opacity:.5">−</div>'
         +'<div><div style="font-size:9px;opacity:.8">พขร.ค้าง(+)/บ.จ่าย(−)</div><div style="font-weight:800">'+fmt(tot.diff)+'</div></div>'
         +'<div style="opacity:.5">−</div>'
@@ -3792,7 +3797,7 @@ function renderMonthlyView(drivers, allTrips, selMonth, selDriver, dateFrom, dat
     }
 
     var hCols = '<th>⬛</th><th>สถานะ</th><th>วันที่</th><th>เส้นทาง</th><th>บิล</th><th>ส่งได้</th><th>ส่งไม่ได้</th><th>น้ำมัน</th>'
-      +(isAdmin?'<th>ค่าเที่ยว</th><th>โรงแรม</th><th>ค่าแรงค่าตร.</th><th>รวมเที่ยว</th><th>ค่าส่งงาน</th><th>เบี้ยขยัน</th><th>รายได้ทั้งหมด</th><th>ต้นทาง</th><th>โอน</th><th>เครดิต</th><th>ปลายทางโอน</th>':'')
+      +(isAdmin?'<th>ค่าเที่ยว</th><th>โรงแรม</th><th>ค่าแรงค่าตร.</th><th>รวมเที่ยว</th><th>ค่ารับงาน</th><th>ค่าส่งงาน</th><th>เบี้ยขยัน</th><th>รายได้ทั้งหมด</th><th>ต้นทาง</th><th>โอน</th><th>เครดิต</th><th>ปลายทางโอน</th>':'')
       +'<th>ปลายทาง</th><th>COD</th><th>รับสด</th><th>รับปลาย</th>'
       +'<th>ต้องเคลียร์</th><th>เคลียร์สด</th><th>เคลียร์โอน</th><th>ค้าง(+)/จ่าย(−)</th><th>ปรับ</th>';
 
@@ -5092,7 +5097,7 @@ function remarksApprovedSum(){
     .reduce(function(a,r){return a+_remarkEffective(r);},0);
 }
 function remarksPendingSum(){
-  return _clearRemarks.filter(function(r){return r.status==="pending";})
+  return _clearRemarks.filter(function(r){return r.status==="pending" && r.type!=="ปท.→โอน";})
     .reduce(function(a,r){return a+_remarkEffective(r);},0);
 }
 function _pickupCommSum(){
