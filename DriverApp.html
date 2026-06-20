@@ -149,7 +149,7 @@ body{font-family:'Sarabun',Arial,sans-serif;background:#f0f4f0;min-height:100vh;
 <!-- Main app -->
 <div id="main-screen" style="display:none">
   <div class="topbar">
-    <span class="title">🚛 งานของฉัน <span style="font-size:9px;opacity:.6;font-weight:400">b0617a</span></span>
+    <span class="title">🚛 งานของฉัน <span style="font-size:9px;opacity:.6;font-weight:400">b0620a</span></span>
     <span class="driver-name" id="driver-label"></span>
     <button class="btn-logout" onclick="doLogout()">ออก</button>
   </div>
@@ -388,6 +388,16 @@ function renderBillList(){
 var DRIVER_TRIPS = [];
 var SELECTED_TRIP_ID = null;
 
+function _driverSortPick(){
+  DRIVER_TRIPS.sort(function(a,b){
+    var da=(a.departDate||a.createdAt||""), db2=(b.departDate||b.createdAt||"");
+    return db2.localeCompare(da);
+  });
+  // เก็บเที่ยวที่เลือกไว้ถ้ายังเปิดอยู่ มิฉะนั้นเด้งไปงานปัจจุบัน (เที่ยวล่าสุดตามวันวิ่ง)
+  if(!SELECTED_TRIP_ID || !DRIVER_TRIPS.some(function(t){return t.id===SELECTED_TRIP_ID;})){
+    SELECTED_TRIP_ID = DRIVER_TRIPS[0].id;
+  }
+}
 function loadLatestTrip(callback){
   var db; try{ db=firebase.firestore(); }catch(e){ callback(null); return; }
   // ลอง query แบบมี orderBy ก่อน (ต้องการ index)
@@ -399,7 +409,7 @@ function loadLatestTrip(callback){
       DRIVER_TRIPS = [];
       snap.forEach(function(doc){ DRIVER_TRIPS.push(doc.data()); });
       if(DRIVER_TRIPS.length === 0){ callback(null); return; }
-      if(!SELECTED_TRIP_ID) SELECTED_TRIP_ID = DRIVER_TRIPS[0].id;
+      _driverSortPick();
       var sel = DRIVER_TRIPS.find(function(t){ return t.id===SELECTED_TRIP_ID; });
       callback(sel ? sel.billIds||null : null);
     }).catch(function(e){
@@ -412,12 +422,8 @@ function loadLatestTrip(callback){
         .then(function(snap){
           DRIVER_TRIPS = [];
           snap.forEach(function(doc){ DRIVER_TRIPS.push(doc.data()); });
-          // sort client-side
-          DRIVER_TRIPS.sort(function(a,b){
-            return (b.createdAt||"").localeCompare(a.createdAt||"");
-          });
           if(DRIVER_TRIPS.length === 0){ callback(null); return; }
-          if(!SELECTED_TRIP_ID) SELECTED_TRIP_ID = DRIVER_TRIPS[0].id;
+          _driverSortPick();
           var sel = DRIVER_TRIPS.find(function(t){ return t.id===SELECTED_TRIP_ID; });
           callback(sel ? sel.billIds||null : null);
         }).catch(function(){
