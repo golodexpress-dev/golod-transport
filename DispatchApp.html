@@ -692,7 +692,7 @@ tr:hover td{background:#f8fffe}
 <div class="topbar">
   <span class="title">🚛 จัดการขนส่ง</span>
   <span id="session-info" style="font-size:11px;opacity:.8"></span>
-  <span style="font-size:10px;opacity:.65;margin-left:auto">build 2026-06-10z78</span>
+  <span style="font-size:10px;opacity:.65;margin-left:auto">build 2026-06-10z79</span>
   <a href="GolodApp.html" style="margin-left:10px">← หน้าหลัก</a>
 </div>
 <div class="container">
@@ -706,7 +706,10 @@ tr:hover td{background:#f8fffe}
     <div id="modal-bill-count" style="font-size:12px;color:#666;margin-bottom:10px"></div>
     <select id="modal-target"></select>
     <div id="md-branch-extra" style="display:none;margin-top:8px;text-align:left">
-      <input id="md-br-driver" list="md-br-driver-list" autocomplete="off" placeholder="ชื่อคนรถที่วิ่งไปสาขา (เลือก/พิมพ์)" style="width:100%;padding:8px;border:1px solid #ddd;border-radius:7px;box-sizing:border-box;font-family:inherit">
+      <select id="md-br-driver-sel" onchange="if(this.value){document.getElementById('md-br-driver').value=this.value;}" style="width:100%;padding:8px;border:1px solid #ddd;border-radius:7px;box-sizing:border-box;font-family:inherit;margin-bottom:6px">
+        <option value="">— เลือกคนรถจากรายชื่อ —</option>
+      </select>
+      <input id="md-br-driver" list="md-br-driver-list" autocomplete="off" placeholder="หรือพิมพ์ชื่อคนรถใหม่" style="width:100%;padding:8px;border:1px solid #ddd;border-radius:7px;box-sizing:border-box;font-family:inherit">
       <datalist id="md-br-driver-list"></datalist>
       <div style="display:flex;gap:6px;margin-top:6px">
         <input id="md-br-eta-date" type="date" style="flex:1;padding:8px;border:1px solid #ddd;border-radius:7px;box-sizing:border-box">
@@ -4541,14 +4544,23 @@ function calcModalFuel(){
 }
 
 function _fillDriverDatalist(){
-  var dl=document.getElementById("md-br-driver-list"); if(!dl) return;
+  var dl=document.getElementById("md-br-driver-list");
   var seen={}, names=[];
   function add(n){ n=(""+(n||"")).trim(); if(n && !seen[n]){ seen[n]=1; names.push(n); } }
+  function render(){
+    names.sort(function(a,b){return a.localeCompare(b,"th");});
+    var sel=document.getElementById("md-br-driver-sel");
+    if(sel){ var cur=sel.value; sel.innerHTML='<option value="">— เลือกคนรถจากรายชื่อ ('+names.length+') —</option>'+names.map(function(n){ return '<option value="'+n.replace(/"/g,"&quot;")+'">'+n+'</option>'; }).join(""); sel.value=cur; }
+    if(dl){ dl.innerHTML=names.map(function(n){ return '<option value="'+n.replace(/"/g,"&quot;")+'"></option>'; }).join(""); }
+  }
   try{ (typeof allTrips!=="undefined"&&allTrips?allTrips:[]).forEach(function(t){ add(t.driverName); add(t.lineDriver); }); }catch(e){}
   try{ (typeof BILLS!=="undefined"&&BILLS?BILLS:[]).forEach(function(b){ add(b.lineDriver); }); }catch(e){}
   try{ (typeof _tripState!=="undefined"&&_tripState&&_tripState.drivers?_tripState.drivers:[]).forEach(function(d){ add(d.name); add(d.driverName); }); }catch(e){}
-  names.sort(function(a,b){return a.localeCompare(b,"th");});
-  dl.innerHTML = names.map(function(n){ return '<option value="'+n.replace(/"/g,"&quot;")+'"></option>'; }).join("");
+  render();
+  try{
+    if(typeof GolodDB!=="undefined" && GolodDB.getUsers){ GolodDB.getUsers().then(function(us){ (us||[]).forEach(function(u){ if(u&&u.role==="driver"){ add(u.name); add(u.driverName); } }); render(); }).catch(function(){}); }
+    if(typeof GolodDB!=="undefined" && GolodDB.getTrips){ GolodDB.getTrips({limitN:500}).then(function(ts){ (ts||[]).forEach(function(t){ add(t.driverName); add(t.lineDriver); }); render(); }).catch(function(){}); }
+  }catch(e){}
 }
 function openDispatch(mode){
   var ids=Object.keys(selectedBills);
@@ -4579,7 +4591,7 @@ function openDispatch(mode){
     BRANCHES.forEach(function(b){ var opt=document.createElement("option"); opt.value=b.id; opt.text=b.label; sel.appendChild(opt); });
   }
   if(cb) cb.textContent="ยืนยัน";
-  if(brX){ brX.style.display="block"; _fillDriverDatalist(); var _dv=document.getElementById("md-br-driver"); if(_dv)_dv.value=""; var _ed=document.getElementById("md-br-eta-date"); if(_ed)_ed.value=new Date().toISOString().slice(0,10); var _et=document.getElementById("md-br-eta-time"); if(_et)_et.value=""; }
+  if(brX){ brX.style.display="block"; var _ds=document.getElementById("md-br-driver-sel"); if(_ds)_ds.value=""; _fillDriverDatalist(); var _dv=document.getElementById("md-br-driver"); if(_dv)_dv.value=""; var _ed=document.getElementById("md-br-eta-date"); if(_ed)_ed.value=new Date().toISOString().slice(0,10); var _et=document.getElementById("md-br-eta-time"); if(_et)_et.value=""; }
   document.getElementById("modal-dispatch").classList.add("show");
 }
 
