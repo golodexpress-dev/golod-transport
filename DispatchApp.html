@@ -692,7 +692,7 @@ tr:hover td{background:#f8fffe}
 <div class="topbar">
   <span class="title">🚛 จัดการขนส่ง</span>
   <span id="session-info" style="font-size:11px;opacity:.8"></span>
-  <span style="font-size:10px;opacity:.65;margin-left:auto">build 2026-06-10z79</span>
+  <span style="font-size:10px;opacity:.65;margin-left:auto">build 2026-06-10z81</span>
   <a href="GolodApp.html" style="margin-left:10px">← หน้าหลัก</a>
 </div>
 <div class="container">
@@ -1337,7 +1337,9 @@ function renderApp(){
       +'<button class="btn btn-gray" onclick="toggleSelectAll()">☑ เลือกทั้งหมด</button>'
       +'<button class="btn btn-orange" onclick="openDispatch(&quot;branch&quot;)">📦 จ่ายให้สาขา</button>'
       +'<button class="btn btn-blue" onclick="openDispatch(&quot;driver&quot;)">🚛 จ่ายให้คนรถ</button>'
+      +(currentTab==="branch"?'<button class="btn" style="background:#fff3e0;color:#e65100;border:1px solid #ffcc80" onclick="revertBranchDispatch()">↩️ ดึงกลับจากสาขา</button>':'')
       +'<span style="font-size:11px;color:#666">เลือก <span id="sel-count">0</span> บิล</span>'
+      +((_addToBranchTrip&&currentTab==="pending")?('<button class="btn btn-orange" style="font-size:12px" onclick="confirmAddToBranchTrip()">\u2795 \u0E40\u0E1E\u0E34\u0E48\u0E21\u0E40\u0E02\u0E49\u0E32\u0E40\u0E17\u0E35\u0E48\u0E22\u0E27 '+(_addToBranchTrip.targetText||"")+'</button><button class="btn btn-gray" style="font-size:11px" onclick="cancelAddToBranchTrip()">\u0E22\u0E01\u0E40\u0E25\u0E34\u0E01</button>'):'')
       +'</div>';
   }
 
@@ -1384,6 +1386,34 @@ function renderApp(){
       +'</tr>';
   }).join("");
 
+  var branchCards="";
+  if(currentTab==="branch"){
+    var _bg={};
+    filtered.forEach(function(b){
+      var k=_btKey(b);
+      if(!_bg[k]) _bg[k]={key:k, target:b.targetBranch||"", targetText:b.targetBranchLabel||b.targetBranch||"-", driver:b.lineDriver||"", eta:b.etaBranch||"", tripId:b.branchTripId||"", bills:[]};
+      _bg[k].bills.push(b);
+    });
+    _branchGroups=Object.keys(_bg).map(function(k){return _bg[k];});
+    if(_branchGroups.length){
+      branchCards='<div style="margin:8px 0 4px">'+_branchGroups.map(function(g,i){
+        var frt=g.bills.reduce(function(s,b){return s+parseFloat(b.freightNet||0);},0);
+        var cod=g.bills.reduce(function(s,b){return s+parseFloat(b.codTotal||0);},0);
+        var etaTxt=g.eta?_etaFmt(g.eta):"-";
+        return '<div style="border:1px solid #ffe0b2;background:#fff8ef;border-radius:10px;padding:10px;margin-bottom:8px">'
+          +'<div style="display:flex;justify-content:space-between;flex-wrap:wrap;gap:6px;align-items:center">'
+          +'<div style="font-weight:800;color:#e65100">\u{1F3E2} '+g.targetText+(g.driver?(' \u00b7 \u{1F69B} '+g.driver):'')+'</div>'
+          +'<div style="font-size:12px;color:#666">\u{1F4C5} \u0E04\u0E32\u0E14\u0E16\u0E36\u0E07 '+etaTxt+'</div>'
+          +'</div>'
+          +'<div style="font-size:12px;color:#555;margin-top:4px">'+g.bills.length+' \u0E1A\u0E34\u0E25 \u00b7 \u0E04\u0E48\u0E32\u0E2A\u0E48\u0E07\u0E23\u0E27\u0E21 '+frt.toLocaleString("th-TH")+' \u0E3F'+(cod>0?(' \u00b7 COD '+cod.toLocaleString("th-TH")):'')+'</div>'
+          +'<div style="display:flex;gap:6px;margin-top:8px;flex-wrap:wrap">'
+          +'<button class="btn btn-orange" style="font-size:12px" onclick="printBranchTrip('+i+')">\u{1F5A8} \u0E43\u0E1A\u0E2A\u0E48\u0E07\u0E02\u0E2D\u0E07\u0E16\u0E36\u0E07\u0E2A\u0E32\u0E02\u0E32</button>'
+          +'<button class="btn btn-gray" style="font-size:12px" onclick="addBillsToBranchTrip('+i+')">\u2795 \u0E40\u0E1E\u0E34\u0E48\u0E21\u0E1A\u0E34\u0E25\u0E40\u0E02\u0E49\u0E32\u0E40\u0E17\u0E35\u0E48\u0E22\u0E27\u0E19\u0E35\u0E49</button>'
+          +'</div>'
+          +'</div>';
+      }).join("")+'</div>';
+    }
+  }
   var html = '<div class="card">'
     +'<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px">'
     +'<div class="card-title" style="margin:0">🚛 จัดการขนส่ง</div>'
@@ -1395,6 +1425,7 @@ function renderApp(){
     +'<input type="text" id="q-inp" placeholder="ค้นหา: บิล/ชื่อ/จังหวัด/อำเภอ/สินค้า" style="flex:1;min-width:180px;max-width:360px" value="'+(_searchQuery||"")+'" oninput="filterTable()">'
     +'</div>'
     +actionBar
+    +branchCards
     +'<div style="overflow-x:auto"><table>'
     +'<tr><th></th><th>เลขบิล</th><th>วันที่</th><th>ผู้รับ</th><th>ปลายทาง</th>'
     +'<th>ค่าส่ง</th><th>สถานะ</th><th>ผู้ส่ง</th><th>คนรถ</th><th>สินค้า</th><th>ชิ้น</th><th>สลิป</th><th>จัดการ</th></tr>'
@@ -4597,6 +4628,66 @@ function openDispatch(mode){
 
 function closeModal(){ document.getElementById("modal-dispatch").classList.remove("show"); }
 
+function revertBranchDispatch(){
+  var ids=Object.keys(selectedBills).filter(function(id){ var b=BILLS.find(function(x){return x.billNo===id;}); return b && b.status==="ระหว่างนำส่งสาขา"; });
+  if(!ids.length){ alert("เลือกบิลที่อยู่ในสถานะ 'ระหว่างนำส่งสาขา' ก่อนนะครับ"); return; }
+  if(!confirm("ดึงกลับ "+ids.length+" บิล จากเที่ยวส่งสาขา?\nบิลจะกลับไปสถานะ 'ออกบิลรับของ' (รอจ่ายใหม่)")) return;
+  var now=new Date().toISOString();
+  var by=(CU?(CU.name||CU.username):"");
+  Promise.all(ids.map(function(id){
+    var cur=BILLS.find(function(x){return x.billNo===id;})||{};
+    var upd={status:"ออกบิลรับของ", targetBranch:"", targetBranchLabel:"", lineDriver:"", etaBranch:"", branchTripId:"", updatedAt:now,
+      statusHistory:(cur.statusHistory||[]).concat([{status:"ออกบิลรับของ", at:now, loc:"ดึงกลับจากเที่ยวสาขา", by:by}])};
+    return GolodDB.updateBill(id,upd);
+  })).then(function(){
+    ids.forEach(function(id){ var b=BILLS.find(function(x){return x.billNo===id;}); if(b){ b.status="ออกบิลรับของ"; b.targetBranch=""; b.targetBranchLabel=""; b.lineDriver=""; b.etaBranch=""; b.branchTripId=""; } });
+    selectedBills={};
+    renderApp();
+    alert("ดึงกลับ "+ids.length+" บิลแล้ว → ไปดูที่แท็บ 'รอจ่ายงาน'");
+  }).catch(function(e){ alert("❌ ผิดพลาด: "+e.message); });
+}
+
+var _branchGroups=[];
+var _addToBranchTrip=null;
+function _btKey(b){ return b.branchTripId || ("__"+(b.targetBranch||"")+"|"+(b.lineDriver||"")+"|"+(billDateStr(b)||"")); }
+function printBranchTrip(i){
+  var g=(_branchGroups||[])[i]; if(!g){ return; }
+  var bills=BILLS.filter(function(b){ return b.status==="ระหว่างนำส่งสาขา" && _btKey(b)===g.key; });
+  if(!bills.length){ alert("ไม่พบบิลในเที่ยวนี้"); return; }
+  dispatchMode="branch";
+  showSummaryModal(bills, g.target, g.targetText);
+}
+function addBillsToBranchTrip(i){
+  var g=(_branchGroups||[])[i]; if(!g){ return; }
+  _addToBranchTrip={ key:g.key, tripId:g.tripId||"", target:g.target||"", targetText:g.targetText||"", lineDriver:g.driver||"", etaBranch:g.eta||"" };
+  selectedBills={};
+  switchTab("pending");
+  alert("เลือกบิลที่จะเพิ่มเข้าเที่ยว "+(_addToBranchTrip.targetText||"")+(_addToBranchTrip.lineDriver?(" · คนรถ "+_addToBranchTrip.lineDriver):"")+" แล้วกดปุ่ม '➕ เพิ่มเข้าเที่ยว' ด้านบน");
+}
+function cancelAddToBranchTrip(){ _addToBranchTrip=null; renderApp(); }
+function confirmAddToBranchTrip(){
+  if(!_addToBranchTrip){ return; }
+  var t=_addToBranchTrip;
+  var newIds=Object.keys(selectedBills);
+  if(!newIds.length){ alert("เลือกบิลที่จะเพิ่มก่อนนะครับ"); return; }
+  var tid=t.tripId, backfillIds=[];
+  if(!tid){ tid="bt_"+Date.now()+"_"+Math.floor(Math.random()*1000); backfillIds=BILLS.filter(function(b){return b.status==="ระหว่างนำส่งสาขา" && _btKey(b)===t.key;}).map(function(b){return b.billNo;}); }
+  var now=new Date().toISOString(); var by=(CU?(CU.name||CU.username):"");
+  var allIds=newIds.concat(backfillIds.filter(function(id){return newIds.indexOf(id)<0;}));
+  Promise.all(allIds.map(function(id){
+    var cur=BILLS.find(function(x){return x.billNo===id;})||{};
+    var isNew=newIds.indexOf(id)>=0;
+    var upd={branchTripId:tid, updatedAt:now};
+    if(isNew){ upd.status="ระหว่างนำส่งสาขา"; upd.targetBranch=t.target; upd.targetBranchLabel=t.targetText; upd.lineDriver=t.lineDriver; upd.etaBranch=t.etaBranch; upd.statusHistory=(cur.statusHistory||[]).concat([{status:"ระหว่างนำส่งสาขา",at:now,loc:"เพิ่มเข้าเที่ยวสาขา",by:by}]); }
+    return GolodDB.updateBill(id,upd);
+  })).then(function(){
+    allIds.forEach(function(id){ var b=BILLS.find(function(x){return x.billNo===id;}); if(b){ b.branchTripId=tid; if(newIds.indexOf(id)>=0){ b.status="ระหว่างนำส่งสาขา"; b.targetBranch=t.target; b.targetBranchLabel=t.targetText; b.lineDriver=t.lineDriver; b.etaBranch=t.etaBranch; } } });
+    selectedBills={}; _addToBranchTrip=null;
+    switchTab("branch");
+    alert("เพิ่ม "+newIds.length+" บิลเข้าเที่ยวแล้ว");
+  }).catch(function(e){ alert("❌ "+e.message); });
+}
+
 function confirmDispatch(){
   var ids=Object.keys(selectedBills);
   // โหมดคนรถ = เสนอจัดเที่ยว (ยังไม่เลือกคนรถ รอแอดมินอนุมัติ)
@@ -4611,6 +4702,17 @@ function confirmDispatch(){
     var _ed=((document.getElementById("md-br-eta-date")||{}).value||""); var _et=((document.getElementById("md-br-eta-time")||{}).value||"");
     if(_ed) brEtaAt=_ed+(_et?("T"+_et):"");
   }
+  var branchTripId="";
+  if(dispatchMode==="branch"){
+    // หาเที่ยวส่งสาขาเดิมที่ยังเปิดอยู่ (สาขา+คนรถเดียวกัน) เพื่อรวมเป็นเที่ยวเดียว
+    var openSame=BILLS.filter(function(b){ return b.status==="ระหว่างนำส่งสาขา" && b.targetBranch===target && (""+(b.lineDriver||""))===brDriver && b.branchTripId; });
+    if(openSame.length){
+      if(confirm("มีเที่ยวส่งสาขา "+targetText+(brDriver?(" · คนรถ "+brDriver):"")+" เปิดอยู่ "+openSame.length+" บิล\n\nกด OK = เพิ่มเข้าเที่ยวเดิม\nกด Cancel = สร้างเที่ยวใหม่")){
+        branchTripId=openSame[0].branchTripId;
+      }
+    }
+    if(!branchTripId) branchTripId="bt_"+Date.now()+"_"+Math.floor(Math.random()*1000);
+  }
 
   var btn=document.getElementById("modal-confirm-btn");
   btn.disabled=true; btn.textContent="กำลังบันทึก...";
@@ -4618,7 +4720,7 @@ function confirmDispatch(){
   var promises=ids.map(function(id){
     var now=new Date().toISOString();
     var upd={status:newStatus, updatedAt:now};
-    if(dispatchMode==="branch"){ upd.targetBranch=target; upd.targetBranchLabel=targetText; upd.lineDriver=brDriver; upd.etaBranch=brEtaAt; }
+    if(dispatchMode==="branch"){ upd.targetBranch=target; upd.targetBranchLabel=targetText; upd.lineDriver=brDriver; upd.etaBranch=brEtaAt; upd.branchTripId=branchTripId; }
     else { upd.driver=target; upd.driverName=targetText; }
     var cur=BILLS.find(function(x){return x.billNo===id;})||{};
     var loc = dispatchMode==="branch" ? "ระหว่างนำส่ง" : (cur.destAmphoe||(cur.form&&cur.form.destAmphoe)||"");
@@ -4632,7 +4734,7 @@ function confirmDispatch(){
       var b=BILLS.find(function(x){return x.billNo===id;});
       if(b){
         b.status=newStatus;
-        if(dispatchMode==="branch"){b.targetBranch=target;b.targetBranchLabel=targetText;b.lineDriver=brDriver;b.etaBranch=brEtaAt;}
+        if(dispatchMode==="branch"){b.targetBranch=target;b.targetBranchLabel=targetText;b.lineDriver=brDriver;b.etaBranch=brEtaAt;b.branchTripId=branchTripId;}
         else{b.driver=target;b.driverName=targetText;}
         dispatchedBills.push(b);
       }
