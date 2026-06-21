@@ -119,7 +119,7 @@ tr:nth-child(even) td{background:#fafafa}
 <div class="app">
 <!-- HEADER -->
 <div class="hdr">
-  <div><div class="hdr-logo">โกโลด ทรานสปอร์ต</div><div class="hdr-sub">ระบบการเงิน</div></div>
+  <div><div class="hdr-logo">โกโลด ทรานสปอร์ต</div><div class="hdr-sub">ระบบการเงิน · f0621b</div></div>
   <div class="hdr-pills" id="hdr-alerts"></div>
 </div>
 <!-- TABS -->
@@ -127,6 +127,7 @@ tr:nth-child(even) td{background:#fafafa}
   <div class="tab active" onclick="showPage('dashboard')">📊 Dashboard</div>
   <div class="tab" onclick="showPage('slip')">📎 สลิปโอนค้าง</div>
   <div class="tab" onclick="showPage('credit')">🏷 ลูกหนี้เครดิต</div>
+  <div class="tab" onclick="showPage('invoice')">🧾 ใบแจ้งหนี้</div>
   <div class="tab" onclick="showPage('income')">💰 รายรับ</div>
   <div class="tab" onclick="showPage('expense')">💸 รายจ่าย</div>
   <div class="tab" onclick="showPage('bem')">📱 BeM Merchant</div>
@@ -200,6 +201,37 @@ tr:nth-child(even) td{background:#fafafa}
       <th>ชื่อลูกค้า</th><th>ยอดค้าง</th><th>วันครบกำหนด</th><th>วันเกิน</th><th>เครดิต</th><th>สถานะ</th><th></th>
     </tr></thead><tbody id="credit-table"></tbody></table>
     <div id="credit-foot" style="padding:8px 12px;background:#f9f9f7;font-size:11px;color:#888"></div>
+  </div>
+</div>
+
+<div class="page" id="page-invoice">
+  <div style="display:flex;gap:8px;margin-bottom:10px;flex-wrap:wrap">
+    <button class="btn btn-green" onclick="showInvoiceView('new')" id="iv-tab-new">+ ออกใบใหม่</button>
+    <button class="btn btn-outline" onclick="showInvoiceView('history')" id="iv-tab-hist">📚 ประวัติใบแจ้งหนี้</button>
+    <button class="btn btn-outline" onclick="toggleInvoiceHeaderForm()" style="margin-left:auto">⚙️ ตั้งค่าหัวใบ</button>
+  </div>
+  <div id="invoice-header-form" style="display:none" class="card">
+    <div style="font-weight:700;color:#0F6E56;margin-bottom:8px">ตั้งค่าหัวใบแจ้งหนี้ (บันทึกครั้งเดียว ใช้ทุกใบ)</div>
+    <input class="inp" id="ih-company" placeholder="ชื่อบริษัท" style="width:100%;margin-bottom:6px">
+    <input class="inp" id="ih-taxid" placeholder="เลขประจำตัวผู้เสียภาษี 13 หลัก" style="width:100%;margin-bottom:6px">
+    <textarea class="inp" id="ih-address" placeholder="ที่อยู่บริษัท" style="width:100%;margin-bottom:6px;min-height:54px"></textarea>
+    <input class="inp" id="ih-phone" placeholder="โทรศัพท์" style="width:100%;margin-bottom:6px">
+    <input class="inp" id="ih-logo" placeholder="ลิงก์โลโก้ (URL รูป) — เว้นว่างได้" style="width:100%;margin-bottom:8px">
+    <button class="btn btn-green" onclick="saveInvoiceHeader()">บันทึกหัวใบ</button>
+  </div>
+  <div id="iv-view-new">
+    <div class="filter-row">
+      <select class="inp" id="inv-customer" style="min-width:200px"><option value="">— เลือกลูกค้า (เครดิต) —</option></select>
+      <input type="date" class="inp" id="inv-from" style="width:140px"/>
+      <span style="font-size:12px;color:#888">ถึง</span>
+      <input type="date" class="inp" id="inv-to" style="width:140px"/>
+      <button class="btn btn-green" onclick="genInvoice()">🧾 สร้างใบแจ้งหนี้</button>
+    </div>
+    <div style="font-size:11px;color:#888;margin-bottom:8px">ดึงเฉพาะบิล <b>เครดิต</b> ของลูกค้าที่เลือกในช่วงวันที่ · ค่าขนส่งล้วน (ไม่มี VAT) · เลขที่รันอัตโนมัติ · เตือนหากมีบิลที่เคยวางบิลแล้ว</div>
+    <div id="invoice-result"></div>
+  </div>
+  <div id="iv-view-history" style="display:none">
+    <div id="invoice-history"></div>
   </div>
 </div>
 
@@ -734,6 +766,211 @@ renderDashboard();
   if(id==="bem"){renderBeM();}
   if(id==="bbl")renderBBL();
   if(id==="pl")renderPL();
+  if(id==="invoice")renderInvoicePage();
+}
+
+// ======= INVOICE (ใบแจ้งหนี้) =======
+var _invHeader=null, _invIndex=null;
+function _invCreditBills(){ return (window.FB_BILLS||[]).filter(function(b){ return b && b.freightPay==="credit" && b.billNo; }); }
+function toggleInvoiceHeaderForm(){ var f=document.getElementById("invoice-header-form"); if(f) f.style.display=(f.style.display==="none"?"block":"none"); }
+function showInvoiceView(v){
+  var n=document.getElementById("iv-view-new"), hh=document.getElementById("iv-view-history");
+  if(n) n.style.display=(v==="new"?"block":"none");
+  if(hh) hh.style.display=(v==="history"?"block":"none");
+  var tn=document.getElementById("iv-tab-new"), th=document.getElementById("iv-tab-hist");
+  if(tn) tn.className="btn "+(v==="new"?"btn-green":"btn-outline");
+  if(th) th.className="btn "+(v==="history"?"btn-green":"btn-outline");
+  if(v==="history") renderInvoiceHistory();
+}
+function loadInvoiceHeader(cb){
+  if(_invHeader){ cb&&cb(_invHeader); return; }
+  function done(v){ _invHeader=v||{company:"บริษัท โกโลด ทรานสปอร์ต จำกัด",taxId:"",address:"",phone:"",logo:""}; cb&&cb(_invHeader); }
+  try{ if(typeof GolodDB!=="undefined"&&GolodDB.getSetting){ GolodDB.getSetting("invoice_header").then(done).catch(function(){ try{done(JSON.parse(localStorage.getItem("golod_invoice_header")||"null"));}catch(e){done(null);} }); } else { try{done(JSON.parse(localStorage.getItem("golod_invoice_header")||"null"));}catch(e){done(null);} } }catch(e){ done(null); }
+}
+function fillInvoiceHeaderForm(){
+  loadInvoiceHeader(function(hdr){
+    var s=function(id,v){ var el=document.getElementById(id); if(el) el.value=v||""; };
+    s("ih-company",hdr.company); s("ih-taxid",hdr.taxId); s("ih-address",hdr.address); s("ih-phone",hdr.phone); s("ih-logo",hdr.logo);
+  });
+}
+function saveInvoiceHeader(){
+  var g=function(id){ return ((document.getElementById(id)||{}).value||"").trim(); };
+  var hdr={company:g("ih-company")||"บริษัท โกโลด ทรานสปอร์ต จำกัด", taxId:g("ih-taxid"), address:g("ih-address"), phone:g("ih-phone"), logo:g("ih-logo")};
+  _invHeader=hdr;
+  try{ localStorage.setItem("golod_invoice_header",JSON.stringify(hdr)); }catch(e){}
+  try{ if(typeof GolodDB!=="undefined"&&GolodDB.saveSetting){ GolodDB.saveSetting("invoice_header",hdr).then(function(){ alert("บันทึกหัวใบแล้ว"); }).catch(function(e){ alert("บันทึกหัวใบ (เครื่องนี้) — sync ไม่สำเร็จ: "+e.message); }); } else { alert("บันทึกหัวใบแล้ว (เครื่องนี้)"); } }catch(e){ alert("❌ "+e.message); }
+  toggleInvoiceHeaderForm();
+}
+function loadInvoiceIndex(cb){
+  function done(v){ _invIndex=Array.isArray(v)?v:[]; cb&&cb(_invIndex); }
+  try{ if(typeof GolodDB!=="undefined"&&GolodDB.getSetting){ GolodDB.getSetting("invoice_index").then(done).catch(function(){ try{done(JSON.parse(localStorage.getItem("golod_invoice_index")||"[]"));}catch(e){done([]);} }); } else { try{done(JSON.parse(localStorage.getItem("golod_invoice_index")||"[]"));}catch(e){done([]);} } }catch(e){ done([]); }
+}
+function renderInvoicePage(){
+  fillInvoiceHeaderForm();
+  loadInvoiceIndex(function(){});
+  var sel=document.getElementById("inv-customer"); if(!sel) return;
+  var cur=sel.value, names={};
+  _invCreditBills().forEach(function(b){ var n=(b.senderName||"").trim(); if(n) names[n]=(names[n]||0)+1; });
+  var keys=Object.keys(names).sort(function(a,b){return a.localeCompare(b,"th");});
+  sel.innerHTML='<option value="">— เลือกลูกค้า (เครดิต) '+keys.length+' ราย —</option>'+keys.map(function(n){ return '<option value="'+n.replace(/"/g,"&quot;")+'"'+(n===cur?" selected":"")+'>'+n+' ('+names[n]+' บิล)</option>'; }).join("");
+  var f=document.getElementById("inv-from"), t=document.getElementById("inv-to");
+  if(f&&!f.value){ var d=new Date(); f.value=d.getFullYear()+"-"+String(d.getMonth()+1).padStart(2,"0")+"-01"; }
+  if(t&&!t.value){ t.value=toISO(new Date()); }
+}
+function _invoicedBillSet(){
+  var s={}; (_invIndex||[]).forEach(function(iv){ (iv.billNos||[]).forEach(function(bn){ s[bn]=iv.invNo; }); }); return s;
+}
+function genInvoice(){
+  var cust=(document.getElementById("inv-customer")||{}).value||"";
+  var from=(document.getElementById("inv-from")||{}).value||"";
+  var to=(document.getElementById("inv-to")||{}).value||"";
+  var box=document.getElementById("invoice-result");
+  if(!cust){ box.innerHTML='<div class="card" style="color:#c62828">เลือกลูกค้าก่อนนะครับ</div>'; return; }
+  var rows=_invCreditBills().filter(function(b){
+    if((b.senderName||"").trim()!==cust) return false;
+    var iso=toISO(b.date||b.createdAt||"");
+    if(from && iso && iso<from) return false;
+    if(to && iso && iso>to) return false;
+    return true;
+  });
+  rows.sort(function(a,b){ return (toISO(a.date||"")).localeCompare(toISO(b.date||"")); });
+  if(!rows.length){ box.innerHTML='<div class="card" style="color:#c62828">ไม่พบบิลเครดิตของลูกค้านี้ในช่วงวันที่ที่เลือก</div>'; return; }
+  var invoiced=_invoicedBillSet();
+  var dup=rows.filter(function(b){ return invoiced[b.billNo]; });
+  var total=rows.reduce(function(s,b){return s+(parseFloat(b.freightNet)||0);},0);
+  var phone=""; for(var i=0;i<rows.length;i++){ if(rows[i].senderPhone){ phone=rows[i].senderPhone; break; } }
+  window._invData={cust:cust, phone:phone, from:from, to:to, rows:rows, total:total};
+  var warn = dup.length? '<div style="background:#fff3e0;border:1px solid #ffcc80;color:#e65100;padding:8px;border-radius:8px;margin-bottom:8px;font-size:12px">⚠️ มี '+dup.length+' บิลที่เคยอยู่ในใบแจ้งหนี้แล้ว: '+dup.map(function(b){return b.billNo+" (#"+invoiced[b.billNo]+")";}).join(", ")+'</div>':'';
+  var tr=rows.map(function(b,i){
+    var iso=toISO(b.date||""); var route=(b.destAmphoe?b.destAmphoe+" ":"")+(b.destProv||"-");
+    var mk=invoiced[b.billNo]?' style="background:#fff7ec"':'';
+    return '<tr'+mk+'><td>'+(i+1)+'</td><td>'+iso+'</td><td>'+(b.billNo||"")+(invoiced[b.billNo]?' ⚠️':'')+'</td><td>'+(b.receiverName||"-")+'</td><td>'+route+'</td><td style="text-align:right">'+(parseFloat(b.freightNet)||0).toLocaleString("th-TH")+'</td></tr>';
+  }).join("");
+  box.innerHTML='<div class="card">'+warn
+    +'<div style="display:flex;justify-content:space-between;flex-wrap:wrap;gap:8px;align-items:center;margin-bottom:8px">'
+    +'<div style="font-weight:700;color:#0F6E56">ลูกค้า: '+cust+(phone?(' · '+phone):'')+'</div>'
+    +'<div style="font-size:12px;color:#888">'+rows.length+' บิล · '+(from||"...")+" ถึง "+(to||"...")+'</div></div>'
+    +'<div style="overflow-x:auto"><table><thead><tr><th>#</th><th>วันที่</th><th>เลขบิล</th><th>ผู้รับ</th><th>ปลายทาง</th><th style="text-align:right">ค่าขนส่ง</th></tr></thead><tbody>'+tr+'</tbody></table></div>'
+    +'<div style="text-align:right;font-weight:800;font-size:16px;color:#0F6E56;margin-top:10px;border-top:2px solid #0F6E56;padding-top:8px">รวมทั้งสิ้น '+total.toLocaleString("th-TH")+' บาท</div>'
+    +'<div style="text-align:right;margin-top:10px"><button class="btn btn-green" onclick="printInvoice()">🧾 ออกเลขที่ + บันทึก + พิมพ์</button></div>'
+    +'</div>';
+}
+function _nextInvoiceNo(cb){
+  function fmt(n){ return "INV-"+String(n).padStart(5,"0"); }
+  var lsKey="golod_invoice_seq";
+  function useLS(){ var n=(parseInt(localStorage.getItem(lsKey)||"0",10)||0)+1; localStorage.setItem(lsKey,String(n)); cb(fmt(n)); }
+  try{
+    if(typeof GolodDB!=="undefined" && GolodDB.getSetting && GolodDB.saveSetting){
+      GolodDB.getSetting("invoice_seq").then(function(v){
+        var n=(parseInt(v||0,10)||0)+1;
+        GolodDB.saveSetting("invoice_seq",n).then(function(){ localStorage.setItem(lsKey,String(n)); cb(fmt(n)); }).catch(function(){ useLS(); });
+      }).catch(function(){ useLS(); });
+    } else { useLS(); }
+  }catch(e){ useLS(); }
+}
+function _buildInvoiceHtml(d, invNo){
+  var hdr=_invHeader||{company:"บริษัท โกโลด ทรานสปอร์ต จำกัด",taxId:"",address:"",phone:"",logo:""};
+  function thDate(iso){ if(!iso) return ""; var p=(""+iso).split("-"); return p.length===3?(parseInt(p[2],10)+"/"+parseInt(p[1],10)+"/"+(parseInt(p[0],10)+543)):iso; }
+  var issIso=d.dateIso||toISO(new Date());
+  var dueIso=d.dueIso; if(!dueIso){ var du=new Date(); du.setDate(du.getDate()+15); dueIso=toISO(du); }
+  var items=d.items||d.rows||[];
+  var total=(d.total!=null)?d.total:items.reduce(function(s,b){return s+(parseFloat(b.freightNet)||0);},0);
+  var tr=items.map(function(b,i){
+    var iso=b.dateIso||toISO(b.date||""); var route=(b.destAmphoe?b.destAmphoe+" ":"")+(b.destProv||"-");
+    return '<tr><td style="text-align:center">'+(i+1)+'</td><td>'+iso+'</td><td>'+(b.billNo||"")+'</td><td>'+(b.receiverName||"-")+'</td><td>'+route+'</td><td style="text-align:right">'+(parseFloat(b.freightNet)||0).toLocaleString("th-TH")+'</td></tr>';
+  }).join("");
+  var logo=hdr.logo?('<img src="'+hdr.logo+'" style="max-height:54px;margin-bottom:4px"><br>'):'';
+  var addr=hdr.address?('<div style="font-size:11px;color:#444">'+(""+hdr.address).replace(/\n/g,"<br>")+'</div>'):'';
+  var tax=hdr.taxId?('<div style="font-size:11px;color:#444">เลขผู้เสียภาษี '+hdr.taxId+'</div>'):'';
+  var cophone=hdr.phone?('<div style="font-size:11px;color:#444">โทร '+hdr.phone+'</div>'):'';
+  return '<!DOCTYPE html><html lang="th"><head><meta charset="utf-8"><title>ใบแจ้งหนี้ '+invNo+'</title>'
+    +'<style>*{font-family:"Sarabun","Tahoma",sans-serif;box-sizing:border-box}body{margin:0;padding:18px;color:#222;font-size:13px}'
+    +'.head{display:flex;justify-content:space-between;border-bottom:2px solid #0F6E56;padding-bottom:8px;margin-bottom:10px}'
+    +'.co{font-size:16px;font-weight:800;color:#0F6E56}.ti{font-size:22px;font-weight:800;text-align:right}'
+    +'table{width:100%;border-collapse:collapse;margin-top:8px}th,td{border:1px solid #bbb;padding:5px 7px;font-size:12px}th{background:#f0faf5;color:#0F6E56}'
+    +'.tot{text-align:right;font-size:16px;font-weight:800;color:#0F6E56;margin-top:8px}'
+    +'.sign{display:flex;justify-content:space-between;margin-top:46px;font-size:12px}.sign div{width:45%;text-align:center;border-top:1px dotted #888;padding-top:6px}'
+    +'@media print{.noprint{display:none}}</style></head><body>'
+    +'<div class="head"><div>'+logo+'<div class="co">'+(hdr.company||"บริษัท โกโลด ทรานสปอร์ต จำกัด")+'</div><div style="font-size:11px;color:#666">GOLOD TRANSPORT CO., LTD.</div>'+addr+tax+cophone+'</div>'
+    +'<div><div class="ti">ใบแจ้งหนี้</div><div style="text-align:right;font-size:11px;color:#666">INVOICE</div></div></div>'
+    +'<div style="display:flex;justify-content:space-between;flex-wrap:wrap"><div><b>ลูกค้า:</b> '+(d.customer||d.cust||"")+(d.phone?('<br><b>โทร:</b> '+d.phone):'')+'</div>'
+    +'<div style="text-align:right"><b>เลขที่:</b> '+invNo+'<br><b>วันที่:</b> '+thDate(issIso)+'<br><b>ครบกำหนด:</b> '+thDate(dueIso)+'<br><span style="font-size:11px;color:#666">รอบ '+(d.from||"")+" ถึง "+(d.to||"")+'</span></div></div>'
+    +'<table><thead><tr><th style="width:34px">#</th><th>วันที่</th><th>เลขบิล</th><th>ผู้รับ</th><th>ปลายทาง</th><th style="text-align:right;width:90px">ค่าขนส่ง</th></tr></thead><tbody>'+tr+'</tbody></table>'
+    +'<div class="tot">รวมทั้งสิ้น '+total.toLocaleString("th-TH")+' บาท</div>'
+    +'<div class="sign"><div>ผู้วางบิล</div><div>ผู้รับวางบิล / วันที่</div></div>'
+    +'<div class="noprint" style="text-align:center;margin-top:20px"><button onclick="window.print()" style="padding:10px 30px;font-size:15px;background:#0F6E56;color:#fff;border:none;border-radius:8px">🖨 พิมพ์</button></div>'
+    +'</body></html>';
+}
+function printInvoice(){
+  var d=window._invData; if(!d){ alert("สร้างใบแจ้งหนี้ก่อนนะครับ"); return; }
+  loadInvoiceHeader(function(){
+    _nextInvoiceNo(function(invNo){
+      var rec={invNo:invNo, dateIso:toISO(new Date()), customer:d.cust, phone:d.phone, from:d.from, to:d.to, total:d.total, status:"unpaid",
+        billNos:d.rows.map(function(b){return b.billNo;}),
+        items:d.rows.map(function(b){ return {billNo:b.billNo, dateIso:toISO(b.date||""), receiverName:b.receiverName||"", destProv:b.destProv||"", destAmphoe:b.destAmphoe||"", freightNet:parseFloat(b.freightNet)||0}; })};
+      var w=window.open("","_blank");
+      if(w){ w.document.write(_buildInvoiceHtml(rec, invNo)); w.document.close(); }
+      else { alert("ป๊อปอัปถูกบล็อก — แต่จะบันทึกประวัติให้"); }
+      saveInvoiceRecord(rec, function(){ alert("ออกใบแจ้งหนี้ "+invNo+" + บันทึกประวัติแล้ว"); });
+    });
+  });
+}
+function saveInvoiceRecord(rec, cb){
+  function fin(){ cb&&cb(); }
+  try{
+    if(typeof GolodDB!=="undefined"&&GolodDB.saveSetting&&GolodDB.getSetting){
+      GolodDB.saveSetting("inv_"+rec.invNo, rec).then(function(){
+        loadInvoiceIndex(function(idx){
+          idx=idx.filter(function(x){return x.invNo!==rec.invNo;});
+          idx.unshift({invNo:rec.invNo, dateIso:rec.dateIso, customer:rec.customer, total:rec.total, status:rec.status, billNos:rec.billNos});
+          _invIndex=idx;
+          try{ localStorage.setItem("golod_invoice_index",JSON.stringify(idx)); localStorage.setItem("inv_"+rec.invNo,JSON.stringify(rec)); }catch(e){}
+          GolodDB.saveSetting("invoice_index", idx).then(fin).catch(fin);
+        });
+      }).catch(function(e){ alert("บันทึกประวัติไม่สำเร็จ: "+e.message); fin(); });
+    } else {
+      var idx=[]; try{ idx=JSON.parse(localStorage.getItem("golod_invoice_index")||"[]"); }catch(e){}
+      idx=idx.filter(function(x){return x.invNo!==rec.invNo;});
+      idx.unshift({invNo:rec.invNo,dateIso:rec.dateIso,customer:rec.customer,total:rec.total,status:rec.status,billNos:rec.billNos});
+      try{ localStorage.setItem("golod_invoice_index",JSON.stringify(idx)); localStorage.setItem("inv_"+rec.invNo,JSON.stringify(rec)); }catch(e){}
+      _invIndex=idx; fin();
+    }
+  }catch(e){ fin(); }
+}
+function renderInvoiceHistory(){
+  var box=document.getElementById("invoice-history"); if(!box) return;
+  box.innerHTML='<div class="loading">⏳ โหลด...</div>';
+  loadInvoiceIndex(function(idx){
+    if(!idx.length){ box.innerHTML='<div class="card" style="color:#888">ยังไม่มีใบแจ้งหนี้ที่ออก</div>'; return; }
+    var tr=idx.map(function(iv){
+      var paid=iv.status==="paid";
+      return '<tr><td>'+iv.invNo+'</td><td>'+(iv.dateIso||"")+'</td><td>'+(iv.customer||"")+'</td><td style="text-align:right">'+(iv.total||0).toLocaleString("th-TH")+'</td>'
+        +'<td style="text-align:center">'+(paid?'<span style="color:#0F6E56;font-weight:700">✓ ชำระแล้ว</span>':'<span style="color:#c62828">ค้างชำระ</span>')+'</td>'
+        +'<td style="text-align:center;white-space:nowrap"><button class="btn btn-outline" style="padding:3px 8px;font-size:11px" onclick="reprintInvoice(\''+iv.invNo+'\')">🖨 พิมพ์ซ้ำ</button> '
+        +'<button class="btn btn-outline" style="padding:3px 8px;font-size:11px" onclick="toggleInvoicePaid(\''+iv.invNo+'\')">'+(paid?'↩︎ ยังไม่ชำระ':'✓ ชำระแล้ว')+'</button></td></tr>';
+    }).join("");
+    box.innerHTML='<div class="card" style="padding:0;overflow:hidden"><table><thead><tr><th>เลขที่</th><th>วันที่</th><th>ลูกค้า</th><th style="text-align:right">ยอด</th><th>สถานะ</th><th></th></tr></thead><tbody>'+tr+'</tbody></table></div>';
+  });
+}
+function reprintInvoice(invNo){
+  function show(rec){ if(!rec){ alert("ไม่พบใบแจ้งหนี้ "+invNo); return; } loadInvoiceHeader(function(){ var w=window.open("","_blank"); if(!w){ alert("ป๊อปอัปถูกบล็อก"); return; } w.document.write(_buildInvoiceHtml(rec, rec.invNo)); w.document.close(); }); }
+  try{ if(typeof GolodDB!=="undefined"&&GolodDB.getSetting){ GolodDB.getSetting("inv_"+invNo).then(function(rec){ if(rec) show(rec); else { try{show(JSON.parse(localStorage.getItem("inv_"+invNo)||"null"));}catch(e){show(null);} } }).catch(function(){ try{show(JSON.parse(localStorage.getItem("inv_"+invNo)||"null"));}catch(e){show(null);} }); } else { try{show(JSON.parse(localStorage.getItem("inv_"+invNo)||"null"));}catch(e){show(null);} } }catch(e){ alert("❌ "+e.message); }
+}
+function toggleInvoicePaid(invNo){
+  loadInvoiceIndex(function(idx){
+    var e=null; for(var i=0;i<idx.length;i++){ if(idx[i].invNo===invNo){ e=idx[i]; break; } }
+    if(!e) return;
+    e.status=(e.status==="paid"?"unpaid":"paid");
+    _invIndex=idx;
+    function done(){ try{ localStorage.setItem("golod_invoice_index",JSON.stringify(idx)); }catch(x){} renderInvoiceHistory(); }
+    try{
+      if(typeof GolodDB!=="undefined"&&GolodDB.saveSetting){
+        GolodDB.saveSetting("invoice_index",idx).then(function(){
+          GolodDB.getSetting("inv_"+invNo).then(function(rec){ if(rec){ rec.status=e.status; GolodDB.saveSetting("inv_"+invNo,rec).then(done).catch(done); } else done(); }).catch(done);
+        }).catch(done);
+      } else done();
+    }catch(err){ done(); }
+  });
 }
 
 // ======= DASHBOARD =======
