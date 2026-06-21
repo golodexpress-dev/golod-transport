@@ -235,6 +235,26 @@ tr:hover td{background:#f8fffe}
     </div>
   </div>
 </div>
+<div class="modal-bg" id="modal-bt-driver">
+  <div class="modal" style="max-width:420px">
+    <h3>✏️ ตั้งคนรถ / วันคาดถึงสาขา</h3>
+    <div id="bt-drv-info" style="font-size:12px;color:#888;margin-bottom:10px"></div>
+    <label style="font-size:12px;color:#555;font-weight:600">คนรถ</label>
+    <select id="bt-drv-sel" onchange="if(this.value){document.getElementById('bt-drv-text').value=this.value;}">
+      <option value="">— เลือกคนรถจากรายชื่อ —</option>
+    </select>
+    <input id="bt-drv-text" placeholder="หรือพิมพ์ชื่อคนรถใหม่" autocomplete="off" style="width:100%;padding:8px 10px;border:1px solid #ddd;border-radius:7px;font-size:13px;font-family:inherit;margin-bottom:12px;box-sizing:border-box">
+    <label style="font-size:12px;color:#555;font-weight:600">วัน-เวลาคาดถึงสาขา</label>
+    <div style="display:flex;gap:6px;margin:4px 0 14px">
+      <input id="bt-eta-date" type="date" style="flex:1;padding:8px;border:1px solid #ddd;border-radius:7px;box-sizing:border-box">
+      <input id="bt-eta-time" type="time" style="flex:1;padding:8px;border:1px solid #ddd;border-radius:7px;box-sizing:border-box">
+    </div>
+    <div class="btn-row">
+      <button class="btn btn-gray" onclick="closeBtDriverModal()">ยกเลิก</button>
+      <button class="btn btn-orange" id="bt-drv-save" onclick="saveBtDriver()">บันทึก</button>
+    </div>
+  </div>
+</div>
 <!-- Modal เคลียร์เที่ยว -->
 <div class="modal-bg" id="modal-clear-trip" style="display:none">
   <div class="modal" style="max-width:520px;max-height:92vh;overflow-y:auto">
@@ -692,7 +712,7 @@ tr:hover td{background:#f8fffe}
 <div class="topbar">
   <span class="title">🚛 จัดการขนส่ง</span>
   <span id="session-info" style="font-size:11px;opacity:.8"></span>
-  <span style="font-size:10px;opacity:.65;margin-left:auto">build 2026-06-10z82</span>
+  <span style="font-size:10px;opacity:.65;margin-left:auto">build 2026-06-10z83</span>
   <a href="GolodApp.html" style="margin-left:10px">← หน้าหลัก</a>
 </div>
 <div class="container">
@@ -4723,23 +4743,54 @@ function revertOneBranchBill(billNo){
     renderApp();
   }).catch(function(e){ alert("❌ "+e.message); });
 }
+var _btDriverGroupKey="";
 function setBranchTripDriver(i){
   var g=(_branchGroups||[])[i]; if(!g){ return; }
-  var name=prompt("ชื่อคนรถที่วิ่งไปสาขา "+g.targetText+":", g.driver||"");
-  if(name===null) return; name=(""+name).trim();
-  var etaIn=prompt("วันที่คาดถึงสาขา (เช่น 2026-06-22) — เว้นว่าง = ไม่เปลี่ยน:", (g.eta||"").slice(0,10));
-  var bills=BILLS.filter(function(b){ return b.status==="ระหว่างนำส่งสาขา" && _btKey(b)===g.key; });
-  if(!bills.length){ alert("ไม่พบบิลในเที่ยวนี้"); return; }
+  _btDriverGroupKey=g.key;
+  var info=document.getElementById("bt-drv-info"); if(info) info.textContent="เที่ยว: "+g.targetText+" · "+g.bills.length+" บิล";
+  var tx=document.getElementById("bt-drv-text"); if(tx) tx.value=g.driver||"";
+  var _e=(g.eta||"");
+  var ed=document.getElementById("bt-eta-date"); if(ed) ed.value=_e?_e.slice(0,10):"";
+  var et=document.getElementById("bt-eta-time"); if(et) et.value=(_e.indexOf("T")>=0?_e.slice(11,16):"");
+  _fillBtDriverSelect(g.driver||"");
+  document.getElementById("modal-bt-driver").classList.add("show");
+}
+function _fillBtDriverSelect(cur){
+  var sel=document.getElementById("bt-drv-sel"); if(!sel) return;
+  var seen={}, names=[];
+  function add(n){ n=(""+(n||"")).trim(); if(n&&!seen[n]){ seen[n]=1; names.push(n); } }
+  function render(){
+    names.sort(function(a,b){return a.localeCompare(b,"th");});
+    sel.innerHTML='<option value="">— เลือกคนรถจากรายชื่อ ('+names.length+') —</option>'+names.map(function(n){ return '<option value="'+n.replace(/"/g,"&quot;")+'"'+(n===cur?" selected":"")+'>'+n+'</option>'; }).join("");
+  }
+  try{ (typeof allTrips!=="undefined"&&allTrips?allTrips:[]).forEach(function(t){ add(t.driverName); add(t.lineDriver); }); }catch(e){}
+  try{ (typeof BILLS!=="undefined"&&BILLS?BILLS:[]).forEach(function(b){ add(b.lineDriver); }); }catch(e){}
+  try{ (typeof _tripState!=="undefined"&&_tripState&&_tripState.drivers?_tripState.drivers:[]).forEach(function(d){ add(d.name); add(d.driverName); }); }catch(e){}
+  render();
+  try{
+    if(typeof GolodDB!=="undefined" && GolodDB.getUsers){ GolodDB.getUsers().then(function(us){ (us||[]).forEach(function(u){ if(u&&u.role==="driver"){ add(u.name); add(u.driverName); } }); render(); }).catch(function(){}); }
+    if(typeof GolodDB!=="undefined" && GolodDB.getTrips){ GolodDB.getTrips({limitN:500}).then(function(ts){ (ts||[]).forEach(function(t){ add(t.driverName); add(t.lineDriver); }); render(); }).catch(function(){}); }
+  }catch(e){}
+}
+function closeBtDriverModal(){ var m=document.getElementById("modal-bt-driver"); if(m) m.classList.remove("show"); }
+function saveBtDriver(){
+  var key=_btDriverGroupKey; if(!key){ closeBtDriverModal(); return; }
+  var name=((document.getElementById("bt-drv-text")||{}).value||"").trim();
+  var ed=((document.getElementById("bt-eta-date")||{}).value||""); var et=((document.getElementById("bt-eta-time")||{}).value||"");
+  var eta=ed?(ed+(et?("T"+et):"")):"";
+  var bills=BILLS.filter(function(b){ return b.status==="ระหว่างนำส่งสาขา" && _btKey(b)===key; });
+  if(!bills.length){ alert("ไม่พบบิลในเที่ยวนี้"); closeBtDriverModal(); return; }
   var now=new Date().toISOString();
-  var tid=g.tripId; if(!tid){ tid="bt_"+Date.now()+"_"+Math.floor(Math.random()*1000); }
-  var setEta=(etaIn!==null && (""+etaIn).trim()!=="");
-  var upd={lineDriver:name, branchTripId:tid, updatedAt:now};
-  if(setEta){ upd.etaBranch=(""+etaIn).trim(); }
+  var tid=bills[0].branchTripId; if(!tid){ tid="bt_"+Date.now()+"_"+Math.floor(Math.random()*1000); }
+  var upd={lineDriver:name, branchTripId:tid, etaBranch:eta, updatedAt:now};
+  var btn=document.getElementById("bt-drv-save"); if(btn){ btn.disabled=true; btn.textContent="กำลังบันทึก..."; }
   Promise.all(bills.map(function(b){ return GolodDB.updateBill(b.billNo, upd); })).then(function(){
-    bills.forEach(function(b){ b.lineDriver=name; b.branchTripId=tid; if(setEta) b.etaBranch=upd.etaBranch; });
-    renderApp();
-    alert("ตั้งคนรถ '"+(name||"(ว่าง)")+"' ให้เที่ยวนี้ "+bills.length+" บิลแล้ว");
-  }).catch(function(e){ alert("❌ "+e.message); });
+    bills.forEach(function(b){ b.lineDriver=name; b.branchTripId=tid; b.etaBranch=eta; });
+    if(btn){ btn.disabled=false; btn.textContent="บันทึก"; }
+    closeBtDriverModal();
+    window._keepSelection=true; renderApp();
+    alert("บันทึกคนรถ '"+(name||"(ว่าง)")+"' + วันคาดถึงแล้ว ("+bills.length+" บิล)");
+  }).catch(function(e){ if(btn){ btn.disabled=false; btn.textContent="บันทึก"; } alert("❌ "+e.message); });
 }
 
 function confirmDispatch(){
