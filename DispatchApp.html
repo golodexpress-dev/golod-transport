@@ -737,7 +737,7 @@ tr:hover td{background:#f8fffe}
 <div class="topbar">
   <span class="title">🚛 จัดการขนส่ง</span>
   <span id="session-info" style="font-size:11px;opacity:.8"></span>
-  <span style="font-size:10px;opacity:.65;margin-left:auto">build 2026-06-10z87</span>
+  <span style="font-size:10px;opacity:.65;margin-left:auto">build 2026-06-10z90</span>
   <a href="GolodApp.html" style="margin-left:10px">← หน้าหลัก</a>
 </div>
 <div class="container">
@@ -1294,7 +1294,8 @@ function filterBills(tab){
     var tabMatch;
     if(tab==="approve") tabMatch = st==="รออนุมัติ";
     else if(tab==="pending") tabMatch = st==="ออกบิลรับของ" || st==="issued" || st===""
-      || st==="reschedule" || st==="นัดส่งใหม่";
+      || st==="reschedule" || st==="นัดส่งใหม่"
+      || (window._addToBranchTrip && st==="ระหว่างนำส่งสาขา" && !b.branchTripId);
     else if(tab==="branch")  tabMatch = st==="ระหว่างนำส่งสาขา";
     else if(tab==="driving") tabMatch = st==="กำลังวิ่งส่งลูกค้า" || st==="นำส่งใหม่";
     else if(tab==="redo")    tabMatch = REDO_STATUS.indexOf(st) >= 0;
@@ -1382,7 +1383,7 @@ function renderApp(){
       +'<button class="btn btn-gray" onclick="toggleSelectAll()">☑ เลือกทั้งหมด</button>'
       +'<button class="btn btn-orange" onclick="openDispatch(&quot;branch&quot;)">📦 จ่ายให้สาขา</button>'
       +'<button class="btn btn-blue" onclick="openDispatch(&quot;driver&quot;)">🚛 จ่ายให้คนรถ</button>'
-      +(currentTab==="branch"?'<button class="btn" style="background:#fff3e0;color:#e65100;border:1px solid #ffcc80" onclick="revertBranchDispatch()">↩️ ดึงกลับจากสาขา</button>':'')
+      +(currentTab==="branch"?'<button class="btn" style="background:#fff3e0;color:#e65100;border:1px solid #ffcc80" onclick="revertBranchDispatch()">➖ เอาบิลออกจากเที่ยว</button>':'')
       +'<span style="font-size:11px;color:#666">เลือก <span id="sel-count">0</span> บิล</span>'
       +((_addToBranchTrip&&currentTab==="pending")?('<button class="btn btn-orange" style="font-size:12px" onclick="confirmAddToBranchTrip()">\u2795 \u0E40\u0E1E\u0E34\u0E48\u0E21\u0E40\u0E02\u0E49\u0E32\u0E40\u0E17\u0E35\u0E48\u0E22\u0E27 '+(_addToBranchTrip.targetText||"")+'</button><button class="btn btn-gray" style="font-size:11px" onclick="cancelAddToBranchTrip()">\u0E22\u0E01\u0E40\u0E25\u0E34\u0E01</button>'):'')
       +'</div>';
@@ -1454,7 +1455,7 @@ function renderApp(){
             var f=parseFloat(b.freightNet||0);
             return '<div style="display:flex;justify-content:space-between;align-items:center;gap:6px;padding:4px 0;border-bottom:1px solid #f3e7d3">'
               +'<div style="font-size:12px;color:#444;flex:1;min-width:0"><b>'+b.billNo+'</b> · '+rcv+' <span style="color:#999">'+amp+'</span> · '+f.toLocaleString("th-TH")+'฿</div>'
-              +'<button class="btn" style="background:#ffebee;color:#c62828;border:1px solid #ef9a9a;font-size:11px;padding:3px 8px" onclick="revertOneBranchBill(\''+b.billNo+'\')">✕ ดึงกลับ</button>'
+              +'<button class="btn" style="background:#ffebee;color:#c62828;border:1px solid #ef9a9a;font-size:11px;padding:3px 8px" onclick="revertOneBranchBill(\''+b.billNo+'\')">➖ เอาออกจากเที่ยว</button>'
               +'</div>';
           }).join("")+'</div>';
         }
@@ -4919,22 +4920,32 @@ function closeModal(){ document.getElementById("modal-dispatch").classList.remov
 function revertBranchDispatch(){
   var ids=Object.keys(selectedBills).filter(function(id){ var b=BILLS.find(function(x){return x.billNo===id;}); return b && b.status==="ระหว่างนำส่งสาขา"; });
   if(!ids.length){ alert("เลือกบิลที่อยู่ในสถานะ 'ระหว่างนำส่งสาขา' ก่อนนะครับ"); return; }
-  if(!confirm("ดึงกลับ "+ids.length+" บิล จากเที่ยวส่งสาขา?\nบิลจะกลับไปสถานะ 'ออกบิลรับของ' (รอจ่ายใหม่)")) return;
+  var keepBranch = confirm("เอา "+ids.length+" บิล ออกจากเที่ยวส่งสาขา?\n\n[ตกลง] = เอาออกจากเที่ยว แต่คงสถานะ 'ระหว่างนำส่งสาขา' (จ่ายงาน/จัดเข้าเที่ยวใหม่ได้)\n[ยกเลิก] = ดูตัวเลือกยกเลิกส่งสาขา");
+  var fullCancel=false;
+  if(!keepBranch){
+    fullCancel = confirm("ยกเลิกส่งสาขาทั้งหมด?\nบิลจะกลับไปสถานะ 'ออกบิลรับของ' (รอจ่ายงานใหม่)\n\n[ตกลง] = ยกเลิกส่งสาขา\n[ยกเลิก] = ไม่ทำอะไร");
+    if(!fullCancel) return;
+  }
   var now=new Date().toISOString();
   var by=(CU?(CU.name||CU.username):"");
   Promise.all(ids.map(function(id){
     var cur=BILLS.find(function(x){return x.billNo===id;})||{};
-    var upd={status:"ออกบิลรับของ", targetBranch:"", targetBranchLabel:"", lineDriver:"", etaBranch:"", branchTripId:"", updatedAt:now,
-      statusHistory:(cur.statusHistory||[]).concat([{status:"ออกบิลรับของ", at:now, loc:"ดึงกลับจากเที่ยวสาขา", by:by}])};
+    var upd = fullCancel
+      ? {status:"ออกบิลรับของ", targetBranch:"", targetBranchLabel:"", lineDriver:"", etaBranch:"", branchTripId:"", updatedAt:now,
+         statusHistory:(cur.statusHistory||[]).concat([{status:"ออกบิลรับของ", at:now, loc:"ยกเลิกส่งสาขา (กลับไปรอจ่าย)", by:by}])}
+      : {status:"ระหว่างนำส่งสาขา", branchTripId:"", updatedAt:now,
+         statusHistory:(cur.statusHistory||[]).concat([{status:"ระหว่างนำส่งสาขา", at:now, loc:"เอาออกจากเที่ยว (คงสถานะระหว่างสาขา)", by:by}])};
     return GolodDB.updateBill(id,upd);
   })).then(function(){
-    ids.forEach(function(id){ var b=BILLS.find(function(x){return x.billNo===id;}); if(b){ b.status="ออกบิลรับของ"; b.targetBranch=""; b.targetBranchLabel=""; b.lineDriver=""; b.etaBranch=""; b.branchTripId=""; } });
+    ids.forEach(function(id){ var b=BILLS.find(function(x){return x.billNo===id;}); if(b){
+      if(fullCancel){ b.status="ออกบิลรับของ"; b.targetBranch=""; b.targetBranchLabel=""; b.lineDriver=""; b.etaBranch=""; b.branchTripId=""; }
+      else { b.status="ระหว่างนำส่งสาขา"; b.branchTripId=""; }
+    } });
     selectedBills={};
     renderApp();
-    alert("ดึงกลับ "+ids.length+" บิลแล้ว → ไปดูที่แท็บ 'รอจ่ายงาน'");
+    alert(fullCancel ? ("ยกเลิกส่งสาขา "+ids.length+" บิล → แท็บ 'รอจ่ายงาน'") : ("เอาออกจากเที่ยว "+ids.length+" บิล (ยังอยู่ 'ระหว่างส่งสาขา' พร้อมจัดเข้าเที่ยวใหม่/จ่ายงาน)"));
   }).catch(function(e){ alert("❌ ผิดพลาด: "+e.message); });
 }
-
 var _branchGroups=[];
 var _addToBranchTrip=null;
 function _btKey(b){ return b.branchTripId || ("__"+(b.targetBranch||"")+"|"+(b.lineDriver||"")+"|"+(billDateStr(b)||"")); }
@@ -4950,7 +4961,7 @@ function addBillsToBranchTrip(i){
   _addToBranchTrip={ key:g.key, tripId:g.tripId||"", target:g.target||"", targetText:g.targetText||"", lineDriver:g.driver||"", etaBranch:g.eta||"" };
   selectedBills={};
   switchTab("pending");
-  alert("เลือกบิลที่จะเพิ่มเข้าเที่ยว "+(_addToBranchTrip.targetText||"")+(_addToBranchTrip.lineDriver?(" · คนรถ "+_addToBranchTrip.lineDriver):"")+" แล้วกดปุ่ม '➕ เพิ่มเข้าเที่ยว' ด้านบน");
+  alert("เลือกบิลที่จะเพิ่มเข้าเที่ยว "+(_addToBranchTrip.targetText||"")+(_addToBranchTrip.lineDriver?(" · คนรถ "+_addToBranchTrip.lineDriver):"")+"\n(เลือกได้ทั้งบิล 'รอจ่ายงาน' และบิลสาขาที่ถอดออกจากเที่ยว) แล้วกดปุ่ม '➕ เพิ่มเข้าเที่ยว' ด้านบน");
 }
 function cancelAddToBranchTrip(){ _addToBranchTrip=null; renderApp(); }
 function confirmAddToBranchTrip(){
@@ -4983,13 +4994,13 @@ function toggleBranchTripExpand(i){
 }
 function revertOneBranchBill(billNo){
   var cur=BILLS.find(function(x){return x.billNo===billNo;}); if(!cur){ return; }
-  if(!confirm("ดึงบิล "+billNo+" กลับจากเที่ยวสาขา? (กลับสถานะ 'ออกบิลรับของ')")) return;
+  if(!confirm("เอาบิล "+billNo+" ออกจากเที่ยวนี้?\n(ยังคงสถานะ 'ระหว่างนำส่งสาขา' พร้อมจัดเข้าเที่ยวใหม่/จ่ายงานต่อได้)")) return;
   var now=new Date().toISOString(); var by=(CU?(CU.name||CU.username):"");
-  var upd={status:"ออกบิลรับของ", targetBranch:"", targetBranchLabel:"", lineDriver:"", etaBranch:"", branchTripId:"", updatedAt:now,
-    statusHistory:(cur.statusHistory||[]).concat([{status:"ออกบิลรับของ", at:now, loc:"ดึงกลับจากเที่ยวสาขา", by:by}])};
+  var upd={status:"ระหว่างนำส่งสาขา", branchTripId:"", updatedAt:now,
+    statusHistory:(cur.statusHistory||[]).concat([{status:"ระหว่างนำส่งสาขา", at:now, loc:"เอาออกจากเที่ยว (คงสถานะระหว่างสาขา)", by:by}])};
   window._keepSelection=true;
   GolodDB.updateBill(billNo,upd).then(function(){
-    cur.status="ออกบิลรับของ"; cur.targetBranch=""; cur.targetBranchLabel=""; cur.lineDriver=""; cur.etaBranch=""; cur.branchTripId="";
+    cur.status="ระหว่างนำส่งสาขา"; cur.branchTripId="";
     renderApp();
   }).catch(function(e){ alert("❌ "+e.message); });
 }
