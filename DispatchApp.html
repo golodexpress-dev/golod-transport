@@ -737,7 +737,7 @@ tr:hover td{background:#f8fffe}
 <div class="topbar">
   <span class="title">🚛 จัดการขนส่ง</span>
   <span id="session-info" style="font-size:11px;opacity:.8"></span>
-  <span style="font-size:10px;opacity:.65;margin-left:auto">build 2026-06-10z93</span>
+  <span style="font-size:10px;opacity:.65;margin-left:auto">build 2026-06-10z95</span>
   <a href="GolodApp.html" style="margin-left:10px">← หน้าหลัก</a>
 </div>
 <div class="container">
@@ -1377,13 +1377,18 @@ function renderApp(){
 
   var filtered = filterBills(currentTab);
 
+  var _vCode = (function(){ var u=getUserBranch(); return (u==="all"||u==="bkk")?"bkk":u; })();
+  var _tgtCodeAB = function(tb){ var m={"bkk":"bkk","กรุงเทพ":"bkk","สาขากรุงเทพ":"bkk","ptm":"bkk","ปทุมธานี":"bkk","สาขาปทุมธานี":"bkk","กทม":"bkk","krt":"krt","นครราชสีมา":"krt","สาขานครราชสีมา":"krt","โคราช":"krt","ssk":"ssk","ศรีสะเกษ":"ssk","สาขาศรีสะเกษ":"ssk"}; return m[tb]||tb; };
+  // ปุ่ม "เอาบิลออกจากเที่ยว" โชว์เฉพาะฝั่งต้นทาง (มีบิลขาส่งที่ปลายทาง != สาขาตัวเอง) — ฝั่งรับของล้วน ๆ ไม่ต้องเห็น
+  var _hasOriginBranchBill = (currentTab==="branch") && filtered.some(function(b){ return _tgtCodeAB(b.targetBranch||"")!==_vCode; });
+
   var actionBar = '';
   if(currentTab !== "done"){
     actionBar = '<div class="action-bar">'
       +'<button class="btn btn-gray" onclick="toggleSelectAll()">☑ เลือกทั้งหมด</button>'
       +'<button class="btn btn-orange" onclick="openDispatch(&quot;branch&quot;)">📦 จ่ายให้สาขา</button>'
       +'<button class="btn btn-blue" onclick="openDispatch(&quot;driver&quot;)">🚛 จ่ายให้คนรถ</button>'
-      +(currentTab==="branch"?'<button class="btn" style="background:#fff3e0;color:#e65100;border:1px solid #ffcc80" onclick="revertBranchDispatch()">➖ เอาบิลออกจากเที่ยว</button>':'')
+      +(_hasOriginBranchBill?'<button class="btn" style="background:#fff3e0;color:#e65100;border:1px solid #ffcc80" onclick="revertBranchDispatch()">➖ เอาบิลออกจากเที่ยว</button>':'')
       +'<span style="font-size:11px;color:#666">เลือก <span id="sel-count">0</span> บิล</span>'
       +((_addToBranchTrip&&currentTab==="pending")?('<button class="btn btn-orange" style="font-size:12px" onclick="confirmAddToBranchTrip()">\u2795 \u0E40\u0E1E\u0E34\u0E48\u0E21\u0E40\u0E02\u0E49\u0E32\u0E40\u0E17\u0E35\u0E48\u0E22\u0E27 '+(_addToBranchTrip.targetText||"")+'</button><button class="btn btn-gray" style="font-size:11px" onclick="cancelAddToBranchTrip()">\u0E22\u0E01\u0E40\u0E25\u0E34\u0E01</button>'):'')
       +'</div>';
@@ -1441,8 +1446,13 @@ function renderApp(){
       _bg[k].bills.push(b);
     });
     _branchGroups=Object.keys(_bg).map(function(k){return _bg[k];});
+    var _ubBC=getUserBranch();
+    var _viewerCode=(_ubBC==="all"||_ubBC==="bkk")?"bkk":_ubBC;
+    var _grpTargetCode=function(tb){ var m={"bkk":"bkk","กรุงเทพ":"bkk","สาขากรุงเทพ":"bkk","ptm":"bkk","ปทุมธานี":"bkk","สาขาปทุมธานี":"bkk","กทม":"bkk","krt":"krt","นครราชสีมา":"krt","สาขานครราชสีมา":"krt","โคราช":"krt","ssk":"ssk","ศรีสะเกษ":"ssk","สาขาศรีสะเกษ":"ssk"}; return m[tb]||tb; };
     if(_branchGroups.length){
       branchCards='<div style="margin:8px 0 4px">'+_branchGroups.map(function(g,i){
+        // สาขาปลายทางที่รับของ: ไม่ต้องเห็นการ์ดจัดการเที่ยว (เป็นงานของต้นทาง) — ให้เลือกจากรายการบิลด้านล่างไปจ่ายงานคนรถตัวเองที่แท็บจัดการเที่ยว
+        if(_grpTargetCode(g.target||"")===_viewerCode) return '';
         var frt=g.bills.reduce(function(s,b){return s+parseFloat(b.freightNet||0);},0);
         var cod=g.bills.reduce(function(s,b){return s+parseFloat(b.codTotal||0);},0);
         var etaTxt=g.eta?_etaFmt(g.eta):"-";
