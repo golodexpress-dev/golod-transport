@@ -737,7 +737,7 @@ tr:hover td{background:#f8fffe}
 <div class="topbar">
   <span class="title">🚛 จัดการขนส่ง</span>
   <span id="session-info" style="font-size:11px;opacity:.8"></span>
-  <span style="font-size:10px;opacity:.65;margin-left:auto">build 2026-06-10z91</span>
+  <span style="font-size:10px;opacity:.65;margin-left:auto">build 2026-06-10z93</span>
   <a href="GolodApp.html" style="margin-left:10px">← หน้าหลัก</a>
 </div>
 <div class="container">
@@ -2346,13 +2346,25 @@ function renderTripForm(existingTrip){
   // บิลที่เพิ่มเข้าเที่ยวได้ = เฉพาะบิลรอจ่าย (ออกบิลรับของ/issued/นำส่งใหม่) + บิลที่อยู่ในเที่ยวนี้อยู่แล้ว
   // ตัดบิลที่ "กำลังวิ่งส่งลูกค้า" กับรถคันอื่นออก
   // กทม/แอดมิน = บิลรอจ่าย (ออกบิลรับของ/issued/นำส่งใหม่) · สาขา = บิลที่ส่งมาถึงสาขา (ระหว่างนำส่งสาขา)
-  // กทม/แอดมิน = บิลรอจ่ายทั้งหมด · สาขา = บิลที่ส่งมาถึงสาขา (ระหว่างนำส่งสาขา) + บิลที่สาขาออกเอง (ออกบิลรับของ/issued ของสาขานี้)
+  // กทม/แอดมิน = บิลรอจ่าย + บิลที่สาขาส่งกลับมาถึง กทม. (ระหว่างนำส่งสาขา ปลายทาง bkk)
+  // สาขา = บิลที่ส่งมาถึงสาขา (ระหว่างนำส่งสาขา) + บิลที่สาขาออกเอง (ออกบิลรับของ/issued ของสาขานี้)
   var isHub = (ub==="all"||ub==="bkk");
-  var _poolSt = isHub ? ["ออกบิลรับของ","issued","นำส่งใหม่"] : ["ระหว่างนำส่งสาขา","นำส่งใหม่","ออกบิลรับของ","issued"];
+  var _poolSt = isHub
+    ? ["ออกบิลรับของ","issued","นำส่งใหม่","ระหว่างนำส่งสาขา"]
+    : ["ระหว่างนำส่งสาขา","นำส่งใหม่","ออกบิลรับของ","issued"];
+  var _tbToBkk = function(b){
+    var tb = b.targetBranch||"";
+    var m = {"bkk":"bkk","กรุงเทพ":"bkk","สาขากรุงเทพ":"bkk","ptm":"bkk","ปทุมธานี":"bkk","สาขาปทุมธานี":"bkk","กทม":"bkk"};
+    return (m[tb]||tb)==="bkk";
+  };
   var readyBills = BILLS.filter(function(b){
     if(_tripState.selectedBills[b.billNo]) return true;
     var st = b.status||"";
     if(_poolSt.indexOf(st) < 0) return false;
+    // hub: "ระหว่างนำส่งสาขา" ต้องเป็นบิลที่สาขาส่งกลับมาถึง กทม. (ปลายทาง bkk) เท่านั้น — กันบิลขาออกไปสาขาโผล่
+    if(isHub && st==="ระหว่างนำส่งสาขา"){
+      return _tbToBkk(b);
+    }
     // สาขา: บิลที่ออกเอง (ออกบิลรับของ/issued) ต้องเป็นของสาขานี้เท่านั้น (กันเห็น pending ของกทม.ทั้งกอง)
     if(!isHub && (st==="ออกบิลรับของ" || st==="issued")){
       return (typeof billBelongsToUserBranch==="function") ? billBelongsToUserBranch(b) : true;
@@ -2373,6 +2385,7 @@ function renderTripForm(existingTrip){
     var payLabel = {origin:"ต้นทาง",dest:"ปลายทาง",transfer:"โอน",credit:"เครดิต"};
     var amtColor = pay==="dest"?"color:#E67E22":"color:#555";
     var stTag={"ออกบิลรับของ":["📦 รอจ่าย","#0F6E56"],"issued":["📦 รอจ่าย","#0F6E56"],"ระหว่างนำส่งสาขา":["🏢 ระหว่างสาขา","#7c4dff"],"กำลังวิ่งส่งลูกค้า":["🚚 กำลังวิ่ง","#E67E22"],"นำส่งใหม่":["🔄 นำส่งใหม่","#1565C0"]}[b.status||""]||["",""];
+    if(isHub && (b.status||"")==="ระหว่างนำส่งสาขา"){ stTag=["🏢 ถึงศูนย์แล้ว (จากสาขา)","#00897b"]; }
     var stHtml=stTag[0]?' <span style="font-size:9px;color:'+stTag[1]+';font-weight:700">'+stTag[0]+'</span>':'';
     return '<div class="bill-pick-row'+(sel?" selected":"")+'" data-bno="'+b.billNo+'" onclick="toggleTripBill(this.dataset.bno)">'
       +'<input type="checkbox" class="bpr-check" '+(sel?"checked":"")+'>'
