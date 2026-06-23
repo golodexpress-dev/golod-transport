@@ -737,7 +737,7 @@ tr:hover td{background:#f8fffe}
 <div class="topbar">
   <span class="title">🚛 จัดการขนส่ง</span>
   <span id="session-info" style="font-size:11px;opacity:.8"></span>
-  <span style="font-size:10px;opacity:.65;margin-left:auto">build 2026-06-10z95</span>
+  <span style="font-size:10px;opacity:.65;margin-left:auto">build 2026-06-10z96</span>
   <a href="GolodApp.html" style="margin-left:10px">← หน้าหลัก</a>
 </div>
 <div class="container">
@@ -1593,7 +1593,16 @@ function renderTripTab(){
     GolodDB.getTrips ? GolodDB.getTrips({limitN:500}) : Promise.resolve([])
   ]).then(function(results){
     _tripState.drivers = (results[0]||[]).filter(function(u){ return u.role==="driver"; });
-    _tripState.openTrips = results[1]||[];
+    _tripState.openTrips = (function(arr){
+      // กันเที่ยวซ้ำ (เที่ยวเดียวโผล่หลายใบ / เอกสารซ้ำใน Firestore) — ยึดลายเซ็น คนรถ+เวลาสร้าง+ชุดบิล
+      var seen={}, out=[];
+      (arr||[]).forEach(function(t){
+        var sig=(t.driverName||t.driverUsername||"")+"|"+(t.createdAt||"")+"|"+((t.billIds||[]).slice().sort().join(","));
+        var k=(t.createdAt && (t.billIds&&t.billIds.length)) ? sig : (t.id||sig);
+        if(seen[k]) return; seen[k]=1; out.push(t);
+      });
+      return out;
+    })(results[1]||[]);
     if(!window._autoScanTimer) window._autoScanTimer=setInterval(_autoScanTick, 180000);
     runAutoDispatchScan();
     if(_tripState.mode === "create" || _tripState.mode === "edit"){
