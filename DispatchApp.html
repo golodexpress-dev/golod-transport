@@ -737,7 +737,7 @@ tr:hover td{background:#f8fffe}
 <div class="topbar">
   <span class="title">🚛 จัดการขนส่ง</span>
   <span id="session-info" style="font-size:11px;opacity:.8"></span>
-  <span style="font-size:10px;opacity:.65;margin-left:auto">build 2026-06-10z96</span>
+  <span style="font-size:10px;opacity:.65;margin-left:auto">build 2026-06-10z97</span>
   <a href="GolodApp.html" style="margin-left:10px">← หน้าหลัก</a>
 </div>
 <div class="container">
@@ -1490,6 +1490,14 @@ function renderApp(){
     }
   }
   
+  var _showSubTabs = (currentTab==="branch" && branchCards!=="");
+  var _branchSearching = (currentTab==="branch" && !!_searchQuery);
+  var _showCardsView = (!_showSubTabs || _branchSubTab!=="bills") && !_branchSearching;
+  var _showBillsView = (!_showSubTabs || _branchSubTab==="bills" || _branchSearching);
+  var _branchSubBar = _showSubTabs ? ('<div style="display:flex;gap:8px;margin:6px 0 10px;flex-wrap:wrap">'
+    +'<button onclick="setBranchSubTab(&quot;cards&quot;)" style="padding:8px 16px;border-radius:8px;font-weight:800;font-size:13px;cursor:pointer;border:1.5px solid '+(_branchSubTab!=="bills"?"#7c4dff":"#ddd")+';background:'+(_branchSubTab!=="bills"?"#7c4dff":"#fff")+';color:'+(_branchSubTab!=="bills"?"#fff":"#666")+'">🚚 ใบส่งสาขา ('+_branchGroups.length+')</button>'
+    +'<button onclick="setBranchSubTab(&quot;bills&quot;)" style="padding:8px 16px;border-radius:8px;font-weight:800;font-size:13px;cursor:pointer;border:1.5px solid '+(_branchSubTab==="bills"?"#7c4dff":"#ddd")+';background:'+(_branchSubTab==="bills"?"#7c4dff":"#fff")+';color:'+(_branchSubTab==="bills"?"#fff":"#666")+'">📋 รายการบิล ('+filtered.length+')</button>'
+    +'</div>') : '';
   var html = '<div class="card">'
     +'<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px">'
     +'<div class="card-title" style="margin:0">🚛 จัดการขนส่ง</div>'
@@ -1501,13 +1509,16 @@ function renderApp(){
     +'<input type="text" id="q-inp" placeholder="ค้นหา: บิล/ชื่อ/จังหวัด/อำเภอ/สินค้า" style="flex:1;min-width:180px;max-width:360px" value="'+(_searchQuery||"")+'" oninput="filterTable()">'
     +'</div>'
     +actionBar
-    +branchCards
+    +_branchSubBar
+    +(_showCardsView?branchCards:'')
+    +(_showBillsView?(''
     +'<div style="overflow-x:auto"><table>'
     +'<tr><th></th><th>เลขบิล</th><th>วันที่</th><th>ผู้รับ</th><th>ปลายทาง</th>'
     +'<th>ค่าส่ง</th><th>สถานะ</th><th>ผู้ส่ง</th><th>คนรถ</th><th>สินค้า</th><th>ชิ้น</th><th>สลิป</th><th>จัดการ</th></tr>'
     +'<tbody id="bill-tbody">'+rows+'</tbody>'
     +'</table></div>'
     +'<div style="font-size:11px;color:#888;margin-top:8px"><span id="bill-count-label">แสดง '+filtered.length+' บิล</span></div>'
+    ):'')
     +'</div>';
 
   if(currentTab === "trip"){
@@ -4988,6 +4999,8 @@ function revertBranchDispatch(){
 }
 var _branchGroups=[];
 var _addToBranchTrip=null;
+var _branchSubTab="cards";
+function setBranchSubTab(t){ _branchSubTab=t; if(typeof renderApp==="function") renderApp(); }
 function _btKey(b){ return b.branchTripId || ("__"+(b.targetBranch||"")+"|"+(b.lineDriver||"")+"|"+(billDateStr(b)||"")); }
 function printBranchTrip(i){
   var g=(_branchGroups||[])[i]; if(!g){ return; }
