@@ -114,7 +114,7 @@ td.r,th.r{text-align:right}
 <div class="app hidden" id="app-main">
   <div class="hdr">
     <div>
-      <div class="hdr-logo">GOLOD · ตรวจสอบ COD <span style="font-size:10px;opacity:.6;font-weight:400">build 2026-06-06·b9</span></div>
+      <div class="hdr-logo">GOLOD · ตรวจสอบ COD <span style="font-size:10px;opacity:.6;font-weight:400">build 2026-06-22a·b9</span></div>
       <div class="hdr-sub">เช็คเงินปลายทางที่เก็บแทนลูกค้าต้นทาง — เก็บครบไหม / โอนคืนเท่าไหร่</div>
     </div>
     <div class="hdr-pills" id="hdr-pills"></div>
@@ -139,6 +139,7 @@ td.r,th.r{text-align:right}
     <div class="tab" data-pg="voucher" onclick="showPage('voucher')">🧾 ใบจ่ายเงิน</div>
     <div class="tab" data-pg="bills" onclick="showPage('bills')">🧾 บิล COD ทั้งหมด</div>
     <div class="tab" data-pg="accounts" onclick="showPage('accounts')">🏦 ลูกค้า/บัญชีรับโอน</div>
+    <div class="tab" data-pg="report" onclick="showPage('report')">📈 รายงาน COD</div>
   </div>
 
   <div class="page active" id="page-dash"></div>
@@ -147,6 +148,7 @@ td.r,th.r{text-align:right}
   <div class="page" id="page-voucher"></div>
   <div class="page" id="page-bills"></div>
   <div class="page" id="page-accounts"></div>
+  <div class="page" id="page-report"></div>
 </div>
 
 <div id="acct-modal" class="overlay hidden" onclick="if(event.target===this)closeAcct()">
@@ -472,7 +474,7 @@ function showPage(pg){
   document.querySelectorAll(".page").forEach(function(p){ p.classList.remove("active"); });
   document.getElementById("page-"+pg).classList.add("active");
 }
-function renderAll(){ renderDash(); renderTrips(); renderRemit(); renderVoucher(); renderBills(); renderAccounts(); renderPills(); }
+function renderAll(){ renderDash(); renderTrips(); renderRemit(); renderVoucher(); renderBills(); renderAccounts(); renderReport(); renderPills(); }
 
 function renderPills(){
   var bills=codBillsFiltered();
@@ -819,6 +821,93 @@ function vcMarkPaid(){
 }
 
 /* ----- BILLS (flat) ----- */
+function _codCard(label,val,color){
+  return '<div style="background:#fff;border:1px solid #eee;border-radius:10px;padding:10px 12px">'
+    +'<div style="font-size:11px;color:#888">'+label+'</div>'
+    +'<div style="font-size:18px;font-weight:800;color:'+color+'">'+val+'</div></div>';
+}
+function _codReportData(){
+  var bills=codBillsFiltered().slice().sort(function(a,b){ return billDate(a)<billDate(b)?-1:1; });
+  var s={cnt:bills.length,cod:0,fee:0,net:0,remit:0,pend:0,byDay:{}};
+  bills.forEach(function(b){
+    var cod=getCOD(b),fee=codFee(b),net=codNet(b);
+    s.cod+=cod; s.fee+=fee; s.net+=net;
+    if(b.codRemit&&b.codRemit.remitted) s.remit+=net; else s.pend+=net;
+    var k=billDate(b)||"-";
+    if(!s.byDay[k]) s.byDay[k]={n:0,cod:0,fee:0,net:0};
+    s.byDay[k].n++; s.byDay[k].cod+=cod; s.byDay[k].fee+=fee; s.byDay[k].net+=net;
+  });
+  s.bills=bills;
+  return s;
+}
+function _codRangeLabel(){
+  var f=document.getElementById("f-from").value, t=document.getElementById("f-to").value;
+  return (f||t)?((f||"…")+"  ถึง  "+(t||"…")):"ทั้งหมด";
+}
+function renderReport(){
+  var el=document.getElementById("page-report"); if(!el) return;
+  var s=_codReportData();
+  if(!s.cnt){ el.innerHTML='<div class="empty">ไม่พบบิล COD ในช่วงที่เลือก</div>'; return; }
+  var cards='<div style="display:flex;flex-wrap:wrap;gap:10px;margin-bottom:6px">'
+    +_codCard("จำนวนบิล COD", fmt(s.cnt)+" บิล", "#0F6E56")
+    +_codCard("ยอด COD รวม", money(s.cod)+" ฿", "#1D9E75")
+    +_codCard("ค่าธรรมเนียม 3%", money(s.fee)+" ฿", "#B07400")
+    +_codCard("ยอดสุทธิ (โอนคืน)", money(s.net)+" ฿", "#C0392B")
+    +'</div>';
+  var split='<div style="font-size:12px;color:#666;margin:4px 0 14px">โอนคืนแล้ว <b>'+money(s.remit)+'</b> ฿ · ค้างโอน <b style="color:#C0392B">'+money(s.pend)+'</b> ฿ · ช่วง: '+_codRangeLabel()+'</div>';
+  var days=Object.keys(s.byDay).sort();
+  var dayRows=days.map(function(k){ var d=s.byDay[k];
+    return '<tr><td>'+k+'</td><td class="r">'+fmt(d.n)+'</td><td class="r">'+money(d.cod)+'</td>'
+      +'<td class="r" style="color:#B07400">'+money(d.fee)+'</td><td class="r"><b>'+money(d.net)+'</b></td></tr>';
+  }).join("");
+  var daily='<h3 class="rp-h">📅 สรุปรายวัน</h3><table class="rp-t"><thead><tr><th>วันที่</th><th class="r">บิล</th><th class="r">COD</th><th class="r">ค่าธรรมเนียม</th><th class="r">สุทธิ</th></tr></thead><tbody>'
+    +dayRows+'<tr class="rp-sum"><td>รวม</td><td class="r">'+fmt(s.cnt)+'</td><td class="r">'+money(s.cod)+'</td><td class="r">'+money(s.fee)+'</td><td class="r">'+money(s.net)+'</td></tr></tbody></table>';
+  var billRows=s.bills.map(function(b){
+    var rm=b.codRemit&&b.codRemit.remitted;
+    return '<tr><td>'+(b.billNo||"")+'</td><td>'+billDate(b)+'</td>'
+      +'<td>'+(getSender(b)||"—")+'</td><td>'+(getReceiver(b)||"—")+'</td>'
+      +'<td>'+(BILL_DRIVER[b.billNo]||"—")+'</td>'
+      +'<td class="r">'+fmt(getCOD(b))+'</td>'
+      +'<td class="r" style="color:#B07400">'+money(codFee(b))+'</td>'
+      +'<td class="r"><b>'+money(codNet(b))+'</b></td>'
+      +'<td>'+(rm?'<span style="color:#0F6E56">✓ โอนแล้ว</span>':'<span style="color:#C0392B">ค้าง</span>')+'</td></tr>';
+  }).join("");
+  var perbill='<h3 class="rp-h">🧾 รายบิล</h3><table class="rp-t"><thead><tr><th>เลขบิล</th><th>วันที่</th><th>ผู้ส่ง</th><th>ผู้รับ</th><th>คนรถ</th><th class="r">COD</th><th class="r">ค่าธรรมเนียม</th><th class="r">สุทธิ</th><th>โอน</th></tr></thead><tbody>'+billRows+'</tbody></table>';
+  var bar='<div style="display:flex;align-items:center;gap:10px;margin-bottom:12px"><h2 style="margin:0;font-size:16px">📈 รายงาน COD</h2>'
+    +'<button class="btn btn-primary" onclick="printCodReport()" style="margin-left:auto">🖨 พิมพ์รายงาน</button></div>';
+  var style='<style>#page-report .rp-t{width:100%;border-collapse:collapse;font-size:12px;margin-bottom:18px;background:#fff;border-radius:8px;overflow:hidden}'
+    +'#page-report .rp-t th{background:#0F6E56;color:#fff;padding:7px 8px;text-align:left;font-size:11px}'
+    +'#page-report .rp-t td{padding:6px 8px;border-top:0.5px solid #eee}'
+    +'#page-report .rp-t .r{text-align:right}#page-report .rp-t .rp-sum td{background:#F1F8F4;font-weight:800;border-top:1px solid #0F6E56}'
+    +'#page-report .rp-h{font-size:13px;margin:14px 0 6px;color:#333}</style>';
+  el.innerHTML=style+bar+cards+split+daily+perbill;
+}
+function printCodReport(){
+  var s=_codReportData();
+  if(!s.cnt){ alert("ไม่มีข้อมูลในช่วงที่เลือก"); return; }
+  var days=Object.keys(s.byDay).sort();
+  var dayRows=days.map(function(k){ var d=s.byDay[k];
+    return '<tr><td>'+k+'</td><td class="r">'+fmt(d.n)+'</td><td class="r">'+money(d.cod)+'</td><td class="r">'+money(d.fee)+'</td><td class="r">'+money(d.net)+'</td></tr>';
+  }).join("");
+  var billRows=s.bills.map(function(b){ var rm=b.codRemit&&b.codRemit.remitted;
+    return '<tr><td>'+(b.billNo||"")+'</td><td>'+billDate(b)+'</td><td>'+(getSender(b)||"—")+'</td><td>'+(getReceiver(b)||"—")+'</td><td>'+(BILL_DRIVER[b.billNo]||"—")+'</td><td class="r">'+fmt(getCOD(b))+'</td><td class="r">'+money(codFee(b))+'</td><td class="r">'+money(codNet(b))+'</td><td>'+(rm?"โอนแล้ว":"ค้าง")+'</td></tr>';
+  }).join("");
+  var html='<html><head><meta charset="utf-8"><title>รายงาน COD</title><style>'
+    +'body{font-family:Arial,sans-serif;padding:16px;color:#222}h1{font-size:18px;margin:0 0 2px}h2{font-size:14px;margin:16px 0 6px}'
+    +'.sub{font-size:12px;color:#555;margin-bottom:8px}table{width:100%;border-collapse:collapse;font-size:11px;margin-bottom:12px}'
+    +'th,td{border:0.5px solid #999;padding:4px 6px;text-align:left}.r{text-align:right}th{background:#eee}'
+    +'.tot td{font-weight:bold;background:#f3f3f3}</style></head><body>'
+    +'<h1>โกโลด ทรานสปอร์ต — รายงาน COD</h1>'
+    +'<div class="sub">ช่วง: '+_codRangeLabel()+' · พิมพ์เมื่อ '+new Date().toLocaleString("th-TH")+'</div>'
+    +'<div class="sub">จำนวนบิล '+fmt(s.cnt)+' · COD รวม '+money(s.cod)+' ฿ · ค่าธรรมเนียม '+money(s.fee)+' ฿ · สุทธิ '+money(s.net)+' ฿ (โอนแล้ว '+money(s.remit)+' / ค้าง '+money(s.pend)+')</div>'
+    +'<h2>สรุปรายวัน</h2><table><thead><tr><th>วันที่</th><th class="r">บิล</th><th class="r">COD</th><th class="r">ค่าธรรมเนียม</th><th class="r">สุทธิ</th></tr></thead><tbody>'+dayRows
+    +'<tr class="tot"><td>รวม</td><td class="r">'+fmt(s.cnt)+'</td><td class="r">'+money(s.cod)+'</td><td class="r">'+money(s.fee)+'</td><td class="r">'+money(s.net)+'</td></tr></tbody></table>'
+    +'<h2>รายบิล</h2><table><thead><tr><th>เลขบิล</th><th>วันที่</th><th>ผู้ส่ง</th><th>ผู้รับ</th><th>คนรถ</th><th class="r">COD</th><th class="r">ค่าธรรมเนียม</th><th class="r">สุทธิ</th><th>โอน</th></tr></thead><tbody>'+billRows+'</tbody></table>'
+    +'</body></html>';
+  var w=window.open("","_blank"); if(!w){ alert("เปิดหน้าต่างพิมพ์ไม่ได้ (ป๊อปอัพถูกบล็อก)"); return; }
+  w.document.write(html); w.document.close(); w.focus(); setTimeout(function(){ try{w.print();}catch(e){} },350);
+}
+
 function renderBills(){
   var bills=codBillsFiltered().slice().sort(function(a,b){ return billDate(a)<billDate(b)?1:-1; });
   if(!bills.length){ document.getElementById("page-bills").innerHTML='<div class="empty">ไม่พบบิล COD ในช่วงที่เลือก</div>'; return; }
