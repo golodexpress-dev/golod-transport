@@ -14,7 +14,7 @@
   <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
 </head><body>
 <div class="golod-bar no-print">
-  <h1>โกโลด ทรานสปอร์ต — ออกบิล Thermal 80mm <span style="font-size:11px;font-weight:400;opacity:.6">build 2026-06-11·b27</span></h1>
+  <h1>โกโลด ทรานสปอร์ต — ออกบิล Thermal 80mm <span style="font-size:11px;font-weight:400;opacity:.6">build 2026-06-22·b29</span></h1>
   <div id="golod-chip"></div>
   <a href="GolodApp.html" style="font-size:11px;color:#9FE1CB;background:rgba(255,255,255,.15);padding:3px 10px;border-radius:20px;text-decoration:none">← หน้าหลัก</a>
   <a href="DailyReport.html" style="font-size:11px;color:#FFE082;background:rgba(255,255,255,.15);padding:3px 10px;border-radius:20px;text-decoration:none">📊 รายงานสิ้นวัน</a>
@@ -2876,7 +2876,7 @@ function ThermalBillingApp() {
     var branch = sessionUser.branch || "";
     if (branch.includes("นครราชสีมา")) return "KA";
     if (branch.includes("ศรีสะเกษ")) return "SA";
-    if (branch.includes("ปทุมธานี")) return "ptm";
+    if (branch.includes("ปทุมธานี")) return "PH";
     return "BA";
   };
   const staffCode = getStaffCode();
@@ -2994,9 +2994,12 @@ function ThermalBillingApp() {
   const isAdminRole = (sessionUser === null || sessionUser === void 0 ? void 0 : sessionUser.role) === "admin" || (sessionUser === null || sessionUser === void 0 ? void 0 : sessionUser.role) === "branch";
   // clerk เห็นแค่บิลตัวเอง, admin/branch เห็นทั้งหมด
   // บิลไม่มี clerkCode = บิลเก่า → แสดงให้ admin/branch เท่านั้น
+  // เสมียนเห็นบิลของ "สาขาตัวเอง" (รหัสตรง หรือ prefix สาขาเดียวกัน) — เพื่อให้ค้น/อัพสลิปย้อนหลังบิลของสาขาได้
+  const _brOfCodeTB = function(cc){ cc=(cc||"").toString().toUpperCase(); var c=cc.charAt(0); if(c==="K")return"krt"; if(c==="S")return"ssk"; if(c==="P")return"ptm"; if(c==="B")return"bkk"; return ""; };
+  const _myBranchTB = (function(){ var b=((sessionUser&&sessionUser.branch)||"").toString(); if(b.indexOf("นครราชสีมา")>=0)return"krt"; if(b.indexOf("ศรีสะเกษ")>=0)return"ssk"; if(b.indexOf("ปทุมธานี")>=0)return"ptm"; if(b.indexOf("กรุงเทพ")>=0)return"bkk"; return _brOfCodeTB(staffCode); })();
   const bills = isAdminRole
     ? allBills
-    : allBills.filter(b => b.clerkCode === staffCode || (b.billNo && b.billNo.startsWith(staffCode)));
+    : allBills.filter(b => b.clerkCode === staffCode || (b.billNo && b.billNo.startsWith(staffCode)) || (_myBranchTB && _brOfCodeTB(b.clerkCode||"")===_myBranchTB));
   const [viewBill, setViewBill] = useState(null);
   // เปิดจากปุ่ม "พริ้นบิล" (DispatchApp) → ?print=เลขบิล → หาบิลแล้วเปิดหน้าพิมพ์เลย (ไม่ใช่ฟอร์มใหม่)
   const [_printDone, _setPrintDone] = useState(false);
@@ -3677,7 +3680,7 @@ function ThermalBillingApp() {
       maxWidth: 900,
       margin: "0 auto"
     }
-  }, view === "list" && /*#__PURE__*/React.createElement(BillList, {
+  }, view === "list" && /*#__PURE__*/React.createElement("div", { style: { fontSize: 11, background: "#FFF8E1", border: "1px solid #FFE0B2", color: "#5D4037", padding: "6px 10px", borderRadius: 8, marginBottom: 8, lineHeight: 1.5 } }, "\uD83D\uDD0E ระบบมองคุณเป็น \u2014 รหัส: " + (staffCode || "-") + " \u00B7 สาขา: " + (_myBranchTB || "-") + " \u00B7 บทบาท: " + ((sessionUser && sessionUser.role) || "-") + " \u00B7 ผู้ใช้: " + ((sessionUser && sessionUser.username) || "-") + " \u00B7 เห็น " + bills.length + " บิล" + (isAdminRole ? " (เห็นทุกสาขา)" : "")), view === "list" && /*#__PURE__*/React.createElement(BillList, {
     bills: bills,
     onNew: resetForm,
     onView: b => {
