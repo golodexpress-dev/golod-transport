@@ -8,7 +8,7 @@
 <style>*{box-sizing:border-box;margin:0;padding:0}body{font-family:Arial,sans-serif;background:#f5f5f2;min-height:100vh}@media print{.no-print{display:none!important}body{background:#fff;padding:0}}input{font-family:Arial,sans-serif}</style>
 </head><body>
 <div class="no-print" style="background:#0F6E56;padding:0 14px;display:flex;align-items:center;gap:10px;height:44px;position:sticky;top:0;z-index:200">
-  <span style="color:#fff;font-size:14px;font-weight:700;flex:1">📊 รายงานรับ-จ่ายสิ้นวัน <span style="font-size:9px;opacity:.55;font-weight:400">b0622b</span></span>
+  <span style="color:#fff;font-size:14px;font-weight:700;flex:1">📊 รายงานรับ-จ่ายสิ้นวัน <span style="font-size:9px;opacity:.55;font-weight:400">b0622c</span></span>
   <a href="ThermalBill.html" style="font-size:11px;color:#9FE1CB;background:rgba(255,255,255,.15);padding:3px 10px;border-radius:20px;text-decoration:none">← ออกบิล</a>
   <a href="GolodApp.html" style="font-size:11px;color:#9FE1CB;background:rgba(255,255,255,.15);padding:3px 10px;border-radius:20px;text-decoration:none">🏠 หน้าหลัก</a>
 </div>
@@ -400,8 +400,6 @@ function DailyReport() {
   const _clearTransView = _clearTripsView.reduce((s, t) => s + clrTransOf(t), 0);
   // allBills มาจาก Firestore (useState/useEffect ด้านบน)
   const dayBills = allBills.filter(b => {
-    // เสมียน/หัวสาขา เห็นเฉพาะบิลสาขาตัวเอง (แอดมินเห็นทุกสาขา)
-    if (_myBranchDR && _myBranchDR !== "all" && _billBranchDR(b) !== _myBranchDR) return false;
     // แปลง date เป็น YYYY-MM-DD
     const bd = b.date || (typeof b.createdAt === "string" ? b.createdAt.slice(0, 10) : "");
     let bdate = bd;
@@ -415,7 +413,8 @@ function DailyReport() {
     if (bdate !== date) return false;
     // filter clerk
     if (!isAdmin && clerkCode) {
-      if (b.clerkCode && b.clerkCode !== clerkCode) return false;
+      // เห็นบิลของสาขาตัวเอง (เทียบสาขาจากรหัส ไม่ใช่รหัสเป๊ะ) — กันบิลของสาขาอื่น แต่เห็นทั้งสาขาตัวเอง
+      if (b.clerkCode && _brOf(b.clerkCode) !== _brOf(clerkCode)) return false;
     }
     return true;
   }).sort((a, b) => (a.billNo || "").localeCompare(b.billNo || ""));
