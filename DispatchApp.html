@@ -737,7 +737,7 @@ tr:hover td{background:#f8fffe}
 <div class="topbar">
   <span class="title">🚛 จัดการขนส่ง</span>
   <span id="session-info" style="font-size:11px;opacity:.8"></span>
-  <span style="font-size:10px;opacity:.65;margin-left:auto">build 2026-06-10z105</span>
+  <span style="font-size:10px;opacity:.65;margin-left:auto">build 2026-06-10z106</span>
   <a href="GolodApp.html" style="margin-left:10px">← หน้าหลัก</a>
 </div>
 <div class="container">
@@ -2484,16 +2484,7 @@ function renderTripForm(existingTrip){
     +'<div><div class="trip-lbl">หมายเหตุ</div>'
     +'<input id="tf-note" class="trip-inp" placeholder="หมายเหตุ" value="'+(t.note||"")+'"></div>'
     +'</div>'
-    +'<div class="trip-form-grid">'
-    +'<div><div class="trip-lbl">วันที่ 1 วิ่ง (อำเภอ/จังหวัด)</div>'
-    +'<input id="tf-day1" class="trip-inp" placeholder="เช่น เมือง/ศรีสะเกษ" value="'+(t.day1||"").replace(/"/g,"&quot;")+'">'
-    +'<div class="trip-lbl" style="margin-top:5px">📅 วันที่จะส่ง (วันที่ 1)</div>'
-    +'<input id="tf-day1date" type="date" class="trip-inp" value="'+(t.day1Date||"")+'"></div>'
-    +'<div><div class="trip-lbl">วันที่ 2 วิ่ง (ถ้ามี)</div>'
-    +'<input id="tf-day2" class="trip-inp" placeholder="เช่น วารินฯ/อุบลฯ" value="'+(t.day2||"").replace(/"/g,"&quot;")+'">'
-    +'<div class="trip-lbl" style="margin-top:5px">📅 วันที่จะส่ง (วันที่ 2)</div>'
-    +'<input id="tf-day2date" type="date" class="trip-inp" value="'+(t.day2Date||"")+'"></div>'
-    +'</div>'
+    
 
     +'<div class="trip-section-title">▶ ค่าเที่ยว '+(isAdmin?'<span style="font-size:10px;color:#b7950b">[Admin]</span>':'')+' <span style="font-size:10px;color:#aaa">'+(isAdmin?'':'เสมียนดูได้อย่างเดียว')+'</span></div>'
     +'<div class="trip-form-grid cols3">'
