@@ -739,7 +739,7 @@ tr:hover td{background:#f8fffe}
 <div class="topbar">
   <span class="title">🚛 จัดการขนส่ง</span>
   <span id="session-info" style="font-size:11px;opacity:.8"></span>
-  <span style="font-size:10px;opacity:.65;margin-left:auto">build 2026-06-10z108</span>
+  <span style="font-size:10px;opacity:.65;margin-left:auto">build 2026-06-10z109</span>
   <a href="GolodApp.html" style="margin-left:10px">← หน้าหลัก</a>
 </div>
 <div class="container">
@@ -1611,20 +1611,7 @@ function renderTripTab(){
     GolodDB.getTrips ? GolodDB.getTrips({limitN:500}) : Promise.resolve([])
   ]).then(function(results){
     _tripState.drivers = (results[0]||[]).filter(function(u){ return u.role==="driver"; });
-    _tripState.openTrips = (function(arr){
-      // กันเที่ยวซ้ำ: บิลใบหนึ่งอยู่ได้เที่ยวเดียว — ถ้าบิลทุกใบของเที่ยวถูกเที่ยวก่อนหน้าจองไปแล้ว = ซ้ำ → ตัดทิ้ง
-      var out=[], claimed={};
-      (arr||[]).forEach(function(t){
-        var ids=(t.billIds||[]).slice();
-        if(ids.length){
-          var allClaimed = ids.every(function(id){ return claimed[id]; });
-          if(allClaimed) return;
-          ids.forEach(function(id){ claimed[id]=1; });
-        }
-        out.push(t);
-      });
-      return out;
-    })(results[1]||[]);
+    _tripState.openTrips = results[1]||[];
     if(!window._autoScanTimer) window._autoScanTimer=setInterval(_autoScanTick, 180000);
     runAutoDispatchScan();
     if(_tripState.mode === "create" || _tripState.mode === "edit"){
@@ -1760,6 +1747,8 @@ function renderTripList(){
   };
 
   var openTrips = trips.filter(function(t){ return t.status!=="closed"; });
+  // กันการ์ดซ้ำเฉพาะตอนแสดงผล (ไม่แตะ _tripState.openTrips เพื่อให้ออโต้อนุมัติเห็นเที่ยวครบ)
+  openTrips = (function(arr){ var out=[], claimed={}; arr.forEach(function(t){ var ids=(t.billIds||[]).slice(); if(ids.length){ if(ids.every(function(id){return claimed[id];})) return; ids.forEach(function(id){claimed[id]=1;}); } out.push(t); }); return out; })(openTrips);
 
   // ===== ตัวกรอง คนรถ / วันที่ออก (ค้างไว้ใน _tripState ข้ามการแก้เที่ยว) =====
   var fltD=_tripState.fltDriver||"", fltDate=_tripState.fltDate||"";
