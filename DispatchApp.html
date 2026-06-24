@@ -482,6 +482,8 @@ tr:hover td{background:#f8fffe}
     </div>
     <div id="ct-diff-row" style="display:none"></div>
 
+    <div id="ct-eta-plan" style="margin-top:10px"></div>
+
     <div class="btn-row">
       <button class="btn btn-gray" onclick="closeClearTrip()">ยกเลิก</button>
       <button class="btn btn-orange" onclick="saveClearTrip()">💾 บันทึกเคลียร์</button>
@@ -737,7 +739,7 @@ tr:hover td{background:#f8fffe}
 <div class="topbar">
   <span class="title">🚛 จัดการขนส่ง</span>
   <span id="session-info" style="font-size:11px;opacity:.8"></span>
-  <span style="font-size:10px;opacity:.65;margin-left:auto">build 2026-06-10z106</span>
+  <span style="font-size:10px;opacity:.65;margin-left:auto">build 2026-06-10z107</span>
   <a href="GolodApp.html" style="margin-left:10px">← หน้าหลัก</a>
 </div>
 <div class="container">
@@ -6153,6 +6155,43 @@ function confirmSettlement(){
   }).catch(function(e){ alert("ดึงบิลไม่สำเร็จ: "+(e&&e.message||e)); });
 }
 
+var _clearBillEta={};
+var _clearEtaBills=[];
+function _renderClearEtaPlan(trip, bills){
+  var el=document.getElementById("ct-eta-plan"); if(!el) return;
+  bills=(bills||[]).filter(function(b){ return b && b.billNo; });
+  _clearEtaBills=bills;
+  if(!bills.length){ el.innerHTML=""; return; }
+  var stl=(trip&&trip.settlement)||{}; var be=stl.billEta||{};
+  bills.forEach(function(b){ if(_clearBillEta[b.billNo]==null) _clearBillEta[b.billNo]=be[b.billNo]||b.etaDeliver||""; });
+  var h='<div style="margin:10px 0 4px;padding:10px;border:1px solid #e6e0f5;border-radius:8px;background:#faf8ff">';
+  h+='<div style="font-size:12px;font-weight:800;color:#5b3fb5;margin-bottom:4px">📦 วันที่จะถึงผู้รับ รายบิล (ลูกค้าเห็นในหน้าติดตาม)</div>';
+  h+='<div style="display:flex;gap:6px;align-items:center;margin-bottom:8px;flex-wrap:wrap"><span style="font-size:11px;color:#888">ตั้งทุกบิลเป็นวันเดียว:</span><input id="ct-eta-all" type="date" style="padding:6px;border:1px solid #b39ddb;border-radius:6px;font-size:12px"><button class="btn btn-gray" style="font-size:11px;padding:4px 10px" onclick="_applyClearEtaAll()">ใช้กับทุกบิล</button></div>';
+  h+='<table style="width:100%;border-collapse:collapse;font-size:11px"><tr style="background:#f3eeff;color:#5b3fb5"><th style="padding:4px;text-align:left">เลขบิล</th><th style="text-align:left">ผู้รับ</th><th style="text-align:left">อำเภอ/จังหวัด</th><th>วันที่จะถึง</th></tr>';
+  bills.forEach(function(b){
+    var bn=b.billNo; var ev=_clearBillEta[bn]||"";
+    var rcv=(b.receiverName||(b.form&&b.form.receiverName)||"-");
+    var loc=((b.destAmphoe||(b.form&&b.form.destAmphoe)||"")+" "+(b.destProv||(b.form&&b.form.destProv)||"")).trim()||"-";
+    h+='<tr style="border-bottom:1px solid #eee"><td style="padding:4px;font-weight:700">'+bn+'</td><td>'+rcv+'</td><td>'+loc+'</td><td style="text-align:center"><input type="date" value="'+ev+'" onchange="_setClearBillEta(\''+bn+'\',this.value)" style="padding:4px;border:1px solid #ddd;border-radius:6px;font-size:11px"></td></tr>';
+  });
+  h+='</table>';
+  h+='<div style="text-align:right;margin-top:8px"><button class="btn btn-green" onclick="_saveClearEta()">💾 บันทึกวันถึงผู้รับ</button></div>';
+  h+='</div>';
+  el.innerHTML=h;
+}
+function _setClearBillEta(bn,v){ _clearBillEta[bn]=v; }
+function _applyClearEtaAll(){ var v=((document.getElementById("ct-eta-all")||{}).value||""); if(!v){ alert("เลือกวันก่อนครับ"); return; } (_clearEtaBills||[]).forEach(function(b){ _clearBillEta[b.billNo]=v; }); _renderClearEtaPlan(_clearTripData, _clearEtaBills); }
+function _saveClearEta(){
+  var trip=_clearTripData; if(!trip){ return; }
+  var bills=_clearEtaBills||[]; var cnt=0, blank=0;
+  bills.forEach(function(b){ var d=_clearBillEta[b.billNo]||""; if(d){ b.etaDeliver=d; if(GolodDB.updateBill){ GolodDB.updateBill(b.billNo,{etaDeliver:d}); } cnt++; } else blank++; });
+  var ex=trip.settlement||{}; ex.billEta=ex.billEta||{};
+  bills.forEach(function(b){ if(_clearBillEta[b.billNo]) ex.billEta[b.billNo]=_clearBillEta[b.billNo]; });
+  trip.settlement=ex;
+  if(GolodDB.updateTrip){ GolodDB.updateTrip(trip.id,{settlement:ex}); }
+  alert("✅ บันทึกวันถึงผู้รับ "+cnt+" บิล"+(blank?(" (ยังไม่ระบุ "+blank+" บิล)"):"")+" — ลูกค้าจะเห็นวันถึงตามนี้ในหน้าติดตาม");
+}
+
 function openClearTrip(tripId){
   var trip = (_tripState.openTrips||[]).find(function(t){ return t.id===tripId; });
   if(!trip){ alert("ไม่พบข้อมูลเที่ยว"); return; }
@@ -6231,11 +6270,12 @@ function openClearTrip(tripId){
   computeFromBills(getTripBills(trip));
   fetchTripBillsFromDB(trip).then(function(dbBills){
     console.log("[clearTrip] bills from DB:", (dbBills||[]).length, "for trip", trip.id, "billIds:", (trip.billIds||[]).length);
-    if(dbBills && dbBills.length) computeFromBills(dbBills);
+    if(dbBills && dbBills.length){ computeFromBills(dbBills); _renderClearEtaPlan(trip, dbBills); }
   });
 
   renderClearRemarks();
   calcClearTrip();
+  _clearBillEta={}; _renderClearEtaPlan(trip, getTripBills(trip));
   document.getElementById("modal-clear-trip").style.display = "flex";
 }
 
