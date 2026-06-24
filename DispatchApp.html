@@ -737,7 +737,7 @@ tr:hover td{background:#f8fffe}
 <div class="topbar">
   <span class="title">🚛 จัดการขนส่ง</span>
   <span id="session-info" style="font-size:11px;opacity:.8"></span>
-  <span style="font-size:10px;opacity:.65;margin-left:auto">build 2026-06-10z97</span>
+  <span style="font-size:10px;opacity:.65;margin-left:auto">build 2026-06-10z99</span>
   <a href="GolodApp.html" style="margin-left:10px">← หน้าหลัก</a>
 </div>
 <div class="container">
@@ -894,7 +894,9 @@ tr:hover td{background:#f8fffe}
       <input id="cp-name" placeholder="ชื่อลูกค้า/ผู้ส่ง" style="flex:2;min-width:150px;padding:8px 10px;border:1px solid #ddd;border-radius:7px;font-size:12px">
       <input id="cp-code" placeholder="รหัส (ไม่บังคับ)" style="width:110px;padding:8px 10px;border:1px solid #ddd;border-radius:7px;font-size:12px;text-transform:uppercase">
       <input id="cp-price" type="number" placeholder="ราคา/ชิ้น ฿" style="width:100px;padding:8px 10px;border:1px solid #ddd;border-radius:7px;font-size:12px">
-      <button class="btn btn-green" onclick="addCustomerPrice()">+ เพิ่ม</button>
+      <input id="cp-phone" placeholder="เบอร์โทร" style="width:130px;padding:8px 10px;border:1px solid #ddd;border-radius:7px;font-size:12px">
+      <input id="cp-addr" placeholder="ที่อยู่ (สำหรับออกบิล)" style="flex:2;min-width:200px;padding:8px 10px;border:1px solid #ddd;border-radius:7px;font-size:12px">
+      <button class="btn btn-green" id="cp-add-btn" onclick="addCustomerPrice()">+ เพิ่ม</button>
     </div>
     <div id="cp-list" style="max-height:400px;overflow-y:auto"></div>
     <div class="btn-row" style="margin-top:12px">
@@ -1605,12 +1607,16 @@ function renderTripTab(){
   ]).then(function(results){
     _tripState.drivers = (results[0]||[]).filter(function(u){ return u.role==="driver"; });
     _tripState.openTrips = (function(arr){
-      // กันเที่ยวซ้ำ (เที่ยวเดียวโผล่หลายใบ / เอกสารซ้ำใน Firestore) — ยึดลายเซ็น คนรถ+เวลาสร้าง+ชุดบิล
-      var seen={}, out=[];
+      // กันเที่ยวซ้ำ: บิลใบหนึ่งอยู่ได้เที่ยวเดียว — ถ้าบิลทุกใบของเที่ยวถูกเที่ยวก่อนหน้าจองไปแล้ว = ซ้ำ → ตัดทิ้ง
+      var out=[], claimed={};
       (arr||[]).forEach(function(t){
-        var sig=(t.driverName||t.driverUsername||"")+"|"+(t.createdAt||"")+"|"+((t.billIds||[]).slice().sort().join(","));
-        var k=(t.createdAt && (t.billIds&&t.billIds.length)) ? sig : (t.id||sig);
-        if(seen[k]) return; seen[k]=1; out.push(t);
+        var ids=(t.billIds||[]).slice();
+        if(ids.length){
+          var allClaimed = ids.every(function(id){ return claimed[id]; });
+          if(allClaimed) return;
+          ids.forEach(function(id){ claimed[id]=1; });
+        }
+        out.push(t);
       });
       return out;
     })(results[1]||[]);
@@ -6550,7 +6556,8 @@ function saveSpecialSenders(){
     closeSpecialSenders();
   }).catch(function(e){ alert("❌ "+e.message); });
 }
-var _customerPrices = []; // [{name, code, pricePerPiece}]
+var _customerPrices = []; // [{name, code, pricePerPiece, phone, addr}]
+var _cpEditIdx = -1;
 function loadCustomerPrices(){
   if(!GolodDB.getSetting) return;
   GolodDB.getSetting("customerPrices").then(function(val){
@@ -6569,13 +6576,15 @@ function renderCustomerPriceList(){
   var html = _customerPrices.length === 0
     ? '<div style="text-align:center;padding:20px;color:#aaa">ยังไม่มีลูกค้าราคาพิเศษ</div>'
     : '<table style="width:100%;border-collapse:collapse;font-size:12px">'
-      +'<tr style="background:#f0faf5"><th style="padding:6px;text-align:left">ลูกค้า/ผู้ส่ง</th><th>รหัส</th><th>ราคา/ชิ้น (฿)</th><th>ลบ</th></tr>'
+      +'<tr style="background:#f0faf5"><th style="padding:6px;text-align:left">ลูกค้า/ผู้ส่ง</th><th>รหัส</th><th>ราคา/ชิ้น (฿)</th><th>เบอร์โทร</th><th style="text-align:left">ที่อยู่</th><th>จัดการ</th></tr>'
       +_customerPrices.map(function(cp, i){
         return '<tr style="border-bottom:1px solid #f0f0f0">'
           +'<td style="padding:6px">'+(cp.name||"")+'</td>'
           +'<td style="text-align:center;color:#888">'+(cp.code||"-")+'</td>'
           +'<td style="text-align:center;font-weight:700;color:#0F6E56">'+(parseFloat(cp.pricePerPiece)||0).toLocaleString("th-TH")+'</td>'
-          +'<td style="text-align:center"><button onclick="removeCustomerPrice('+i+')" style="background:#fee;border:1px solid #fcc;border-radius:5px;padding:2px 8px;cursor:pointer;font-size:11px;color:#c0392b">ลบ</button></td>'
+          +'<td style="text-align:center;color:#555">'+(cp.phone||"-")+'</td>'
+          +'<td style="padding:6px;color:#555;max-width:200px;font-size:11px">'+(cp.addr||"-")+'</td>'
+          +'<td style="text-align:center;white-space:nowrap"><button onclick="editCustomerPrice('+i+')" style="background:#eef5ff;border:1px solid #bcd;border-radius:5px;padding:2px 8px;cursor:pointer;font-size:11px;color:#2563eb;margin-right:4px">✏️ แก้ไข</button><button onclick="removeCustomerPrice('+i+')" style="background:#fee;border:1px solid #fcc;border-radius:5px;padding:2px 8px;cursor:pointer;font-size:11px;color:#c0392b">ลบ</button></td>'
           +'</tr>';
       }).join("")
       +'</table>';
@@ -6587,11 +6596,29 @@ function addCustomerPrice(){
   var price= parseFloat(document.getElementById("cp-price").value)||0;
   if(!name && !code){ alert("กรอกชื่อลูกค้า หรือรหัส อย่างน้อยหนึ่งอย่าง"); return; }
   if(price <= 0){ alert("กรอกราคาต่อชิ้นด้วยครับ"); return; }
-  _customerPrices.push({name:name, code:code, pricePerPiece:price});
+  var phone=((document.getElementById("cp-phone")||{}).value||"").trim();
+  var addr =((document.getElementById("cp-addr")||{}).value||"").trim();
+  var rec={name:name, code:code, pricePerPiece:price, phone:phone, addr:addr};
+  if(_cpEditIdx>=0 && _cpEditIdx<_customerPrices.length){ _customerPrices[_cpEditIdx]=rec; _cpEditIdx=-1; }
+  else { _customerPrices.push(rec); }
   document.getElementById("cp-name").value="";
   document.getElementById("cp-code").value="";
   document.getElementById("cp-price").value="";
+  if(document.getElementById("cp-phone")) document.getElementById("cp-phone").value="";
+  if(document.getElementById("cp-addr")) document.getElementById("cp-addr").value="";
+  var _b=document.getElementById("cp-add-btn"); if(_b) _b.textContent="+ เพิ่ม";
   renderCustomerPriceList();
+}
+function editCustomerPrice(idx){
+  var cp=_customerPrices[idx]; if(!cp) return;
+  document.getElementById("cp-name").value=cp.name||"";
+  document.getElementById("cp-code").value=cp.code||"";
+  document.getElementById("cp-price").value=parseFloat(cp.pricePerPiece)||0;
+  if(document.getElementById("cp-phone")) document.getElementById("cp-phone").value=cp.phone||"";
+  if(document.getElementById("cp-addr")) document.getElementById("cp-addr").value=cp.addr||"";
+  _cpEditIdx=idx;
+  var _b=document.getElementById("cp-add-btn"); if(_b) _b.textContent="💾 บันทึกแก้ไข";
+  try{ document.getElementById("cp-name").focus(); }catch(e){}
 }
 function removeCustomerPrice(idx){
   _customerPrices.splice(idx, 1);

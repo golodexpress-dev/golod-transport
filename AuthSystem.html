@@ -2,8 +2,10 @@
 <html lang="th">
 <head>
 <meta charset="UTF-8"/>
+<!-- รวม launcher เป็นตัวเดียว: AuthSystem เลิกใช้ -> เด้งไป GolodApp อัตโนมัติ -->
+<script>(function(){try{location.replace("GolodApp.html");}catch(e){location.href="GolodApp.html";}})();</script>
 <meta name="viewport" content="width=device-width,initial-scale=1"/>
-<title>โกโลด — ระบบ Login & สิทธิ์ v2.5</title>
+<title>โกโลด — ระบบ Login & สิทธิ์ v2.6</title>
 <script src="session.js"></script>
 <script src="firebase-app-compat.js"></script>
 <script src="firebase-firestore-compat.js"></script>
@@ -353,7 +355,7 @@ function canAccess(key){
 function canAccess_sys(url){
   if(CU.role==="admin") return true;
   if(url==="CODCheck.html") return COD_VIEWERS.indexOf(CU.username)>=0;
-  var map={"ThermalBill.html":"billing","TripManager.html":"transport","FinanceSystem.html":"finance","CustomerSystem.html":"customers","MonthlyReport.html":"reports"};
+  var map={"ThermalBill.html":"billing","DispatchApp.html":"transport","FinanceSystem.html":"finance","CustomerSystem.html":"customers","MonthlyReport.html":"reports"};
   var perm=map[url];
   if(!perm) return true;
   return !!(CU.perms&&CU.perms[perm]);
@@ -393,7 +395,7 @@ function renderDashboard(){
   if(CU.role==="admin"||CU.role==="branch"){
     var systems=[
       {name:"ออกบิล",ic:"📄",url:"ThermalBill.html",color:"#1D9E75",desc:"ออกบิล Thermal 80mm"},
-      {name:"จัดการขนส่ง",ic:"🚛",url:"TripManager.html",color:"#378ADD",desc:"จ่ายงาน ค่าเที่ยว เคลียร์"},
+      {name:"จัดการขนส่ง",ic:"🚛",url:"DispatchApp.html",color:"#378ADD",desc:"จ่ายงาน ค่าเที่ยว เคลียร์"},
       {name:"ติดตามสินค้า",ic:"📍",url:"TrackingSystem.html",color:"#EF9F27",desc:"ค้นหา อัปสถานะ ลายเซ็น"},
       {name:"การเงิน",ic:"💰",url:"FinanceSystem.html",color:"#7C3AED",desc:"รายรับ-รายจ่าย BeM BBL"},
       {name:"ตรวจสอบ COD",ic:"💸",url:"CODCheck.html",color:"#B07400",desc:"COD เก็บครบ / โอนคืนต้นทาง"},
@@ -457,7 +459,7 @@ function renderBilling(){
   document.getElementById("content").innerHTML='<div class="card"><div class="ct">ระบบออกบิล</div><div style="text-align:center;padding:40px;color:#888"><div style="font-size:48px;margin-bottom:14px">📄</div><div style="font-size:15px;font-weight:600;color:#333;margin-bottom:8px">ระบบออกบิล Thermal 80mm</div><div style="font-size:12px;color:#aaa;margin-bottom:20px">คลิกปุ่มด้านล่างเพื่อเปิดระบบออกบิล</div><a href="ThermalBill.html" style="display:inline-block;padding:11px 28px;background:#1D9E75;color:#fff;border-radius:9px;text-decoration:none;font-size:14px;font-weight:600">เปิดระบบออกบิล →</a></div></div>';
 }
 function renderTransport(){
-  document.getElementById("content").innerHTML='<div class="card"><div class="ct">ระบบจัดการขนส่ง</div><div style="text-align:center;padding:40px;color:#888"><div style="font-size:48px;margin-bottom:14px">🚛</div><div style="font-size:15px;font-weight:600;color:#333;margin-bottom:8px">ระบบจัดการงานขนส่ง</div><div style="font-size:12px;color:#aaa;margin-bottom:20px">จ่ายงาน ค่าเที่ยว ไมล์รถ เคลียร์เงิน</div><a href="TripManager.html" style="display:inline-block;padding:11px 28px;background:#378ADD;color:#fff;border-radius:9px;text-decoration:none;font-size:14px;font-weight:600">เปิดระบบขนส่ง →</a></div></div>';
+  document.getElementById("content").innerHTML='<div class="card"><div class="ct">ระบบจัดการขนส่ง</div><div style="text-align:center;padding:40px;color:#888"><div style="font-size:48px;margin-bottom:14px">🚛</div><div style="font-size:15px;font-weight:600;color:#333;margin-bottom:8px">ระบบจัดการงานขนส่ง</div><div style="font-size:12px;color:#aaa;margin-bottom:20px">จ่ายงาน ค่าเที่ยว ไมล์รถ เคลียร์เงิน</div><a href="DispatchApp.html" style="display:inline-block;padding:11px 28px;background:#378ADD;color:#fff;border-radius:9px;text-decoration:none;font-size:14px;font-weight:600">เปิดระบบขนส่ง →</a></div></div>';
 }
 function renderTracking(){
   document.getElementById("content").innerHTML='<div class="card"><div class="ct">ติดตามสินค้า</div><div style="text-align:center;padding:40px;color:#888"><div style="font-size:48px;margin-bottom:14px">📍</div><div style="font-size:15px;font-weight:600;color:#333;margin-bottom:8px">ระบบติดตามสินค้า</div><div style="font-size:12px;color:#aaa;margin-bottom:20px">ค้นหาด้วยเลขบิล อัปสถานะ ถ่ายรูป ลายเซ็น</div><a href="TrackingSystem.html" style="display:inline-block;padding:11px 28px;background:#EF9F27;color:#fff;border-radius:9px;text-decoration:none;font-size:14px;font-weight:600">เปิดระบบติดตาม →</a></div></div>';
