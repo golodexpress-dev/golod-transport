@@ -737,7 +737,7 @@ tr:hover td{background:#f8fffe}
 <div class="topbar">
   <span class="title">🚛 จัดการขนส่ง</span>
   <span id="session-info" style="font-size:11px;opacity:.8"></span>
-  <span style="font-size:10px;opacity:.65;margin-left:auto">build 2026-06-10z100</span>
+  <span style="font-size:10px;opacity:.65;margin-left:auto">build 2026-06-10z104</span>
   <a href="GolodApp.html" style="margin-left:10px">← หน้าหลัก</a>
 </div>
 <div class="container">
@@ -2025,7 +2025,7 @@ function _dispatchTripBills(t, knownBills){
   return Promise.all(ups).then(function(res){ return {fail:(res||[]).filter(function(r){ return r && !r.ok; })}; });
 }
 
-var AUTO_DISPATCH_MIN = 60;        // นาที หลังใส่ชื่อคนรถ → ออโต้อนุมัติ+ส่งงาน
+var AUTO_DISPATCH_MIN = 20;        // นาที หลังใส่ชื่อคนรถ → ออโต้อนุมัติ+ส่งงาน
 var AUTO_DISPATCH_ENABLED = true; // ✅ เปิดใช้งาน — guard กันทับสถานะ + ดึงสถานะจริงจาก Firestore ก่อน (ปลอดภัยแล้ว)
 function _autoEligible(t){
   if(!AUTO_DISPATCH_ENABLED || !t) return false;
@@ -3491,7 +3491,25 @@ function _renderRunSheet(bills, meta, trip){
     );
   }
 
-  var html='<!DOCTYPE html><html lang="th"><head><meta charset="utf-8"><title>การ์ดเที่ยววิ่ง</title>'
+  var _stl=(trip&&trip.settlement)||{}; var _be=_stl.billEta||{};
+  var _fmtPlanD=function(s){ if(!s) return ""; var m=String(s).match(/(\d{4})-(\d{2})-(\d{2})/); if(!m) return s; var mon=["ม.ค.","ก.พ.","มี.ค.","เม.ย.","พ.ค.","มิ.ย.","ก.ค.","ส.ค.","ก.ย.","ต.ค.","พ.ย.","ธ.ค."]; return (+m[3])+" "+mon[(+m[2])-1]+" "+((+m[1])+543); };
+  var dayPlanBox="";
+  (function(){
+    var groups={}, order=[];
+    bills.forEach(function(b){ var d=_be[b.billNo]||b.etaDeliver||""; var k=d||"__none"; if(!groups[k]){groups[k]=[];order.push(k);} groups[k].push(b); });
+    var hasAnyDate=order.some(function(k){ return k!=="__none"; });
+    if(!hasAnyDate) return;
+    order.sort(function(a,b){ if(a==="__none")return 1; if(b==="__none")return -1; return a<b?-1:(a>b?1:0); });
+    var inner="";
+    order.forEach(function(k){
+      var arr=groups[k];
+      var rows=arr.map(function(b){ var rcv=(b.receiverName||(b.form&&b.form.receiverName)||"-"); var loc=((b.destAmphoe||(b.form&&b.form.destAmphoe)||"")+" "+(b.destProv||(b.form&&b.form.destProv)||"")).trim()||"-"; return '<tr><td>'+(b.billNo||"")+'</td><td>'+rcv+'</td><td>'+loc+'</td></tr>'; }).join("");
+      var label=(k==="__none")?"ยังไม่ระบุวันถึง":("วันที่จะถึง: "+_fmtPlanD(k));
+      inner+='<div style="margin-bottom:6px"><div style="font-weight:700;background:#eef0ff;padding:3px 6px;border-radius:4px">'+label+' ('+arr.length+' บิล)</div><table class="t"><thead><tr><th>เลขบิล</th><th>ผู้รับ</th><th>อำเภอ/จังหวัด</th></tr></thead><tbody>'+rows+'</tbody></table></div>';
+    });
+    dayPlanBox=box("📅 แผนวันถึงผู้รับ", inner);
+  })();
+    var html='<!DOCTYPE html><html lang="th"><head><meta charset="utf-8"><title>การ์ดเที่ยววิ่ง</title>'
     +'<style>*{font-family:"Sarabun","Tahoma",sans-serif;box-sizing:border-box}body{margin:0;padding:16px;color:#222;font-size:12px}'
     +'.hd{display:flex;justify-content:space-between;border-bottom:2px solid #0F6E56;padding-bottom:6px;margin-bottom:8px}'
     +'.co{font-size:15px;font-weight:800;color:#0F6E56}.ti{font-size:18px;font-weight:800;text-align:right}'
@@ -3520,6 +3538,7 @@ function _renderRunSheet(bills, meta, trip){
     +box("🗺️ แยกเส้นทางจังหวัด",'<table class="t"><thead><tr><th>จังหวัด</th><th class="c">บิล</th><th class="r">ค่าขนส่ง</th></tr></thead><tbody>'+prows+'</tbody></table>')
     +fuelBox+clearBox+pkBox
     +'</div>'
+    +dayPlanBox
     +box("📋 รายการบิล ("+bills.length+" บิล)",
         '<table class="t"><thead><tr><th>#</th><th>เลขบิล</th><th>ผู้รับ</th><th>ปลายทาง</th><th>ชำระ</th><th class="r">ค่าขนส่ง</th><th class="r">COD</th><th class="c">ส่ง</th></tr></thead><tbody>'+brows+'</tbody></table>')
     +'<div class="noprint" style="text-align:center;margin-top:16px"><button onclick="window.print()" style="padding:10px 30px;font-size:15px;background:#0F6E56;color:#fff;border:none;border-radius:8px">🖨 พิมพ์</button></div>'
@@ -5715,9 +5734,42 @@ function _settleProvJoin(bills){ var seen={},arr=[]; bills.forEach(function(b){ 
 function settleSaveRoute(){
   if(!_settle) return;
   var t=_settle.trip; var ex=t.settlement||{};
-  ex.route=_settle.route; ex.day1=_settle.day1; ex.day2=_settle.day2; ex.note=_settle.note;
+  ex.route=_settle.route; ex.day1=_settle.day1; ex.day2=_settle.day2; ex.day1Date=_settle.day1Date||""; ex.day2Date=_settle.day2Date||""; ex.billDay=_settle.billDay||{}; ex.billEta=_settle.billEta||{}; ex.note=_settle.note;
   t.settlement=ex;
   if(GolodDB.updateTrip){ GolodDB.updateTrip(t.id,{settlement:ex}).then(function(){ alert("✅ บันทึกเส้นทาง/วันที่/หมายเหตุแล้ว"); }).catch(function(){ alert("⚠️ บันทึกไม่สำเร็จ"); }); }
+}
+function _renderBillDayPlan(){
+  if(!_settle) return "";
+  var bills=_settle.bills||[]; if(!bills.length) return "";
+  if(!_settle.billEta) _settle.billEta={};
+  bills.forEach(function(b){ if(_settle.billEta[b.billNo]==null||_settle.billEta[b.billNo]==="") _settle.billEta[b.billNo]=b.etaDeliver||""; });
+  var h='<div style="margin:10px 0 4px;padding:10px;border:1px solid #e6e0f5;border-radius:8px;background:#faf8ff">';
+  h+='<div style="font-size:12px;font-weight:800;color:#5b3fb5;margin-bottom:4px">📦 วันที่จะถึงผู้รับ รายบิล (ลูกค้าเห็นในหน้าติดตาม)</div>';
+  h+='<div style="display:flex;gap:6px;align-items:center;margin-bottom:8px;flex-wrap:wrap"><span style="font-size:11px;color:#888">ตั้งทุกบิลเป็นวันเดียว:</span><input id="bill-eta-all" type="date" style="padding:6px;border:1px solid #b39ddb;border-radius:6px;font-size:12px"><button class="btn btn-gray" style="font-size:11px;padding:4px 10px" onclick="_applyEtaAll()">ใช้กับทุกบิล</button></div>';
+  h+='<table style="width:100%;border-collapse:collapse;font-size:11px"><tr style="background:#f3eeff;color:#5b3fb5"><th style="padding:4px;text-align:left">เลขบิล</th><th style="text-align:left">ผู้รับ</th><th style="text-align:left">อำเภอ/จังหวัด</th><th>วันที่จะถึง</th></tr>';
+  bills.forEach(function(b){
+    var bn=b.billNo; var ev=_settle.billEta[bn]||"";
+    var rcv=(b.receiverName||(b.form&&b.form.receiverName)||"-");
+    var loc=((b.destAmphoe||(b.form&&b.form.destAmphoe)||"")+" "+(b.destProv||(b.form&&b.form.destProv)||"")).trim()||"-";
+    h+='<tr style="border-bottom:1px solid #eee"><td style="padding:4px;font-weight:700">'+bn+'</td><td>'+rcv+'</td><td>'+loc+'</td><td style="text-align:center"><input type="date" value="'+ev+'" onchange="_setBillEta(\''+bn+'\',this.value)" style="padding:4px;border:1px solid #ddd;border-radius:6px;font-size:11px"></td></tr>';
+  });
+  h+='</table>';
+  h+='<div style="text-align:right;margin-top:8px"><button class="btn btn-green" onclick="saveBillEta()">💾 บันทึกวันถึงผู้รับ</button></div>';
+  h+='</div>';
+  return h;
+}
+function _setBillEta(bn,v){ if(!_settle) return; if(!_settle.billEta) _settle.billEta={}; _settle.billEta[bn]=v; }
+function _applyEtaAll(){ if(!_settle) return; var v=((document.getElementById("bill-eta-all")||{}).value||""); if(!v){ alert("เลือกวันก่อนครับ"); return; } if(!_settle.billEta) _settle.billEta={}; (_settle.bills||[]).forEach(function(b){ _settle.billEta[b.billNo]=v; }); renderSettlement(); }
+function saveBillEta(){
+  if(!_settle) return;
+  var bills=_settle.bills||[]; var be=_settle.billEta||{}; var cnt=0, blank=0;
+  bills.forEach(function(b){
+    var date=be[b.billNo]||"";
+    if(date){ b.etaDeliver=date; if(GolodDB.updateBill){ GolodDB.updateBill(b.billNo,{etaDeliver:date}); } cnt++; }
+    else blank++;
+  });
+  settleSaveRoute();
+  alert("✅ บันทึกวันถึงผู้รับ "+cnt+" บิล"+(blank?(" (ยังไม่ระบุ "+blank+" บิล)"):"")+" — ลูกค้าจะเห็นวันถึงตามนี้ในหน้าติดตาม");
 }
 function openSettlement(tripId){
   var t=(_tripState.openTrips||[]).find(function(x){return x.id===tripId;});
@@ -5730,7 +5782,7 @@ function openSettlement(tripId){
     _settle={ tripId:t.id, trip:t, bills:tb,
       route: ex.route || t.routeName || t.name || _settleProvJoin(tb),
       day1: ex.day1||t.day1||"", day2: ex.day2||t.day2||"", day1Date: ex.day1Date||t.day1Date||"", day2Date: ex.day2Date||t.day2Date||"", source: ex.source||"",
-      perBill: ex.perBill || {}, adjustments:(ex.adjustments||[]).slice(), note: ex.note||t.note||"",
+      perBill: ex.perBill || {}, billDay: ex.billDay||{}, billEta: ex.billEta||{}, adjustments:(ex.adjustments||[]).slice(), note: ex.note||t.note||"",
       status: ex.status||"draft", proposedByName: ex.proposedByName||"", proposedAt: ex.proposedAt||"",
       approvedByName: ex.approvedByName||"", approvedAt: ex.approvedAt||"",
       confirmedByName: ex.confirmedByName||"", confirmedAt: ex.confirmedAt||"" };
@@ -5749,7 +5801,7 @@ function printTripProposal(tripId, asPdf){
     _settle={ tripId:t.id, trip:t, bills:tb,
       route: ex.route || t.routeName || t.name || _settleProvJoin(tb),
       day1: ex.day1||t.day1||"", day2: ex.day2||t.day2||"", day1Date: ex.day1Date||t.day1Date||"", day2Date: ex.day2Date||t.day2Date||"", source: ex.source||"",
-      perBill: ex.perBill || {}, adjustments:(ex.adjustments||[]).slice(), note: ex.note||t.note||"",
+      perBill: ex.perBill || {}, billDay: ex.billDay||{}, billEta: ex.billEta||{}, adjustments:(ex.adjustments||[]).slice(), note: ex.note||t.note||"",
       status: ex.status||"draft", proposedByName: ex.proposedByName||"", proposedAt: ex.proposedAt||"",
       approvedByName: ex.approvedByName||"", approvedAt: ex.approvedAt||"",
       confirmedByName: ex.confirmedByName||"", confirmedAt: ex.confirmedAt||"" };
@@ -5826,10 +5878,7 @@ function renderSettlement(){
   h+='<div style="display:flex;justify-content:space-between;font-size:13px;color:#666"><span>ปรับ (+/-)</span><span id="settle-adj">'+_settleFmt(c.adj)+' ฿</span></div>';
   h+='<div style="display:flex;justify-content:space-between;font-size:16px;font-weight:800;color:#0F6E56;margin-top:4px"><span>ยอดสุทธิ</span><span id="settle-net">'+_settleFmt(c.adjusted)+' ฿</span></div>';
   h+='</div>';
-  h+='<div style="display:flex;gap:8px;margin:12px 0 4px"><div style="flex:1"><label style="font-size:12px;color:#666;font-weight:700">วันที่ 1 — อำเภอ/จังหวัดที่วิ่ง</label>';
-  h+='<input id="settle-day1" value="'+String(_settle.day1||"").replace(/"/g,"&quot;")+'" oninput="_settle.day1=this.value" placeholder="เช่น เมือง/ศรีสะเกษ, กันทรลักษ์" style="width:100%;padding:8px;border:1px solid #ddd;border-radius:7px;box-sizing:border-box;margin-top:3px"></div>';
-  h+='<div style="flex:1"><label style="font-size:12px;color:#666;font-weight:700">วันที่ 2 — อำเภอ/จังหวัดที่วิ่ง (ถ้ามี)</label>';
-  h+='<input id="settle-day2" value="'+String(_settle.day2||"").replace(/"/g,"&quot;")+'" oninput="_settle.day2=this.value" placeholder="เช่น วารินฯ/อุบลฯ" style="width:100%;padding:8px;border:1px solid #ddd;border-radius:7px;box-sizing:border-box;margin-top:3px"></div></div>';
+  h+=_renderBillDayPlan();
   // คนรถ — แอดมินใส่ตอนอนุมัติขั้นแรก (เลือก/แก้ได้จนกว่าจะยืนยันสุดท้าย)
   if(isAdmin && _settle.status!=="confirmed"){
     var _brNorm=function(b){ b=b||""; if(["ปทุมธานี","กรุงเทพ","bkk","ptm","กทม"].indexOf(b)>=0) return "กรุงเทพ"; if(["krt","โคราช","นครราชสีมา"].indexOf(b)>=0) return "นครราชสีมา"; if(["ssk","ศรีสะเกษ"].indexOf(b)>=0) return "ศรีสะเกษ"; return b; };

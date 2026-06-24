@@ -14,7 +14,7 @@
   <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
 </head><body>
 <div class="golod-bar no-print">
-  <h1>โกโลด ทรานสปอร์ต — ออกบิล Thermal 80mm <span style="font-size:11px;font-weight:400;opacity:.6">build 2026-06-22·b31</span></h1>
+  <h1>โกโลด ทรานสปอร์ต — ออกบิล Thermal 80mm <span style="font-size:11px;font-weight:400;opacity:.6">build 2026-06-22·b32</span></h1>
   <div id="golod-chip"></div>
   <a href="GolodApp.html" style="font-size:11px;color:#9FE1CB;background:rgba(255,255,255,.15);padding:3px 10px;border-radius:20px;text-decoration:none">← หน้าหลัก</a>
   <a href="DailyReport.html" style="font-size:11px;color:#FFE082;background:rgba(255,255,255,.15);padding:3px 10px;border-radius:20px;text-decoration:none">📊 รายงานสิ้นวัน</a>
@@ -1863,7 +1863,7 @@ function BillList({
         setExtraBills(function(prev){ var map={}; prev.forEach(function(b){ if(b&&b.billNo)map[b.billNo]=b; }); (list||[]).forEach(function(b){ if(b&&b.billNo&&!map[b.billNo])map[b.billNo]=b; }); return Object.keys(map).map(function(k){return map[k];}); });
       }).catch(function(){}).then(function(){ setLoadingMore(false); });
     }
-    if(/[0-9]/.test(term) && term.length>=5 && term.indexOf(" ")<0){
+    if(/^[A-Za-z0-9_-]+$/.test(term) && /[0-9]/.test(term) && term.length>=5){
       try{ var _db=firebase.firestore(); _db.collection("bills").doc(term).get().then(function(doc){ if(doc&&doc.exists){ var d=doc.data(); setExtraBills(function(prev){ if(prev.some(function(x){return x&&x.billNo===d.billNo;})) return prev; return prev.concat([d]); }); } }).catch(function(){}); }catch(e){}
     }
   }, [q]);
@@ -1887,10 +1887,17 @@ function BillList({
     var d = new Date(thYear, parseInt(parts[1])-1, parseInt(parts[0]));
     return d >= cutoff;
   });
+  const _qlc = (q||"").trim().toLowerCase();
   const fil = recentBills.filter(b => {
-    var _b$form$senderName, _b$form$receiverName, _b$form$destProv;
+    if (!_qlc) return true;
     if (!b.form) b.form = {};
-    return !q || (b.billNo||"").includes(q) || (b.senderName||"").includes(q) || (b.receiverName||"").includes(q) || (b.destProv||"").includes(q) || ((_b$form$senderName = b.form.senderName) === null || _b$form$senderName === void 0 ? void 0 : _b$form$senderName.includes(q)) || ((_b$form$receiverName = b.form.receiverName) === null || _b$form$receiverName === void 0 ? void 0 : _b$form$receiverName.includes(q)) || ((_b$form$destProv = b.form.destProv) === null || _b$form$destProv === void 0 ? void 0 : _b$form$destProv.includes(q));
+    var hay = [b.billNo, b.senderName, b.receiverName, b.destProv,
+      b.form.senderName, b.form.receiverName, b.form.destProv, b.form.senderProv,
+      b.form.destAmphoe, b.form.destTambon, b.form.senderPhone, b.form.receiverPhone,
+      b.form.customerCode, b.customerCode];
+    if (Array.isArray(b.items)) { for (var k=0;k<b.items.length;k++){ var it=b.items[k]; if(it){ hay.push(it.desc); hay.push(it.goodsType); } } }
+    for (var i=0;i<hay.length;i++){ if(hay[i] && String(hay[i]).toLowerCase().indexOf(_qlc)>=0) return true; }
+    return false;
   });
   return /*#__PURE__*/React.createElement("div", null, /*#__PURE__*/React.createElement("div", {
     style: {

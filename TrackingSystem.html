@@ -144,7 +144,7 @@ var _canStaff = ["admin","branch","driver"].includes(_role);
 </head>
 <body>
 <div id="golod-session-bar" style="background:#0F6E56;padding:0 14px;display:flex;align-items:center;gap:10px;height:44px;position:sticky;top:0;z-index:999">
-  <div style="color:#fff;font-size:13px;font-weight:700;flex:1">โกโลด ทรานสปอร์ต <span style="font-size:10px;color:#9FE1CB;margin-left:6px">ระบบติดตาม</span> <span style="font-size:9px;color:#7FBFA8;opacity:.7;font-weight:400">TS 2026-06-22a</span></div>
+  <div style="color:#fff;font-size:13px;font-weight:700;flex:1">โกโลด ทรานสปอร์ต <span style="font-size:10px;color:#9FE1CB;margin-left:6px">ระบบติดตาม</span> <span style="font-size:9px;color:#7FBFA8;opacity:.7;font-weight:400">TS 2026-06-24b</span></div>
   <div id="golod-user-chip"></div>
   <a href="AuthSystem.html" style="font-size:11px;color:#9FE1CB;text-decoration:none;background:rgba(255,255,255,.15);padding:3px 10px;border-radius:20px">← เมนูหลัก</a>
 </div>
@@ -374,6 +374,7 @@ function firestoreBillToTracking(b){
     driverName: b.driverName||"",
     status: b.status||"",
     etaBranch: b.etaBranch||"",
+    etaDeliver: b.etaDeliver||"",
     targetBranchLabel: b.targetBranchLabel||b.targetBranch||"",
     createdAt: b.createdAt||"",
     updatedAt: b.updatedAt||"",
@@ -392,6 +393,18 @@ function fmtEtaTS(s){
     return out;
   }
   return s;
+}
+
+// วันถึง "ผู้รับจริง" = วันถึงสาขา + เวลาส่งในพื้นที่ (วัน) — แสดงเป็นวันที่อย่างเดียว
+var LOCAL_DELIVERY_DAYS = 1;
+function etaReceiverTS(s){
+  if(!s) return "";
+  var m=String(s).match(/(\d{4})-(\d{2})-(\d{2})/);
+  if(!m) return fmtEtaTS(s);
+  var d=new Date(+m[1], (+m[2])-1, (+m[3]) + LOCAL_DELIVERY_DAYS);
+  if(isNaN(d.getTime())) return fmtEtaTS(s);
+  var mon=["ม.ค.","ก.พ.","มี.ค.","เม.ย.","พ.ค.","มิ.ย.","ก.ค.","ส.ค.","ก.ย.","ต.ค.","พ.ย.","ธ.ค."];
+  return d.getDate()+" "+mon[d.getMonth()]+" "+(d.getFullYear()+543);
 }
 
 function loadBillFromFirestore(billNo, callback){
@@ -593,7 +606,7 @@ function doTrack(){
       <div class="dest-row">
         <div class="dest-chip">ปลายทาง: <b>${bill.destAmphoe} · ${bill.destProv}</b></div>
         ${bill.codTotal>0?`<div class="cod-chip">★ COD ${bill.codTotal.toLocaleString("th-TH")} ฿</div>`:""}
-        ${(bill.etaBranch && bill.status!=="ส่งสำเร็จ")?`<div class="dest-chip" style="background:#FFF3E0;color:#E65100;border:0.5px solid #FFCC80">📅 คาดว่าถึง: <b>${fmtEtaTS(bill.etaBranch)}</b>${bill.targetBranchLabel?` (${bill.targetBranchLabel})`:""}</div>`:""}
+        ${((bill.etaDeliver||bill.etaBranch) && bill.status!=="ส่งสำเร็จ")?`<div class="dest-chip" style="background:#FFF3E0;color:#E65100;border:0.5px solid #FFCC80">📅 คาดว่าถึง${bill.etaDeliver?"":" (โดยประมาณ)"}: <b>${bill.etaDeliver?fmtEtaTS(bill.etaDeliver):etaReceiverTS(bill.etaBranch)}</b>${bill.targetBranchLabel?` (${bill.targetBranchLabel})`:""}</div>`:""}
       </div>
       <div style="margin-top:8px;padding:6px 10px;background:rgba(0,0,0,.06);border-radius:8px;font-size:11px;color:#666">
         👤 ผู้รับ: ${maskName(bill.receiverName)} &nbsp;|&nbsp; 📞 ${maskPhone(bill.receiverName)}
