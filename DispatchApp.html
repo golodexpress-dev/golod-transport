@@ -737,7 +737,7 @@ tr:hover td{background:#f8fffe}
 <div class="topbar">
   <span class="title">🚛 จัดการขนส่ง</span>
   <span id="session-info" style="font-size:11px;opacity:.8"></span>
-  <span style="font-size:10px;opacity:.65;margin-left:auto">build 2026-06-10z104</span>
+  <span style="font-size:10px;opacity:.65;margin-left:auto">build 2026-06-10z105</span>
   <a href="GolodApp.html" style="margin-left:10px">← หน้าหลัก</a>
 </div>
 <div class="container">
@@ -3451,7 +3451,8 @@ function _renderRunSheet(bills, meta, trip){
     var prov=(b.destProv||(b.form&&b.form.destProv)||""); var amp=(b.destAmphoe||(b.form&&b.form.destAmphoe)||"");
     var net=parseFloat(b.freightNet||0), cod=parseFloat(b.codTotal||0);
     var ok=["ส่งสำเร็จ","delivered","success"].indexOf(b.status)>=0;
-    return '<tr><td class="c">'+(i+1)+'</td><td>'+(b.billNo||"")+'</td><td>'+(b.receiverName||(b.form&&b.form.receiverName)||"-")+'</td><td>'+(amp?amp+" ":"")+(prov||"-")+'</td><td class="c">'+_rsPayL(b.freightPay||(b.form&&b.form.freightPay))+'</td><td class="r">'+_rsFmt(net)+'</td><td class="r">'+(cod>0?_rsFmt(cod):"-")+'</td><td class="c" style="color:'+(ok?"#0F6E56":"#c0392b")+'">'+(ok?"✓":(b.status||"-"))+'</td></tr>';
+    var _eta=String(b.etaDeliver||""); var _em=_eta.match(/(\d{4})-(\d{2})-(\d{2})/); var _etaTxt=_em?((+_em[3])+"/"+(+_em[2])+"/"+((+_em[1])+543)):"-";
+    return '<tr><td class="c">'+(i+1)+'</td><td>'+(b.billNo||"")+'</td><td>'+(b.receiverName||(b.form&&b.form.receiverName)||"-")+'</td><td>'+(amp?amp+" ":"")+(prov||"-")+'</td><td class="c" style="white-space:nowrap;color:#5b3fb5;font-weight:700">'+_etaTxt+'</td><td class="c">'+_rsPayL(b.freightPay||(b.form&&b.form.freightPay))+'</td><td class="r">'+_rsFmt(net)+'</td><td class="r">'+(cod>0?_rsFmt(cod):"-")+'</td><td class="c" style="color:'+(ok?"#0F6E56":"#c0392b")+'">'+(ok?"✓":(b.status||"-"))+'</td></tr>';
   }).join("");
   // ---- province rows ----
   var prows=porder.map(function(p){ return '<tr><td>'+p+'</td><td class="c">'+provs[p].c+'</td><td class="r">'+_rsFmt(provs[p].f)+'</td></tr>'; }).join("");
@@ -3540,7 +3541,7 @@ function _renderRunSheet(bills, meta, trip){
     +'</div>'
     +dayPlanBox
     +box("📋 รายการบิล ("+bills.length+" บิล)",
-        '<table class="t"><thead><tr><th>#</th><th>เลขบิล</th><th>ผู้รับ</th><th>ปลายทาง</th><th>ชำระ</th><th class="r">ค่าขนส่ง</th><th class="r">COD</th><th class="c">ส่ง</th></tr></thead><tbody>'+brows+'</tbody></table>')
+        '<table class="t"><thead><tr><th>#</th><th>เลขบิล</th><th>ผู้รับ</th><th>ปลายทาง</th><th class="c">วันที่จะส่ง</th><th>ชำระ</th><th class="r">ค่าขนส่ง</th><th class="r">COD</th><th class="c">ส่ง</th></tr></thead><tbody>'+brows+'</tbody></table>')
     +'<div class="noprint" style="text-align:center;margin-top:16px"><button onclick="window.print()" style="padding:10px 30px;font-size:15px;background:#0F6E56;color:#fff;border:none;border-radius:8px">🖨 พิมพ์</button></div>'
     +'</body></html>';
   var w=window.open("","_blank"); if(!w){ alert("เปิดหน้าต่างพิมพ์ไม่ได้ (ป๊อปอัปถูกบล็อก)"); return; }
