@@ -14,7 +14,7 @@
   <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
 </head><body>
 <div class="golod-bar no-print">
-  <h1>โกโลด ทรานสปอร์ต — ออกบิล Thermal 80mm <span style="font-size:11px;font-weight:400;opacity:.6">build 2026-06-22·b30</span></h1>
+  <h1>โกโลด ทรานสปอร์ต — ออกบิล Thermal 80mm <span style="font-size:11px;font-weight:400;opacity:.6">build 2026-06-22·b31</span></h1>
   <div id="golod-chip"></div>
   <a href="GolodApp.html" style="font-size:11px;color:#9FE1CB;background:rgba(255,255,255,.15);padding:3px 10px;border-radius:20px;text-decoration:none">← หน้าหลัก</a>
   <a href="DailyReport.html" style="font-size:11px;color:#FFE082;background:rgba(255,255,255,.15);padding:3px 10px;border-radius:20px;text-decoration:none">📊 รายงานสิ้นวัน</a>
@@ -3737,7 +3737,7 @@ function ThermalBillingApp() {
       setF("customerCode", v);
       var cust = CUST_INDEX.byCode[v.trim()];
       var _cp = (CUSTOMER_PRICES||[]).find(function(x){ return x && String(x.code||"").trim().toUpperCase()===v.trim(); });
-      if (_cp) { if(_cp.name) setF("senderName", _cp.name); if(_cp.phone) setF("senderPhone", _cp.phone); if(_cp.addr) setF("senderAddr", _cp.addr); setF("custPricePerPiece", parseFloat(_cp.pricePerPiece)||0); }
+      if (_cp) { if(_cp.name) setF("senderName", _cp.name); if(_cp.phone) setF("senderPhone", _cp.phone); if(_cp.prov) setF("senderProv", _cp.prov); if(_cp.amphoe) setF("senderAmphoe", _cp.amphoe); if(_cp.tambon) setF("senderTambon", _cp.tambon); if(_cp.addr) setF("senderAddr", _cp.addr); setF("custPricePerPiece", parseFloat(_cp.pricePerPiece)||0); }
       else if (cust) { setF("senderName", cust.name || form.senderName); if(cust.phone) setF("senderPhone", cust.phone); if(cust.prov) setF("senderProv", cust.prov); if(cust.amphoe) setF("senderAmphoe", cust.amphoe); if(cust.tambon!==undefined) setF("senderTambon", cust.tambon||""); if(cust.addr) setF("senderAddr", cust.addr); setF("custPricePerPiece", parseFloat(cust.pricePerPiece)||0); }
       else { setF("custPricePerPiece", 0); }
     },

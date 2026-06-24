@@ -737,7 +737,7 @@ tr:hover td{background:#f8fffe}
 <div class="topbar">
   <span class="title">🚛 จัดการขนส่ง</span>
   <span id="session-info" style="font-size:11px;opacity:.8"></span>
-  <span style="font-size:10px;opacity:.65;margin-left:auto">build 2026-06-10z99</span>
+  <span style="font-size:10px;opacity:.65;margin-left:auto">build 2026-06-10z100</span>
   <a href="GolodApp.html" style="margin-left:10px">← หน้าหลัก</a>
 </div>
 <div class="container">
@@ -895,7 +895,10 @@ tr:hover td{background:#f8fffe}
       <input id="cp-code" placeholder="รหัส (ไม่บังคับ)" style="width:110px;padding:8px 10px;border:1px solid #ddd;border-radius:7px;font-size:12px;text-transform:uppercase">
       <input id="cp-price" type="number" placeholder="ราคา/ชิ้น ฿" style="width:100px;padding:8px 10px;border:1px solid #ddd;border-radius:7px;font-size:12px">
       <input id="cp-phone" placeholder="เบอร์โทร" style="width:130px;padding:8px 10px;border:1px solid #ddd;border-radius:7px;font-size:12px">
-      <input id="cp-addr" placeholder="ที่อยู่ (สำหรับออกบิล)" style="flex:2;min-width:200px;padding:8px 10px;border:1px solid #ddd;border-radius:7px;font-size:12px">
+      <input id="cp-prov" placeholder="จังหวัด" style="width:120px;padding:8px 10px;border:1px solid #ddd;border-radius:7px;font-size:12px">
+      <input id="cp-amphoe" placeholder="อำเภอ/เขต" style="width:120px;padding:8px 10px;border:1px solid #ddd;border-radius:7px;font-size:12px">
+      <input id="cp-tambon" placeholder="ตำบล/แขวง" style="width:120px;padding:8px 10px;border:1px solid #ddd;border-radius:7px;font-size:12px">
+      <input id="cp-addr" placeholder="บ้านเลขที่/รายละเอียด" style="flex:2;min-width:180px;padding:8px 10px;border:1px solid #ddd;border-radius:7px;font-size:12px">
       <button class="btn btn-green" id="cp-add-btn" onclick="addCustomerPrice()">+ เพิ่ม</button>
     </div>
     <div id="cp-list" style="max-height:400px;overflow-y:auto"></div>
@@ -6583,7 +6586,7 @@ function renderCustomerPriceList(){
           +'<td style="text-align:center;color:#888">'+(cp.code||"-")+'</td>'
           +'<td style="text-align:center;font-weight:700;color:#0F6E56">'+(parseFloat(cp.pricePerPiece)||0).toLocaleString("th-TH")+'</td>'
           +'<td style="text-align:center;color:#555">'+(cp.phone||"-")+'</td>'
-          +'<td style="padding:6px;color:#555;max-width:200px;font-size:11px">'+(cp.addr||"-")+'</td>'
+          +'<td style="padding:6px;color:#555;max-width:220px;font-size:11px">'+([cp.addr,cp.tambon?("ต."+cp.tambon):"",cp.amphoe?("อ."+cp.amphoe):"",cp.prov?("จ."+cp.prov):""].filter(function(x){return x;}).join(" ")||"-")+'</td>'
           +'<td style="text-align:center;white-space:nowrap"><button onclick="editCustomerPrice('+i+')" style="background:#eef5ff;border:1px solid #bcd;border-radius:5px;padding:2px 8px;cursor:pointer;font-size:11px;color:#2563eb;margin-right:4px">✏️ แก้ไข</button><button onclick="removeCustomerPrice('+i+')" style="background:#fee;border:1px solid #fcc;border-radius:5px;padding:2px 8px;cursor:pointer;font-size:11px;color:#c0392b">ลบ</button></td>'
           +'</tr>';
       }).join("")
@@ -6596,16 +6599,18 @@ function addCustomerPrice(){
   var price= parseFloat(document.getElementById("cp-price").value)||0;
   if(!name && !code){ alert("กรอกชื่อลูกค้า หรือรหัส อย่างน้อยหนึ่งอย่าง"); return; }
   if(price <= 0){ alert("กรอกราคาต่อชิ้นด้วยครับ"); return; }
-  var phone=((document.getElementById("cp-phone")||{}).value||"").trim();
-  var addr =((document.getElementById("cp-addr")||{}).value||"").trim();
-  var rec={name:name, code:code, pricePerPiece:price, phone:phone, addr:addr};
+  var phone =((document.getElementById("cp-phone")||{}).value||"").trim();
+  var prov  =((document.getElementById("cp-prov")||{}).value||"").trim();
+  var amphoe=((document.getElementById("cp-amphoe")||{}).value||"").trim();
+  var tambon=((document.getElementById("cp-tambon")||{}).value||"").trim();
+  var addr  =((document.getElementById("cp-addr")||{}).value||"").trim();
+  var rec={name:name, code:code, pricePerPiece:price, phone:phone, prov:prov, amphoe:amphoe, tambon:tambon, addr:addr};
   if(_cpEditIdx>=0 && _cpEditIdx<_customerPrices.length){ _customerPrices[_cpEditIdx]=rec; _cpEditIdx=-1; }
   else { _customerPrices.push(rec); }
   document.getElementById("cp-name").value="";
   document.getElementById("cp-code").value="";
   document.getElementById("cp-price").value="";
-  if(document.getElementById("cp-phone")) document.getElementById("cp-phone").value="";
-  if(document.getElementById("cp-addr")) document.getElementById("cp-addr").value="";
+  ["cp-phone","cp-prov","cp-amphoe","cp-tambon","cp-addr"].forEach(function(id){ var el=document.getElementById(id); if(el) el.value=""; });
   var _b=document.getElementById("cp-add-btn"); if(_b) _b.textContent="+ เพิ่ม";
   renderCustomerPriceList();
 }
@@ -6614,8 +6619,8 @@ function editCustomerPrice(idx){
   document.getElementById("cp-name").value=cp.name||"";
   document.getElementById("cp-code").value=cp.code||"";
   document.getElementById("cp-price").value=parseFloat(cp.pricePerPiece)||0;
-  if(document.getElementById("cp-phone")) document.getElementById("cp-phone").value=cp.phone||"";
-  if(document.getElementById("cp-addr")) document.getElementById("cp-addr").value=cp.addr||"";
+  var _setv=function(id,v){ var el=document.getElementById(id); if(el) el.value=v||""; };
+  _setv("cp-phone",cp.phone); _setv("cp-prov",cp.prov); _setv("cp-amphoe",cp.amphoe); _setv("cp-tambon",cp.tambon); _setv("cp-addr",cp.addr);
   _cpEditIdx=idx;
   var _b=document.getElementById("cp-add-btn"); if(_b) _b.textContent="💾 บันทึกแก้ไข";
   try{ document.getElementById("cp-name").focus(); }catch(e){}
