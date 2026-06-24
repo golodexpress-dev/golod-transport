@@ -739,7 +739,7 @@ tr:hover td{background:#f8fffe}
 <div class="topbar">
   <span class="title">🚛 จัดการขนส่ง</span>
   <span id="session-info" style="font-size:11px;opacity:.8"></span>
-  <span style="font-size:10px;opacity:.65;margin-left:auto">build 2026-06-10z107</span>
+  <span style="font-size:10px;opacity:.65;margin-left:auto">build 2026-06-10z108</span>
   <a href="GolodApp.html" style="margin-left:10px">← หน้าหลัก</a>
 </div>
 <div class="container">
@@ -6108,7 +6108,20 @@ function printSettlement(asPdf){
   html+='<table><thead><tr><th style="text-align:left">เลขบิล</th><th style="text-align:left">อำเภอ</th><th style="text-align:left">จังหวัด</th><th>ประเภท</th><th style="text-align:left">สินค้า (×จำนวน)</th><th style="text-align:right">ค่าส่ง</th></tr></thead><tbody>'+rows+adjRows+'</tbody></table>';
   html+='<div style="text-align:right;margin-top:6px;font-size:13px">ยอดค่าส่งรวม: '+_settleFmt(c.total)+' ฿'+(c.adj?(' · ปรับ: '+_settleFmt(c.adj)+' ฿'):'')+' · <b style="font-size:15px">สุทธิ: '+_settleFmt(c.adjusted)+' ฿</b></div>';
   if(_stNote) html+='<div style="margin-top:6px;font-size:13px;border-top:1px dashed #999;padding-top:4px">หมายเหตุ: <b>'+_stNote+'</b></div>';
-  if(_settle.day1 || _settle.day2){ html+='<div class="info" style="margin-top:10px;border-top:1px dashed #999;padding-top:6px"><b>วันที่วิ่งจริง</b>&nbsp;&nbsp; '+(_settle.day1?('วันที่ 1'+_settleDayDate(_settle.day1Date)+': <b>'+_settle.day1+'</b>'):'')+(_settle.day2?('&nbsp;&nbsp;·&nbsp;&nbsp; วันที่ 2'+_settleDayDate(_settle.day2Date)+': <b>'+_settle.day2+'</b>'):'')+'</div>'; }
+  (function(){
+    var _be=_settle.billEta||{}; var _bl=_settle.bills||[];
+    var _byDate={}, _order=[];
+    _bl.forEach(function(b){ var d=_be[b.billNo]||b.etaDeliver||""; if(!d) return; var amp=(b.destAmphoe||(b.form&&b.form.destAmphoe)||"ไม่ระบุอำเภอ"); if(!_byDate[d]){_byDate[d]={};_order.push(d);} _byDate[d][amp]=(_byDate[d][amp]||0)+1; });
+    if(!_order.length) return;
+    _order.sort();
+    var parts=_order.map(function(d){
+      var amps=_byDate[d];
+      var list=Object.keys(amps).map(function(a){ return a+'('+amps[a]+')'; }).join(" / ");
+      var dlabel=_settleDayDate(d).replace(" (","").replace(")","");
+      return '<b>'+dlabel+'</b>: '+list;
+    });
+    html+='<div class="info" style="margin-top:10px;border-top:1px dashed #999;padding-top:6px"><b>📅 สรุปวันถึงผู้รับ — ส่งอำเภอไหนวันไหน (จำนวนบิล)</b><br>'+parts.join('<br>')+'</div>';
+  })();
   html+='<div class="sig">'
     +'<div><div class="sigline"></div>ผู้เสนอ<br><span style="font-size:10px;color:#555">'+(_settle.proposedByName||"")+'</span></div>'
     +'<div><div class="sigline"></div>ผู้อนุมัติ<br><span style="font-size:10px;color:#555">'+(_settle.approvedByName||"")+'</span></div>'
