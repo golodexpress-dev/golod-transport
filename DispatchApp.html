@@ -84,6 +84,12 @@ tr:hover td{background:#f8fffe}
 .sum-table tr:last-child td{border-bottom:none}
 .sum-btn-row{display:flex;gap:8px;justify-content:flex-end}
 @media print{body *{visibility:hidden}.print-area,.print-area *{visibility:visible}.print-area{position:fixed;inset:0;background:#fff;padding:20px;font-family:'Sarabun',Arial,sans-serif}.no-print{display:none!important}}
+
+/* view-only mode: clerks see special-settings, admin edits */
+.modal-bg[data-viewonly="1"] input{display:none!important}
+.modal-bg[data-viewonly="1"] .btn-green{display:none!important}
+.modal-bg[data-viewonly="1"] table button{display:none!important}
+.modal-bg[data-viewonly="1"] .modal>h3::after{content:" · 👁️ ดูอย่างเดียว (เฉพาะแอดมินแก้ไขได้)";font-size:11px;color:#c0392b;font-weight:400;margin-left:4px}
 </style>
 </head>
 <body>
@@ -740,7 +746,7 @@ tr:hover td{background:#f8fffe}
 <div class="topbar">
   <span class="title">🚛 จัดการขนส่ง</span>
   <span id="session-info" style="font-size:11px;opacity:.8"></span>
-  <span style="font-size:10px;opacity:.65;margin-left:auto">build 2026-06-10z114</span>
+  <span style="font-size:10px;opacity:.65;margin-left:auto">build 2026-06-10z116</span>
   <a href="GolodApp.html" style="margin-left:10px">← หน้าหลัก</a>
 </div>
 <div class="container">
@@ -1827,16 +1833,17 @@ function renderTripList(){
   }).join("");
 
   var isAdmin = CU && CU.role==="admin";
+  var isOffice = !!(CU && CU.role!=="driver");
   var html = '<div class="card">'
     +'<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px">'
     +'<div class="card-title" style="margin:0">🚛 จัดการเที่ยว</div>'
     +'<div style="display:flex;gap:6px">'
     +(isAdmin?'<button class="btn btn-gray" onclick="openClearPermSettings()" title="สิทธิ์เคลียร์เที่ยว">⚙️เที่ยว</button>':'')
     +(isAdmin?'<button class="btn btn-gray" onclick="openMonthlyPermSettings()" title="สิทธิ์สรุปเดือน">⚙️เดือน</button>':'')
-    +(isAdmin?'<button class="btn btn-gray" onclick="openSpecialAreaSettings()" title="จัดการพื้นที่พิเศษ">⚙️พื้นที่</button>':'')
-    +(isAdmin?'<button class="btn btn-gray" onclick="openSpecialReceivers()" title="ขั้นต่ำปลายทางพิเศษ">🏢ปลายทาง</button>':'')
-    +(isAdmin?'<button class="btn btn-gray" onclick="openSpecialSenders()" title="ค่าพิเศษต้นทาง">🏷️ต้นทาง</button>':'')
-    +(isAdmin?'<button class="btn btn-gray" onclick="openCustomerPrices()" title="ราคาลูกค้าพิเศษ">💰ราคาลูกค้า</button>':'')
+    +(isOffice?'<button class="btn btn-gray" onclick="openSpecialAreaSettings()" title="จัดการพื้นที่พิเศษ">⚙️พื้นที่พิเศษ</button>':'')
+    +(isOffice?'<button class="btn btn-gray" onclick="openSpecialReceivers()" title="ขั้นต่ำปลายทางพิเศษ">🏢ปลายทางพิเศษ</button>':'')
+    +(isOffice?'<button class="btn btn-gray" onclick="openSpecialSenders()" title="ค่าพิเศษต้นทาง">🏷️ต้นทางพิเศษ</button>':'')
+    +(isOffice?'<button class="btn btn-gray" onclick="openCustomerPrices()" title="ราคาลูกค้าพิเศษ">💰ราคาลูกค้าพิเศษ</button>':'')
     +(isAdmin?'<button class="btn btn-gray" onclick="openRoutes()" title="ตั้งเส้นทางจัดส่ง">🛣️เส้นทาง</button>':'')
     +'<button class="btn btn-gray" onclick="renderTripTab()">🔄 รีเฟรช</button>'
     +(isAdmin?'<button class="btn btn-gray" onclick="openAutoTrip()" title="จัดบิลเข้าเที่ยวอัตโนมัติตามเส้นทาง">🤖 ออโต้จัดเที่ยว</button>':'')
@@ -6465,9 +6472,10 @@ function loadSpecialAreas(){
 }
 
 function openSpecialAreaSettings(){
-  if(!CU || CU.role!=="admin"){ alert("เฉพาะ Admin"); return; }
+  if(CU && CU.role==="driver") return;
   renderSpecialAreaList();
-  document.getElementById("modal-special-areas").style.display = "flex";
+  var _m=document.getElementById("modal-special-areas"); _m.setAttribute("data-viewonly",(CU&&CU.role==="admin")?"0":"1");
+  _m.style.display = "flex";
 }
 function closeSpecialAreas(){
   document.getElementById("modal-special-areas").style.display = "none";
@@ -6604,9 +6612,10 @@ function editSpecialReceiver(i){
   var b=document.getElementById("sr-add-btn"); if(b) b.textContent="💾 บันทึกแก้ไข";
 }
 function openSpecialReceivers(){
-  if(!CU || CU.role!=="admin"){ alert("เฉพาะ Admin"); return; }
+  if(CU && CU.role==="driver") return;
   renderSpecialReceiverList();
-  document.getElementById("modal-special-receivers").style.display = "flex";
+  var _m=document.getElementById("modal-special-receivers"); _m.setAttribute("data-viewonly",(CU&&CU.role==="admin")?"0":"1");
+  _m.style.display = "flex";
 }
 function closeSpecialReceivers(){
   document.getElementById("modal-special-receivers").style.display = "none";
@@ -6676,9 +6685,10 @@ function editSpecialSender(i){
   var b=document.getElementById("ss-add-btn"); if(b) b.textContent="💾 บันทึกแก้ไข";
 }
 function openSpecialSenders(){
-  if(!CU || CU.role!=="admin"){ alert("เฉพาะ Admin"); return; }
+  if(CU && CU.role==="driver") return;
   renderSpecialSenderList();
-  document.getElementById("modal-special-senders").style.display = "flex";
+  var _m=document.getElementById("modal-special-senders"); _m.setAttribute("data-viewonly",(CU&&CU.role==="admin")?"0":"1");
+  _m.style.display = "flex";
 }
 function closeSpecialSenders(){
   document.getElementById("modal-special-senders").style.display = "none";
@@ -6738,9 +6748,10 @@ function loadCustomerPrices(){
   }).catch(function(){});
 }
 function openCustomerPrices(){
-  if(!CU || CU.role!=="admin"){ alert("เฉพาะ Admin"); return; }
+  if(CU && CU.role==="driver") return;
   renderCustomerPriceList();
-  document.getElementById("modal-cust-prices").style.display = "flex";
+  var _m=document.getElementById("modal-cust-prices"); _m.setAttribute("data-viewonly",(CU&&CU.role==="admin")?"0":"1");
+  _m.style.display = "flex";
 }
 function closeCustomerPrices(){
   document.getElementById("modal-cust-prices").style.display = "none";
