@@ -740,7 +740,7 @@ tr:hover td{background:#f8fffe}
 <div class="topbar">
   <span class="title">🚛 จัดการขนส่ง</span>
   <span id="session-info" style="font-size:11px;opacity:.8"></span>
-  <span style="font-size:10px;opacity:.65;margin-left:auto">build 2026-06-10z113</span>
+  <span style="font-size:10px;opacity:.65;margin-left:auto">build 2026-06-10z114</span>
   <a href="GolodApp.html" style="margin-left:10px">← หน้าหลัก</a>
 </div>
 <div class="container">
@@ -6530,20 +6530,42 @@ function printSpecialAreas(){
     var list=byProv[p].slice().sort(function(a,b){ return (a.amphoe||"").localeCompare(b.amphoe||"","th"); });
     list.forEach(function(sa,idx){
       rows+='<tr>'
-        +(idx===0?('<td rowspan="'+list.length+'" style="font-weight:700;background:#f7fbf9;vertical-align:top">'+p+'</td>'):'')
+        +(idx===0?('<td rowspan="'+list.length+'" class="prov">'+p+'</td>'):'')
         +'<td>'+(sa.amphoe||"")+'</td>'
-        +'<td>'+(sa.tambon?('ต.'+sa.tambon):'<span style="color:#aaa">ทั้งอำเภอ</span>')+'</td>'
-        +'<td style="text-align:right;font-weight:700">'+(parseInt(sa.min)||0).toLocaleString("th-TH")+'</td>'
+        +'<td>'+(sa.tambon?('ต.'+sa.tambon):'<span class="all">ทั้งอำเภอ</span>')+'</td>'
+        +'<td class="num">'+(parseInt(sa.min)||0).toLocaleString("th-TH")+'</td>'
         +'</tr>';
     });
   });
   var dstr=new Date().toLocaleDateString("th-TH",{year:"numeric",month:"long",day:"numeric"});
-  var html='<!DOCTYPE html><html lang="th"><head><meta charset="UTF-8"><title>สรุปพื้นที่พิเศษ</title>'
-    +'<style>body{font-family:"Sarabun","Tahoma",sans-serif;padding:24px;color:#222}h2{color:#0F6E56;margin:0 0 2px}.sub{color:#888;font-size:12px;margin-bottom:14px}table{width:100%;border-collapse:collapse;font-size:13px}th,td{border:1px solid #ccc;padding:6px 8px}th{background:#0F6E56;color:#fff;text-align:left}@media print{body{padding:0}.noprint{display:none}}</style></head><body>'
+  var html=''
+    +'<!DOCTYPE html><html lang="th"><head><meta charset="UTF-8">'
+    +'<meta name="viewport" content="width=device-width, initial-scale=1">'
+    +'<title>สรุปพื้นที่พิเศษ</title>'
+    +'<style>'
+    +'*{box-sizing:border-box}'
+    +'body{margin:0;background:#e9edf0;font-family:"Sarabun","Tahoma",sans-serif;color:#222;-webkit-print-color-adjust:exact;print-color-adjust:exact}'
+    +'.bar{position:sticky;top:0;z-index:5;background:#0F6E56;color:#fff;padding:10px 14px;display:flex;gap:10px;align-items:center;justify-content:space-between;font-size:13px}'
+    +'.bar button{background:#fff;color:#0F6E56;border:none;border-radius:6px;padding:7px 16px;font-weight:700;font-size:13px;cursor:pointer}'
+    +'.wrap{padding:14px;display:flex;justify-content:center}'
+    +'.page{background:#fff;width:100%;max-width:760px;padding:22px 20px;box-shadow:0 2px 12px rgba(0,0,0,.15);border-radius:4px}'
+    +'h2{color:#0F6E56;margin:0 0 2px;font-size:19px}'
+    +'.sub{color:#888;font-size:12px;margin-bottom:14px}'
+    +'table{width:100%;border-collapse:collapse;font-size:13px}'
+    +'th,td{border:1px solid #cfd8d3;padding:6px 8px}'
+    +'th{background:#0F6E56;color:#fff;text-align:left;font-weight:700}'
+    +'td.num{text-align:right;font-weight:700;color:#0F6E56;white-space:nowrap}'
+    +'td.prov{font-weight:700;background:#f3f9f6;vertical-align:top;white-space:nowrap}'
+    +'.all{color:#aaa}'
+    +'@media(max-width:480px){h2{font-size:16px}table{font-size:12px}th,td{padding:5px 6px}.page{padding:16px 12px}}'
+    +'@media print{body{background:#fff}.bar{display:none}.wrap{padding:0}.page{box-shadow:none;max-width:none;width:auto;border-radius:0;padding:0}@page{size:A4;margin:12mm}}'
+    +'</style></head><body>'
+    +'<div class="bar"><span>📄 ตัวอย่างใบสรุป — แคปหน้าจอส่งพนักงานได้เลย</span><button onclick="window.print()">🖨 พิมพ์ A4</button></div>'
+    +'<div class="wrap"><div class="page">'
     +'<h2>🗺️ สรุปพื้นที่พิเศษ — ค่าส่งขั้นต่ำรายอำเภอ/ตำบล</h2>'
     +'<div class="sub">บริษัท โกโลด ทรานสปอร์ต จำกัด · พิมพ์เมื่อ '+dstr+' · ทั้งหมด '+arr.length+' พื้นที่</div>'
     +'<table><thead><tr><th>จังหวัด</th><th>อำเภอ</th><th>ตำบล</th><th style="text-align:right">ขั้นต่ำ (฿)</th></tr></thead><tbody>'+rows+'</tbody></table>'
-    +'<div style="margin-top:20px;text-align:center" class="noprint"><button onclick="window.print()" style="padding:8px 24px;background:#0F6E56;color:#fff;border:none;border-radius:6px;font-size:14px;cursor:pointer">🖨 พิมพ์</button></div>'
+    +'</div></div>'
     +'</body></html>';
   var w=window.open("","_blank");
   if(!w){ alert("เปิดหน้าต่างพิมพ์ไม่ได้ — อนุญาต popup ก่อนครับ"); return; }
