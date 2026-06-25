@@ -67,7 +67,7 @@ tr.total-row td{background:#f0faf5;font-weight:700;border-top:2px solid #d0ede5}
 </head>
 <body>
 <div class="topbar">
-  <span class="title">📊 รายงานยอดขาย — โกโลด ทรานสปอร์ต <span style="font-size:10px;opacity:.7;font-weight:400">build 2026-06-06·b5</span></span>
+  <span class="title">📊 รายงานยอดขาย — โกโลด ทรานสปอร์ต <span style="font-size:10px;opacity:.7;font-weight:400">build 2026-06-25·b6</span></span>
   <a href="GolodApp.html">← หน้าหลัก</a>
   <button onclick="window.print()" style="padding:5px 12px;background:rgba(255,255,255,.2);color:#fff;border:1px solid rgba(255,255,255,.4);border-radius:6px;cursor:pointer;font-size:12px">🖨 พิมพ์</button>
 </div>
@@ -129,6 +129,30 @@ tr.total-row td{background:#f0faf5;font-weight:700;border-top:2px solid #d0ede5}
     throw new Error("unauthorized");
   }
 })();
+
+// ===== หัวหน้าสาขา = ดูเฉพาะสาขาตัวเอง (admin = ทุกสาขา) =====
+var SR_SESSION = (typeof GolodSession!=="undefined" ? GolodSession.get() : null) || {};
+var MY_ZONE = "";
+(function(){
+  var br = SR_SESSION.branch;
+  if(SR_SESSION.role==="branch" && br && br!=="all"){
+    var s=String(br);
+    if(["bkk","ptm","krt","ssk"].indexOf(s)>=0) MY_ZONE=s;
+    else if(s.indexOf("ปทุม")>=0) MY_ZONE="ptm";
+    else if(s.indexOf("นครราช")>=0||s.indexOf("โคราช")>=0) MY_ZONE="krt";
+    else if(s.indexOf("ศรีสะเกษ")>=0) MY_ZONE="ssk";
+    else if(s.indexOf("กรุงเทพ")>=0||s.indexOf("กทม")>=0) MY_ZONE="bkk";
+  }
+})();
+var MY_ZONE_LABEL = ({bkk:"กรุงเทพ/ปริมณฑล", ptm:"ปทุมธานี", krt:"นครราชสีมา", ssk:"ศรีสะเกษ"})[MY_ZONE] || "";
+if(MY_ZONE){
+  window.addEventListener("DOMContentLoaded", function(){
+    var bn=document.createElement("div");
+    bn.style.cssText="background:#0F6E56;color:#fff;padding:8px 12px;font-size:13px;font-weight:700;text-align:center";
+    bn.textContent="🏢 กำลังดูรายงานเฉพาะสาขา: "+MY_ZONE_LABEL+" (หัวหน้าสาขา)";
+    document.body.insertBefore(bn, document.body.firstChild);
+  });
+}
 
 // ===== ZONE DEFINITION =====
 var ZONE_MAP = {
@@ -261,6 +285,7 @@ function calcSummary(bills){
     var amphoe=getBillAmphoe(b);
     var zone=getZone(prov,amphoe);
     var branch=getBranch(b);
+    if(MY_ZONE && branch!==MY_ZONE) return;
 
     result.total+=net; result.bills++;
     if(result.byPay[pay]!==undefined) result.byPay[pay]+=net;
