@@ -114,7 +114,7 @@ td.r,th.r{text-align:right}
 <div class="app hidden" id="app-main">
   <div class="hdr">
     <div>
-      <div class="hdr-logo">GOLOD · ตรวจสอบ COD <span style="font-size:10px;opacity:.6;font-weight:400">build 2026-06-22a·b9</span></div>
+      <div class="hdr-logo">GOLOD · ตรวจสอบ COD <span style="font-size:10px;opacity:.6;font-weight:400">build 2026-06-25·b10</span></div>
       <div class="hdr-sub">เช็คเงินปลายทางที่เก็บแทนลูกค้าต้นทาง — เก็บครบไหม / โอนคืนเท่าไหร่</div>
     </div>
     <div class="hdr-pills" id="hdr-pills"></div>
@@ -170,13 +170,13 @@ td.r,th.r{text-align:right}
 
 <div id="assign-modal" class="overlay hidden" onclick="if(event.target===this)closeAssign()">
   <div class="modal" style="max-width:420px">
-    <div class="modal-h">มอบหมายสิทธิ์ดูระบบ COD</div>
+    <div class="modal-h">มอบหมายสิทธิ์ระบบ COD</div>
     <div class="acct-line" style="margin-bottom:8px">แอดมินเข้าได้เสมอ · ติ๊กเลือกผู้ที่อนุญาตให้เข้าระบบตรวจสอบ COD</div>
     <div style="background:#F3FAF7;border:1px solid #D6ECE3;border-radius:8px;padding:8px 10px;margin-bottom:10px;font-size:12px;line-height:1.6;color:#0F6E56">
-      <b>ขอบเขตสิทธิ์ของผู้ที่ได้รับมอบหมาย:</b><br>
-      ✓ ดูรายชื่อลูกค้า/ยอด COD และตรวจสอบได้<br>
-      ✓ เพิ่ม/แก้ไขบัญชีรับโอนได้<br>
-      ✗ <b>ลบบัญชีไม่ได้</b> — การลบสงวนไว้สำหรับแอดมินเท่านั้น
+      <b>ติ๊กสิทธิ์ตามคอลัมน์ของแต่ละคน:</b><br>
+      ✓ <b>ดู COD</b> = เข้าระบบ ดูรายชื่อ/ยอด COD ตรวจสอบ + แก้บัญชีรับโอน<br>
+      ✓ <b>เพิ่มลูกค้า</b> = เพิ่มรายชื่อลูกค้า COD ใหม่ได้ (ถ้าติ๊กอันนี้อย่างเดียว เห็นเฉพาะแท็บบัญชี)<br>
+      ✗ <b>ลบบัญชีไม่ได้</b> — สงวนไว้สำหรับแอดมินเท่านั้น
     </div>
     <div id="assign-list" style="max-height:300px;overflow:auto;border:1px solid #eee;border-radius:8px;padding:6px"></div>
     <div style="display:flex;gap:8px;margin-top:12px">
@@ -207,6 +207,8 @@ var ACCTS     = {};    // ชื่อลูกค้าต้นทาง -> {n
 var curPage   = "dash";
 var CU        = null;  // ผู้ใช้ปัจจุบัน (จาก GolodSession)
 var COD_VIEWERS = [];  // username ที่แอดมินมอบหมายให้ดู COD ได้
+var COD_ADDERS  = [];  // username ที่แอดมินมอบหมายให้เพิ่มลูกค้า COD ได้
+var CAN_ADD_CUST = false;
 var CAN_DELETE  = false; // ลบบัญชีได้ไหม (แอดมินเท่านั้น)
 var ACCT_ONLY   = false; // โหมดเสมียน: เห็นแค่แท็บบัญชี ซ่อนข้อมูลการเงิน
 
@@ -235,7 +237,28 @@ var Settings = (function(){
     if(fs) return fs.collection("codSettings").doc("viewers").set({usernames:list, updatedAt:new Date().toISOString(), updatedBy:_user()},{merge:true}).catch(function(e){ console.warn("[Settings] save:",e); });
     return Promise.resolve();
   }
-  return {loadViewers:loadViewers, saveViewers:saveViewers};
+  function loadAdders(){
+    var fs=_fs();
+    if(fs){
+      return fs.collection("codSettings").doc("adders").get().then(function(d){
+        var v=(d.exists&&d.data().usernames)||[];
+        COD_ADDERS=v; try{ localStorage.setItem("golod_cod_adders", JSON.stringify(v)); }catch(e){}
+        return v;
+      }).catch(function(e){
+        try{ COD_ADDERS=JSON.parse(localStorage.getItem("golod_cod_adders")||"[]"); }catch(_){ COD_ADDERS=[]; }
+        return COD_ADDERS;
+      });
+    }
+    try{ COD_ADDERS=JSON.parse(localStorage.getItem("golod_cod_adders")||"[]"); }catch(e){ COD_ADDERS=[]; }
+    return Promise.resolve(COD_ADDERS);
+  }
+  function saveAdders(list){
+    COD_ADDERS=list; try{ localStorage.setItem("golod_cod_adders", JSON.stringify(list)); }catch(e){}
+    var fs=_fs();
+    if(fs) return fs.collection("codSettings").doc("adders").set({usernames:list, updatedAt:new Date().toISOString(), updatedBy:_user()},{merge:true}).catch(function(e){ console.warn("[Settings] saveAdders:",e); });
+    return Promise.resolve();
+  }
+  return {loadViewers:loadViewers, saveViewers:saveViewers, loadAdders:loadAdders, saveAdders:saveAdders};
 })();
 
 /* ---------- บัญชีรับโอนคืน (collection: codAccounts) ---------- */
@@ -974,7 +997,7 @@ function renderAccounts(){
   Object.keys(ACCTS).forEach(function(n){ if(!(n in senders)) senders[n]=0; });
   var names=Object.keys(senders).sort();
   var box=document.getElementById("page-accounts");
-  if(!names.length){ box.innerHTML='<div class="vc-noprint" style="margin-bottom:10px"><button class="btn btn-green" onclick="openAcctNew()">+ เพิ่มลูกค้า/บัญชีใหม่</button></div><div class="empty">ยังไม่มีลูกค้าต้นทาง — กดปุ่มด้านบนเพื่อเพิ่ม</div>'; return; }
+  if(!names.length){ box.innerHTML=''+(CAN_ADD_CUST?'<div class="vc-noprint" style="margin-bottom:10px"><button class="btn btn-green" onclick="openAcctNew()">+ เพิ่มลูกค้า/บัญชีใหม่</button></div>':'')+'<div class="empty">ยังไม่มีลูกค้าต้นทาง'+(CAN_ADD_CUST?' — กดปุ่มด้านบนเพื่อเพิ่ม':' (คุณไม่มีสิทธิ์เพิ่มลูกค้า — ติดต่อแอดมิน)')+'</div>'; return; }
   var nset=0, ncoded=0;
   var rows=names.map(function(n){
     var a=Accounts.get(n);
@@ -997,7 +1020,7 @@ function renderAccounts(){
   }).join("");
   box.innerHTML=
     '<div class="mini-note">รหัสลูกค้าออกอัตโนมัติ (C1, C2, …) · 1 ลูกค้าต้นทาง = 1 รหัส = 1 บัญชี · ผูกแล้วใช้ตลอดจนกว่าจะกดแก้ไข (เก็บประวัติ) · ออกรหัสแล้ว '+ncoded+'/'+names.length+' · ตั้งบัญชีแล้ว '+nset+'/'+names.length+' ราย</div>'+
-    '<div class="vc-noprint" style="margin-bottom:10px;display:flex;gap:8px;flex-wrap:wrap"><button class="btn btn-green" onclick="openAcctNew()">+ เพิ่มลูกค้า/บัญชีใหม่</button><button class="btn btn-ghost" onclick="assignAllCodes()">⚡ ออกรหัสให้ทุกรายที่ยังไม่มี</button></div>'+
+    '<div class="vc-noprint" style="margin-bottom:10px;display:flex;gap:8px;flex-wrap:wrap">'+(CAN_ADD_CUST?'<button class="btn btn-green" onclick="openAcctNew()">+ เพิ่มลูกค้า/บัญชีใหม่</button>':'')+'<button class="btn btn-ghost" onclick="assignAllCodes()">⚡ ออกรหัสให้ทุกรายที่ยังไม่มี</button></div>'+
     '<table><thead><tr><th class="c">รหัส</th><th>ลูกค้าต้นทาง</th><th>ธนาคาร</th><th>เลขบัญชี</th><th>ชื่อบัญชี</th><th class="r">บิล COD</th><th></th></tr></thead><tbody>'+rows+'</tbody></table>';
 }
 
@@ -1055,6 +1078,7 @@ function openAcct(encName){
   renderAcctDocs();
 }
 function openAcctNew(){
+  if(!CAN_ADD_CUST){ alert("คุณไม่มีสิทธิ์เพิ่มลูกค้า COD — ให้แอดมินมอบหมายสิทธิ์ก่อน"); return; }
   _acctName="";
   var nm=document.getElementById("ac-name");
   nm.readOnly=false; nm.style.background="#fff"; nm.placeholder="พิมพ์ชื่อลูกค้าต้นทางใหม่"; nm.value="";
@@ -1118,11 +1142,17 @@ function authGate(){
   if(!GS||!GS.get){ showLock("ไม่พบระบบเข้าสู่ระบบ — เปิดไฟล์นี้ในโฟลเดอร์ระบบโกโลด (ต้องมี session.js)"); return Promise.resolve(false); }
   CU=GS.get();
   if(!CU){ location.href="GolodApp.html"; return Promise.resolve(false); }
-  if(CU.role==="admin"){ CAN_DELETE=true; ACCT_ONLY=false; return Promise.resolve(true); }  // แอดมิน: ทุกอย่าง + ลบได้
+  if(CU.role==="admin"){ CAN_DELETE=true; ACCT_ONLY=false; CAN_ADD_CUST=true; return Promise.resolve(true); }  // แอดมิน: ทุกอย่าง + ลบได้
   return Settings.loadViewers().then(function(list){
-    if((list||[]).indexOf(CU.username)>=0){ CAN_DELETE=false; ACCT_ONLY=false; return true; }   // ผู้ที่มอบหมาย: ดูได้ เพิ่มบัญชีได้ ลบไม่ได้
-    showLock("หน้านี้เปิดให้เฉพาะแอดมิน และผู้ที่ได้รับมอบหมายเท่านั้น<br>กรุณาติดต่อแอดมินเพื่อขอสิทธิ์ดูระบบตรวจสอบ COD");
-    return false;
+    return Settings.loadAdders().then(function(adders){
+      var _isV=(list||[]).indexOf(CU.username)>=0;
+      var _isA=(adders||[]).indexOf(CU.username)>=0;
+      CAN_ADD_CUST=_isA;
+      if(_isV){ CAN_DELETE=false; ACCT_ONLY=false; return true; }
+      if(_isA){ CAN_DELETE=false; ACCT_ONLY=true; return true; }
+      showLock("หน้านี้เปิดให้เฉพาะแอดมิน และผู้ที่ได้รับมอบหมายเท่านั้น<br>กรุณาติดต่อแอดมินเพื่อขอสิทธิ์ดูระบบตรวจสอบ COD");
+      return false;
+    });
   });
 }
 
@@ -1138,19 +1168,24 @@ function openAssign(){
     var roleLabels={admin:"แอดมิน",branch:"หัวหน้าสาขา",clerk:"เสมียน",driver:"คนขับ"};
     box.innerHTML=users.map(function(u){
       var isAdmin=u.role==="admin";
-      var checked=isAdmin||COD_VIEWERS.indexOf(u.username)>=0;
-      return '<label class="chk-row"><input type="checkbox" value="'+u.username+'"'+(checked?' checked':'')+(isAdmin?' disabled':'')+'>'+
-        '<span><b>'+(u.name||u.username)+'</b> <span class="acct-line">'+(roleLabels[u.role]||u.role)+(isAdmin?' · เข้าได้เสมอ':'')+'</span></span></label>';
+      var vchecked=isAdmin||COD_VIEWERS.indexOf(u.username)>=0;
+      var achecked=isAdmin||COD_ADDERS.indexOf(u.username)>=0;
+      return '<div class="chk-row" style="display:flex;align-items:center;gap:6px;flex-wrap:wrap">'+
+        '<span style="flex:1;min-width:120px"><b>'+(u.name||u.username)+'</b> <span class="acct-line">'+(roleLabels[u.role]||u.role)+(isAdmin?' · เข้าได้เสมอ':'')+'</span></span>'+
+        '<label style="display:inline-flex;align-items:center;gap:3px;font-size:12px;white-space:nowrap"><input type="checkbox" class="vw-chk" value="'+u.username+'"'+(vchecked?' checked':'')+(isAdmin?' disabled':'')+'> ดู COD</label>'+
+        '<label style="display:inline-flex;align-items:center;gap:3px;font-size:12px;white-space:nowrap"><input type="checkbox" class="add-chk" value="'+u.username+'"'+(achecked?' checked':'')+(isAdmin?' disabled':'')+'> เพิ่มลูกค้า</label>'+
+        '</div>';
     }).join("")||'<div class="acct-line">ไม่พบผู้ใช้</div>';
   }).catch(function(){ box.innerHTML='<div class="acct-line">โหลดผู้ใช้ไม่สำเร็จ</div>'; });
 }
 function closeAssign(){ document.getElementById("assign-modal").classList.add("hidden"); }
 function saveAssign(){
   var box=document.getElementById("assign-list");
-  var list=[].slice.call(box.querySelectorAll('input[type=checkbox]'))
-    .filter(function(c){ return c.checked && !c.disabled; })
-    .map(function(c){ return c.value; });
-  Settings.saveViewers(list).then(function(){ alert("✅ บันทึกสิทธิ์แล้ว ("+list.length+" คน)"); closeAssign(); });
+  var vlist=[].slice.call(box.querySelectorAll('input.vw-chk'))
+    .filter(function(c){ return c.checked && !c.disabled; }).map(function(c){ return c.value; });
+  var alist=[].slice.call(box.querySelectorAll('input.add-chk'))
+    .filter(function(c){ return c.checked && !c.disabled; }).map(function(c){ return c.value; });
+  Promise.all([Settings.saveViewers(vlist), Settings.saveAdders(alist)]).then(function(){ alert("✅ บันทึกสิทธิ์แล้ว\nดู COD: "+vlist.length+" คน · เพิ่มลูกค้า: "+alist.length+" คน"); closeAssign(); });
 }
 
 /* ============================================================
