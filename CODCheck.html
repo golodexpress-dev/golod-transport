@@ -114,7 +114,7 @@ td.r,th.r{text-align:right}
 <div class="app hidden" id="app-main">
   <div class="hdr">
     <div>
-      <div class="hdr-logo">GOLOD · ตรวจสอบ COD <span style="font-size:10px;opacity:.6;font-weight:400">build 2026-06-25·b10</span></div>
+      <div class="hdr-logo">GOLOD · ตรวจสอบ COD <span style="font-size:10px;opacity:.6;font-weight:400">build 2026-06-25·b11</span></div>
       <div class="hdr-sub">เช็คเงินปลายทางที่เก็บแทนลูกค้าต้นทาง — เก็บครบไหม / โอนคืนเท่าไหร่</div>
     </div>
     <div class="hdr-pills" id="hdr-pills"></div>
@@ -160,6 +160,11 @@ td.r,th.r{text-align:right}
     <div class="fld2"><label>เลขบัญชี</label><input id="ac-no" class="inp" placeholder="xxx-x-xxxxx-x"></div>
     <div class="fld2"><label>ชื่อบัญชี</label><input id="ac-acctname" class="inp" placeholder="ชื่อเจ้าของบัญชี"></div>
     <div class="fld2"><label>ราคา/ชิ้น (พิเศษ) — เว้นว่าง = คิดตามปกติ</label><input id="ac-priceperpiece" class="inp" type="number" placeholder="เช่น 120, 150, 180"></div>
+    <div class="fld2"><label>เบอร์โทร (สำหรับออกบิล)</label><input id="ac-phone" class="inp" placeholder="08x-xxx-xxxx"></div>
+    <div class="fld2"><label>จังหวัด</label><input id="ac-prov" class="inp" placeholder="เช่น ขอนแก่น"></div>
+    <div class="fld2"><label>อำเภอ/เขต</label><input id="ac-amphoe" class="inp"></div>
+    <div class="fld2"><label>ตำบล/แขวง</label><input id="ac-tambon" class="inp"></div>
+    <div class="fld2"><label>ที่อยู่ (บ้านเลขที่/หมู่/ถนน)</label><input id="ac-addr" class="inp"></div>
     <div class="fld2"><label>เอกสารแนบ (เก็บเป็นข้อมูล)</label><div id="ac-docs" style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:4px"></div></div>
     <div style="display:flex;gap:8px;margin-top:6px">
       <button class="btn btn-green" style="flex:1" onclick="saveAcct()">บันทึก</button>
@@ -1073,6 +1078,7 @@ function openAcct(encName){
   // ส่วนใหญ่ชื่อบัญชีตรงกับชื่อในบิล → เติมให้อัตโนมัติเฉพาะรายใหม่ แล้วผู้ใช้แก้เฉพาะที่ไม่ตรง
   document.getElementById("ac-acctname").value=isNew ? name : (a.accountName||"");
   document.getElementById("ac-priceperpiece").value = a.pricePerPiece ? a.pricePerPiece : "";
+  document.getElementById("ac-phone").value=a.phone||""; document.getElementById("ac-prov").value=a.prov||""; document.getElementById("ac-amphoe").value=a.amphoe||""; document.getElementById("ac-tambon").value=a.tambon||""; document.getElementById("ac-addr").value=a.addr||"";
   _acctDocs={bankbook:a.docBankbook||"",cert:a.docCert||"",idcard:a.docId||"",other:a.docOther||""};
   document.getElementById("acct-modal").classList.remove("hidden");
   renderAcctDocs();
@@ -1087,6 +1093,7 @@ function openAcctNew(){
   document.getElementById("ac-no").value="";
   document.getElementById("ac-acctname").value="";
   document.getElementById("ac-priceperpiece").value="";
+  document.getElementById("ac-phone").value=""; document.getElementById("ac-prov").value=""; document.getElementById("ac-amphoe").value=""; document.getElementById("ac-tambon").value=""; document.getElementById("ac-addr").value="";
   _acctDocs={bankbook:"",cert:"",idcard:"",other:""};
   document.getElementById("acct-modal").classList.remove("hidden");
   renderAcctDocs();
@@ -1120,6 +1127,11 @@ function saveAcct(){
     accountNo: document.getElementById("ac-no").value.trim(),
     accountName: document.getElementById("ac-acctname").value.trim(),
     pricePerPiece: parseFloat(document.getElementById("ac-priceperpiece").value)||0,
+    phone: (document.getElementById("ac-phone").value||"").trim(),
+    prov: (document.getElementById("ac-prov").value||"").trim(),
+    amphoe: (document.getElementById("ac-amphoe").value||"").trim(),
+    tambon: (document.getElementById("ac-tambon").value||"").trim(),
+    addr: (document.getElementById("ac-addr").value||"").trim(),
     docBankbook:_acctDocs.bankbook||"", docCert:_acctDocs.cert||"", docId:_acctDocs.idcard||"", docOther:_acctDocs.other||""
   };
   // การผูกบัญชีค้างถาวร — ถ้าแก้ของเดิม ต้องยืนยัน (ถือเป็น "ขอแก้ไข")
