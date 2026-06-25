@@ -746,7 +746,7 @@ tr:hover td{background:#f8fffe}
 <div class="topbar">
   <span class="title">🚛 จัดการขนส่ง</span>
   <span id="session-info" style="font-size:11px;opacity:.8"></span>
-  <span style="font-size:10px;opacity:.65;margin-left:auto">build 2026-06-10z116</span>
+  <span style="font-size:10px;opacity:.65;margin-left:auto">build 2026-06-10z118</span>
   <a href="GolodApp.html" style="margin-left:10px">← หน้าหลัก</a>
 </div>
 <div class="container">
@@ -1729,6 +1729,7 @@ function renderTripList(){
           +'<button class="btn" data-tid="'+t.id+'" onclick="openTripVehiclePhoto(this.dataset.tid)" style="background:#34495e;color:#fff">📷 รูปรถ ('+((t.vehiclePhotos||[]).length)+')</button>'
           +(canClearTrip()?'<button class="btn btn-orange" data-tid="'+t.id+'" onclick="openClearTrip(this.dataset.tid)">💰 เคลียร์เที่ยว</button>':'')
           +(canClearTrip()?'<button class="btn btn-green" data-tid="'+t.id+'" onclick="closeTrip(this.dataset.tid)">✅ ปิดเที่ยว</button>':'')
+          +((_isAdminU && !((t.autoDispatched===true)||(t.settlement&&t.settlement.status==="confirmed")||t.status==="open"||t.status==="cleared"||t.status==="closed"))?'<button class="btn" style="background:#c0392b;color:#fff" data-tid="'+t.id+'" onclick="deleteTrip(this.dataset.tid)">🗑 ลบเที่ยว</button>':'')
           +'<button class="btn btn-blue" data-tid="'+t.id+'" onclick="printTripSummary(this.dataset.tid)">🖨 พิมพ์</button>'
           +'<button class="btn" data-tid="'+t.id+'" onclick="printRunSheet(this.dataset.tid)" style="background:#6a1b9a;color:#fff">🖨 การ์ดเที่ยว</button>'
           +'' /* สรุปส่งสาขา ย้ายไปหน้าจ่ายให้สาขา (z64) */
@@ -3047,6 +3048,33 @@ function canClearTrip(){
   if(!CU) return false;
   if(CU.role==="admin") return true;
   return CLEAR_ALLOWED_USERS.indexOf(CU.username) >= 0;
+}
+
+function deleteTrip(id){
+  if(!CU || CU.role!=="admin"){ alert("เฉพาะแอดมินลบเที่ยวได้"); return; }
+  var list=(_tripState&&_tripState.openTrips)||[];
+  var t=list.find(function(x){return x.id===id;});
+  if(!t){ alert("ไม่พบเที่ยว"); return; }
+  var dispatched=(t.autoDispatched===true)||(t.settlement&&t.settlement.status==="confirmed")||t.status==="open"||t.status==="cleared"||t.status==="closed";
+  if(dispatched){ alert("ลบไม่ได้ — เที่ยวนี้จ่ายงาน/เคลียร์/ปิดแล้ว\nลบได้เฉพาะเที่ยวเปล่า หรือเที่ยวที่ยังไม่จ่ายงาน"); return; }
+  var bills=(t.billIds||[]).slice();
+  var msg=bills.length
+    ? ("ลบเที่ยวนี้?\n\nคนรถ: "+(t.driverName||t.driverUsername||"-")+"\nมีบิล "+bills.length+" ใบ — บิลจะถูกถอดกลับเข้าคลัง (ไม่ถูกลบ) เอาไปจัดเที่ยวใหม่ได้")
+    : ("ลบเที่ยวเปล่านี้?\n\nคนรถ: "+(t.driverName||t.driverUsername||"-"));
+  if(!confirm(msg)) return;
+  var db; try{db=firebase.firestore();}catch(e){}
+  if(!db){ alert("เชื่อมต่อฐานข้อมูลไม่ได้"); return; }
+  var chain=Promise.resolve();
+  bills.forEach(function(bn){
+    chain=chain.then(function(){ try{ return GolodDB.removeBillFromTrip? GolodDB.removeBillFromTrip(t.id, bn).catch(function(){}) : null; }catch(e){ return null; } });
+  });
+  chain.then(function(){ return db.collection("trips").doc(id).delete(); })
+    .then(function(){
+      if(_tripState&&_tripState.openTrips){ _tripState.openTrips=_tripState.openTrips.filter(function(x){return x.id!==id;}); }
+      alert("\u2705 ลบเที่ยวแล้ว"+(bills.length?(" — ถอด "+bills.length+" บิลกลับคลัง"):""));
+      if(typeof renderTripTab==="function") renderTripTab(); else if(typeof renderApp==="function") renderApp();
+    })
+    .catch(function(e){ alert("ลบไม่สำเร็จ: "+((e&&e.message)||e)); });
 }
 
 // สิทธิ์ดูสรุปสิ้นเดือน
