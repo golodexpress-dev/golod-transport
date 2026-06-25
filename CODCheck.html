@@ -114,7 +114,7 @@ td.r,th.r{text-align:right}
 <div class="app hidden" id="app-main">
   <div class="hdr">
     <div>
-      <div class="hdr-logo">GOLOD · ตรวจสอบ COD <span style="font-size:10px;opacity:.6;font-weight:400">build 2026-06-25·b13</span></div>
+      <div class="hdr-logo">GOLOD · ตรวจสอบ COD <span style="font-size:10px;opacity:.6;font-weight:400">build 2026-06-25·b14</span></div>
       <div class="hdr-sub">เช็คเงินปลายทางที่เก็บแทนลูกค้าต้นทาง — เก็บครบไหม / โอนคืนเท่าไหร่</div>
     </div>
     <div class="hdr-pills" id="hdr-pills"></div>
@@ -241,8 +241,8 @@ var Settings = (function(){
   function saveViewers(list){
     COD_VIEWERS=list; try{ localStorage.setItem("golod_cod_viewers", JSON.stringify(list)); }catch(e){}
     var fs=_fs();
-    if(fs) return fs.collection("codSettings").doc("viewers").set({usernames:list, updatedAt:new Date().toISOString(), updatedBy:_user()},{merge:true}).catch(function(e){ console.warn("[Settings] save:",e); });
-    return Promise.resolve();
+    if(fs) return fs.collection("codSettings").doc("viewers").set({usernames:list, updatedAt:new Date().toISOString(), updatedBy:_user()},{merge:true}).then(function(){ return {cloud:true}; }).catch(function(e){ console.warn("[Settings] save viewers:",e); return {cloud:false, error:(e&&e.message)||String(e)}; });
+    return Promise.resolve({cloud:false, error:"no-firestore"});
   }
   function loadAdders(){
     var fs=_fs();
@@ -262,8 +262,8 @@ var Settings = (function(){
   function saveAdders(list){
     COD_ADDERS=list; try{ localStorage.setItem("golod_cod_adders", JSON.stringify(list)); }catch(e){}
     var fs=_fs();
-    if(fs) return fs.collection("codSettings").doc("adders").set({usernames:list, updatedAt:new Date().toISOString(), updatedBy:_user()},{merge:true}).catch(function(e){ console.warn("[Settings] saveAdders:",e); });
-    return Promise.resolve();
+    if(fs) return fs.collection("codSettings").doc("adders").set({usernames:list, updatedAt:new Date().toISOString(), updatedBy:_user()},{merge:true}).then(function(){ return {cloud:true}; }).catch(function(e){ console.warn("[Settings] saveAdders:",e); return {cloud:false, error:(e&&e.message)||String(e)}; });
+    return Promise.resolve({cloud:false, error:"no-firestore"});
   }
   return {loadViewers:loadViewers, saveViewers:saveViewers, loadAdders:loadAdders, saveAdders:saveAdders};
 })();
@@ -1257,7 +1257,15 @@ function saveAssign(){
     .filter(function(c){ return c.checked && !c.disabled; }).map(function(c){ return c.value; });
   var alist=[].slice.call(box.querySelectorAll('input.add-chk'))
     .filter(function(c){ return c.checked && !c.disabled; }).map(function(c){ return c.value; });
-  Promise.all([Settings.saveViewers(vlist), Settings.saveAdders(alist)]).then(function(){ alert("✅ บันทึกสิทธิ์แล้ว\nดู COD: "+vlist.length+" คน · เพิ่มลูกค้า: "+alist.length+" คน"); closeAssign(); });
+  Promise.all([Settings.saveViewers(vlist), Settings.saveAdders(alist)]).then(function(res){
+    var v=res[0]||{}, a=res[1]||{};
+    if(v.cloud && a.cloud){
+      alert("✅ บันทึกขึ้นคลาวด์สำเร็จ\nดู COD: "+vlist.length+" คน · เพิ่มลูกค้า: "+alist.length+" คน\n\nสิทธิ์จะมีผลกับทุกเครื่อง (เสมียนรีเฟรชหน้าจอ)");
+      closeAssign();
+    } else {
+      alert("⚠️ บันทึกขึ้นคลาวด์ไม่สำเร็จ — สิทธิ์จะไม่ไปถึงเครื่องเสมียน\n\nสาเหตุ: "+((v.error||a.error||"unknown"))+"\n\n(มักเป็นเรื่องสิทธิ์เขียน Firestore — collection codSettings — ให้ผู้ดูแลตรวจ rules)");
+    }
+  });
 }
 
 /* ============================================================
