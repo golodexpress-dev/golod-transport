@@ -14,7 +14,7 @@
   <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
 </head><body>
 <div class="golod-bar no-print">
-  <h1>โกโลด ทรานสปอร์ต — ออกบิล Thermal 80mm <span style="font-size:11px;font-weight:400;opacity:.6">build 2026-06-25·b34</span></h1>
+  <h1>โกโลด ทรานสปอร์ต — ออกบิล Thermal 80mm <span style="font-size:11px;font-weight:400;opacity:.6">build 2026-06-25·b37</span></h1>
   <div id="golod-chip"></div>
   <a href="GolodApp.html" style="font-size:11px;color:#9FE1CB;background:rgba(255,255,255,.15);padding:3px 10px;border-radius:20px;text-decoration:none">← หน้าหลัก</a>
   <a href="DailyReport.html" style="font-size:11px;color:#FFE082;background:rgba(255,255,255,.15);padding:3px 10px;border-radius:20px;text-decoration:none">📊 รายงานสิ้นวัน</a>
@@ -2247,6 +2247,42 @@ function saveContact(key, data) {
   } catch (e) {}
 }
 // Export บิลทั้งหมดเป็น CSV
+function printCodCustomers(){
+  var map = (typeof CUST_INDEX!=="undefined" && CUST_INDEX.byCode) ? CUST_INDEX.byCode : {};
+  var arr = Object.keys(map).map(function(k){ return map[k]; }).filter(function(c){ return c && (c.code||c.name); });
+  var seen={}, list=[];
+  arr.forEach(function(c){ var k=String(c.code||c.name); if(!seen[k]){seen[k]=1; list.push(c);} });
+  if(!list.length){ alert("ยังไม่มีลูกค้า COD ที่ลงทะเบียนรหัส (หรือยังโหลดไม่เสร็จ ลองใหม่อีกครั้ง)"); return; }
+  list.sort(function(a,b){ return String(a.code||"").localeCompare(String(b.code||""),"th"); });
+  var rows = list.map(function(c,i){
+    return '<tr><td style="text-align:center;color:#888">'+(i+1)+'</td>'
+      +'<td style="font-weight:700;color:#0F6E56;white-space:nowrap">'+(c.code||"-")+'</td>'
+      +'<td>'+(c.name||"-")+'</td>'
+      +'<td style="white-space:nowrap">'+(c.phone||"")+'</td></tr>';
+  }).join("");
+  var dstr = new Date().toLocaleDateString("th-TH",{year:"numeric",month:"long",day:"numeric"});
+  var html='<!DOCTYPE html><html lang="th"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>รายชื่อลูกค้า COD</title>'
+    +'<style>*{box-sizing:border-box}body{font-family:"Sarabun","Tahoma",sans-serif;margin:0;background:#e9eced;color:#222}'
+    +'.bar{position:sticky;top:0;background:#0F6E56;color:#fff;padding:10px 14px;display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap}'
+    +'.bar .hint{font-size:12px}.bar button{background:#fff;color:#0F6E56;border:none;border-radius:8px;padding:8px 18px;font-size:14px;font-weight:700;cursor:pointer}'
+    +'.wrap{padding:14px;display:flex;justify-content:center}.page{background:#fff;width:100%;max-width:760px;padding:22px 24px;border-radius:6px;box-shadow:0 2px 14px rgba(0,0,0,.12)}'
+    +'h2{color:#0F6E56;margin:0 0 2px;font-size:19px}.sub{color:#888;font-size:12px;margin-bottom:14px}'
+    +'.warn{background:#fff8ec;border:1px solid #f0c97a;color:#a06a00;border-radius:7px;padding:8px 10px;font-size:12px;margin-bottom:12px}'
+    +'table{width:100%;border-collapse:collapse;font-size:13px}th,td{border:1px solid #ccc;padding:6px 8px}th{background:#0F6E56;color:#fff;text-align:left}'
+    +'@media(max-width:480px){.page{padding:14px 12px}table{font-size:11px}th,td{padding:4px 5px}h2{font-size:16px}}'
+    +'@media print{@page{size:A4;margin:12mm}body{background:#fff}.bar{display:none}.wrap{padding:0}.page{max-width:none;width:auto;box-shadow:none;border-radius:0;padding:0}}'
+    +'</style></head><body>'
+    +'<div class="bar"><span class="hint">\ud83d\udcf1 แคปหน้าจอส่งพนักงานได้เลย — หรือกดพิมพ์ A4</span><button onclick="window.print()">\ud83d\udda8 พิมพ์ A4</button></div>'
+    +'<div class="wrap"><div class="page">'
+    +'<h2>\ud83d\udccb รายชื่อลูกค้า COD (ลงทะเบียนรหัสแล้ว)</h2>'
+    +'<div class="sub">บริษัท โกโลด ทรานสปอร์ต จำกัด · พิมพ์เมื่อ '+dstr+' · ทั้งหมด '+list.length+' ราย</div>'
+    +'<div class="warn">\u26a0\ufe0f ลูกค้า COD ต้องมีรหัส (ลงทะเบียน) ก่อนออกบิล — เวลาออกบิล COD ให้ใส่ \u201cรหัสลูกค้า COD\u201d เสมอ ห้ามพิมพ์ชื่อแทน</div>'
+    +'<table><thead><tr><th style="width:36px">#</th><th>รหัส COD</th><th>ชื่อลูกค้า</th><th>เบอร์โทร</th></tr></thead><tbody>'+rows+'</tbody></table>'
+    +'</div></div></body></html>';
+  var w=window.open("","_blank");
+  if(!w){ alert("เปิดหน้าต่างพิมพ์ไม่ได้ — อนุญาต popup ก่อนครับ"); return; }
+  w.document.write(html); w.document.close();
+}
 function ExportPanel() {
   const [show, setShow] = useState(false);
   const [from, setFrom] = useState("");
@@ -3458,6 +3494,19 @@ function ThermalBillingApp() {
     }
   }, "\u0E22\u0E01\u0E40\u0E25\u0E34\u0E01")) : null;
   const handleSubmit = () => {
+    // ===== กฎลูกค้า COD: ต้องมีรหัสลงทะเบียนก่อนออกบิล COD =====
+    var _codAmt = (summary && summary.codTotal) || 0;
+    var _ccode = (form.customerCode||"").trim();
+    if(_codAmt > 0 && !_ccode){
+      alert("\u26d4 ออกบิล COD ไม่ได้\n\nลูกค้า COD ต้องลงทะเบียน (มีรหัสลูกค้า COD) ก่อนออกบิล\nกรุณาใส่รหัสลูกค้า COD ในช่อง \u201cรหัสลูกค้า\u201d\n\n(ถ้าลูกค้ายังไม่มีรหัส ให้ลงทะเบียนรหัสลูกค้า COD ก่อน)");
+      return;
+    }
+    try{
+      var _codCust = (CUST_INDEX && CUST_INDEX.byName) ? CUST_INDEX.byName[(form.senderName||"").trim()] : null;
+      if(_codCust && _codCust.code && !_ccode){
+        if(!confirm("\u26a0\ufe0f ชื่อผู้ส่งนี้เป็นลูกค้า COD ที่ลงทะเบียนแล้ว\nรหัสลูกค้า COD: "+_codCust.code+"\n\nควรใส่รหัสลูกค้า COD แทนการพิมพ์ชื่อ เพื่อผูกบัญชีรับเงินให้ถูกต้อง\n\nกด ยกเลิก = กลับไปใส่รหัส (แนะนำ)\nกด ตกลง = ออกบิลต่อโดยไม่ใส่รหัส")) return;
+      }
+    }catch(e){}
     // เตือนถ้ามีรายการที่ยังใช้ "ราคาอัตโนมัติ" (เสมียนไม่ได้พิมพ์ราคาเอง) — กันคิดราคาเกิน/ขาด
     try {
       const autoRows = items.map((it, i) => {
@@ -3670,7 +3719,7 @@ function ThermalBillingApp() {
       display: "flex",
       gap: 5
     }
-  }, (sessionUser === null || sessionUser === void 0 ? void 0 : sessionUser.role) === "admin" && view === "list" && /*#__PURE__*/React.createElement(ExportPanel, null), [["list", `รายการ (${bills.length})`], ["form", "+ บิลใหม่"], ["receipt", "🧾 ใบเสร็จ"], ["manualbill", "📝 บิลมือ"]].map(([v, l]) => /*#__PURE__*/React.createElement("button", {
+  }, (sessionUser === null || sessionUser === void 0 ? void 0 : sessionUser.role) === "admin" && view === "list" && /*#__PURE__*/React.createElement(ExportPanel, null), (view === "list" && /*#__PURE__*/React.createElement("button", { onClick: printCodCustomers, style: { padding: "6px 12px", background: "#6C5CE7", color: "#fff", border: "none", borderRadius: 8, fontSize: 12, fontWeight: 600, cursor: "pointer", whiteSpace: "nowrap" } }, "\uD83D\uDDA8 ลูกค้า COD")), [["list", `รายการ (${bills.length})`], ["form", "+ บิลใหม่"], ["receipt", "🧾 ใบเสร็จ"], ["manualbill", "📝 บิลมือ"]].map(([v, l]) => /*#__PURE__*/React.createElement("button", {
     key: v,
     onClick: () => v === "form" ? resetForm() : setView(v),
     style: {
@@ -3753,7 +3802,18 @@ function ThermalBillingApp() {
     style: { width: "100%", padding: "8px", border: "1px solid #ddd", borderRadius: 6, boxSizing: "border-box", textTransform: "uppercase" }
   })), /*#__PURE__*/React.createElement("div", null, /*#__PURE__*/React.createElement(Lbl, {
     c: "\u0E0A\u0E37\u0E48\u0E2D\u0E1C\u0E39\u0E49\u0E2A\u0E48\u0E07 *"
-  }), /*#__PURE__*/React.createElement("div", {
+  }),
+  (function(){
+    try{
+      var _cc=(typeof CUST_INDEX!=="undefined" && CUST_INDEX.byName)?CUST_INDEX.byName[(form.senderName||"").trim()]:null;
+      if(_cc && _cc.code && !((form.customerCode||"").trim())){
+        return /*#__PURE__*/React.createElement("div",{style:{background:"#fff5f5",border:"1px solid #f3b4b4",borderRadius:6,padding:"5px 8px",margin:"3px 0",fontSize:11,color:"#c0392b",display:"flex",alignItems:"center",gap:6,flexWrap:"wrap"}},
+          /*#__PURE__*/React.createElement("span",null,"\u26a0\ufe0f \u0E25\u0E39\u0E01\u0E04\u0E49\u0E32 COD \u00b7 \u0E23\u0E2B\u0E31\u0E2A "+_cc.code+" \u2014 \u0E15\u0E49\u0E2D\u0E07\u0E43\u0E2A\u0E48\u0E23\u0E2B\u0E31\u0E2A\u0E01\u0E48\u0E2D\u0E19\u0E2D\u0E2D\u0E01 COD"),
+          /*#__PURE__*/React.createElement("button",{onClick:function(){ setF("customerCode", _cc.code); }, style:{background:"#c0392b",color:"#fff",border:"none",borderRadius:5,padding:"2px 9px",fontSize:11,cursor:"pointer",fontWeight:600,whiteSpace:"nowrap"}},"\u0E40\u0E15\u0E34\u0E21\u0E23\u0E2B\u0E31\u0E2A"));
+      }
+    }catch(e){}
+    return null;
+  })(), /*#__PURE__*/React.createElement("div", {
     style: {
       display: "flex",
       gap: 4
@@ -4738,6 +4798,10 @@ function ManualBillForm({ staffCode, staffName, onSave }) {
     if(!manualNo){alert("กรุณาระบุเลขที่บิลมือ");return;}
     if(!form.senderName){alert("กรุณาระบุชื่อผู้ส่ง");return;}
     if(!form.destProv){alert("กรุณาระบุจังหวัดปลายทาง");return;}
+    if((parseFloat(form.codTotal)||0) > 0 && !((form.customerCode||"").trim())){
+      var _mcust=(CUST_INDEX&&CUST_INDEX.byName)?CUST_INDEX.byName[(form.senderName||"").trim()]:null;
+      if(!confirm("\u26a0\ufe0f บิลมือนี้เป็น COD แต่ยังไม่มีรหัสลูกค้า COD\n"+((_mcust&&_mcust.code)?("ชื่อนี้ตรงกับลูกค้า COD รหัส "+_mcust.code+"\n"):"")+"\nลูกค้า COD ควรลงทะเบียนรหัสก่อน — ยืนยันออกบิลมือ COD นี้?")) return;
+    }
     const nb={
       billNo, date:form.date, createdAt:new Date().toISOString(),
       clerkCode:staffCode, clerkName:staffName,
