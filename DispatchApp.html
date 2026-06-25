@@ -746,7 +746,7 @@ tr:hover td{background:#f8fffe}
 <div class="topbar">
   <span class="title">🚛 จัดการขนส่ง</span>
   <span id="session-info" style="font-size:11px;opacity:.8"></span>
-  <span style="font-size:10px;opacity:.65;margin-left:auto">build 2026-06-10z118</span>
+  <span style="font-size:10px;opacity:.65;margin-left:auto">build 2026-06-10z119</span>
   <a href="GolodApp.html" style="margin-left:10px">← หน้าหลัก</a>
 </div>
 <div class="container">
@@ -5588,7 +5588,7 @@ function renderClearRemarks(){
                 : '<span style="color:#E67E22;font-weight:700">⏳ รออนุมัติ</span>';
     var eff = _remarkEffective(r);
     var amtClr = eff>=0 ? "#0F6E56" : "#c0392b";
-    var adminBtns = (isAdmin && r.status==="pending")
+    var adminBtns = (isAdmin && r.status!=="approved" && r.status!=="rejected")
       ? ' <button onclick="approveRemark(\''+r.id+'\')" style="background:#0F6E56;color:#fff;border:none;border-radius:5px;padding:2px 8px;font-size:10px;cursor:pointer">อนุมัติ</button>'
         +' <button onclick="rejectRemark(\''+r.id+'\')" style="background:#c0392b;color:#fff;border:none;border-radius:5px;padding:2px 8px;font-size:10px;cursor:pointer">ไม่อนุมัติ</button>'
       : '';
