@@ -114,7 +114,7 @@ td.r,th.r{text-align:right}
 <div class="app hidden" id="app-main">
   <div class="hdr">
     <div>
-      <div class="hdr-logo">GOLOD · ตรวจสอบ COD <span style="font-size:10px;opacity:.6;font-weight:400">build 2026-06-25·b11</span></div>
+      <div class="hdr-logo">GOLOD · ตรวจสอบ COD <span style="font-size:10px;opacity:.6;font-weight:400">build 2026-06-25·b13</span></div>
       <div class="hdr-sub">เช็คเงินปลายทางที่เก็บแทนลูกค้าต้นทาง — เก็บครบไหม / โอนคืนเท่าไหร่</div>
     </div>
     <div class="hdr-pills" id="hdr-pills"></div>
@@ -139,6 +139,7 @@ td.r,th.r{text-align:right}
     <div class="tab" data-pg="voucher" onclick="showPage('voucher')">🧾 ใบจ่ายเงิน</div>
     <div class="tab" data-pg="bills" onclick="showPage('bills')">🧾 บิล COD ทั้งหมด</div>
     <div class="tab" data-pg="accounts" onclick="showPage('accounts')">🏦 ลูกค้า/บัญชีรับโอน</div>
+    <div class="tab" data-pg="codlist" onclick="showPage('codlist')">📋 ลูกค้า COD (มีรหัส)</div>
     <div class="tab" data-pg="report" onclick="showPage('report')">📈 รายงาน COD</div>
   </div>
 
@@ -149,6 +150,7 @@ td.r,th.r{text-align:right}
   <div class="page" id="page-bills"></div>
   <div class="page" id="page-accounts"></div>
   <div class="page" id="page-report"></div>
+  <div class="page" id="page-codlist"></div>
 </div>
 
 <div id="acct-modal" class="overlay hidden" onclick="if(event.target===this)closeAcct()">
@@ -502,7 +504,61 @@ function showPage(pg){
   document.querySelectorAll(".page").forEach(function(p){ p.classList.remove("active"); });
   document.getElementById("page-"+pg).classList.add("active");
 }
-function renderAll(){ renderDash(); renderTrips(); renderRemit(); renderVoucher(); renderBills(); renderAccounts(); renderReport(); renderPills(); }
+function renderCodList(){
+  var box=document.getElementById("page-codlist"); if(!box) return;
+  var rows=[];
+  Object.keys(ACCTS||{}).forEach(function(n){
+    var a=ACCTS[n]; var code=(a&&a.code)||"";
+    if(!code) return;
+    rows.push({code:code, name:n, phone:(a&&a.phone)||"", prov:(a&&a.prov)||""});
+  });
+  rows.sort(function(x,y){ return String(x.code).localeCompare(String(y.code),"th"); });
+  window._codListRows=rows;
+  var trs=rows.map(function(r,i){
+    return '<tr><td style="text-align:center;color:#888;border:1px solid #ddd;padding:6px 8px">'+(i+1)+'</td>'
+      +'<td style="font-weight:700;color:#0F6E56;border:1px solid #ddd;padding:6px 8px;white-space:nowrap">'+r.code+'</td>'
+      +'<td style="border:1px solid #ddd;padding:6px 8px">'+r.name+'</td>'
+      +'<td style="border:1px solid #ddd;padding:6px 8px;white-space:nowrap">'+(r.phone||"")+'</td>'
+      +'<td style="border:1px solid #ddd;padding:6px 8px">'+(r.prov||"")+'</td></tr>';
+  }).join("");
+  box.innerHTML=''
+    +'<div class="vc-noprint" style="display:flex;gap:8px;align-items:center;margin-bottom:10px;flex-wrap:wrap">'
+    +'<div style="font-weight:700;font-size:15px">📋 ลูกค้า COD ที่มีรหัสแล้ว ('+rows.length+' ราย)</div>'
+    +'<button class="btn btn-green" style="margin-left:auto" onclick="printCodList()">🖨 พิมพ์ให้พนักงาน</button>'
+    +'</div>'
+    +'<div class="acct-line" style="margin-bottom:8px">ลูกค้าที่ยังไม่มีรหัส (ชื่อซ้ำ/คล้าย) จะไม่แสดงในนี้ — ไปจัดการ/ตัดทิ้งที่แท็บ \u201c🏦 ลูกค้า/บัญชีรับโอน\u201d</div>'
+    +(rows.length? '<table style="width:100%;border-collapse:collapse;font-size:13px"><thead><tr><th style="background:#0F6E56;color:#fff;border:1px solid #0F6E56;padding:6px 8px;width:34px">#</th><th style="background:#0F6E56;color:#fff;border:1px solid #0F6E56;padding:6px 8px;text-align:left">รหัส</th><th style="background:#0F6E56;color:#fff;border:1px solid #0F6E56;padding:6px 8px;text-align:left">ชื่อลูกค้า</th><th style="background:#0F6E56;color:#fff;border:1px solid #0F6E56;padding:6px 8px;text-align:left">เบอร์</th><th style="background:#0F6E56;color:#fff;border:1px solid #0F6E56;padding:6px 8px;text-align:left">จังหวัด</th></tr></thead><tbody>'+trs+'</tbody></table>' : '<div class="empty">ยังไม่มีลูกค้า COD ที่มีรหัส</div>');
+}
+function printCodList(){
+  var rows=window._codListRows||[];
+  if(!rows.length){ alert("ยังไม่มีลูกค้า COD ที่มีรหัส"); return; }
+  var trs=rows.map(function(r,i){
+    return '<tr><td style="text-align:center;color:#888">'+(i+1)+'</td><td style="font-weight:700;color:#0F6E56;white-space:nowrap">'+r.code+'</td><td>'+r.name+'</td><td style="white-space:nowrap">'+(r.phone||"")+'</td><td>'+(r.prov||"")+'</td></tr>';
+  }).join("");
+  var dstr=new Date().toLocaleDateString("th-TH",{year:"numeric",month:"long",day:"numeric"});
+  var html='<!DOCTYPE html><html lang="th"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>รายชื่อลูกค้า COD</title>'
+    +'<style>*{box-sizing:border-box}body{font-family:"Sarabun","Tahoma",sans-serif;margin:0;background:#e9eced;color:#222}'
+    +'.bar{position:sticky;top:0;background:#0F6E56;color:#fff;padding:10px 14px;display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap}'
+    +'.bar .hint{font-size:12px}.bar button{background:#fff;color:#0F6E56;border:none;border-radius:8px;padding:8px 18px;font-size:14px;font-weight:700;cursor:pointer}'
+    +'.wrap{padding:14px;display:flex;justify-content:center}.page{background:#fff;width:100%;max-width:760px;padding:22px 24px;border-radius:6px;box-shadow:0 2px 14px rgba(0,0,0,.12)}'
+    +'h2{color:#0F6E56;margin:0 0 2px;font-size:19px}.sub{color:#888;font-size:12px;margin-bottom:14px}'
+    +'.warn{background:#fff8ec;border:1px solid #f0c97a;color:#a06a00;border-radius:7px;padding:8px 10px;font-size:12px;margin-bottom:12px}'
+    +'table{width:100%;border-collapse:collapse;font-size:13px}th,td{border:1px solid #ccc;padding:6px 8px}th{background:#0F6E56;color:#fff;text-align:left}'
+    +'@media(max-width:480px){.page{padding:14px 12px}table{font-size:11px}th,td{padding:4px 5px}h2{font-size:16px}}'
+    +'@media print{@page{size:A4;margin:12mm}body{background:#fff}.bar{display:none}.wrap{padding:0}.page{max-width:none;width:auto;box-shadow:none;border-radius:0;padding:0}}'
+    +'</style></head><body>'
+    +'<div class="bar"><span class="hint">\ud83d\udcf1 แคปหน้าจอส่งพนักงานได้เลย — หรือกดพิมพ์ A4</span><button onclick="window.print()">\ud83d\udda8 พิมพ์ A4</button></div>'
+    +'<div class="wrap"><div class="page">'
+    +'<h2>\ud83d\udccb รายชื่อลูกค้า COD (ลงทะเบียนรหัสแล้ว)</h2>'
+    +'<div class="sub">บริษัท โกโลด ทรานสปอร์ต จำกัด · พิมพ์เมื่อ '+dstr+' · ทั้งหมด '+rows.length+' ราย</div>'
+    +'<div class="warn">\u26a0\ufe0f ลูกค้า COD ต้องใช้ \u201cรหัส\u201d ตอนออกบิลทุกครั้ง — ห้ามพิมพ์ชื่อแทน</div>'
+    +'<table><thead><tr><th style="width:34px">#</th><th>รหัส</th><th>ชื่อลูกค้า</th><th>เบอร์</th><th>จังหวัด</th></tr></thead><tbody>'+trs+'</tbody></table>'
+    +'</div></div></body></html>';
+  var w=window.open("","_blank");
+  if(!w){ alert("เปิดหน้าต่างพิมพ์ไม่ได้ — อนุญาต popup ก่อนครับ"); return; }
+  w.document.write(html); w.document.close();
+}
+function renderAll(){ renderDash(); renderTrips(); renderRemit(); renderVoucher(); renderBills(); renderAccounts(); renderReport(); renderPills(); renderCodList(); }
 
 function renderPills(){
   var bills=codBillsFiltered();
@@ -1173,8 +1229,12 @@ function openAssign(){
   var box=document.getElementById("assign-list");
   box.innerHTML='<div class="acct-line">กำลังโหลดผู้ใช้…</div>';
   document.getElementById("assign-modal").classList.remove("hidden");
-  var p=(typeof GolodDB!=="undefined"&&GolodDB.getUsers)?GolodDB.getUsers():Promise.resolve([]);
-  p.then(function(users){
+  Promise.all([
+    Settings.loadViewers(),
+    Settings.loadAdders(),
+    (typeof GolodDB!=="undefined"&&GolodDB.getUsers)?GolodDB.getUsers():Promise.resolve([])
+  ]).then(function(_r){
+    var users=_r[2];
     users=(users||[]).filter(function(u){ return u.role!=="customer"; });
     users.sort(function(a,b){ return (a.role+(a.name||""))>(b.role+(b.name||""))?1:-1; });
     var roleLabels={admin:"แอดมิน",branch:"หัวหน้าสาขา",clerk:"เสมียน",driver:"คนขับ"};
