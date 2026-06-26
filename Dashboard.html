@@ -1,0 +1,545 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta http-equiv="Cache-Control" content="no-cache,no-store,must-revalidate">
+<title>โกโลด — แดชบอร์ด</title>
+<script src="session.js"></script>
+<script src="firebase-app-compat.js"></script>
+<script src="firebase-firestore-compat.js"></script>
+<script src="golod-firebase.js?v=1779235612"></script>
+<script>try{GolodDB.init();}catch(e){}</script>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:'Sarabun',Arial,sans-serif;background:#f5f5f2;font-size:13px;color:#222}
+.topbar{background:#0F6E56;color:#fff;padding:10px 16px;display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+.topbar a{color:#fff;text-decoration:none;font-size:12px;opacity:.85}
+.topbar a:hover{opacity:1}
+.topbar .title{font-weight:700;font-size:15px;flex:1;min-width:180px}
+.topbar input[type=date]{padding:5px 8px;border:none;border-radius:6px;font-family:inherit;font-size:12px}
+.topbar button{padding:5px 12px;background:rgba(255,255,255,.2);color:#fff;border:1px solid rgba(255,255,255,.4);border-radius:6px;cursor:pointer;font-size:12px}
+.topbar button:hover{background:rgba(255,255,255,.3)}
+.container{max-width:1400px;margin:0 auto;padding:12px}
+.branch-banner{background:#0F6E56;color:#fff;padding:8px 12px;font-size:13px;font-weight:700;text-align:center}
+
+/* KPI cards (top row) */
+.kpi-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:10px;margin-bottom:12px}
+.kpi{background:#fff;border-radius:12px;padding:14px 16px;box-shadow:0 1px 4px rgba(0,0,0,.06);border-left:5px solid #0F6E56;position:relative;min-height:96px}
+.kpi.green{border-left-color:#0F6E56}
+.kpi.red{border-left-color:#C0392B}
+.kpi.orange{border-left-color:#E67E22}
+.kpi.blue{border-left-color:#2471A3}
+.kpi .k-lbl{font-size:12px;color:#777;font-weight:600;display:flex;align-items:center;gap:6px}
+.kpi .k-val{font-size:30px;font-weight:800;color:#0F6E56;line-height:1.1;margin-top:6px}
+.kpi.red .k-val{color:#C0392B}.kpi.orange .k-val{color:#E67E22}.kpi.blue .k-val{color:#2471A3}
+.kpi .k-sub{font-size:11px;color:#999;margin-top:4px}
+.kpi .k-unit{font-size:14px;font-weight:600;color:#bbb;margin-left:3px}
+.delta{display:inline-block;font-size:11px;font-weight:700;padding:1px 6px;border-radius:8px;margin-left:4px}
+.delta.up{background:#e6f6ee;color:#1d9e75}.delta.down{background:#fdeaea;color:#C0392B}.delta.flat{background:#f0f0f0;color:#888}
+
+/* content cards */
+.grid2{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.grid3{display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:12px}
+.card{background:#fff;border-radius:12px;padding:14px 16px;margin-bottom:12px;box-shadow:0 1px 4px rgba(0,0,0,.06)}
+.card-title{font-size:13px;font-weight:700;color:#0F6E56;margin-bottom:12px;border-bottom:1px solid #e8f5f0;padding-bottom:8px;display:flex;align-items:center;gap:6px}
+.card-title .right{margin-left:auto;font-size:11px;color:#999;font-weight:400}
+
+table{width:100%;border-collapse:collapse;font-size:12px}
+th{background:#f0faf5;padding:7px 8px;text-align:right;font-weight:700;color:#0F6E56;border-bottom:2px solid #d0ede5;white-space:nowrap}
+th:first-child{text-align:left}
+td{padding:6px 8px;border-bottom:1px solid #f0f0f0;text-align:right}
+td:first-child{text-align:left;font-weight:600}
+tr:hover td{background:#f8fffe}
+
+/* horizontal bar */
+.bar-row{display:flex;align-items:center;gap:8px;margin:7px 0}
+.bar-row .bl{width:78px;font-size:12px;font-weight:600;color:#444;flex-shrink:0}
+.bar-track{flex:1;background:#f0f0f0;border-radius:6px;height:18px;overflow:hidden;position:relative}
+.bar-fill{height:100%;border-radius:6px;transition:width .4s}
+.bar-row .bv{width:90px;text-align:right;font-size:12px;font-weight:700;color:#0F6E56;flex-shrink:0}
+
+/* status pills */
+.status-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}
+.st-box{border-radius:10px;padding:12px;text-align:center}
+.st-box .sv{font-size:24px;font-weight:800}
+.st-box .sl{font-size:11px;font-weight:600;margin-top:2px}
+.st-box.go{background:#fff8ef}.st-box.go .sv{color:#E67E22}
+.st-box.ok{background:#edf8f2}.st-box.ok .sv{color:#1d9e75}
+.st-box.wait{background:#f3f3f3}.st-box.wait .sv{color:#777}
+
+/* recon */
+.recon-row{display:flex;align-items:center;gap:10px;margin:8px 0}
+.recon-row .rl{width:120px;font-size:12px;font-weight:600;color:#444}
+.recon-row input{flex:1;padding:7px 10px;border:1px solid #ddd;border-radius:7px;font-family:inherit;font-size:14px;text-align:right;font-weight:700}
+.recon-row input:read-only{background:#f6f6f4;color:#0F6E56;border-color:#e0e0dc}
+.recon-result{margin-top:10px;padding:10px 12px;border-radius:9px;font-weight:700;font-size:13px;text-align:center}
+.recon-result.match{background:#edf8f2;color:#1d9e75}
+.recon-result.diff{background:#fdeaea;color:#C0392B}
+
+/* setup placeholder for not-yet-wired cards */
+.setup{background:#fffbeb;border:1px dashed #e0c060;border-radius:9px;padding:12px 14px;font-size:12px;color:#8a6d1a;line-height:1.6}
+.setup code{background:#fff3cf;padding:1px 6px;border-radius:5px;font-weight:700}
+.loading{text-align:center;padding:30px;color:#999}
+.muted{color:#999;font-size:11px}
+@media(max-width:760px){.grid2{grid-template-columns:1fr}}
+@media print{.topbar button,.topbar input{display:none}}
+</style>
+</head>
+<body>
+<div class="topbar">
+  <span class="title">🗂️ แดชบอร์ด — โกโลด ทรานสปอร์ต <span style="font-size:10px;opacity:.7;font-weight:400">build 2026-06-26·d1</span></span>
+  <input type="date" id="date-pick">
+  <button onclick="reload()">🔄 รีเฟรช</button>
+  <a href="GolodApp.html">← หน้าหลัก</a>
+</div>
+
+<div class="container">
+  <div id="dash"><div class="loading">⏳ กำลังโหลดข้อมูล...</div></div>
+</div>
+
+<script>
+/* =====================================================================
+   GOLOD DASHBOARD — หน้าแรกสรุปภาพรวม (อ่าน Firestore ตรง)
+   ใช้โครงเดียวกับ SalesReport: GolodDB.getBillsNew() + parseBillDate/getZone/getBranch
+   ---------------------------------------------------------------------
+   🔧 CONFIG — แก้ชื่อ collection / field ให้ตรงระบบจริง แล้วการ์ดที่เหลือจะติดทันที
+   ===================================================================== */
+var CFG = {
+  // -- สถานะจัดส่ง: DriverApp เขียน field "status" ลงบิลแล้ว ("ส่งสำเร็จ"/"ส่งไม่สำเร็จ")
+  //    พร้อม deliveredAt / failReason — Dashboard อ่านขึ้นมาแสดงโดยตรง --
+  statusField:     "status",
+  statusDelivered: ["ส่งสำเร็จ","สำเร็จ","delivered","success","done"],
+  statusFailed:    ["ส่งไม่สำเร็จ","ไม่สำเร็จ","ตีกลับ","failed","return","reject"],
+  // pending = บิลที่ยังไม่มีค่า status (คนขับยังไม่กดส่ง)
+
+  // -- งานเข้ารับ (pickups): "ค้าง" = ยังไม่มี dispatchedAt --
+  pickupCollection:      "pickups",
+  pickupDateField:       "createdAt",
+  pickupDispatchedField: "dispatchedAt",
+  pickupBranchField:     "branch",
+
+  // -- ใบวิ่งงาน (trips): นับใบที่ createdAt = วันที่เลือก --
+  tripCollection:  "trips",
+  tripDateField:   "createdAt",
+  tripBranchField: "branch",
+
+  // -- การกระทบยอด: เก็บค่าที่กรอกเองลง Firestore --
+  reconCollection: "dashRecon"
+};
+
+/* แปลงชื่อสาขา (ไทย/code) → code มาตรฐาน bkk/ptm/krt/ssk */
+function normBranch(s){
+  s=String(s||"");
+  if(["bkk","ptm","krt","ssk"].indexOf(s)>=0) return s;
+  if(s.indexOf("ปทุม")>=0) return "ptm";
+  if(s.indexOf("นครราช")>=0||s.indexOf("โคราช")>=0) return "krt";
+  if(s.indexOf("ศรีสะเกษ")>=0) return "ssk";
+  if(s.indexOf("กรุงเทพ")>=0) return "bkk";
+  return "";
+}
+
+/* ===== SESSION CHECK (Admin / Branch เท่านั้น) ===== */
+(function(){
+  var s = typeof GolodSession!=="undefined" ? GolodSession.get() : null;
+  if(!s || (s.role!=="admin" && s.role!=="branch")){
+    document.body.innerHTML='<div style="text-align:center;padding:60px;color:#c00;font-size:16px">⛔ สำหรับ Admin/Branch เท่านั้น<br><br><a href="GolodApp.html">← กลับหน้าหลัก</a></div>';
+    throw new Error("unauthorized");
+  }
+})();
+
+/* ===== หัวหน้าสาขา = ดูเฉพาะสาขาตัวเอง ===== */
+var DASH_SESSION = (typeof GolodSession!=="undefined" ? GolodSession.get() : null) || {};
+var MY_ZONE = "";
+(function(){
+  var br = DASH_SESSION.branch;
+  if(DASH_SESSION.role==="branch" && br && br!=="all"){
+    var s=String(br);
+    if(["bkk","ptm","krt","ssk"].indexOf(s)>=0) MY_ZONE=s;
+    else if(s.indexOf("ปทุม")>=0) MY_ZONE="ptm";
+    else if(s.indexOf("นครราช")>=0||s.indexOf("โคราช")>=0) MY_ZONE="krt";
+    else if(s.indexOf("ศรีสะเกษ")>=0) MY_ZONE="ssk";
+    else if(s.indexOf("กรุงเทพ")>=0||s.indexOf("กทม")>=0) MY_ZONE="bkk";
+  }
+})();
+var MY_ZONE_LABEL = ({bkk:"กรุงเทพ/ปริมณฑล",ptm:"ปทุมธานี",krt:"นครราชสีมา",ssk:"ศรีสะเกษ"})[MY_ZONE] || "";
+if(MY_ZONE){
+  window.addEventListener("DOMContentLoaded",function(){
+    var bn=document.createElement("div");
+    bn.className="branch-banner";
+    bn.textContent="🏢 ดูเฉพาะสาขา: "+MY_ZONE_LABEL+" (หัวหน้าสาขา)";
+    document.body.insertBefore(bn, document.querySelector(".container"));
+  });
+}
+
+/* ===== ZONE / BRANCH (เหมือน SalesReport) ===== */
+var ZONE_MAP = {
+  BKK:    {label:"BKK",   clr:"#c0392b", provinces:["กรุงเทพมหานคร","ปทุมธานี","นนทบุรี","สมุทรปราการ","สมุทรสาคร"]},
+  West:   {label:"West",  clr:"#d35400", provinces:["ราชบุรี","นครปฐม","สุพรรณบุรี","กาญจนบุรี"]},
+  South:  {label:"South", clr:"#27ae60", provinces:["สมุทรสงคราม","เพชรบุรี","ประจวบคีรีขันธ์","ชุมพร","ระนอง","สุราษฎร์ธานี","นครศรีธรรมราช","กระบี่","พังงา","ภูเก็ต","ตรัง","พัทลุง","สตูล","สงขลา","ปัตตานี","ยะลา","นราธิวาส"]},
+  North:  {label:"North", clr:"#2471a3", provinces:["นครสวรรค์","กำแพงเพชร","อุทัยธานี","ตาก","พิษณุโลก","พิจิตร","อุตรดิตถ์","สุโขทัย","เพชรบูรณ์","ลำปาง","ลำพูน","เชียงใหม่","แพร่","น่าน","แม่ฮ่องสอน","เชียงราย","พะเยา"]},
+  East:   {label:"East",  clr:"#8e44ad", provinces:["ชลบุรี","ระยอง","จันทบุรี","ตราด","สระแก้ว","ฉะเชิงเทรา","นครนายก","ปราจีนบุรี"]},
+  Central:{label:"Central",clr:"#0f6e56",provinces:["ชัยนาท","ลพบุรี","สระบุรี","อ่างทอง","สิงห์บุรี","พระนครศรีอยุธยา"]},
+  Korat:  {label:"Korat", clr:"#b7950b", provinces:["นครราชสีมา"]},
+  LEsan:  {label:"LEsan", clr:"#a93226", provinces:["สุรินทร์","ศรีสะเกษ","อุบลราชธานี","ยโสธร","อำนาจเจริญ"]},
+  Esan:   {label:"Esan",  clr:"#1a5276", provinces:["ชัยภูมิ","หนองบัวลำภู","อุดรธานี","หนองคาย","ขอนแก่น","บึงกาฬ","สกลนคร","มหาสารคาม","ร้อยเอ็ด","กาฬสินธุ์","มุกดาหาร","นครพนม"]}
+};
+var BRANCH_MAP = {bkk:"กรุงเทพ", ptm:"ปทุมธานี", krt:"นครราชสีมา", ssk:"ศรีสะเกษ"};
+var BRANCH_CLR = {bkk:"#0F6E56", ptm:"#2471A3", krt:"#b7950b", ssk:"#a93226"};
+var PAY_TYPES = [
+  {key:"origin",  label:"ต้นทาง", color:"#1D9E75"},
+  {key:"dest",    label:"ปลายทาง",color:"#E67E22"},
+  {key:"transfer",label:"โอน",    color:"#2471A3"},
+  {key:"credit",  label:"เครดิต", color:"#8E44AD"},
+  {key:"cod",     label:"COD",    color:"#C0392B"}
+];
+
+function getZone(prov, amphoe){
+  prov=prov||""; amphoe=amphoe||"";
+  if(prov==="เลย") return ["ด่านซ้าย","นาแห้ว","ภูเรือ"].indexOf(amphoe)>=0?"North":"Esan";
+  if(prov==="บุรีรัมย์") return ["บ้านใหม่ไชยพจน์","พุทไธสง","นาโพธิ์"].indexOf(amphoe)>=0?"Esan":"LEsan";
+  if(prov==="เพชรบูรณ์") return amphoe==="น้ำหนาว"?"Esan":"North";
+  for(var z in ZONE_MAP){ if(ZONE_MAP[z].provinces.indexOf(prov)>=0) return z; }
+  return "Other";
+}
+function _clerkCodeOf(b){
+  var raw=b.billNo||(b.form&&b.form.billNo)||b.clerkCode||(b.form&&b.form.clerkCode)||b.staff||(b.form&&b.form.staff)||"";
+  var m=String(raw).toUpperCase().match(/[A-Z]+/);
+  return m?m[0]:"";
+}
+function getBranch(b){
+  function norm(s){
+    s=String(s||"");
+    if(["bkk","ptm","krt","ssk"].indexOf(s)>=0) return s;
+    if(s.indexOf("ปทุม")>=0) return "ptm";
+    if(s.indexOf("นครราช")>=0||s.indexOf("โคราช")>=0) return "krt";
+    if(s.indexOf("ศรีสะเกษ")>=0) return "ssk";
+    if(s.indexOf("กรุงเทพ")>=0) return "bkk";
+    return "";
+  }
+  var byName=norm(b.originBranch||(b.form&&b.form.originBranch)||b.branch);
+  if(byName) return byName;
+  var cc=_clerkCodeOf(b);
+  if(cc.indexOf("P")===0) return "ptm";
+  if(cc.indexOf("K")===0) return "krt";
+  if(cc.indexOf("S")===0||cc.indexOf("H")===0) return "ssk";
+  return "bkk";
+}
+function getBillPay(b){ return b.freightPay||(b.form&&typeof b.form==="object"?b.form.freightPay:null)||"origin"; }
+function getBillProv(b){ return b.destProv||(b.form&&typeof b.form==="object"?b.form.destProv:null)||""; }
+function getBillAmphoe(b){ return b.destAmphoe||(b.form&&typeof b.form==="object"?b.form.destAmphoe:null)||""; }
+function getBillStatus(b){
+  var f=(b.form&&typeof b.form==="object")?b.form:{};
+  return String(b[CFG.statusField]||f[CFG.statusField]||"").trim();
+}
+
+function fmt(n){ return (Math.round(n)||0).toLocaleString("th-TH"); }
+function fmt0(n){ var v=Math.round(parseFloat(n)||0); return v.toLocaleString("th-TH"); }
+
+/* parse วันที่ — ใช้ b.date ก่อน (createdAt เป็น UTC) */
+function parseAnyDate(v){
+  if(!v) return null;
+  if(typeof v==="object" && typeof v.toDate==="function"){ try{return v.toDate();}catch(e){} }
+  if(typeof v==="object" && v.seconds!==undefined){ return new Date(v.seconds*1000); }
+  if(typeof v==="string"){
+    if(v.indexOf("-")===4 && v.length>=10){
+      var p=v.substring(0,10).split("-");
+      return new Date(parseInt(p[0]),parseInt(p[1])-1,parseInt(p[2]));
+    }
+    var t=v.split("/");
+    if(t.length>=3){ var y=parseInt(t[2]); if(y>2400) y-=543; return new Date(y,parseInt(t[1])-1,parseInt(t[0])); }
+    var d1=new Date(v); if(!isNaN(d1.getTime())) return d1;
+  }
+  return null;
+}
+function parseBillDate(b){ return parseAnyDate(b.date||b.createdAt||""); }
+function sameDay(d, ref){
+  if(!d) return false;
+  return d.getFullYear()===ref.getFullYear() && d.getMonth()===ref.getMonth() && d.getDate()===ref.getDate();
+}
+function fmtDateTH(d){ return d.getDate()+"/"+(d.getMonth()+1)+"/"+(d.getFullYear()+543); }
+function isoOf(d){ return d.getFullYear()+"-"+String(d.getMonth()+1).padStart(2,"0")+"-"+String(d.getDate()).padStart(2,"0"); }
+
+/* ===== STATE ===== */
+var allBills=[];
+var selDate=new Date();
+var pickupDocs=null, pickupErr=null;
+var tripDocs=null, tripErr=null;
+
+function fdb(){ try{ return firebase.firestore(); }catch(e){ return null; } }
+
+/* อ่าน collection แบบ generic (สำหรับ pickup / trip) */
+function fetchCollection(name, limit){
+  return new Promise(function(res,rej){
+    var db=fdb();
+    if(!db){ rej(new Error("no-firestore")); return; }
+    db.collection(name).limit(limit||800).get().then(function(snap){
+      var out=[]; snap.forEach(function(doc){ var d=doc.data()||{}; d._id=doc.id; out.push(d); });
+      res(out);
+    }).catch(rej);
+  });
+}
+
+/* ===================== KPI ROW ===================== */
+function bills_on(ref){ return allBills.filter(function(b){ return sameDay(parseBillDate(b),ref); }); }
+
+function calcDay(ref){
+  var list=bills_on(ref), net=0, cod=0, codBills=0, transfer=0;
+  var byPay={origin:0,dest:0,transfer:0,credit:0,cod:0};
+  var byBranch={bkk:0,ptm:0,krt:0,ssk:0};
+  var byZone={};
+  list.forEach(function(b){
+    var branch=getBranch(b);
+    if(MY_ZONE && branch!==MY_ZONE) return;
+    var n=parseFloat(b.freightNet||0);
+    var c=parseFloat(b.codTotal||0);
+    var pay=getBillPay(b);
+    net+=n;
+    if(byPay[pay]!==undefined) byPay[pay]+=n; else byPay.origin+=n;
+    if(c>0){ cod+=c; codBills++; byPay.cod+=c; }
+    if(pay==="transfer") transfer+=n;
+    if(byBranch[branch]!==undefined) byBranch[branch]+=n;
+    var z=getZone(getBillProv(b),getBillAmphoe(b));
+    if(!byZone[z]) byZone[z]={total:0,bills:0};
+    byZone[z].total+=n; byZone[z].bills++;
+  });
+  return {list:list,count:list.filter(function(b){return !MY_ZONE||getBranch(b)===MY_ZONE;}).length,
+    net:net,cod:cod,codBills:codBills,transfer:transfer,byPay:byPay,byBranch:byBranch,byZone:byZone};
+}
+
+/* สถานะจัดส่ง — คีย์ด้วย deliveredAt (กิจกรรมส่งของวันนั้น) + ค้าง = บิลที่ออกวันนั้นแต่ยังไม่มี status */
+function calcDelivery(ref){
+  var delivered=0, failed=0, pending=0, hasAny=false;
+  allBills.forEach(function(b){
+    if(MY_ZONE && getBranch(b)!==MY_ZONE) return;
+    var sv=getBillStatus(b);
+    if(sv) hasAny=true;
+    var isDeliv=CFG.statusDelivered.indexOf(sv)>=0;
+    var isFail =CFG.statusFailed.indexOf(sv)>=0;
+    if(isDeliv||isFail){
+      if(sameDay(parseAnyDate(b.deliveredAt),ref)){ if(isDeliv) delivered++; else failed++; }
+    } else if(sameDay(parseBillDate(b),ref)){
+      pending++;   // ออกบิลวันนั้น ยังไม่กดส่ง
+    }
+  });
+  return {delivered:delivered, failed:failed, pending:pending, hasAny:hasAny};
+}
+
+function deltaTag(today, yest){
+  if(!yest){ return ''; }
+  var diff=today-yest, pct=yest?Math.round(diff/yest*100):0;
+  if(Math.abs(pct)<1) return '<span class="delta flat">±0%</span>';
+  var cls=diff>0?"up":"down", arrow=diff>0?"▲":"▼";
+  return '<span class="delta '+cls+'">'+arrow+Math.abs(pct)+'%</span>';
+}
+
+function renderKPIs(today, yest, deliv){
+  var failHtml = deliv.hasAny
+    ? '<div class="k-val">'+fmt(deliv.failed)+'<span class="k-unit">งาน</span></div><div class="k-sub">ตีกลับวันนี้ · ส่งสำเร็จ '+fmt(deliv.delivered)+'</div>'
+    : '<div class="k-val" style="color:#ccc;font-size:20px">—</div><div class="k-sub">ยังไม่มีคนขับกดอัปเดต</div>';
+
+  var pickupHtml;
+  if(pickupErr) pickupHtml='<div class="k-val" style="color:#ccc;font-size:20px">— ⚙️</div><div class="k-sub">ตั้ง <code>CFG.pickupCollection</code></div>';
+  else if(pickupDocs===null) pickupHtml='<div class="k-val muted" style="font-size:16px">กำลังโหลด…</div>';
+  else{
+    var pend=pickupDocs.filter(function(p){
+      if(MY_ZONE && normBranch(p[CFG.pickupBranchField])!==MY_ZONE) return false;
+      return !p[CFG.pickupDispatchedField];   // ยังไม่จ่ายงาน = ค้าง
+    }).length;
+    pickupHtml='<div class="k-val">'+fmt(pend)+'<span class="k-unit">งาน</span></div><div class="k-sub">รอจ่ายงาน (ยังไม่ dispatch)</div>';
+  }
+
+  return '<div class="kpi-grid">'
+    +'<div class="kpi green"><div class="k-lbl">💰 รายได้วันนี้ '+deltaTag(today.net,yest.net)+'</div>'
+      +'<div class="k-val">'+fmt(today.net)+'<span class="k-unit">฿</span></div>'
+      +'<div class="k-sub">'+today.count+' บิล · เมื่อวาน '+fmt(yest.net)+' ฿</div></div>'
+    +'<div class="kpi red"><div class="k-lbl">📦 COD ต้องเก็บวันนี้</div>'
+      +'<div class="k-val">'+fmt(today.cod)+'<span class="k-unit">฿</span></div>'
+      +'<div class="k-sub">'+today.codBills+' บิล · คนขับเก็บกับผู้รับ</div></div>'
+    +'<div class="kpi orange"><div class="k-lbl">⚠️ งานส่งไม่สำเร็จ</div>'+failHtml+'</div>'
+    +'<div class="kpi blue"><div class="k-lbl">🚚 งานเข้ารับค้าง</div>'+pickupHtml+'</div>'
+    +'</div>';
+}
+
+/* ===================== STATUS CARD ===================== */
+function renderStatus(today, deliv){
+  if(!deliv.hasAny){
+    return '<div class="card"><div class="card-title">📍 สถานะจัดส่งวันนี้</div>'
+      +'<div class="setup">ยังไม่มีบิลใดถูกอัปเดตสถานะ — สถานะจะขึ้นเมื่อคนขับกด <b>ส่งสำเร็จ / ส่งไม่สำเร็จ</b> ใน DriverApp (เขียน field <code>status</code> + <code>deliveredAt</code> ลงบิล)</div></div>';
+  }
+  var rows=[
+    {l:"ส่งสำเร็จวันนี้",v:deliv.delivered,cls:"ok"},
+    {l:"ตีกลับวันนี้",v:deliv.failed,cls:"go"},
+    {l:"ออกบิลวันนี้·ยังไม่ส่ง",v:deliv.pending,cls:"wait"}
+  ];
+  var boxes=rows.map(function(r){
+    return '<div class="st-box '+r.cls+'"><div class="sv">'+fmt(r.v)+'</div><div class="sl">'+r.l+'</div></div>';
+  }).join("");
+  return '<div class="card"><div class="card-title">📍 สถานะจัดส่งวันนี้ <span class="right">นับจากวันที่คนขับกดส่ง</span></div>'
+    +'<div class="status-grid">'+boxes+'</div></div>';
+}
+
+/* ===================== BRANCH CARD (bars) ===================== */
+function renderBranch(today){
+  var max=Math.max(1, today.byBranch.bkk, today.byBranch.ptm, today.byBranch.krt, today.byBranch.ssk);
+  var keys = MY_ZONE ? [MY_ZONE] : ["bkk","ptm","krt","ssk"];
+  var rows=keys.map(function(k){
+    var v=today.byBranch[k]||0, w=Math.round(v/max*100);
+    return '<div class="bar-row"><div class="bl">'+BRANCH_MAP[k]+'</div>'
+      +'<div class="bar-track"><div class="bar-fill" style="width:'+w+'%;background:'+BRANCH_CLR[k]+'"></div></div>'
+      +'<div class="bv">'+fmt(v)+' ฿</div></div>';
+  }).join("");
+  return '<div class="card"><div class="card-title">🏢 ยอดแยกสาขา</div>'+rows+'</div>';
+}
+
+/* ===================== PAY-TYPE CARD ===================== */
+function renderPay(today){
+  var total=today.net||1;
+  var rows=PAY_TYPES.filter(function(p){return p.key!=="cod";}).map(function(p){
+    var v=today.byPay[p.key]||0, w=Math.round(v/total*100);
+    return '<div class="bar-row"><div class="bl">'+p.label+'</div>'
+      +'<div class="bar-track"><div class="bar-fill" style="width:'+w+'%;background:'+p.color+'"></div></div>'
+      +'<div class="bv">'+fmt(v)+' ฿</div></div>';
+  }).join("");
+  return '<div class="card"><div class="card-title">💳 แยกตามวิธีชำระ</div>'+rows+'</div>';
+}
+
+/* ===================== ZONE CARD ===================== */
+function renderZone(today){
+  var keys=Object.keys(ZONE_MAP).filter(function(z){ return today.byZone[z] && today.byZone[z].bills>0; });
+  if(keys.length===0) return '<div class="card"><div class="card-title">🗺️ ยอดแยกโซน</div><div class="muted" style="padding:10px">ยังไม่มีบิลในวันที่เลือก</div></div>';
+  keys.sort(function(a,b){ return today.byZone[b].total-today.byZone[a].total; });
+  var rows=keys.map(function(z){
+    var zd=today.byZone[z];
+    return '<tr><td><span style="display:inline-block;width:9px;height:9px;border-radius:50%;background:'+ZONE_MAP[z].clr+';margin-right:5px"></span>'+z+'</td>'
+      +'<td>'+fmt(zd.total)+'</td><td style="color:#888">'+zd.bills+'</td></tr>';
+  }).join("");
+  return '<div class="card"><div class="card-title">🗺️ ยอดแยกโซน</div>'
+    +'<table><tr><th>โซน</th><th>ยอด ฿</th><th>บิล</th></tr>'+rows+'</table></div>';
+}
+
+/* ===================== TRIP CARD ===================== */
+function renderTrip(){
+  if(tripErr){
+    return '<div class="card"><div class="card-title">🧾 ใบวิ่งงานวันนี้</div>'
+      +'<div class="setup">ยังไม่พบ collection <code>'+CFG.tripCollection+'</code><br>➤ แก้ <code>CFG.tripCollection</code> และ <code>CFG.tripDateField</code> ให้ตรงระบบ trip จริง</div></div>';
+  }
+  if(tripDocs===null) return '<div class="card"><div class="card-title">🧾 ใบวิ่งงานวันนี้</div><div class="loading">กำลังโหลด…</div></div>';
+  var today=tripDocs.filter(function(t){
+    if(MY_ZONE && normBranch(t[CFG.tripBranchField])!==MY_ZONE) return false;
+    return sameDay(parseAnyDate(t[CFG.tripDateField]),selDate);
+  });
+  var totalBills=today.reduce(function(s,t){ return s + (Array.isArray(t.billIds)?t.billIds.length:(t.billCount||0)); },0);
+  return '<div class="card"><div class="card-title">🧾 ใบวิ่งงานวันนี้ <span class="right">'+today.length+' ใบ</span></div>'
+    +(today.length?('<div style="font-size:30px;font-weight:800;color:#0F6E56">'+fmt(today.length)+'<span style="font-size:14px;color:#bbb"> ใบวิ่ง</span></div>'
+      +'<div class="muted" style="margin-top:4px">รวม '+fmt(totalBills)+' บิลในใบวิ่งงานวันนี้</div>')
+      :'<div class="muted" style="padding:6px 0">ยังไม่มีใบวิ่งงานวันนี้</div>')
+    +'</div>';
+}
+
+/* ===================== RECON CARD (App auto + BE/BBL manual → Firestore) ===================== */
+function renderRecon(today){
+  return '<div class="card"><div class="card-title">⚖️ กระทบยอดเงินวันนี้ <span class="right">App · BE · BBL</span></div>'
+    +'<div class="recon-row"><div class="rl">App (โอนจากบิล)</div><input id="rc-app" type="text" readonly value="'+fmt(today.transfer)+'"></div>'
+    +'<div class="recon-row"><div class="rl">BE Merchant</div><input id="rc-be" type="number" inputmode="decimal" placeholder="กรอกยอดพร้อมเพย์"></div>'
+    +'<div class="recon-row"><div class="rl">BBL (เข้าบัญชี)</div><input id="rc-bbl" type="number" inputmode="decimal" placeholder="กรอกยอดเข้าธนาคาร"></div>'
+    +'<div style="display:flex;gap:8px;margin-top:4px"><button onclick="saveRecon()" style="flex:1;padding:8px;background:#0F6E56;color:#fff;border:none;border-radius:8px;font-weight:700;cursor:pointer">💾 บันทึก</button></div>'
+    +'<div id="rc-result" class="muted" style="margin-top:8px;text-align:center">BE Merchant รวบยอดเข้า BBL ~06:01 ของวันถัดไป</div>'
+    +'</div>';
+}
+function reconDocId(){ return CFG.reconCollection+"|"+isoOf(selDate)+(MY_ZONE?("|"+MY_ZONE):""); }
+function loadRecon(){
+  var db=fdb(); if(!db) return;
+  db.collection(CFG.reconCollection).doc(isoOf(selDate)+(MY_ZONE?("-"+MY_ZONE):"")).get().then(function(doc){
+    if(doc.exists){
+      var d=doc.data()||{};
+      var be=document.getElementById("rc-be"), bbl=document.getElementById("rc-bbl");
+      if(be && d.be!==undefined) be.value=d.be;
+      if(bbl && d.bbl!==undefined) bbl.value=d.bbl;
+      checkRecon();
+    }
+  }).catch(function(){});
+}
+function checkRecon(){
+  var app=parseFloat((document.getElementById("rc-app")||{}).value)||0;
+  var be=parseFloat((document.getElementById("rc-be")||{}).value);
+  var bbl=parseFloat((document.getElementById("rc-bbl")||{}).value);
+  var res=document.getElementById("rc-result");
+  if(!res) return;
+  if(isNaN(be)&&isNaN(bbl)){ res.className="muted"; res.style.textAlign="center"; res.textContent="กรอก BE / BBL เพื่อตรวจการกระทบยอด"; return; }
+  var vals=[app]; if(!isNaN(be)) vals.push(be); if(!isNaN(bbl)) vals.push(bbl);
+  var mx=Math.max.apply(null,vals), mn=Math.min.apply(null,vals), diff=Math.round(mx-mn);
+  res.className="recon-result "+(diff<=1?"match":"diff");
+  res.textContent = diff<=1 ? "✅ ตรงกัน" : ("⚠️ ส่วนต่าง "+fmt(diff)+" ฿  (App "+fmt(app)+" · BE "+(isNaN(be)?"–":fmt(be))+" · BBL "+(isNaN(bbl)?"–":fmt(bbl))+")");
+}
+function saveRecon(){
+  var db=fdb(); if(!db){ alert("Firestore ไม่พร้อม"); return; }
+  var be=parseFloat((document.getElementById("rc-be")||{}).value);
+  var bbl=parseFloat((document.getElementById("rc-bbl")||{}).value);
+  var app=parseFloat((document.getElementById("rc-app")||{}).value)||0;
+  db.collection(CFG.reconCollection).doc(isoOf(selDate)+(MY_ZONE?("-"+MY_ZONE):"")).set({
+    date:isoOf(selDate), zone:MY_ZONE||"all", app:app,
+    be:isNaN(be)?null:be, bbl:isNaN(bbl)?null:bbl,
+    updatedAt:new Date().toISOString(), updatedBy:DASH_SESSION.name||DASH_SESSION.user||""
+  },{merge:true}).then(function(){
+    var res=document.getElementById("rc-result"); if(res){res.className="recon-result match";res.textContent="💾 บันทึกแล้ว";}
+    setTimeout(checkRecon,800);
+  }).catch(function(e){ alert("บันทึกไม่สำเร็จ: "+e.message); });
+}
+
+/* ===================== MAIN RENDER ===================== */
+function renderAll(){
+  var yest=new Date(selDate); yest.setDate(yest.getDate()-1);
+  var today=calcDay(selDate);
+  var y=calcDay(yest);
+  var deliv=calcDelivery(selDate);
+  var html=''
+    +renderKPIs(today,y,deliv)
+    +'<div class="grid2">'+renderStatus(today,deliv)+renderBranch(today)+'</div>'
+    +'<div class="grid2">'+renderPay(today)+renderZone(today)+'</div>'
+    +'<div class="grid2">'+renderTrip()+renderRecon(today)+'</div>'
+    +'<div class="muted" style="text-align:center;margin:10px 0 20px">อัปเดต '+new Date().toLocaleTimeString("th-TH")+' · '+allBills.length+' บิลในระบบ · วันที่ '+fmtDateTH(selDate)+'</div>';
+  document.getElementById("dash").innerHTML=html;
+  var be=document.getElementById("rc-be"), bbl=document.getElementById("rc-bbl");
+  if(be) be.addEventListener("input",checkRecon);
+  if(bbl) bbl.addEventListener("input",checkRecon);
+  loadRecon();
+}
+
+/* ===================== LOAD ===================== */
+function loadData(){
+  document.getElementById("dash").innerHTML='<div class="loading">⏳ กำลังดึงข้อมูลจาก Firestore...</div>';
+  GolodDB.getBillsNew(8000).then(function(bills){
+    allBills=bills||[];
+    // โหลด pickup / trip แบบขนาน (ถ้า collection ไม่มี → ขึ้นการ์ดตั้งค่า)
+    fetchCollection(CFG.pickupCollection,800).then(function(d){pickupDocs=d;pickupErr=null;renderAll();})
+      .catch(function(e){pickupErr=e;renderAll();});
+    fetchCollection(CFG.tripCollection,800).then(function(d){tripDocs=d;tripErr=null;renderAll();})
+      .catch(function(e){tripErr=e;renderAll();});
+    renderAll();
+  }).catch(function(e){
+    document.getElementById("dash").innerHTML='<div class="loading">❌ โหลดไม่สำเร็จ: '+e.message+'</div>';
+  });
+}
+function reload(){ pickupDocs=null;tripDocs=null;pickupErr=null;tripErr=null; loadData(); }
+
+/* INIT */
+(function(){
+  var dp=document.getElementById("date-pick");
+  dp.value=isoOf(selDate);
+  dp.addEventListener("change",function(){
+    var p=dp.value.split("-");
+    if(p.length===3){ selDate=new Date(parseInt(p[0]),parseInt(p[1])-1,parseInt(p[2])); renderAll(); }
+  });
+})();
+function waitAndLoad(){
+  if(typeof GolodDB!=="undefined"){
+    try{ GolodDB.init(); }catch(e){}
+    if(typeof GolodDB.ready==="function") GolodDB.ready(function(){ loadData(); });
+    else setTimeout(loadData,1000);
+  } else setTimeout(waitAndLoad,300);
+}
+waitAndLoad();
+</script>
+</body>
+</html>
