@@ -494,6 +494,7 @@ var MENU=[
   {k:"cod",lb:"ตรวจสอบ COD",ic:"💸",roles:["admin","branch","clerk"],extUrl:"CODCheck.html"},
   {k:"reports",lb:"รายงาน",ic:"📊",perm:"reports",roles:["admin","branch","clerk"],extUrl:"MonthlyReport.html"},
   {k:"salesreport",lb:"รายงานยอดขาย",ic:"💹",perm:"reports",roles:["admin","branch"],extUrl:"SalesReport.html"},
+  {k:"overview",lb:"แดชบอร์ด",ic:"🗂️",perm:"reports",roles:["admin"],extUrl:"Dashboard.html"},
   {k:"customers",lb:"ลูกค้า",ic:"👥",perm:"customers",roles:["admin","branch","clerk"],extUrl:"CustomerSystem.html"},
   {k:"drivers",lb:"คนขับ",ic:"🚗",perm:"drivers",roles:["admin","branch"]},
   {k:"users",lb:"จัดการผู้ใช้",ic:"⚙️",perm:"users",roles:["admin"]},
@@ -511,7 +512,7 @@ function canAccess(k){
 function buildSidebar(){
   var isDriver=CU.role==="driver"||CU.role==="customer";
   var h="";
-  var secs=[{lb:"เมนูหลัก",ks:["dashboard","billing","bills","transport","pickup","tracking"]},{lb:"ข้อมูล",ks:["finance","cod","reports","salesreport","customers","drivers"]},{lb:"ระบบ",ks:["users","profile"]}];
+  var secs=[{lb:"เมนูหลัก",ks:["dashboard","billing","bills","transport","pickup","tracking"]},{lb:"ข้อมูล",ks:["finance","cod","reports","salesreport","overview","customers","drivers"]},{lb:"ระบบ",ks:["users","profile"]}];
   secs.forEach(function(s){
     var visItems=MENU.filter(function(m){return s.ks.includes(m.k)&&m.roles.includes(CU.role);});
     if(!visItems.length)return;

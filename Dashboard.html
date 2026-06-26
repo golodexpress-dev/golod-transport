@@ -142,8 +142,8 @@ function normBranch(s){
 /* ===== SESSION CHECK (Admin / Branch เท่านั้น) ===== */
 (function(){
   var s = typeof GolodSession!=="undefined" ? GolodSession.get() : null;
-  if(!s || (s.role!=="admin" && s.role!=="branch")){
-    document.body.innerHTML='<div style="text-align:center;padding:60px;color:#c00;font-size:16px">⛔ สำหรับ Admin/Branch เท่านั้น<br><br><a href="GolodApp.html">← กลับหน้าหลัก</a></div>';
+  if(!s || s.role!=="admin"){
+    document.body.innerHTML='<div style="text-align:center;padding:60px;color:#c00;font-size:16px">⛔ สำหรับ Admin เท่านั้น<br><br><a href="GolodApp.html">← กลับหน้าหลัก</a></div>';
     throw new Error("unauthorized");
   }
 })();
