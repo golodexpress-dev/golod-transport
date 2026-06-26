@@ -1,0 +1,262 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1"/>
+<title>GOLOD Transport — ตรวจสอบสถานะพัสดุ</title>
+<script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
+<script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-firestore.js"></script>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:Arial,"Sarabun",sans-serif;background:#f5f5f2;min-height:100vh;max-width:480px;margin:0 auto;color:#222}
+.hidden{display:none!important}
+.hero{background:linear-gradient(135deg,#0F6E56,#085041,#052E25);padding:26px 16px 18px;color:#fff}
+.hero .logo{font-size:30px}
+.hero h1{font-size:22px;font-weight:800;letter-spacing:1px;margin-top:2px}
+.hero p{font-size:12px;color:#9FE1CB;margin-top:3px}
+.search-box{background:rgba(255,255,255,0.12);border-radius:16px;padding:16px;margin-top:16px}
+.search-box label{font-size:13px;color:#E1F5EE;font-weight:600;display:block;margin-bottom:7px}
+.search-row{display:flex;gap:8px}
+.search-row input{flex:1;border:none;border-radius:10px;padding:12px 14px;font-size:15px;outline:none;text-transform:uppercase}
+.search-row button{border:none;border-radius:10px;padding:0 18px;background:#FFB300;color:#3a2a00;font-weight:800;font-size:14px;cursor:pointer;white-space:nowrap}
+.search-row button:active{transform:scale(.97)}
+.hint{font-size:11px;color:#9FE1CB;margin-top:8px;text-align:center}
+.body{padding:14px}
+.muted{color:#888}
+.card{background:#fff;border-radius:14px;padding:16px;box-shadow:0 1px 8px rgba(0,0,0,.06);margin-bottom:12px}
+.row{display:flex;justify-content:space-between;align-items:flex-start;gap:10px}
+.billno{font-size:20px;font-weight:800;color:#0F6E56;letter-spacing:.5px}
+.badge{display:inline-flex;align-items:center;gap:6px;padding:7px 12px;border-radius:999px;font-size:14px;font-weight:800;border:1px solid}
+.kv{font-size:12px;color:#666;margin-top:10px}
+.kv b{color:#222}
+.eta{margin-top:12px;background:#FFF3E0;border:1px solid #FFCC80;color:#E65100;border-radius:10px;padding:10px 12px;font-size:14px;font-weight:700}
+.eta small{font-weight:400;opacity:.85}
+.route{margin-top:12px;display:flex;align-items:center;gap:8px;font-size:13px;color:#333;flex-wrap:wrap}
+.route .pin{font-weight:700}
+.route .arrow{color:#0F6E56;font-weight:800}
+/* progress */
+.prog{display:flex;margin:18px 4px 6px}
+.prog .step{flex:1;text-align:center;position:relative}
+.prog .dot{width:26px;height:26px;border-radius:50%;background:#e3e3e0;color:#999;display:flex;align-items:center;justify-content:center;margin:0 auto;font-size:13px;font-weight:800;border:2px solid #e3e3e0;z-index:2;position:relative}
+.prog .step.on .dot{background:#0F6E56;border-color:#0F6E56;color:#fff}
+.prog .step.on.cur .dot{box-shadow:0 0 0 4px rgba(15,110,86,.18)}
+.prog .lbl{font-size:10px;color:#999;margin-top:5px;line-height:1.2}
+.prog .step.on .lbl{color:#0F6E56;font-weight:700}
+.prog .bar{position:absolute;top:13px;left:-50%;width:100%;height:3px;background:#e3e3e0;z-index:1}
+.prog .step.on .bar{background:#0F6E56}
+.prog .step:first-child .bar{display:none}
+/* timeline */
+.tl-h{font-size:13px;font-weight:800;color:#052E25;margin:6px 2px 10px}
+.tl{position:relative;padding-left:26px}
+.tl::before{content:"";position:absolute;left:8px;top:4px;bottom:4px;width:2px;background:#d9efe6}
+.tl .item{position:relative;padding-bottom:16px}
+.tl .item:last-child{padding-bottom:2px}
+.tl .item .node{position:absolute;left:-26px;top:1px;width:18px;height:18px;border-radius:50%;background:#0F6E56;border:3px solid #d9efe6}
+.tl .item.past .node{background:#9FE1CB}
+.tl .item .st{font-size:14px;font-weight:700;color:#222}
+.tl .item .meta{font-size:11px;color:#888;margin-top:2px}
+.empty{background:#fff;border-radius:14px;padding:30px 16px;text-align:center;color:#999}
+.foot{text-align:center;color:#aaa;font-size:11px;padding:18px}
+.spin{text-align:center;padding:26px;color:#0F6E56;font-weight:700}
+</style>
+</head>
+<body>
+  <div class="hero">
+    <div class="logo">🚚</div>
+    <h1>GOLOD Transport</h1>
+    <p>ระบบตรวจสอบสถานะพัสดุแบบเรียลไทม์</p>
+    <div class="search-box">
+      <label>📦 ตรวจสอบสถานะพัสดุ</label>
+      <div class="search-row">
+        <input id="q" placeholder="เลขที่บิล เช่น BP2506-15" autocomplete="off"/>
+        <button id="btn">ตรวจสอบ</button>
+      </div>
+      <div class="hint">พิมพ์เลขบิลแล้วกด Enter ได้ทันที</div>
+    </div>
+  </div>
+
+  <div class="body">
+    <div id="result"></div>
+  </div>
+
+  <div class="foot">GOLOD Transport © 2026 · Track v11</div>
+
+<script>
+/* ===== Firebase (project status-81cd0) ===== */
+var FIREBASE_CONFIG = {
+  apiKey: "AIzaSyCwgIOP-fIe5v4VOpnn3oblVYzqIGsCpK0",
+  authDomain: "status-81cd0.firebaseapp.com",
+  projectId: "status-81cd0",
+  storageBucket: "status-81cd0.firebasestorage.app",
+  messagingSenderId: "974079486903",
+  appId: "1:974079486903:web:ace12122095b03c60a1632"
+};
+try{ if(!firebase.apps.length) firebase.initializeApp(FIREBASE_CONFIG); }catch(e){}
+
+/* ===== status meta (เหมือนแอพติดตาม) ===== */
+var STATUSES = {
+  issued:    {label:"ออกบิลรับของแล้ว",      icon:"📦", color:"#555",    bg:"#f5f5f2", border:"#ddd",    step:1},
+  hub:       {label:"ระหว่างนำส่งสาขา",       icon:"🏭", color:"#0C447C", bg:"#E6F1FB", border:"#85B7EB", step:2},
+  transit:   {label:"กำลังวิ่งส่งลูกค้า",      icon:"🚛", color:"#633806", bg:"#FAEEDA", border:"#EF9F27", step:3},
+  delivered: {label:"ส่งสำเร็จ",              icon:"✅", color:"#085041", bg:"#E1F5EE", border:"#5DCAA5", step:4},
+  nocontact: {label:"ติดต่อลูกค้าไม่ได้",      icon:"📵", color:"#4B1528", bg:"#FBEAF0", border:"#E9B8C0", step:3},
+  refused:   {label:"ลูกค้าไม่รับของ",         icon:"🚫", color:"#7C2D12", bg:"#FEF3C7", border:"#F59E0B", step:3},
+  returned:  {label:"นำกลับสาขา/ตีกลับ",       icon:"↩️", color:"#5b3b8c", bg:"#F1ECFB", border:"#C9B6EA", step:3}
+};
+var STATUS_MAP = {
+  "ออกบิลรับของ":"issued","issued":"issued",
+  "ระหว่างนำส่งสาขา":"hub","อยู่ที่สาขา":"hub",
+  "กำลังวิ่งส่งลูกค้า":"transit","นำส่งใหม่":"transit","ออกส่ง":"transit",
+  "ส่งสำเร็จ":"delivered",
+  "ติดต่อลูกค้าไม่ได้":"nocontact","ส่งไม่สำเร็จ":"nocontact",
+  "ลูกค้าไม่รับของ":"refused",
+  "นำกลับสาขา":"returned","ลูกค้ารับกลับ":"returned","ตีกลับ":"returned"
+};
+var STEPS = [
+  {key:"issued",   lbl:"ออกบิล\nรับของ"},
+  {key:"hub",      lbl:"อยู่ที่\nสาขา"},
+  {key:"transit",  lbl:"กำลังวิ่ง\nส่งลูกค้า"},
+  {key:"delivered",lbl:"ส่ง\nสำเร็จ"}
+];
+
+/* ===== date / ETA helpers (เหมือนแอพ) ===== */
+var TH_MON = ["ม.ค.","ก.พ.","มี.ค.","เม.ย.","พ.ค.","มิ.ย.","ก.ค.","ส.ค.","ก.ย.","ต.ค.","พ.ย.","ธ.ค."];
+function fmtEta(s){
+  if(!s) return "";
+  s=String(s);
+  var m=s.match(/(\d{4})-(\d{2})-(\d{2})(?:[T ](\d{2}):(\d{2}))?/);
+  if(m){
+    var out=(+m[3])+" "+TH_MON[(+m[2])-1]+" "+((+m[1])+543);
+    if(m[4]) out+=" "+m[4]+":"+m[5]+" น.";
+    return out;
+  }
+  return s;
+}
+var LOCAL_DELIVERY_DAYS = 1;
+function etaReceiver(s){
+  if(!s) return "";
+  var m=String(s).match(/(\d{4})-(\d{2})-(\d{2})/);
+  if(!m) return fmtEta(s);
+  var d=new Date(+m[1],(+m[2])-1,(+m[3])+LOCAL_DELIVERY_DAYS);
+  if(isNaN(d.getTime())) return fmtEta(s);
+  return d.getDate()+" "+TH_MON[d.getMonth()]+" "+(d.getFullYear()+543);
+}
+function fmtDT(iso){
+  if(!iso) return "-";
+  var d=new Date(iso);
+  if(isNaN(d.getTime())) return "-";
+  var p=function(n){return String(n).padStart(2,"0");};
+  return d.getDate()+" "+TH_MON[d.getMonth()]+" "+(d.getFullYear()+543)+" "+p(d.getHours())+":"+p(d.getMinutes())+" น.";
+}
+
+function esc(s){ return String(s==null?"":s).replace(/[&<>"]/g,function(c){return {"&":"&amp;","<":"&lt;",">":"&gt;","\"":"&quot;"}[c];}); }
+
+/* ===== render ===== */
+function render(billNo, b){
+  var R = document.getElementById("result");
+  if(!b){
+    R.innerHTML = '<div class="empty">❓ ไม่พบเลขบิล <b>'+esc(billNo)+'</b><br><span style="font-size:12px">กรุณาตรวจสอบเลขบิลอีกครั้ง หรือสอบถามแอดมินทางไลน์</span></div>';
+    return;
+  }
+  var form = (b.form && typeof b.form==="object") ? b.form : {};
+  var rawStatus = b.status || "ออกบิลรับของ";
+  var key = STATUS_MAP[rawStatus] || "issued";
+  var meta = STATUSES[key] || STATUSES.issued;
+  var curStep = meta.step;
+  var senderProv = b.senderProv || form.senderProv || "กรุงเทพมหานคร";
+  var destProv = b.destProv || form.destProv || form.receiverProv || "-";
+  var destAmphoe = b.destAmphoe || form.receiverAmphoe || form.destAmphoe || "";
+
+  /* ETA */
+  var etaHtml = "";
+  var etaD = b.etaDeliver || form.etaDeliver || "";
+  var etaB = b.etaBranch || form.etaBranch || "";
+  if((etaD || etaB) && key!=="delivered"){
+    var val = etaD ? fmtEta(etaD) : etaReceiver(etaB);
+    etaHtml = '<div class="eta">📅 คาดว่าถึงผู้รับ: <b>'+esc(val)+'</b>'+(etaD?"":' <small>(โดยประมาณ)</small>')+'</div>';
+  }
+
+  /* progress bar */
+  var prog = '<div class="prog">';
+  STEPS.forEach(function(s){
+    var sStep = STATUSES[s.key].step;
+    var on = sStep <= curStep;
+    var cur = sStep === curStep;
+    prog += '<div class="step'+(on?" on":"")+(cur?" cur":"")+'">'
+      + '<div class="bar"></div>'
+      + '<div class="dot">'+(on?"✓":sStep)+'</div>'
+      + '<div class="lbl">'+s.lbl.replace(/\n/g,"<br>")+'</div>'
+      + '</div>';
+  });
+  prog += '</div>';
+
+  /* timeline from statusHistory */
+  var tl = "";
+  var hist = Array.isArray(b.statusHistory) ? b.statusHistory.slice() : [];
+  // ensure an "issued" entry from createdAt
+  var entries = [];
+  entries.push({status:"ออกบิลรับของ", at:b.createdAt, loc:senderProv, note:"รับสินค้าจากผู้ส่ง"});
+  hist.forEach(function(hh){ if(hh && hh.status && hh.status!=="ออกบิลรับของ" && hh.status!=="issued") entries.push(hh); });
+  // sort by time
+  entries.sort(function(a,c){ return new Date(a.at||0)-new Date(c.at||0); });
+  // de-dup consecutive same status
+  var clean=[]; entries.forEach(function(e){ var last=clean[clean.length-1]; if(!last||last.status!==e.status) clean.push(e); });
+  if(clean.length){
+    tl = '<div class="card"><div class="tl-h">📍 ประวัติการเดินทาง</div><div class="tl">';
+    clean.forEach(function(e,i){
+      var k = STATUS_MAP[e.status] || "issued";
+      var m = STATUSES[k] || STATUSES.issued;
+      var isLast = (i===clean.length-1);
+      tl += '<div class="item'+(isLast?"":" past")+'">'
+        + '<div class="node"></div>'
+        + '<div class="st">'+m.icon+' '+esc(m.label)+'</div>'
+        + '<div class="meta">'+fmtDT(e.at)+(e.loc?(" · "+esc(e.loc)):"")+(e.note?(" · "+esc(e.note)):"")+'</div>'
+        + '</div>';
+    });
+    tl += '</div></div>';
+  }
+
+  R.innerHTML =
+    '<div class="card">'
+      + '<div class="row">'
+        + '<div><div class="muted" style="font-size:11px">เลขที่บิล</div><div class="billno">'+esc(billNo)+'</div></div>'
+        + '<div class="badge" style="color:'+meta.color+';background:'+meta.bg+';border-color:'+meta.border+'">'+meta.icon+' '+esc(meta.label)+'</div>'
+      + '</div>'
+      + etaHtml
+      + '<div class="route"><span class="pin">📤 '+esc(senderProv)+'</span><span class="arrow">→</span><span class="pin">📥 '+esc(destProv)+(destAmphoe?(" · "+esc(destAmphoe)):"")+'</span></div>'
+      + '<div class="kv">อัปเดตล่าสุด: <b>'+fmtDT(b.updatedAt||b.createdAt)+'</b></div>'
+      + prog
+    + '</div>'
+    + tl;
+}
+
+/* ===== fetch ===== */
+function track(){
+  var q = (document.getElementById("q").value||"").trim().toUpperCase();
+  var R = document.getElementById("result");
+  if(!q){ R.innerHTML=""; return; }
+  R.innerHTML = '<div class="spin">⏳ กำลังตรวจสอบ '+esc(q)+' ...</div>';
+  var db;
+  try{ db = firebase.firestore(); }catch(e){ R.innerHTML='<div class="empty">เชื่อมต่อระบบไม่ได้ ลองใหม่อีกครั้ง</div>'; return; }
+  db.collection("bills").doc(q).get().then(function(doc){
+    if(doc.exists){ render(q, doc.data()); return; }
+    // fallback: query by billNo field
+    return db.collection("bills").where("billNo","==",q).limit(1).get().then(function(snap){
+      if(snap && !snap.empty){ render(q, snap.docs[0].data()); }
+      else render(q, null);
+    });
+  }).catch(function(){ render(q, null); });
+}
+
+document.getElementById("btn").addEventListener("click", track);
+document.getElementById("q").addEventListener("keydown", function(e){ if(e.key==="Enter") track(); });
+// auto-track if ?bill= in URL
+(function(){
+  try{
+    var p = new URLSearchParams(location.search).get("bill") || new URLSearchParams(location.search).get("q");
+    if(p){ document.getElementById("q").value = p; track(); }
+  }catch(e){}
+})();
+</script>
+</body>
+</html>
