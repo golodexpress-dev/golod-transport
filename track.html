@@ -55,6 +55,9 @@ body{font-family:Arial,"Sarabun",sans-serif;background:#f5f5f2;min-height:100vh;
 .tl .item.past .node{background:#9FE1CB}
 .tl .item .st{font-size:14px;font-weight:700;color:#222}
 .tl .item .meta{font-size:11px;color:#888;margin-top:2px}
+.tl .item .proof{margin-top:8px;background:#f9f9f7;border:1px solid #e3e3e0;border-radius:10px;padding:8px}
+.tl .item .proof-h{font-size:11px;color:#777;font-weight:700;margin-bottom:5px}
+.tl .item .proof img{max-width:100%;border-radius:8px;border:1px solid #ddd;display:block}
 .empty{background:#fff;border-radius:14px;padding:30px 16px;text-align:center;color:#999}
 .foot{text-align:center;color:#aaa;font-size:11px;padding:18px}
 .spin{text-align:center;padding:26px;color:#0F6E56;font-weight:700}
@@ -79,7 +82,7 @@ body{font-family:Arial,"Sarabun",sans-serif;background:#f5f5f2;min-height:100vh;
     <div id="result"></div>
   </div>
 
-  <div class="foot">GOLOD Transport © 2026 · Track v11</div>
+  <div class="foot">GOLOD Transport © 2026 · Track v12</div>
 
 <script>
 /* ===== Firebase (project status-81cd0) ===== */
@@ -171,9 +174,10 @@ function render(billNo, b){
   var etaHtml = "";
   var etaD = b.etaDeliver || form.etaDeliver || "";
   var etaB = b.etaBranch || form.etaBranch || "";
-  if((etaD || etaB) && key!=="delivered"){
+  var tbl = b.targetBranchLabel || b.targetBranch || form.targetBranchLabel || "";
+  if((etaD || etaB) && rawStatus!=="ส่งสำเร็จ" && key!=="delivered"){
     var val = etaD ? fmtEta(etaD) : etaReceiver(etaB);
-    etaHtml = '<div class="eta">📅 คาดว่าถึงผู้รับ: <b>'+esc(val)+'</b>'+(etaD?"":' <small>(โดยประมาณ)</small>')+'</div>';
+    etaHtml = '<div class="eta">📅 คาดว่าถึง'+(etaD?"":' (โดยประมาณ)')+': <b>'+esc(val)+'</b>'+(tbl?(' <small>('+esc(tbl)+')</small>'):"")+'</div>';
   }
 
   /* progress bar */
@@ -201,16 +205,27 @@ function render(billNo, b){
   entries.sort(function(a,c){ return new Date(a.at||0)-new Date(c.at||0); });
   // de-dup consecutive same status
   var clean=[]; entries.forEach(function(e){ var last=clean[clean.length-1]; if(!last||last.status!==e.status) clean.push(e); });
+  if(key==="delivered" && !clean.some(function(e){ return (STATUS_MAP[e.status]||"")==="delivered"; })){
+    clean.push({status:rawStatus, at:b.deliveredAt||b.updatedAt, loc:destProv, note:"ส่งถึงมือผู้รับแล้ว"});
+  }
   if(clean.length){
     tl = '<div class="card"><div class="tl-h">📍 ประวัติการเดินทาง</div><div class="tl">';
     clean.forEach(function(e,i){
       var k = STATUS_MAP[e.status] || "issued";
       var m = STATUSES[k] || STATUSES.issued;
       var isLast = (i===clean.length-1);
+      var extra = "";
+      if(k==="delivered"){
+        var ph = b.photoUrl || form.photoUrl || "";
+        var sg = b.signatureUrl || form.signatureUrl || "";
+        if(ph) extra += '<div class="proof"><div class="proof-h">📷 รูปภาพการส่งสินค้า</div><img src="'+esc(ph)+'" loading="lazy" onerror="this.parentNode.style.display=\'none\'"/></div>';
+        if(sg) extra += '<div class="proof"><div class="proof-h">✍️ ลายเซ็นผู้รับ</div><img src="'+esc(sg)+'" loading="lazy" onerror="this.parentNode.style.display=\'none\'"/></div>';
+      }
       tl += '<div class="item'+(isLast?"":" past")+'">'
         + '<div class="node"></div>'
         + '<div class="st">'+m.icon+' '+esc(m.label)+'</div>'
         + '<div class="meta">'+fmtDT(e.at)+(e.loc?(" · "+esc(e.loc)):"")+(e.note?(" · "+esc(e.note)):"")+'</div>'
+        + extra
         + '</div>';
     });
     tl += '</div></div>';
