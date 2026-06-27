@@ -748,7 +748,7 @@ tr:hover td{background:#f8fffe}
 <div class="topbar">
   <span class="title">🚛 จัดการขนส่ง</span>
   <span id="session-info" style="font-size:11px;opacity:.8"></span>
-  <span style="font-size:10px;opacity:.65;margin-left:auto">build 2026-06-10z124</span>
+  <span style="font-size:10px;opacity:.65;margin-left:auto">build 2026-06-10z125</span>
   <a href="GolodApp.html" style="margin-left:10px">← หน้าหลัก</a>
 </div>
 <div class="container">
@@ -3492,6 +3492,28 @@ function _renderRunSheet(bills, meta, trip){
   var prows=porder.map(function(p){ return '<tr><td>'+p+'</td><td class="c">'+provs[p].c+'</td><td class="r">'+_rsFmt(provs[p].f)+'</td></tr>'; }).join("");
   // ---- pickup rows ----
   var pkrows=pickups.length?pickups.map(function(p,i){ return '<tr><td class="c">'+(i+1)+'</td><td>'+((p.location||p.loc||"-"))+'</td><td>'+((p.goods||"-"))+'</td><td class="r">'+_rsFmt(p.freight||0)+'</td><td class="r">'+_rsFmt(p.commission||0)+'</td></tr>'; }).join(""):'';
+  // ---- pickup rows ต่อท้ายตารางส่งหลัก (งานรับระหว่างทาง) ----
+  var pkFreightTot=0; pickups.forEach(function(p){ pkFreightTot+=parseFloat(p.freight||0); });
+  var pkMainRows = pickups.length ? (
+    '<tr><td colspan="9" style="background:#fff4e6;color:#b9770e;font-weight:700;padding:5px 6px">📥 งานรับระหว่างทาง ('+pickups.length+' งาน · ค่าขนส่งรวม '+_rsFmt(pkFreightTot)+' ฿)</td></tr>'
+    + pickups.map(function(p,i){
+        var loc=p.location||p.loc||[p.originTambon,p.originAmphoe,p.originProv].filter(function(x){return x;}).join(" ")||"-";
+        var goods=p.goods||"";
+        var dest=[p.destAmphoe,p.destProv].filter(function(x){return x;}).join(" ")||"-";
+        var fr=parseFloat(p.freight||0);
+        return '<tr style="background:#fffaf0">'
+          +'<td class="c">'+(i+1)+'</td>'
+          +'<td>📥 รับ</td>'
+          +'<td>'+loc+(goods?('<br><span style="color:#888;font-size:10px">'+goods+'</span>'):'')+'</td>'
+          +'<td>'+dest+'</td>'
+          +'<td class="c">-</td>'
+          +'<td class="c">'+_rsPayL(p.payType||p.freightPay||"")+'</td>'
+          +'<td class="r">'+_rsFmt(fr)+'</td>'
+          +'<td class="r">-</td>'
+          +'<td class="c">-</td>'
+          +'</tr>';
+      }).join("")
+  ) : "";
 
   function box(title, inner){ return '<div class="bx"><div class="bt">'+title+'</div>'+inner+'</div>'; }
   function kv(k,v,color){ return '<div class="kv"><span>'+k+'</span><b'+(color?(' style="color:'+color+'"'):'')+'>'+v+'</b></div>'; }
@@ -3575,7 +3597,7 @@ function _renderRunSheet(bills, meta, trip){
     +'</div>'
     +dayPlanBox
     +box("📋 รายการบิล ("+bills.length+" บิล)",
-        '<table class="t"><thead><tr><th>#</th><th>เลขบิล</th><th>ผู้รับ</th><th>ปลายทาง</th><th class="c">วันที่จะส่ง</th><th>ชำระ</th><th class="r">ค่าขนส่ง</th><th class="r">COD</th><th class="c">ส่ง</th></tr></thead><tbody>'+brows+'</tbody></table>')
+        '<table class="t"><thead><tr><th>#</th><th>เลขบิล</th><th>ผู้รับ</th><th>ปลายทาง</th><th class="c">วันที่จะส่ง</th><th>ชำระ</th><th class="r">ค่าขนส่ง</th><th class="r">COD</th><th class="c">ส่ง</th></tr></thead><tbody>'+brows+pkMainRows+'</tbody></table>')
     +'<div class="noprint" style="text-align:center;margin-top:16px"><button onclick="window.print()" style="padding:10px 30px;font-size:15px;background:#0F6E56;color:#fff;border:none;border-radius:8px">🖨 พิมพ์</button></div>'
     +'</body></html>';
   var w=window.open("","_blank"); if(!w){ alert("เปิดหน้าต่างพิมพ์ไม่ได้ (ป๊อปอัปถูกบล็อก)"); return; }
