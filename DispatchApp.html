@@ -748,7 +748,7 @@ tr:hover td{background:#f8fffe}
 <div class="topbar">
   <span class="title">🚛 จัดการขนส่ง</span>
   <span id="session-info" style="font-size:11px;opacity:.8"></span>
-  <span style="font-size:10px;opacity:.65;margin-left:auto">build 2026-06-10z125</span>
+  <span style="font-size:10px;opacity:.65;margin-left:auto">build 2026-06-10z126</span>
   <a href="GolodApp.html" style="margin-left:10px">← หน้าหลัก</a>
 </div>
 <div class="container">
@@ -6189,6 +6189,18 @@ function printSettlement(asPdf){
     return '<tr><td>'+b.billNo+'</td><td>'+(b.destAmphoe||(b.form&&b.form.destAmphoe)||"-")+'</td><td>'+(b.destProv||(b.form&&b.form.destProv)||"-")+'</td><td>'+(_SETTLE_PAYLBL[_settlePay(b)]||"-")+'</td><td>'+prod+'</td><td style="text-align:right">'+_settleFmt(_settleNet(b))+'</td></tr>';
   }).join("");
   var adjRows=_settle.adjustments.map(function(a){ return '<tr><td colspan="5">ปรับ: '+(a.note||"-")+'</td><td style="text-align:right">'+_settleFmt(a.amount)+'</td></tr>'; }).join("");
+  var _pks=( _settle.trip && Array.isArray(_settle.trip.pickups) ) ? _settle.trip.pickups : [];
+  var _pkFt=0; _pks.forEach(function(p){ _pkFt+=parseFloat(p.freight||0); });
+  var pkRowsSettle = _pks.length ? (
+    '<tr><td colspan="6" style="background:#fff4e6;color:#b9770e;font-weight:700;padding:4px 6px">📥 งานรับระหว่างทาง ('+_pks.length+' งาน · ค่าขนส่งรวม '+_settleFmt(_pkFt)+' ฿)</td></tr>'
+    + _pks.map(function(p){
+        var loc=p.location||p.loc||"-";
+        var goods=p.goods||"";
+        var amp=p.destAmphoe||"-"; var prov=p.destProv||"-";
+        var fr=parseFloat(p.freight||0);
+        return '<tr style="background:#fffaf0"><td>📥 รับ</td><td>'+amp+'</td><td>'+prov+'</td><td>รับ</td><td>รับจาก '+loc+(goods?(' · '+goods):'')+'</td><td style="text-align:right">'+_settleFmt(fr)+'</td></tr>';
+      }).join("")
+  ) : "";
   var stLbl={draft:"ร่าง",proposed:"เสนอ — รออนุมัติ",approved:"อนุมัติเบื้องต้น — รอยืนยันสุดท้าย",confirmed:"ยืนยันสุดท้ายแล้ว"}[_settle.status]||"";
   var pay=[];
   if(c.byPay.origin) pay.push('ต้นทาง('+c.byPay.origin+', '+_settleFmt(c.payAmt.origin||0)+'.-)');
@@ -6203,7 +6215,7 @@ function printSettlement(asPdf){
   html+='<div class="info" style="display:flex;justify-content:space-between"><div>เส้นทาง: <b>'+(_settle.route||"-")+'</b></div><div>วันที่ออก: <b>'+(_settle.trip.departDate||"-")+'</b></div></div>';
   html+='<div class="info">'+(_settle.trip.runNo?('เลขเที่ยว <b style="color:#5B3FB3">'+_settle.trip.runNo+'</b> · '):'')+'คนรถ: <b>'+(_settle.trip.driverName||_settle.trip.driverUsername||"— (ยังไม่กำหนด)")+'</b></div>';
   html+='<div class="info" style="margin-top:3px"><b>บิลทั้งหมด '+c.count+' บิล</b> · '+pay.join(' · ')+'</div>';
-  html+='<table><thead><tr><th style="text-align:left">เลขบิล</th><th style="text-align:left">อำเภอ</th><th style="text-align:left">จังหวัด</th><th>ประเภท</th><th style="text-align:left">สินค้า (×จำนวน)</th><th style="text-align:right">ค่าส่ง</th></tr></thead><tbody>'+rows+adjRows+'</tbody></table>';
+  html+='<table><thead><tr><th style="text-align:left">เลขบิล</th><th style="text-align:left">อำเภอ</th><th style="text-align:left">จังหวัด</th><th>ประเภท</th><th style="text-align:left">สินค้า (×จำนวน)</th><th style="text-align:right">ค่าส่ง</th></tr></thead><tbody>'+rows+adjRows+pkRowsSettle+'</tbody></table>';
   html+='<div style="text-align:right;margin-top:6px;font-size:13px">ยอดค่าส่งรวม: '+_settleFmt(c.total)+' ฿'+(c.adj?(' · ปรับ: '+_settleFmt(c.adj)+' ฿'):'')+' · <b style="font-size:15px">สุทธิ: '+_settleFmt(c.adjusted)+' ฿</b></div>';
   if(_stNote) html+='<div style="margin-top:6px;font-size:13px;border-top:1px dashed #999;padding-top:4px">หมายเหตุ: <b>'+_stNote+'</b></div>';
   (function(){
