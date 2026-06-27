@@ -450,6 +450,8 @@ tr:hover td{background:#f8fffe}
       <div style="font-size:9px;color:#999;margin-top:4px">💡 ยอด + = พขร.ต้องคืนเพิ่ม (เช่น เก็บเงินบิลนอกระบบ), − = ลดยอดต้องคืน</div>
     </div>
 
+    <div id="ct-fail-list"></div>
+
     <!-- สรุป -->
     <div id="ct-summary" style="background:#0F6E56;color:#fff;border-radius:10px;padding:12px;margin-bottom:12px">
       <div style="font-size:10px;opacity:.8;margin-bottom:8px">📊 สรุปยอดเคลียร์</div>
@@ -746,7 +748,7 @@ tr:hover td{background:#f8fffe}
 <div class="topbar">
   <span class="title">🚛 จัดการขนส่ง</span>
   <span id="session-info" style="font-size:11px;opacity:.8"></span>
-  <span style="font-size:10px;opacity:.65;margin-left:auto">build 2026-06-10z123</span>
+  <span style="font-size:10px;opacity:.65;margin-left:auto">build 2026-06-10z124</span>
   <a href="GolodApp.html" style="margin-left:10px">← หน้าหลัก</a>
 </div>
 <div class="container">
@@ -6279,6 +6281,31 @@ function _saveClearEta(){
   alert("✅ บันทึกวันถึงผู้รับ "+cnt+" บิล"+(blank?(" (ยังไม่ระบุ "+blank+" บิล)"):"")+" — ลูกค้าจะเห็นวันถึงตามนี้ในหน้าติดตาม");
 }
 
+function _renderClearFailList(trip){
+  var el=document.getElementById("ct-fail-list"); if(!el) return;
+  var fb=(trip&&trip._failBills)||[];
+  if(!fb.length){ el.innerHTML=""; return; }
+  var _f=function(n){ return (parseFloat(n)||0).toLocaleString("th-TH"); };
+  var tDest=trip._failDest||0, tCod=trip._failCod||0;
+  var rows=fb.map(function(b){
+    return '<tr style="border-bottom:1px solid #f3d9d9">'
+      +'<td style="padding:4px 6px;font-weight:700">'+b.billNo+'</td>'
+      +'<td style="padding:4px 6px">'+(b.status||"")+'</td>'
+      +'<td style="padding:4px 6px">'+(b.recv||"")+(b.prov?(" · "+b.prov):"")+'</td>'
+      +'<td style="padding:4px 6px;text-align:right;color:#c0392b">'+(b.dest?_f(b.dest):"—")+'</td>'
+      +'<td style="padding:4px 6px;text-align:right;color:#c0392b">'+(b.cod?_f(b.cod):"—")+'</td>'
+      +'</tr>';
+  }).join("");
+  el.innerHTML='<div style="margin:10px 0 4px;padding:10px;border:1px solid #f0c0c0;border-radius:8px;background:#fff6f6">'
+    +'<div style="font-size:12px;font-weight:800;color:#c0392b;margin-bottom:6px">⚠️ บิลส่งไม่สำเร็จ '+fb.length+' บิล — ไม่นับในยอดที่คนรถต้องเก็บ (เก็บไม่ได้จริง)</div>'
+    +'<table style="width:100%;border-collapse:collapse;font-size:11px"><tr style="background:#fdecec;color:#c0392b"><th style="padding:4px 6px;text-align:left">เลขบิล</th><th style="padding:4px 6px;text-align:left">สถานะ</th><th style="padding:4px 6px;text-align:left">ผู้รับ/ปลายทาง</th><th style="padding:4px 6px;text-align:right">ค่าปลายทาง</th><th style="padding:4px 6px;text-align:right">COD</th></tr>'
+    +rows
+    +'<tr style="background:#fdecec;font-weight:700"><td colspan="3" style="padding:4px 6px">รวมยังไม่เก็บ</td><td style="padding:4px 6px;text-align:right;color:#c0392b">'+_f(tDest)+'</td><td style="padding:4px 6px;text-align:right;color:#c0392b">'+_f(tCod)+'</td></tr>'
+    +'</table>'
+    +'<div style="font-size:10px;color:#888;margin-top:6px">ยอดนี้ยังไม่ถูกเก็บในเที่ยวนี้ — พิจารณารายบิลว่า \u201cยกไปเก็บเที่ยวหน้า (ส่งใหม่)\u201d หรือ \u201cตีกลับ จบ\u201d · ระบบบันทึกไว้เป็นหมายเหตุให้อัตโนมัติ</div>'
+    +'</div>';
+}
+
 function openEtaPlanOnly(tripId){
   var trip = (_tripState.openTrips||[]).find(function(t){ return t.id===tripId; });
   if(!trip){ alert("ไม่พบข้อมูลเที่ยว"); return; }
@@ -6315,15 +6342,16 @@ function openClearTrip(tripId){
   // ===== ดึงยอดจากบิลจริงในเที่ยว (ปลายทาง / COD / งานรับ) =====
   // ดึงตรงจาก Firestore ด้วย billIds — รองรับเที่ยวที่วิ่งจบแล้ว (บิลหลุดจาก BILLS)
   function computeFromBills(tb){
-    var liveDest=0, liveCod=0, pkCash=0, pkDest=0;
+    var liveDest=0, liveCod=0, pkCash=0, pkDest=0, failDest=0, failCod=0; var failBills=[];
     var rOrigin=0, rTransfer=0, rCredit=0, rDestCash=0, rDestTransfer=0;
     var delivered=0, failed=0;
     tb.forEach(function(b){
       var pay=b.freightPay||(b.form&&b.form.freightPay)||"origin";
       var net=parseFloat(b.freightNet||0), cod=parseFloat(b.codTotal||0);
       var isPickup=(b.status==="ออกบิลรับของ"||b.status==="issued"||b.status==="");
-      if(pay==="dest"||pay==="dest_cash"){ if(isPickup) pkDest+=net; else liveDest+=net; }
-      if(cod>0) liveCod+=cod;
+      var isFail=(REDO_STATUS.indexOf(b.status||"")>=0);
+      if(pay==="dest"||pay==="dest_cash"){ if(isPickup) pkDest+=net; else if(isFail) failDest+=net; else liveDest+=net; }
+      if(cod>0){ if(isFail) failCod+=cod; else liveCod+=cod; }
       if(isPickup && pay!=="dest" && pay!=="dest_cash") pkCash+=net;
       // แยกรายได้ตามวิธีจ่าย
       if(pay==="origin") rOrigin+=net;
@@ -6333,7 +6361,7 @@ function openClearTrip(tripId){
       else if(pay==="dest"||pay==="dest_cash") rDestCash+=net;
       // นับส่งได้/ส่งไม่ได้
       if(SUCCESS_STATUS.indexOf(b.status||"")>=0) delivered++;
-      else if(REDO_STATUS.indexOf(b.status||"")>=0) failed++;
+      else if(isFail){ failed++; failBills.push({billNo:b.billNo,status:b.status||"",dest:((pay==="dest"||pay==="dest_cash")&&!isPickup)?net:0,cod:cod||0,recv:(b.receiverName||(b.form&&b.form.receiverName)||""),prov:(b.destProv||(b.form&&b.form.destProv)||"")}); }
     });
     trip._liveDest=liveDest; trip._liveCod=liveCod;
     trip._rev={origin:rOrigin,transfer:rTransfer,credit:rCredit,destCash:rDestCash,destTransfer:rDestTransfer};
@@ -6343,6 +6371,8 @@ function openClearTrip(tripId){
     gg("ct-cod-amt", liveCod.toLocaleString("th-TH"));
     if(!(trip.clearData&&trip.clearData.pickupCash)) gg("ct-pickup-cash", pkCash||"");
     if(!(trip.clearData&&trip.clearData.pickupDest)) gg("ct-pickup-dest", pkDest||"");
+    trip._failDest=failDest; trip._failCod=failCod; trip._failBills=failBills;
+    _renderClearFailList(trip);
     calcClearTrip();
   }
 
