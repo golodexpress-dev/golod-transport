@@ -746,7 +746,7 @@ tr:hover td{background:#f8fffe}
 <div class="topbar">
   <span class="title">🚛 จัดการขนส่ง</span>
   <span id="session-info" style="font-size:11px;opacity:.8"></span>
-  <span style="font-size:10px;opacity:.65;margin-left:auto">build 2026-06-10z119</span>
+  <span style="font-size:10px;opacity:.65;margin-left:auto">build 2026-06-10z122</span>
   <a href="GolodApp.html" style="margin-left:10px">← หน้าหลัก</a>
 </div>
 <div class="container">
@@ -1730,6 +1730,7 @@ function renderTripList(){
           +(canClearTrip()?'<button class="btn btn-orange" data-tid="'+t.id+'" onclick="openClearTrip(this.dataset.tid)">💰 เคลียร์เที่ยว</button>':'')
           +(canClearTrip()?'<button class="btn btn-green" data-tid="'+t.id+'" onclick="closeTrip(this.dataset.tid)">✅ ปิดเที่ยว</button>':'')
           +((_isAdminU && !((t.autoDispatched===true)||(t.settlement&&t.settlement.status==="confirmed")||t.status==="open"||t.status==="cleared"||t.status==="closed"))?'<button class="btn" style="background:#c0392b;color:#fff" data-tid="'+t.id+'" onclick="deleteTrip(this.dataset.tid)">🗑 ลบเที่ยว</button>':'')
+          +((CU&&CU.role!=="driver")?('<button class="btn" style="background:#5b3fb5;color:#fff" data-tid="'+t.id+'" onclick="openEtaPlanOnly(this.dataset.tid)">📅 วันคาดส่ง</button>'):'')
           +'<button class="btn btn-blue" data-tid="'+t.id+'" onclick="printTripSummary(this.dataset.tid)">🖨 พิมพ์</button>'
           +'<button class="btn" data-tid="'+t.id+'" onclick="printRunSheet(this.dataset.tid)" style="background:#6a1b9a;color:#fff">🖨 การ์ดเที่ยว</button>'
           +'' /* สรุปส่งสาขา ย้ายไปหน้าจ่ายให้สาขา (z64) */
@@ -3605,12 +3606,14 @@ function printTripSummary(tripId){
     var f0=its[0]||{};
     var pq=its.reduce(function(s,it){return s+(parseInt(it.qty)||1);},0);
     var prod=(f0.desc||"-")+(its.length>1?(" +"+(its.length-1)):"")+(pq?(" ×"+pq):"");
+    var _pdEta=b.etaDeliver||(form&&form.etaDeliver)||""; var _pdEtaTxt="";
+    if(_pdEta){ var _pdM=String(_pdEta).match(/(\d{4})-(\d{2})-(\d{2})/); if(_pdM){ var _pdTM=["ม.ค.","ก.พ.","มี.ค.","เม.ย.","พ.ค.","มิ.ย.","ก.ค.","ส.ค.","ก.ย.","ต.ค.","พ.ย.","ธ.ค."]; _pdEtaTxt=(+_pdM[3])+" "+_pdTM[(+_pdM[2])-1]+" "+((+_pdM[1])+543); } else { _pdEtaTxt=String(_pdEta); } }
     return '<tr style="border-bottom:1px solid #f0f0f0">'
       +'<td style="padding:4px 6px;color:#aaa">'+(i+1)+'</td>'
       +'<td style="padding:4px 6px;font-weight:700">'+b.billNo+'</td>'
       +'<td style="padding:4px 6px">'+recv+'</td>'
       +'<td style="padding:4px 6px">'+prod+'</td>'
-      +'<td style="padding:4px 6px">'+amphoe+'·'+prov+'</td>'
+      +'<td style="padding:4px 6px">'+amphoe+'·'+prov+(_pdEtaTxt?('<br><span style="color:#b9770e;font-size:10px">📅 คาดส่ง '+_pdEtaTxt+'</span>'):'')+'</td>'
       +'<td style="padding:4px 6px;text-align:right;font-size:10px">'+(payL[pay]||pay)+'</td>'
       +'<td style="padding:4px 6px;text-align:right;font-weight:600">'+fmt(net)+'</td>'
       +'<td style="padding:4px 6px;text-align:right;color:#c0392b">'+(cod>0?fmt(cod):"—")+'</td>'
@@ -3618,6 +3621,24 @@ function printTripSummary(tripId){
   }).join("");
 
   // สรุปยอดค่าส่งแยกประเภทการจ่าย
+  // ===== งานรับเข้า (pickup) ในเที่ยวนี้ =====
+  var tripPickups = Array.isArray(trip.pickups) ? trip.pickups : [];
+  var pkTotalFreight = 0;
+  var pickupRows = tripPickups.map(function(p,i){
+    var loc = p.location || [p.originTambon,p.originAmphoe,p.originProv].filter(function(x){return x;}).join(" ") || "-";
+    var goods = p.goods || (Array.isArray(p.items)?p.items.filter(function(x){return x;}).join(" / "):"") || "-";
+    var dest = [p.destAmphoe,p.destProv].filter(function(x){return x;}).join(" · ") || "-";
+    var fr = parseFloat(p.freight||0); pkTotalFreight += fr;
+    var recv = p.receiverName || "";
+    return '<tr style="border-bottom:1px solid #f0f0f0">'
+      +'<td style="padding:4px 6px;color:#aaa">'+(i+1)+'</td>'
+      +'<td style="padding:4px 6px">'+loc+'</td>'
+      +'<td style="padding:4px 6px">'+goods+'</td>'
+      +'<td style="padding:4px 6px">'+dest+(recv?('<br><span style="color:#999;font-size:10px">\u0E1C\u0E39\u0E49\u0E23\u0E31\u0E1A: '+recv+'</span>'):'')+'</td>'
+      +'<td style="padding:4px 6px;text-align:right">'+fmt(fr)+'</td>'
+      +'</tr>';
+  }).join("");
+
   var payAgg={origin:{c:0,a:0},dest:{c:0,a:0},transfer:{c:0,a:0},credit:{c:0,a:0}};
   var grandFreight=0;
   tripBills.forEach(function(b){
@@ -3661,6 +3682,21 @@ function printTripSummary(tripId){
     +'<td style="padding:5px 6px;text-align:right;color:#0F6E56">'+fmt(s.destTotal||0)+'</td>'
     +'<td style="padding:5px 6px;text-align:right;color:#c0392b">'+fmt(s.codTotal||0)+'</td>'
     +'</tr></table>'
+
+    // ===== งานรับเข้าในเที่ยวนี้ =====
+    + (tripPickups.length ? (
+        '<div style="margin:14px 0 6px;font-weight:800;color:#b9770e;font-size:13px">\uD83D\uDCE5 \u0E07\u0E32\u0E19\u0E23\u0E31\u0E1A\u0E40\u0E02\u0E49\u0E32\u0E43\u0E19\u0E40\u0E17\u0E35\u0E48\u0E22\u0E27\u0E19\u0E35\u0E49 ('+tripPickups.length+' \u0E07\u0E32\u0E19)</div>'
+        +'<table style="width:100%;border-collapse:collapse;font-size:11px;margin-bottom:12px">'
+        +'<tr style="background:#fff4e6"><th style="padding:5px 6px;text-align:left">#</th>'
+        +'<th style="padding:5px 6px;text-align:left">\u0E23\u0E31\u0E1A\u0E17\u0E35\u0E48</th>'
+        +'<th style="padding:5px 6px;text-align:left">\u0E2A\u0E34\u0E19\u0E04\u0E49\u0E32</th>'
+        +'<th style="padding:5px 6px;text-align:left">\u0E1B\u0E25\u0E32\u0E22\u0E17\u0E32\u0E07</th>'
+        +'<th style="padding:5px 6px;text-align:right">\u0E04\u0E48\u0E32\u0E02\u0E19\u0E2A\u0E48\u0E07</th></tr>'
+        +pickupRows
+        +'<tr style="background:#fff4e6;font-weight:700"><td colspan="4" style="padding:5px 6px">\u0E23\u0E27\u0E21 '+tripPickups.length+' \u0E07\u0E32\u0E19\u0E23\u0E31\u0E1A</td>'
+        +'<td style="padding:5px 6px;text-align:right;color:#0F6E56">'+fmt(pkTotalFreight)+'</td></tr>'
+        +'</table>'
+      ) : '')
 
     // สรุปยอดค่าส่งแยกประเภทการจ่าย
     +'<table style="width:auto;min-width:55%;border-collapse:collapse;font-size:11px;margin-left:auto">'
@@ -6241,6 +6277,32 @@ function _saveClearEta(){
   trip.settlement=ex;
   if(GolodDB.updateTrip){ GolodDB.updateTrip(trip.id,{settlement:ex}); }
   alert("✅ บันทึกวันถึงผู้รับ "+cnt+" บิล"+(blank?(" (ยังไม่ระบุ "+blank+" บิล)"):"")+" — ลูกค้าจะเห็นวันถึงตามนี้ในหน้าติดตาม");
+}
+
+function openEtaPlanOnly(tripId){
+  var trip = (_tripState.openTrips||[]).find(function(t){ return t.id===tripId; });
+  if(!trip){ alert("ไม่พบข้อมูลเที่ยว"); return; }
+  _clearTripId = tripId; _clearTripData = trip; _clearBillEta = {};
+  var tb = BILLS.filter(function(b){ return trip.billIds && trip.billIds.indexOf(b.billNo)>=0; });
+  if(!tb.length){ alert("เที่ยวนี้ยังไม่มีบิล (หรือบิลยังไม่ซิงค์) — ใส่บิลเข้าเที่ยวก่อนครับ"); return; }
+  var old=document.getElementById("eta-plan-modal"); if(old) old.remove();
+  var bg=document.createElement("div");
+  bg.id="eta-plan-modal";
+  bg.style.cssText="position:fixed;inset:0;background:rgba(0,0,0,.45);z-index:99999;display:flex;align-items:flex-start;justify-content:center;overflow:auto;padding:18px 12px";
+  bg.innerHTML='<div style="background:#fff;border-radius:14px;max-width:560px;width:100%;padding:16px;box-shadow:0 10px 44px rgba(0,0,0,.32)">'
+    +'<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px">'
+      +'<div style="font-weight:800;color:#5b3fb5;font-size:15px">📅 ตั้งวันคาดว่าจะส่งถึงผู้รับ</div>'
+      +'<button onclick="var m=document.getElementById(&quot;eta-plan-modal&quot;);if(m)m.remove();" style="border:none;background:#eee;border-radius:8px;width:30px;height:30px;cursor:pointer;font-size:16px">✕</button>'
+    +'</div>'
+    +'<div style="font-size:11px;color:#888;margin-bottom:6px">ตั้งได้ตั้งแต่ช่วงจัดเที่ยว · กดบันทึกแล้ว <b>ไม่ใช่</b>การเคลียร์เที่ยว (ยอดเงินยังไม่ถูกปิด) · ลูกค้าเห็นวันนี้ในหน้าติดตาม</div>'
+    +'<div id="ct-eta-plan"></div>'
+    +'<div style="display:flex;gap:8px;justify-content:flex-end;margin-top:12px">'
+      +'<button class="btn btn-gray" onclick="var m=document.getElementById(&quot;eta-plan-modal&quot;);if(m)m.remove();">ปิด</button>'
+      +'<button class="btn btn-green" onclick="_saveClearEta();var m=document.getElementById(&quot;eta-plan-modal&quot;);if(m)m.remove();">💾 บันทึกวันคาดส่ง</button>'
+    +'</div>'
+  +'</div>';
+  document.body.appendChild(bg);
+  _renderClearEtaPlan(trip, tb);
 }
 
 function openClearTrip(tripId){
