@@ -82,7 +82,7 @@ body{font-family:Arial,"Sarabun",sans-serif;background:#f5f5f2;min-height:100vh;
     <div id="result"></div>
   </div>
 
-  <div class="foot">GOLOD Transport © 2026 · Track v13</div>
+  <div class="foot">GOLOD Transport © 2026 · Track v14</div>
 
 <script>
 /* ===== Firebase (project status-81cd0) ===== */
@@ -177,7 +177,8 @@ function render(billNo, b){
   var tbl = b.targetBranchLabel || b.targetBranch || form.targetBranchLabel || "";
   if((etaD || etaB) && rawStatus!=="ส่งสำเร็จ" && key!=="delivered"){
     var val = etaD ? fmtEta(etaD) : etaReceiver(etaB);
-    etaHtml = '<div class="eta">📅 คาดว่าถึง'+(etaD?"":' (โดยประมาณ)')+': <b>'+esc(val)+'</b>'+(tbl?(' <small>('+esc(tbl)+')</small>'):"")+'</div>';
+    var _showBr=(key==="issued"||key==="hub");
+    etaHtml = '<div class="eta">📅 คาดว่าถึง'+(etaD?"":' (โดยประมาณ)')+': <b>'+esc(val)+'</b>'+((tbl&&_showBr)?(' <small>('+esc(tbl)+')</small>'):"")+'</div>';
   }
 
   /* progress bar */
