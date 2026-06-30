@@ -748,7 +748,7 @@ tr:hover td{background:#f8fffe}
 <div class="topbar">
   <span class="title">🚛 จัดการขนส่ง</span>
   <span id="session-info" style="font-size:11px;opacity:.8"></span>
-  <span style="font-size:10px;opacity:.65;margin-left:auto">build 2026-06-10z126</span>
+  <span style="font-size:10px;opacity:.65;margin-left:auto">build 2026-06-10z127</span>
   <a href="GolodApp.html" style="margin-left:10px">← หน้าหลัก</a>
 </div>
 <div class="container">
@@ -2783,6 +2783,8 @@ function makeTfPickupRow(p){
     +'<div><div style="font-size:10px;color:#888;margin-bottom:2px">ตำบลต้นทาง</div>'
     +'<input class="pu-origin-tambon trip-inp" value="'+(p.originTambon||"")+'" placeholder="ตำบล"></div>'
     +'</div>'
+    +'<div style="margin-bottom:6px"><div style="font-size:10px;color:#888;margin-bottom:2px">บ้านเลขที่/รายละเอียดต้นทาง</div>'
+    +'<input class="pu-origin-addr trip-inp" value="'+(p.originAddr||"")+'" placeholder="บ้านเลขที่ ซอย ถนน จุดสังเกต (ที่ไปรับ)"></div>'
     +'<div style="font-size:10px;color:#888;margin-bottom:2px">รายการของ (สูงสุด 3)</div>'
     +'<div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:6px;margin-bottom:6px">'
     +'<input class="pu-g0 trip-inp" value="'+g0+'" placeholder="รายการ 1">'
@@ -2803,6 +2805,8 @@ function makeTfPickupRow(p){
     +'<div><div style="font-size:10px;color:#888;margin-bottom:2px">ตำบล</div>'
     +'<input class="pu-tambon trip-inp" value="'+(p.destTambon||"")+'" placeholder="ตำบล"></div>'
     +'</div>'
+    +'<div style="margin-bottom:6px"><div style="font-size:10px;color:#888;margin-bottom:2px">บ้านเลขที่/รายละเอียดปลายทาง</div>'
+    +'<input class="pu-dest-addr trip-inp" value="'+(p.destAddr||"")+'" placeholder="บ้านเลขที่ ซอย ถนน จุดสังเกต (ที่ส่ง)"></div>'
     +'<div style="display:grid;grid-template-columns:1fr 80px 1fr auto;gap:6px;align-items:flex-end;margin-bottom:6px">'
     +'<div><div style="font-size:10px;color:#888;margin-bottom:2px">ค่าขนส่ง (฿) — แก้มือได้</div>'
     +'<input class="pu-freight trip-inp" type="number" value="'+freight+'" placeholder="0" oninput="calcTfPickupTotal()"></div>'
@@ -2915,10 +2919,10 @@ function pullPickupToRow(pickupId){
   }
   var pdata = {
     pickupId: p.id, ref: p.ref,
-    location: p.location, originProv: p.originProv, originAmphoe: p.originAmphoe, originTambon: p.originTambon,
+    location: p.location, originProv: p.originProv, originAmphoe: p.originAmphoe, originTambon: p.originTambon, originAddr: p.originAddr,
     senderPhone: p.senderPhone, goods: p.goods, items: p.items,
     receiverName: p.receiverName, receiverPhone: p.receiverPhone,
-    destProv: p.destProv, destAmphoe: p.destAmphoe, destTambon: p.destTambon,
+    destProv: p.destProv, destAmphoe: p.destAmphoe, destTambon: p.destTambon, destAddr: p.destAddr,
     freight: p.freight, rate: p.rate||15, commission: p.commission, paidOnPickup: p.paidOnPickup
   };
   var div = document.createElement("div");
@@ -2991,12 +2995,14 @@ function getTfPickupData(){
     var originProv=(row.querySelector(".pu-origin-prov")||{}).value||"";
     var originAmphoe=(row.querySelector(".pu-origin-amphoe")||{}).value||"";
     var originTambon=(row.querySelector(".pu-origin-tambon")||{}).value||"";
+    var originAddr=(row.querySelector(".pu-origin-addr")||{}).value||"";
+    var destAddr=(row.querySelector(".pu-dest-addr")||{}).value||"";
     var senderPhone=(row.querySelector(".pu-sender-phone")||{}).value||"";
     var pickupId=row.getAttribute("data-pickup-id")||"";
     if(loc||goods||freight>0||recv||prov){
       pickups.push({location:loc,goods:goods,items:items,freight:freight,rate:rate,commission:comm,paidOnPickup:paid,payType:payType,slipUrl:slipUrl,
-        receiverName:recv,receiverPhone:recvPhone,destProv:prov,destAmphoe:amphoe,destTambon:tambon,
-        originProv:originProv,originAmphoe:originAmphoe,originTambon:originTambon,senderPhone:senderPhone,pickupId:pickupId});
+        receiverName:recv,receiverPhone:recvPhone,destProv:prov,destAmphoe:amphoe,destTambon:tambon,destAddr:destAddr,
+        originProv:originProv,originAmphoe:originAmphoe,originTambon:originTambon,originAddr:originAddr,senderPhone:senderPhone,pickupId:pickupId});
     }
   });
   return pickups;
@@ -6196,9 +6202,11 @@ function printSettlement(asPdf){
     + _pks.map(function(p){
         var loc=p.location||p.loc||"-";
         var goods=p.goods||"";
-        var amp=p.destAmphoe||"-"; var prov=p.destProv||"-";
         var fr=parseFloat(p.freight||0);
-        return '<tr style="background:#fffaf0"><td>📥 รับ</td><td>'+amp+'</td><td>'+prov+'</td><td>รับ</td><td>รับจาก '+loc+(goods?(' · '+goods):'')+'</td><td style="text-align:right">'+_settleFmt(fr)+'</td></tr>';
+        var oAddr=[p.originAddr, (p.originTambon?("ต."+p.originTambon):"")].filter(Boolean).join(" ");
+        var dAddr=[p.destAddr, (p.destTambon?("ต."+p.destTambon):"")].filter(Boolean).join(" ");
+        return '<tr style="background:#fffaf0"><td>📥 รับ</td><td>'+(p.originAmphoe||"-")+'</td><td>'+(p.originProv||"-")+'</td><td>รับ</td><td>จุดรับ: '+loc+(oAddr?(" · "+oAddr):"")+'</td><td style="text-align:right">'+_settleFmt(fr)+'</td></tr>'
+          +'<tr style="background:#fffaf0"><td style="color:#888">↳ ส่ง</td><td>'+(p.destAmphoe||"-")+'</td><td>'+(p.destProv||"-")+'</td><td></td><td>ของ: '+(goods||"-")+(dAddr?(" · ปลายทาง "+dAddr):"")+'</td><td></td></tr>';
       }).join("")
   ) : "";
   var stLbl={draft:"ร่าง",proposed:"เสนอ — รออนุมัติ",approved:"อนุมัติเบื้องต้น — รอยืนยันสุดท้าย",confirmed:"ยืนยันสุดท้ายแล้ว"}[_settle.status]||"";

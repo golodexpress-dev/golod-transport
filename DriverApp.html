@@ -5,6 +5,7 @@
 <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
 <meta http-equiv="Cache-Control" content="no-cache,no-store,must-revalidate">
 <title>โกโลด — คนขับ</title>
+<!-- addr-sync 2026-06-30 -->
 <script src="session.js"></script>
 <script src="firebase-app-compat.js"></script>
 <script src="firebase-firestore-compat.js"></script>
@@ -1042,6 +1043,12 @@ function openPickupFromTrip(idx){
     if(senderEl && p.location) senderEl.value = p.location;
     var senderProvEl = document.getElementById("pb-sender-prov");
     if(senderProvEl && p.originProv) senderProvEl.value = p.originProv;
+    var sAmpEl = document.getElementById("pb-sender-amphoe");
+    if(sAmpEl && p.originAmphoe) sAmpEl.value = p.originAmphoe;
+    var sTbEl = document.getElementById("pb-sender-tambon");
+    if(sTbEl && p.originTambon) sTbEl.value = p.originTambon;
+    var sAddrEl = document.getElementById("pb-sender-addr");
+    if(sAddrEl && p.originAddr) sAddrEl.value = p.originAddr;
     var freightEl = document.getElementById("pb-freight");
     if(freightEl && p.freight>0) freightEl.value = p.freight;
     var recvEl = document.getElementById("pb-receiver-name");
@@ -1054,6 +1061,8 @@ function openPickupFromTrip(idx){
     if(ampEl && p.destAmphoe) ampEl.value = p.destAmphoe;
     var tambonEl = document.getElementById("pb-dest-tambon");
     if(tambonEl && p.destTambon) tambonEl.value = p.destTambon;
+    var dAddrEl = document.getElementById("pb-dest-addr");
+    if(dAddrEl && p.destAddr) dAddrEl.value = p.destAddr;
     // เติมสินค้าช่องแรก
     var goodsInp = document.querySelector(".pb-goods-inp");
     if(goodsInp && p.goods) goodsInp.value = p.goods;
@@ -1304,12 +1313,18 @@ function submitPickupBill(){
     status: "รออนุมัติ",
     senderName: g("pb-sender-name"),
     senderProv: g("pb-sender-prov"),
+    senderAmphoe: g("pb-sender-amphoe"),
+    senderTambon: g("pb-sender-tambon"),
+    senderAddr: g("pb-sender-addr"),
     senderPhone: "",
     receiverName: g("pb-receiver-name"),
     receiverPhone: g("pb-receiver-phone"),
     destAmphoe: g("pb-dest-amphoe"),
     receiverAmphoe: g("pb-dest-amphoe"),
     receiverTambon: g("pb-dest-tambon"),
+    receiverAddr: g("pb-dest-addr"),
+    destTambon: g("pb-dest-tambon"),
+    destAddr: g("pb-dest-addr"),
     destProv: g("pb-dest-prov"),
     destAmphoe: "",
     freightNet: parseFloat(g("pb-freight"))||0,
@@ -1338,11 +1353,17 @@ function submitPickupBill(){
     form: {
       senderName: g("pb-sender-name"),
     senderProv: g("pb-sender-prov"),
+    senderAmphoe: g("pb-sender-amphoe"),
+    senderTambon: g("pb-sender-tambon"),
+    senderAddr: g("pb-sender-addr"),
       senderPhone: g("pb-sender-phone"),
       receiverName: g("pb-receiver-name"),
       receiverPhone: g("pb-receiver-phone"),
       destProv: g("pb-dest-prov"),
       destAmphoe: g("pb-dest-amphoe"),
+      destTambon: g("pb-dest-tambon"),
+      destAddr: g("pb-dest-addr"),
+      receiverAddr: g("pb-dest-addr"),
       freightPay: g("pb-pay"),
       items: (Array.from(document.querySelectorAll(".pb-goods-inp")).map(function(x){return x.value.trim();}).filter(Boolean).map(function(d,i){return {desc:d,kg:g("pb-weight")||"0",qty:i===0?(parseInt(g("pb-qty"))||1):1,sumCm:"0",hasCOD:false,codAmount:""};}))||[{desc:"สินค้า",kg:"0",qty:1,sumCm:"0",hasCOD:false,codAmount:""}],
       note: g("pb-note"),
@@ -1499,6 +1520,8 @@ function submitPickupBill(){
         <button onclick="startVoice('pb-sender-name','ผู้ส่ง')" style="width:42px;height:42px;border-radius:50%;background:#f0faf5;border:1px solid #d0ede5;cursor:pointer;display:flex;align-items:center;justify-content:center;flex-shrink:0">🎤</button>
       </div>
       <input id="pb-sender-prov" placeholder="จังหวัดต้นทาง (ที่เข้ารับ)" style="width:100%;margin-top:8px;padding:10px 12px;border:1px solid #ddd;border-radius:8px;font-size:14px">
+      <div style="display:flex;gap:8px;margin-top:8px"><input id="pb-sender-amphoe" placeholder="อำเภอต้นทาง" style="flex:1;padding:10px 12px;border:1px solid #ddd;border-radius:8px;font-size:14px"><input id="pb-sender-tambon" placeholder="ตำบลต้นทาง" style="flex:1;padding:10px 12px;border:1px solid #ddd;border-radius:8px;font-size:14px"></div>
+      <input id="pb-sender-addr" placeholder="บ้านเลขที่/รายละเอียดต้นทาง" style="width:100%;margin-top:8px;padding:10px 12px;border:1px solid #ddd;border-radius:8px;font-size:14px">
     </div>
 
     <!-- 1. ผู้รับ -->
@@ -1527,6 +1550,7 @@ function submitPickupBill(){
         <input id="pb-dest-amphoe" placeholder="อำเภอ" style="flex:1;padding:10px 12px;border:1px solid #ddd;border-radius:8px;font-size:14px">
         <input id="pb-dest-tambon" placeholder="ตำบล" style="flex:1;padding:10px 12px;border:1px solid #ddd;border-radius:8px;font-size:14px">
       </div>
+      <input id="pb-dest-addr" placeholder="บ้านเลขที่/รายละเอียดปลายทาง" style="width:100%;margin-top:8px;padding:10px 12px;border:1px solid #ddd;border-radius:8px;font-size:14px">
     </div>
 
     <!-- 3. สินค้า (สูงสุด 4 ช่อง) -->
