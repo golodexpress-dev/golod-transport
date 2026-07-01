@@ -1035,7 +1035,7 @@ function renderBills(){
       '<td class="r" style="color:#B07400">'+money(codFee(b))+'</td>'+
       '<td class="r"><b>'+money(codNet(b))+'</b></td>'+
       '<td>'+(ST_TH[b.status]||b.status||"—")+'</td>'+
-      '<td>'+(rm?'<span class="badge b-green">โอนแล้ว</span>':'<button class="btn btn-ghost btn-sm" onclick="toggleBill(\''+(b.billNo||"")+'\')">โอนคืน</button>')+'</td></tr>';
+      '<td>'+(rm?'<span class="badge b-green">โอนแล้ว</span>':((CU&&CU.role==="admin")?'<button class="btn btn-ghost btn-sm" onclick="toggleBill(\''+(b.billNo||"")+'\')">โอนคืน</button>':'<span class="badge" style="background:#eee;color:#888">ยังไม่จ่าย</span>'))+'</td></tr>';
   }).join("");
   document.getElementById("page-bills").innerHTML=
     '<table><thead><tr><th>เลขบิล</th><th>วันที่</th><th>คนรถ</th><th>วันที่ส่งสำเร็จ</th><th>วันเคลียร์เงิน</th><th>ต้นทาง</th><th>ปลายทาง</th><th>ชำระ</th><th class="r">ค่าส่งปลายทาง</th><th class="r">COD</th><th class="r">ธรรมเนียม</th><th class="r">โอนคืน</th><th>สถานะ</th><th></th></tr></thead><tbody>'+rows+'</tbody></table>';
@@ -1059,12 +1059,14 @@ function setBillRemit(billNo, remitted){
 }
 
 function toggleBill(billNo){
+  if(!(CU&&CU.role==="admin")){ alert("⚠️ เฉพาะแอดมินเท่านั้นที่อัพเดทสถานะจ่ายจากหน้า \"บิล COD ทั้งหมด\" ได้\n\nเสมียนที่ได้รับสิทธิ์ ให้ทำผ่านหน้า \"ทำใบจ่าย COD\" แทน เพื่อไม่ให้ข้ามขั้นตอนใบจ่าย"); return; }
   var b=BILL_MAP[billNo]; if(!b) return;
   var now=!(b.codRemit&&b.codRemit.remitted);
   setBillRemit(billNo, now).then(function(){ renderAll(); });
 }
 
 function markGroup(encName){
+  if(!(CU&&CU.role==="admin")){ alert("⚠️ เฉพาะแอดมินเท่านั้น"); return; }
   var name=decodeURIComponent(encName);
   var targets=codBillsFiltered().filter(function(b){
     return (getSender(b)||"(ไม่ระบุชื่อต้นทาง)")===name && !(b.codRemit&&b.codRemit.remitted);
