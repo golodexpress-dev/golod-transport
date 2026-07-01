@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
 <meta http-equiv="Cache-Control" content="no-cache,no-store,must-revalidate">
 <title>โกโลด — คนขับ</title>
-<!-- addr-sync 2026-06-30 -->
+<!-- addr-sync 2026-06-30 · trip-match 2026-07-01 -->
 <script src="session.js"></script>
 <script src="firebase-app-compat.js"></script>
 <script src="firebase-firestore-compat.js"></script>
@@ -401,37 +401,32 @@ function _driverSortPick(){
 }
 function loadLatestTrip(callback){
   var db; try{ db=firebase.firestore(); }catch(e){ callback(null); return; }
-  // ลอง query แบบมี orderBy ก่อน (ต้องการ index)
-  db.collection("trips")
-    .where("driverUsername","==",CU.username)
-    .where("status","==","open")
-    .orderBy("createdAt","desc").limit(10).get()
-    .then(function(snap){
-      DRIVER_TRIPS = [];
-      snap.forEach(function(doc){ DRIVER_TRIPS.push(doc.data()); });
-      if(DRIVER_TRIPS.length === 0){ callback(null); return; }
+  var uname = CU.username || "";
+  var dname = CU.name || "";
+  var col = db.collection("trips");
+  // ดึงเที่ยวที่มอบให้คนขับคนนี้ — จับคู่ได้ทั้ง driverUsername และ driverName
+  // (คนขับลงทะเบียน = username, รถร่วม/พิมพ์ชื่อเอง = ชื่อ) กันปัญหา "เห็นแค่บางเที่ยว"
+  var qs = [];
+  if(uname) qs.push(col.where("driverUsername","==",uname).where("status","==","open").limit(20).get());
+  if(dname && dname!==uname) qs.push(col.where("driverName","==",dname).where("status","==","open").limit(20).get());
+  if(qs.length===0){ loadTripFromBills(callback); return; }
+  Promise.all(qs.map(function(p){ return p.catch(function(e){ console.warn("[DriverApp] trip query fail:", e&&e.message); return null; }); }))
+    .then(function(snaps){
+      var seen={}; DRIVER_TRIPS = [];
+      snaps.forEach(function(snap){
+        if(!snap) return;
+        snap.forEach(function(doc){
+          var d=doc.data(); var id=d.id||doc.id;
+          if(id && seen[id]) return; if(id) seen[id]=1;
+          DRIVER_TRIPS.push(d);
+        });
+      });
+      DRIVER_TRIPS.sort(function(a,b){ return String(b.createdAt||"").localeCompare(String(a.createdAt||"")); });
+      if(DRIVER_TRIPS.length === 0){ loadTripFromBills(callback); return; }
       _driverSortPick();
       var sel = DRIVER_TRIPS.find(function(t){ return t.id===SELECTED_TRIP_ID; });
       callback(sel ? sel.billIds||null : null);
-    }).catch(function(e){
-      // ถ้า index ยังไม่มี ลอง query แบบไม่มี orderBy
-      console.warn("[DriverApp] trips index missing, fallback:", e.message);
-      db.collection("trips")
-        .where("driverUsername","==",CU.username)
-        .where("status","==","open")
-        .limit(10).get()
-        .then(function(snap){
-          DRIVER_TRIPS = [];
-          snap.forEach(function(doc){ DRIVER_TRIPS.push(doc.data()); });
-          if(DRIVER_TRIPS.length === 0){ callback(null); return; }
-          _driverSortPick();
-          var sel = DRIVER_TRIPS.find(function(t){ return t.id===SELECTED_TRIP_ID; });
-          callback(sel ? sel.billIds||null : null);
-        }).catch(function(){
-          // ถ้ายัง error อีก (trips collection ไม่มี) ใช้ BILLS ตาม tripId ที่ผูกไว้กับ bill
-          loadTripFromBills(callback);
-        });
-    });
+    }).catch(function(){ loadTripFromBills(callback); });
 }
 
 // fallback: หา tripId จาก bills ที่มี tripId field
