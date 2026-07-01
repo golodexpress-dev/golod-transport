@@ -215,7 +215,11 @@ var curPage   = "dash";
 var CU        = null;  // ผู้ใช้ปัจจุบัน (จาก GolodSession)
 var COD_VIEWERS = [];  // username ที่แอดมินมอบหมายให้ดู COD ได้
 var COD_ADDERS  = [];  // username ที่แอดมินมอบหมายให้เพิ่มลูกค้า COD ได้
+var COD_VOUCHERERS = [];  // username ที่ทำใบจ่าย COD ได้
 var CAN_ADD_CUST = false;
+var CAN_VIEW_BILLS = false;  // สิทธิ์ดูแท็บ บิล COD ทั้งหมด
+var CAN_VOUCHER = false;     // สิทธิ์ทำใบจ่าย COD
+var ALLOWED_TABS = null;     // null=admin เห็นทุกแท็บ / array=เฉพาะแท็บที่ระบุ
 var CAN_DELETE  = false; // ลบบัญชีได้ไหม (แอดมินเท่านั้น)
 var ACCT_ONLY   = false; // โหมดเสมียน: เห็นแค่แท็บบัญชี ซ่อนข้อมูลการเงิน
 
@@ -265,7 +269,28 @@ var Settings = (function(){
     if(fs) return fs.collection("codSettings").doc("adders").set({usernames:list, updatedAt:new Date().toISOString(), updatedBy:_user()},{merge:true}).then(function(){ return {cloud:true}; }).catch(function(e){ console.warn("[Settings] saveAdders:",e); return {cloud:false, error:(e&&e.message)||String(e)}; });
     return Promise.resolve({cloud:false, error:"no-firestore"});
   }
-  return {loadViewers:loadViewers, saveViewers:saveViewers, loadAdders:loadAdders, saveAdders:saveAdders};
+  function loadVoucherers(){
+    var fs=_fs();
+    if(fs){
+      return fs.collection("codSettings").doc("voucherers").get().then(function(d){
+        var v=(d.exists&&d.data().usernames)||[];
+        COD_VOUCHERERS=v; try{ localStorage.setItem("golod_cod_voucherers", JSON.stringify(v)); }catch(e){}
+        return v;
+      }).catch(function(e){
+        try{ COD_VOUCHERERS=JSON.parse(localStorage.getItem("golod_cod_voucherers")||"[]"); }catch(_){ COD_VOUCHERERS=[]; }
+        return COD_VOUCHERERS;
+      });
+    }
+    try{ COD_VOUCHERERS=JSON.parse(localStorage.getItem("golod_cod_voucherers")||"[]"); }catch(e){ COD_VOUCHERERS=[]; }
+    return Promise.resolve(COD_VOUCHERERS);
+  }
+  function saveVoucherers(list){
+    COD_VOUCHERERS=list; try{ localStorage.setItem("golod_cod_voucherers", JSON.stringify(list)); }catch(e){}
+    var fs=_fs();
+    if(fs) return fs.collection("codSettings").doc("voucherers").set({usernames:list, updatedAt:new Date().toISOString(), updatedBy:_user()},{merge:true}).then(function(){ return {cloud:true}; }).catch(function(e){ return {cloud:false, error:(e&&e.message)||String(e)}; });
+    return Promise.resolve({cloud:false, error:"no-firestore"});
+  }
+  return {loadViewers:loadViewers, saveViewers:saveViewers, loadAdders:loadAdders, saveAdders:saveAdders, loadVoucherers:loadVoucherers, saveVoucherers:saveVoucherers};
 })();
 
 /* ---------- บัญชีรับโอนคืน (collection: codAccounts) ---------- */
@@ -762,6 +787,7 @@ function vcSenders(){
 }
 function vcBills(){
   return codBillsFiltered().filter(function(b){ return getSender(b)===VC_SENDER; })
+         .filter(function(b){ return !(b.codRemit&&b.codRemit.remitted); })  // ซ่อนบิลที่จ่ายแล้ว — เหลือเฉพาะยังไม่จ่าย
          .sort(function(a,b){ return billDate(a)<billDate(b)?-1:1; });
 }
 function vcBillAgeDays(b){ var d=parseDate(billDate(b)); if(!d) return 0; return Math.floor((Date.now()-d.getTime())/86400000); }
@@ -869,11 +895,11 @@ function vcDoc(){
   if(!bills.length) return '<div class="empty vc-noprint">ยังไม่ได้เลือกบิล</div>';
   var ac=Accounts.get(VC_SENDER)||{};
   var today=new Date(); var dd=("0"+today.getDate()).slice(-2),mm=("0"+(today.getMonth()+1)).slice(-2),yy=(today.getFullYear()+543).toString().slice(-2);
-  var sumCOD=0,sumFee=0,sumNet=0;
+  var sumCOD=0,sumFee=0,sumNet=0,sumDest=0;
   var rows=bills.map(function(b){
-    var cod=getCOD(b),fee=codFee(b),net=codNet(b); sumCOD+=cod;sumFee+=fee;sumNet+=net;
+    var cod=getCOD(b),fee=codFee(b),net=codNet(b),_df=destFreight(b); sumCOD+=cod;sumFee+=fee;sumNet+=net;sumDest+=_df;
     return '<tr><td class="c">'+billDate(b)+'</td><td class="c">'+(b.billNo||"")+'</td>'+
-      '<td class="r">'+fmt(destFreight(b))+'</td><td class="c">'+(BILL_DRIVER[b.billNo]||"")+'</td>'+
+      '<td class="r">'+fmt(_df)+'</td><td class="c">'+(BILL_DRIVER[b.billNo]||"")+'</td>'+
       '<td class="c">'+(deliveredDate(b)||"")+'</td>'+
       '<td class="c">'+(fmtClear(BILL_CLEAR[b.billNo])||"")+'</td>'+
       '<td class="r">'+fmt(cod)+'</td><td class="r">'+money(fee)+'</td><td class="r">'+money(net)+'</td></tr>';
@@ -886,7 +912,7 @@ function vcDoc(){
     '<div class="vc-head"><div><b>ชื่อผู้ส่ง</b>&nbsp;&nbsp;'+VC_SENDER+(Accounts.code(VC_SENDER)?'  ( '+Accounts.code(VC_SENDER)+' )':'')+'</div><div><b>วันที่จัดทำ</b>&nbsp;'+dd+'/'+mm+'/'+yy+'</div></div>'+
     '<table class="vc-tb"><thead><tr><th>วันที่</th><th>เลขที่บิล</th><th>ค่าส่ง ปท.</th><th>พนักงานส่ง</th><th>วันที่ส่งสำเร็จ</th><th>วันเคลียร์เงิน</th><th>COD</th><th>3%</th><th>ยอดสุทธิ</th></tr></thead>'+
     '<tbody>'+rows+
-    '<tr class="vc-tot"><td colspan="6" class="r">ยอดรวม</td><td class="r">'+fmt(sumCOD)+'</td><td class="r">'+money(sumFee)+'</td><td class="r vc-net">'+money(sumNet)+'</td></tr>'+
+    '<tr class="vc-tot"><td colspan="2" class="r">ยอดรวม</td><td class="r">'+fmt(sumDest)+'</td><td colspan="3"></td><td class="r">'+fmt(sumCOD)+'</td><td class="r">'+money(sumFee)+'</td><td class="r vc-net">'+money(sumNet)+'</td></tr>'+
     '</tbody></table>'+
     '<div class="vc-acct"><b>รายละเอียดเลขบัญชี</b><br>'+acctLine+'</div>'+
     '<div class="vc-sign"><div>____________________<br>ผู้จัดทำ</div><div>____________________<br>ผู้อนุมัติ</div></div>'+
@@ -1210,17 +1236,19 @@ function authGate(){
   if(!GS||!GS.get){ showLock("ไม่พบระบบเข้าสู่ระบบ — เปิดไฟล์นี้ในโฟลเดอร์ระบบโกโลด (ต้องมี session.js)"); return Promise.resolve(false); }
   CU=GS.get();
   if(!CU){ location.href="GolodApp.html"; return Promise.resolve(false); }
-  if(CU.role==="admin"){ CAN_DELETE=true; ACCT_ONLY=false; CAN_ADD_CUST=true; return Promise.resolve(true); }  // แอดมิน: ทุกอย่าง + ลบได้
-  return Settings.loadViewers().then(function(list){
-    return Settings.loadAdders().then(function(adders){
-      var _isV=(list||[]).indexOf(CU.username)>=0;
-      var _isA=(adders||[]).indexOf(CU.username)>=0;
-      CAN_ADD_CUST=_isA;
-      if(_isV){ CAN_DELETE=false; ACCT_ONLY=false; return true; }
-      if(_isA){ CAN_DELETE=false; ACCT_ONLY=true; return true; }
-      showLock("หน้านี้เปิดให้เฉพาะแอดมิน และผู้ที่ได้รับมอบหมายเท่านั้น<br>กรุณาติดต่อแอดมินเพื่อขอสิทธิ์ดูระบบตรวจสอบ COD");
-      return false;
-    });
+  if(CU.role==="admin"){ CAN_DELETE=true; ACCT_ONLY=false; CAN_ADD_CUST=true; CAN_VIEW_BILLS=true; CAN_VOUCHER=true; ALLOWED_TABS=null; return Promise.resolve(true); }  // แอดมิน: ทุกอย่าง + ลบได้
+  return Promise.all([Settings.loadViewers(), Settings.loadAdders(), Settings.loadVoucherers()]).then(function(_p){
+    var _isV=((_p[0]||[]).indexOf(CU.username)>=0);
+    var _isA=((_p[1]||[]).indexOf(CU.username)>=0);
+    var _isVc=((_p[2]||[]).indexOf(CU.username)>=0);
+    CAN_ADD_CUST=_isA; CAN_VIEW_BILLS=_isV; CAN_VOUCHER=_isVc; CAN_DELETE=false; ACCT_ONLY=false;
+    var tabs=[];
+    if(_isV) tabs.push("bills");        // ดู COD -> แท็บ บิล COD ทั้งหมด
+    if(_isVc) tabs.push("voucher");     // ทำใบจ่าย COD -> แท็บ ใบจ่ายเงิน
+    if(_isA) tabs.push("accounts");     // เพิ่มลูกค้า -> แท็บ บัญชี
+    if(tabs.length){ ALLOWED_TABS=tabs; return true; }
+    showLock("หน้านี้เปิดให้เฉพาะแอดมิน และผู้ที่ได้รับมอบหมายเท่านั้น<br>กรุณาติดต่อแอดมินเพื่อขอสิทธิ์ดูระบบตรวจสอบ COD");
+    return false;
   });
 }
 
@@ -1232,9 +1260,10 @@ function openAssign(){
   Promise.all([
     Settings.loadViewers(),
     Settings.loadAdders(),
+    Settings.loadVoucherers(),
     (typeof GolodDB!=="undefined"&&GolodDB.getUsers)?GolodDB.getUsers():Promise.resolve([])
   ]).then(function(_r){
-    var users=_r[2];
+    var users=_r[3];
     users=(users||[]).filter(function(u){ return u.role!=="customer"; });
     users.sort(function(a,b){ return (a.role+(a.name||""))>(b.role+(b.name||""))?1:-1; });
     var roleLabels={admin:"แอดมิน",branch:"หัวหน้าสาขา",clerk:"เสมียน",driver:"คนขับ"};
@@ -1242,9 +1271,11 @@ function openAssign(){
       var isAdmin=u.role==="admin";
       var vchecked=isAdmin||COD_VIEWERS.indexOf(u.username)>=0;
       var achecked=isAdmin||COD_ADDERS.indexOf(u.username)>=0;
+      var vcchecked=isAdmin||COD_VOUCHERERS.indexOf(u.username)>=0;
       return '<div class="chk-row" style="display:flex;align-items:center;gap:6px;flex-wrap:wrap">'+
         '<span style="flex:1;min-width:120px"><b>'+(u.name||u.username)+'</b> <span class="acct-line">'+(roleLabels[u.role]||u.role)+(isAdmin?' · เข้าได้เสมอ':'')+'</span></span>'+
-        '<label style="display:inline-flex;align-items:center;gap:3px;font-size:12px;white-space:nowrap"><input type="checkbox" class="vw-chk" value="'+u.username+'"'+(vchecked?' checked':'')+(isAdmin?' disabled':'')+'> ดู COD</label>'+
+        '<label style="display:inline-flex;align-items:center;gap:3px;font-size:12px;white-space:nowrap"><input type="checkbox" class="vw-chk" value="'+u.username+'"'+(vchecked?' checked':'')+(isAdmin?' disabled':'')+'> ดูบิล COD</label>'+
+        '<label style="display:inline-flex;align-items:center;gap:3px;font-size:12px;white-space:nowrap"><input type="checkbox" class="vc-chk" value="'+u.username+'"'+(vcchecked?' checked':'')+(isAdmin?' disabled':'')+'> ทำใบจ่าย COD</label>'+
         '<label style="display:inline-flex;align-items:center;gap:3px;font-size:12px;white-space:nowrap"><input type="checkbox" class="add-chk" value="'+u.username+'"'+(achecked?' checked':'')+(isAdmin?' disabled':'')+'> เพิ่มลูกค้า</label>'+
         '</div>';
     }).join("")||'<div class="acct-line">ไม่พบผู้ใช้</div>';
@@ -1257,13 +1288,15 @@ function saveAssign(){
     .filter(function(c){ return c.checked && !c.disabled; }).map(function(c){ return c.value; });
   var alist=[].slice.call(box.querySelectorAll('input.add-chk'))
     .filter(function(c){ return c.checked && !c.disabled; }).map(function(c){ return c.value; });
-  Promise.all([Settings.saveViewers(vlist), Settings.saveAdders(alist)]).then(function(res){
-    var v=res[0]||{}, a=res[1]||{};
-    if(v.cloud && a.cloud){
-      alert("✅ บันทึกขึ้นคลาวด์สำเร็จ\nดู COD: "+vlist.length+" คน · เพิ่มลูกค้า: "+alist.length+" คน\n\nสิทธิ์จะมีผลกับทุกเครื่อง (เสมียนรีเฟรชหน้าจอ)");
+  var vclist=[].slice.call(box.querySelectorAll('input.vc-chk'))
+    .filter(function(c){ return c.checked && !c.disabled; }).map(function(c){ return c.value; });
+  Promise.all([Settings.saveViewers(vlist), Settings.saveAdders(alist), Settings.saveVoucherers(vclist)]).then(function(res){
+    var v=res[0]||{}, a=res[1]||{}, vc=res[2]||{};
+    if(v.cloud && a.cloud && vc.cloud){
+      alert("✅ บันทึกขึ้นคลาวด์สำเร็จ\nดูบิล COD: "+vlist.length+" · ทำใบจ่าย COD: "+vclist.length+" · เพิ่มลูกค้า: "+alist.length+" คน\n\nสิทธิ์จะมีผลกับทุกเครื่อง (เสมียนรีเฟรชหน้าจอ)");
       closeAssign();
     } else {
-      alert("⚠️ บันทึกขึ้นคลาวด์ไม่สำเร็จ — สิทธิ์จะไม่ไปถึงเครื่องเสมียน\n\nสาเหตุ: "+((v.error||a.error||"unknown"))+"\n\n(มักเป็นเรื่องสิทธิ์เขียน Firestore — collection codSettings — ให้ผู้ดูแลตรวจ rules)");
+      alert("⚠️ บันทึกขึ้นคลาวด์ไม่สำเร็จ — สิทธิ์จะไม่ไปถึงเครื่องเสมียน\n\nสาเหตุ: "+((v.error||a.error||vc.error||"unknown"))+"\n\n(มักเป็นเรื่องสิทธิ์เขียน Firestore — collection codSettings — ให้ผู้ดูแลตรวจ rules)");
     }
   });
 }
@@ -1289,16 +1322,18 @@ function saveAssign(){
 
 // โหมดเสมียน (ACCT_ONLY): เห็นแค่แท็บบัญชี ซ่อนยอด COD รวม + ตัวกรองที่ไม่จำเป็น
 function applyAccessUI(){
-  if(!ACCT_ONLY) return;
+  if(!ALLOWED_TABS) return;  // admin — เห็นทุกแท็บ
+  var allow=ALLOWED_TABS;
   document.querySelectorAll(".tab").forEach(function(t){
-    if(t.dataset.pg!=="accounts") t.style.display="none";
+    if(allow.indexOf(t.dataset.pg)<0) t.style.display="none";
   });
   var pills=document.getElementById("hdr-pills"); if(pills) pills.style.display="none";
-  // ซ่อนตัวกรองช่วงวันที่/คนรถ (ไม่เกี่ยวกับการตั้งบัญชี) เหลือเฉพาะค้นหา + โหลดใหม่
-  ["f-from","f-to","f-driver"].forEach(function(id){
-    var el=document.getElementById(id); if(el&&el.parentNode) el.parentNode.style.display="none";
-  });
-  showPage("accounts");
+  if(allow.indexOf("bills")<0 && allow.indexOf("voucher")<0){
+    ["f-from","f-to","f-driver"].forEach(function(id){
+      var el=document.getElementById(id); if(el&&el.parentNode) el.parentNode.style.display="none";
+    });
+  }
+  if(allow.length) showPage(allow[0]);
 }
 </script>
 </body>
