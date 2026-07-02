@@ -137,6 +137,7 @@ td.r,th.r{text-align:right}
     <div class="tab" data-pg="trips" onclick="showPage('trips')">🚚 ตรวจรายเที่ยว/คนรถ</div>
     <div class="tab" data-pg="remit" onclick="showPage('remit')">💸 โอนคืนต้นทาง</div>
     <div class="tab" data-pg="voucher" onclick="showPage('voucher')">🧾 ใบจ่ายเงิน</div>
+    <div class="tab" data-pg="vhist" onclick="showPage('vhist')">🗂 ประวัติใบจ่าย</div>
     <div class="tab" data-pg="bills" onclick="showPage('bills')">🧾 บิล COD ทั้งหมด</div>
     <div class="tab" data-pg="accounts" onclick="showPage('accounts')">🏦 ลูกค้า/บัญชีรับโอน</div>
     <div class="tab" data-pg="codlist" onclick="showPage('codlist')">📋 ลูกค้า COD (มีรหัส)</div>
@@ -146,7 +147,7 @@ td.r,th.r{text-align:right}
   <div class="page active" id="page-dash"></div>
   <div class="page" id="page-trips"></div>
   <div class="page" id="page-remit"></div>
-  <div class="page" id="page-voucher"></div>
+  <div class="page" id="page-voucher"></div>\n  <div class="page" id="page-vhist"></div>
   <div class="page" id="page-bills"></div>
   <div class="page" id="page-accounts"></div>
   <div class="page" id="page-report"></div>
@@ -528,6 +529,7 @@ function showPage(pg){
   document.querySelectorAll(".tab").forEach(function(t){ t.classList.toggle("active", t.dataset.pg===pg); });
   document.querySelectorAll(".page").forEach(function(p){ p.classList.remove("active"); });
   document.getElementById("page-"+pg).classList.add("active");
+  if(pg==="vhist" && typeof renderVHist==="function") renderVHist();
 }
 function renderCodList(){
   var box=document.getElementById("page-codlist"); if(!box) return;
@@ -925,9 +927,86 @@ function vcMarkPaid(){
   var pend=bills.filter(function(b){ return !(b.codRemit&&b.codRemit.remitted); });
   if(!pend.length){ alert("บิลที่เลือกถูกบันทึกว่าจ่ายแล้วทั้งหมด"); return; }
   if(!confirm("บันทึกว่าจ่ายเงิน COD แล้ว "+pend.length+" บิล ของ "+VC_SENDER+" ?\nระบบจะตัดยอดออกจากยอดค้างโอนคืน")) return;
+  var _voucher = vcBuildRecord(pend);   // สร้าง record ใบจ่าย (ก่อนตัดยอด)
   Promise.all(pend.map(function(b){ return setBillRemit(b.billNo, true); })).then(function(){
-    VC_SHOW=true; renderAll(); alert("✅ บันทึกแล้ว ตัดยอดเรียบร้อย");
+    vcSaveRecord(_voucher);
+    VC_SHOW=true; renderAll(); alert("✅ บันทึกแล้ว ตัดยอดเรียบร้อย · เก็บใบจ่ายในประวัติแล้ว");
   });
+}
+
+/* ===== ประวัติใบจ่าย COD (cod_vouchers) ===== */
+var VHIST=[], VHIST_SEL=null, VHIST_LOADED=false;
+function vcBuildRecord(bills){
+  var ac=Accounts.get(VC_SENDER)||{};
+  var sumCOD=0,sumFee=0,sumNet=0,sumDest=0;
+  var rows=bills.map(function(b){
+    var cod=getCOD(b),fee=codFee(b),net=codNet(b),df=destFreight(b);
+    sumCOD+=cod;sumFee+=fee;sumNet+=net;sumDest+=df;
+    return {billNo:b.billNo||"", date:billDate(b)||"", cod:cod, fee:fee, net:net, destFreight:df,
+      driver:(BILL_DRIVER[b.billNo]||""), delivered:(deliveredDate(b)||""), clear:(fmtClear(BILL_CLEAR[b.billNo])||"")};
+  });
+  var now=new Date();
+  return { id:"V"+now.getTime(), sender:VC_SENDER, code:(Accounts.code(VC_SENDER)||""),
+    createdAt:now.toISOString(), createdBy:_user(), count:rows.length,
+    sumCOD:sumCOD, sumFee:sumFee, sumNet:sumNet, sumDest:sumDest,
+    acctName:(ac.accountName||VC_SENDER), bank:(ac.bank||""), accountNo:(ac.accountNo||""), bills:rows };
+}
+function vcSaveRecord(v){
+  try{ var db=firebase.firestore();
+    db.collection("cod_vouchers").doc(v.id).set(v).then(function(){ VHIST.unshift(v); }).catch(function(e){ console.warn("saveVoucher:",e); });
+  }catch(e){ console.warn("saveVoucher:",e); }
+}
+function vcLoadHistory(){
+  return new Promise(function(res){
+    try{ var db=firebase.firestore();
+      db.collection("cod_vouchers").orderBy("createdAt","desc").limit(300).get().then(function(snap){
+        VHIST=[]; snap.forEach(function(d){ VHIST.push(d.data()); }); VHIST_LOADED=true; res();
+      }).catch(function(e){ console.warn("loadVouchers:",e); VHIST_LOADED=true; res(); });
+    }catch(e){ VHIST_LOADED=true; res(); }
+  });
+}
+function _vhDate(iso, full){
+  var d=new Date(iso); if(isNaN(d)) return "";
+  var dd=("0"+d.getDate()).slice(-2), mm=("0"+(d.getMonth()+1)).slice(-2), yy=d.getFullYear()+543;
+  return dd+"/"+mm+"/"+(full?yy:(yy%100));
+}
+function vhistOpen(id){ VHIST_SEL=VHIST.find(function(v){return v.id===id;})||null; renderVHist(); }
+function vhistBack(){ VHIST_SEL=null; renderVHist(); }
+function renderVHist(){
+  var box=document.getElementById("page-vhist"); if(!box) return;
+  if(!VHIST_LOADED){ box.innerHTML='<div class="empty">กำลังโหลดประวัติใบจ่าย…</div>'; vcLoadHistory().then(function(){ renderVHist(); }); return; }
+  if(VHIST_SEL){ box.innerHTML=vhistDocView(); return; }
+  if(!VHIST.length){ box.innerHTML='<div class="empty">ยังไม่มีประวัติใบจ่าย COD<br><span class="acct-line">ใบจ่ายจะถูกเก็บอัตโนมัติเมื่อกด “บันทึกจ่ายแล้ว” ในหน้าทำใบจ่าย</span></div>'; return; }
+  var rows=VHIST.map(function(v){
+    return '<tr style="cursor:pointer" onclick="vhistOpen(\''+v.id+'\')">'+
+      '<td class="c">'+_vhDate(v.createdAt,false)+'</td>'+
+      '<td>'+(v.code?'['+v.code+'] ':'')+(v.sender||'')+'</td>'+
+      '<td class="c">'+(v.count||0)+'</td>'+
+      '<td class="r">'+money(v.sumNet||0)+'</td>'+
+      '<td class="c">'+(v.createdBy||'')+'</td>'+
+      '<td class="c" style="color:#1D9E75;font-weight:700">👁 ดูใบ</td></tr>';
+  }).join("");
+  box.innerHTML='<div style="background:#fff;border-radius:10px;padding:8px;border:0.5px solid #eee;margin-bottom:12px">'+
+    '<div style="font-size:12px;color:#888;padding:4px 6px">ประวัติใบจ่าย COD ทั้งหมด '+VHIST.length+' ใบ — คลิกแถวเพื่อดู/พิมพ์ใบ</div>'+
+    '<table><thead><tr><th>วันที่</th><th>ลูกค้าต้นทาง</th><th class="c">บิล</th><th class="r">ยอดสุทธิ</th><th>ผู้ทำ</th><th></th></tr></thead><tbody>'+rows+'</tbody></table></div>';
+}
+function vhistDocView(){
+  var v=VHIST_SEL; if(!v) return '';
+  var rows=(v.bills||[]).map(function(b){
+    return '<tr><td class="c">'+(b.date||"")+'</td><td class="c">'+(b.billNo||"")+'</td>'+
+      '<td class="r">'+fmt(b.destFreight||0)+'</td><td class="c">'+(b.driver||"")+'</td>'+
+      '<td class="c">'+(b.delivered||"")+'</td><td class="c">'+(b.clear||"")+'</td>'+
+      '<td class="r">'+fmt(b.cod||0)+'</td><td class="r">'+money(b.fee||0)+'</td><td class="r">'+money(b.net||0)+'</td></tr>';
+  }).join("");
+  var acctLine=(v.bank||v.accountNo)?((v.acctName||v.sender)+'   ธ.'+(v.bank||'—')+'   เลขบัญชี '+(v.accountNo||'—')):'';
+  return '<div class="vc-noprint" style="margin-bottom:10px"><button class="btn btn-ghost" onclick="vhistBack()">← กลับรายการ</button> <button class="btn btn-ghost" onclick="window.print()">🖨️ พิมพ์</button></div>'+
+    '<div class="vc-doc"><div class="vc-title">ใบจ่ายเงิน COD</div>'+
+    '<div class="vc-head"><div><b>ชื่อผู้ส่ง</b>&nbsp;&nbsp;'+(v.sender||'')+(v.code?'  ( '+v.code+' )':'')+'</div><div><b>วันที่จัดทำ</b>&nbsp;'+_vhDate(v.createdAt,true)+'</div></div>'+
+    '<table class="vc-tb"><thead><tr><th>วันที่</th><th>เลขที่บิล</th><th>ค่าส่ง ปท.</th><th>พนักงานส่ง</th><th>วันที่ส่งสำเร็จ</th><th>วันเคลียร์เงิน</th><th>COD</th><th>3%</th><th>ยอดสุทธิ</th></tr></thead><tbody>'+rows+
+    '<tr class="vc-tot"><td colspan="2" class="r">ยอดรวม</td><td class="r">'+fmt(v.sumDest||0)+'</td><td colspan="3"></td><td class="r">'+fmt(v.sumCOD||0)+'</td><td class="r">'+money(v.sumFee||0)+'</td><td class="r vc-net">'+money(v.sumNet||0)+'</td></tr>'+
+    '</tbody></table>'+
+    (acctLine?'<div style="margin-top:8px;font-size:13px">'+acctLine+'</div>':'')+
+    '<div class="vc-note" style="margin-top:6px">ผู้ทำใบจ่าย: '+(v.createdBy||'')+'</div></div>';
 }
 
 /* ----- BILLS (flat) ----- */
@@ -1246,7 +1325,7 @@ function authGate(){
     CAN_ADD_CUST=_isA; CAN_VIEW_BILLS=_isV; CAN_VOUCHER=_isVc; CAN_DELETE=false; ACCT_ONLY=false;
     var tabs=[];
     if(_isV) tabs.push("bills");        // ดู COD -> แท็บ บิล COD ทั้งหมด
-    if(_isVc) tabs.push("voucher");     // ทำใบจ่าย COD -> แท็บ ใบจ่ายเงิน
+    if(_isVc){ tabs.push("voucher"); tabs.push("vhist"); }  // ทำใบจ่าย COD -> ใบจ่ายเงิน + ประวัติ
     if(_isA) tabs.push("accounts");     // เพิ่มลูกค้า -> แท็บ บัญชี
     if(tabs.length){ ALLOWED_TABS=tabs; return true; }
     showLock("หน้านี้เปิดให้เฉพาะแอดมิน และผู้ที่ได้รับมอบหมายเท่านั้น<br>กรุณาติดต่อแอดมินเพื่อขอสิทธิ์ดูระบบตรวจสอบ COD");

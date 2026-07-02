@@ -3501,6 +3501,25 @@ function ThermalBillingApp() {
       alert("\u26d4 ออกบิล COD ไม่ได้\n\nลูกค้า COD ต้องลงทะเบียน (มีรหัสลูกค้า COD) ก่อนออกบิล\nกรุณาใส่รหัสลูกค้า COD ในช่อง \u201cรหัสลูกค้า\u201d\n\n(ถ้าลูกค้ายังไม่มีรหัส ให้ลงทะเบียนรหัสลูกค้า COD ก่อน)");
       return;
     }
+    // ===== กฎเพิ่ม: บิล COD ต้องใช้รหัสขึ้นต้น C + ชื่อผู้ส่งตรงเป๊ะกับฐานลูกค้า COD =====
+    if(_codAmt > 0 && _ccode){
+      var _codeU = _ccode.toUpperCase();
+      if(_codeU.charAt(0) !== "C"){
+        alert("\u26d4 รหัสลูกค้า COD ต้องขึ้นต้นด้วยตัว C\n\nรหัสที่ใส่: "+_ccode+"\nกรุณาตรวจสอบรหัสลูกค้า COD ให้ถูกต้อง");
+        return;
+      }
+      var _byCode = (CUST_INDEX && CUST_INDEX.byCode) ? CUST_INDEX.byCode[_codeU] : null;
+      if(!_byCode){
+        alert("\u26d4 ไม่พบรหัสลูกค้า COD นี้ในฐานข้อมูล\n\nรหัส: "+_ccode+"\n\nต้องลงทะเบียนลูกค้า COD (มีรหัส) ก่อน หรือตรวจสอบรหัสให้ถูก จึงจะออกบิล COD ได้");
+        return;
+      }
+      var _regName = String(_byCode.name||"").trim();
+      var _sName = String(form.senderName||"").trim();
+      if(_regName !== _sName){
+        alert("\u26d4 ชื่อผู้ส่งไม่ตรงกับรหัสลูกค้า COD\n\nรหัส "+_ccode+" ลงทะเบียนในชื่อ:\n  "+_regName+"\n\nชื่อผู้ส่งในบิล:\n  "+_sName+"\n\nชื่อต้องตรงกันเป๊ะ — แก้ชื่อผู้ส่งให้ตรงกับที่ลงทะเบียน หรือใช้รหัสให้ตรงลูกค้า");
+        return;
+      }
+    }
     try{
       var _codCust = (CUST_INDEX && CUST_INDEX.byName) ? CUST_INDEX.byName[(form.senderName||"").trim()] : null;
       if(_codCust && _codCust.code && !_ccode){
