@@ -1134,7 +1134,24 @@ function doTrack(){
   var q=(document.getElementById("tq")?.value||"").trim().toUpperCase();
   var b=BILLS.find(function(x){return x.billNo===q;});
   var el=document.getElementById("track-result");
-  if(!b){el.innerHTML='<div class="alr">ไม่พบเลขบิล "'+q+'" กรุณาตรวจสอบอีกครั้งครับ</div>';return;}
+  if(!b){
+    // fallback: บิลเก่ากว่า 500 ใบล่าสุด ไม่ได้ถูกโหลดไว้ → ค้นตรงจาก Firestore
+    if(typeof GolodDB!=="undefined" && GolodDB.findBillDocs && q){
+      if(el) el.innerHTML='<div style="color:#888;padding:10px">🔍 กำลังค้นหาบิลจากฐานข้อมูล…</div>';
+      GolodDB.findBillDocs(q).then(function(arr){
+        if(arr && arr.length){
+          var nb=arr[0];
+          try{ var norm=loadRealBills([arr[0]]); if(norm&&norm[0]) nb=norm[0]; }catch(e){}
+          if(!BILLS.find(function(x){return x.billNo===(nb.billNo||q);})) BILLS.push(nb);
+          doTrack();
+        } else {
+          if(el) el.innerHTML='<div class="alr">ไม่พบเลขบิล "'+q+'" กรุณาตรวจสอบอีกครั้งครับ</div>';
+        }
+      }).catch(function(e){ if(el) el.innerHTML='<div class="alr">ค้นหาไม่สำเร็จ ลองใหม่อีกครั้ง</div>'; });
+      return;
+    }
+    el.innerHTML='<div class="alr">ไม่พบเลขบิล "'+q+'" กรุณาตรวจสอบอีกครั้งครับ</div>';return;
+  }
   var sc=SYS_COLOR[CS]||"#1D9E75";
   var h='<div style="border:1.5px solid '+(STCLS[b.status]==="pg"?"#9FE1CB":STCLS[b.status]==="pr"?"#E9B8C0":"#F0C060")+';border-radius:10px;padding:13px">';
   h+='<div style="display:flex;justify-content:space-between;margin-bottom:10px">';

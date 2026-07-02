@@ -748,7 +748,7 @@ tr:hover td{background:#f8fffe}
 <div class="topbar">
   <span class="title">🚛 จัดการขนส่ง</span>
   <span id="session-info" style="font-size:11px;opacity:.8"></span>
-  <span style="font-size:10px;opacity:.65;margin-left:auto">build 2026-06-10z127</span>
+  <span style="font-size:10px;opacity:.65;margin-left:auto">build 2026-06-10z128</span>
   <a href="GolodApp.html" style="margin-left:10px">← หน้าหลัก</a>
 </div>
 <div class="container">
@@ -1622,6 +1622,30 @@ function renderTripTab(){
   ]).then(function(results){
     _tripState.drivers = (results[0]||[]).filter(function(u){ return u.role==="driver"; });
     _tripState.openTrips = results[1]||[];
+    // เที่ยวโชว์บิลครบทุกใบ: บิลเก่ากว่า 14 วันไม่ถูกโหลดใน BILLS → ดึงตรงด้วย tripId แล้ว merge
+    try{
+      if(GolodDB.getBillsByTripId){
+        var _haveNo={}; BILLS.forEach(function(b){ if(b&&b.billNo) _haveNo[b.billNo]=1; });
+        var _needTrips=(_tripState.openTrips||[]).filter(function(t){
+          return t && t.id && t.billIds && t.billIds.some(function(no){ return !_haveNo[no]; });
+        });
+        if(_needTrips.length){
+          Promise.all(_needTrips.map(function(t){
+            return GolodDB.getBillsByTripId(t.id).catch(function(){ return []; });
+          })).then(function(lists){
+            var added=0;
+            lists.forEach(function(arr){ (arr||[]).forEach(function(b){
+              if(!b || !b.billNo || _haveNo[b.billNo]) return;
+              if(b.form && typeof b.form==="string"){ try{b.form=JSON.parse(b.form);}catch(e){b.form={};} }
+              if(!b.form) b.form={};
+              if(!b.status) b.status="ออกบิลรับของ";
+              BILLS.push(b); _haveNo[b.billNo]=1; added++;
+            }); });
+            if(added>0 && _tripState.mode!=="create" && _tripState.mode!=="edit"){ try{ renderTripList(); }catch(e){} }
+          });
+        }
+      }
+    }catch(e){ console.warn("[DA] merge trip bills:", e); }
     if(!window._autoScanTimer) window._autoScanTimer=setInterval(_autoScanTick, 180000);
     runAutoDispatchScan();
     if(_tripState.mode === "create" || _tripState.mode === "edit"){
