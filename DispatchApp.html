@@ -748,7 +748,7 @@ tr:hover td{background:#f8fffe}
 <div class="topbar">
   <span class="title">🚛 จัดการขนส่ง</span>
   <span id="session-info" style="font-size:11px;opacity:.8"></span>
-  <span style="font-size:10px;opacity:.65;margin-left:auto">build 2026-06-10z131</span>
+  <span style="font-size:10px;opacity:.65;margin-left:auto">build 2026-06-10z132</span>
   <a href="GolodApp.html" style="margin-left:10px">← หน้าหลัก</a>
 </div>
 <div class="container">
@@ -2828,7 +2828,7 @@ function onPuSlipUpload(input){
 }
 function makeTfPickupRow(p){
   p = p||{};
-  var rate = p.rate||15;
+  var rate = parseFloat(p.rate); if(isNaN(rate)) rate=0;   // default 0% + จำค่า 0 ได้
   var freight = p.freight||"";
   var comm = p.commission||"";
   var paid = p.paidOnPickup ? "checked" : "";
@@ -2883,7 +2883,7 @@ function makeTfPickupRow(p){
     +'<select class="pu-rate trip-inp" onchange="calcTfPickupTotal()" style="padding:7px 6px">'
     +'<option value="15"'+(rate===15?" selected":"")+'>15%</option>'
     +'<option value="20"'+(rate===20?" selected":"")+'>20%</option>'
-    +'<option value="0"'+(rate===0?" selected":"")+'>ไม่มี</option>'
+    +'<option value="0"'+(rate===0?" selected":"")+'>ไม่คิด (0%)</option>'
     +'</select></div>'
     +'<div><div style="font-size:10px;color:#0F6E56;margin-bottom:2px">ค่าจ้างรับ (฿)</div>'
     +'<input class="pu-comm trip-inp" type="number" value="'+comm+'" placeholder="คำนวณอัตโนมัติ" oninput="calcTfPickupTotal()" style="color:#0F6E56;font-weight:700"></div>'
@@ -3049,7 +3049,7 @@ function getTfPickupData(){
     var goods=items.filter(function(x){return x&&x.trim();}).join(" / ");
     var freight=parseFloat((row.querySelector(".pu-freight")||{}).value||0);
     var rateEl=row.querySelector(".pu-rate");
-    var rate=rateEl?parseFloat(rateEl.value||15):15;
+    var rate=rateEl?(parseFloat(rateEl.value)||0):0;
     var commEl=row.querySelector(".pu-comm");
     var comm=commEl?parseFloat(commEl.value||0):Math.round(freight*rate/100);
     var paidEl=row.querySelector(".pu-paid");
@@ -6490,6 +6490,13 @@ function openClearTrip(tripId){
     var gg=function(id,val){var el=document.getElementById(id);if(el)el.value=(val!=null&&val!=="")?val:"";};
     gg("ct-dest-amt", liveDest.toLocaleString("th-TH"));
     gg("ct-cod-amt", liveCod.toLocaleString("th-TH"));
+    // + งานรับระหว่างทางที่ "เก็บค่าส่งตอนรับแล้ว" → เข้ายอดเคลียร์อัตโนมัติ (เสมียนไม่ต้องพิมพ์เอง)
+    (tb.pickups||[]).forEach(function(pu){
+      var fr=parseFloat(pu.freight||0); if(!fr) return;
+      var pt=pu.payType||"cash_origin";
+      if(pu.paidOnPickup && (pt==="cash_origin"||pt==="origin")) pkCash+=fr;      // รับสดต้นทาง
+      else if(pu.paidOnPickup && (pt==="cash_dest"||pt==="dest"))  pkDest+=fr;     // เก็บปลายทาง
+    });
     if(!(trip.clearData&&trip.clearData.pickupCash)) gg("ct-pickup-cash", pkCash||"");
     if(!(trip.clearData&&trip.clearData.pickupDest)) gg("ct-pickup-dest", pkDest||"");
     trip._failDest=failDest; trip._failCod=failCod; trip._failBills=failBills;
