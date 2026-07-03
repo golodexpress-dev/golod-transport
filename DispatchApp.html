@@ -748,7 +748,7 @@ tr:hover td{background:#f8fffe}
 <div class="topbar">
   <span class="title">🚛 จัดการขนส่ง</span>
   <span id="session-info" style="font-size:11px;opacity:.8"></span>
-  <span style="font-size:10px;opacity:.65;margin-left:auto">build 2026-06-10z133</span>
+  <span style="font-size:10px;opacity:.65;margin-left:auto">build 2026-06-10z134</span>
   <a href="GolodApp.html" style="margin-left:10px">← หน้าหลัก</a>
 </div>
 <div class="container">
@@ -5722,7 +5722,10 @@ function renderClearRemarks(){
                 : r.status==="rejected" ? '<span style="color:#c0392b;font-weight:700">❌ ไม่อนุมัติ</span>'
                 : '<span style="color:#E67E22;font-weight:700">⏳ รออนุมัติ</span>';
     var eff = _remarkEffective(r);
-    var amtClr = eff>=0 ? "#0F6E56" : "#c0392b";
+    var _isXfer = (r.type==="ปท.→โอน");
+    var _xferAmt = _isXfer ? _remarkXfer(r) : 0;
+    var _dispEff = _isXfer ? -_xferAmt : eff;   // ปท.→โอน = หักยอด (ติดลบ)
+    var amtClr = _dispEff>=0 ? "#0F6E56" : "#c0392b";
     var adminBtns = (isAdmin && r.status!=="approved" && r.status!=="rejected")
       ? ' <button onclick="approveRemark(\''+r.id+'\')" style="background:#0F6E56;color:#fff;border:none;border-radius:5px;padding:2px 8px;font-size:10px;cursor:pointer">อนุมัติ</button>'
         +' <button onclick="rejectRemark(\''+r.id+'\')" style="background:#c0392b;color:#fff;border:none;border-radius:5px;padding:2px 8px;font-size:10px;cursor:pointer">ไม่อนุมัติ</button>'
@@ -5733,8 +5736,8 @@ function renderClearRemarks(){
       ? ' <button onclick="convertRemarkToTransfer(\''+r.id+'\')" style="background:#fff3e0;border:1px solid #f0c97a;border-radius:5px;padding:2px 7px;font-size:10px;cursor:pointer;color:#b7950b">🔄 ปท.→โอน</button>' : '';
     return '<div style="background:#fff;border:1px solid #e5dcf5;border-radius:6px;padding:6px 8px;margin-bottom:4px;font-size:11px">'
       +'<div style="display:flex;justify-content:space-between;gap:8px;flex-wrap:wrap;align-items:center">'
-      +'<div><b>'+r.type+'</b>'+(r.billNo?' · '+r.billNo:'')+(r.note?' · '+r.note:'')+'</div>'
-      +'<div style="white-space:nowrap"><b style="color:'+amtClr+'">'+(eff>=0?"+":"")+Math.round(eff).toLocaleString("th-TH")+' ฿</b> '+stBadge+adminBtns+convBtn+delBtn+'</div>'
+      +'<div><b>'+r.type+'</b>'+(r.billNo?' · '+r.billNo:'')+(r.note?' · '+String(r.note).replace(/ไม่กระทบยอด/g,"หักจากยอดต้องเก็บ"):'')+'</div>'
+      +'<div style="white-space:nowrap"><b style="color:'+amtClr+'">'+(_dispEff>=0?"+":"")+Math.round(_dispEff).toLocaleString("th-TH")+' ฿</b> '+stBadge+adminBtns+convBtn+delBtn+'</div>'
       +'</div>'
       +'<div style="font-size:9px;color:#aaa;margin-top:2px">โดย '+(r.byName||r.by||"-")+(r.approvedByName?' · อนุมัติโดย '+r.approvedByName:'')+'</div>'
       +(r.type==="รับงานนอกระบบ" ? ('<div style="font-size:9px;color:#6a3fb5;margin-top:2px">'+_pickupRmkDesc(r)+'</div>') : '')
