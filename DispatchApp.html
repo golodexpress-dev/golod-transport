@@ -748,7 +748,7 @@ tr:hover td{background:#f8fffe}
 <div class="topbar">
   <span class="title">🚛 จัดการขนส่ง</span>
   <span id="session-info" style="font-size:11px;opacity:.8"></span>
-  <span style="font-size:10px;opacity:.65;margin-left:auto">build 2026-06-10z137</span>
+  <span style="font-size:10px;opacity:.65;margin-left:auto">build 2026-06-10z138</span>
   <a href="GolodApp.html" style="margin-left:10px">← หน้าหลัก</a>
 </div>
 <div class="container">
@@ -4223,7 +4223,7 @@ function renderMonthlyView(drivers, allTrips, selMonth, selDriver, dateFrom, dat
       var clrT = parseFloat(cd.clrTrans||0);
       var diff = parseFloat(cd.diff||0);
       var fine = parseFloat(cd.fine||0);
-      var staleXfer = (cd.mustPay!=null && cd.destXfer==null &&
+      var staleXfer = (cd.mustPay!=null && cd.xferVer!==2 &&
         (t.clearRemarks||[]).some(function(r){ return r.type==="ปท.→โอน" && r.status==="approved"; }));
       tot.fare+=fare; tot.hotel+=hotel; tot.labor+=labor; tot.fareTotal+=fareTotal; tot.pkComm=(tot.pkComm||0)+pkComm; tot.bonus=(tot.bonus||0)+bonus; tot.grandTotal=(tot.grandTotal||0)+grandTotal;
       tot.fuel+=fuel; tot.dest+=dest; tot.cod+=cod;
@@ -6694,7 +6694,7 @@ function saveClearTrip(){
   var wht     = parseFloat((document.getElementById("ct-wht")||{}).value||0);
 
   var mustReturn = (codAmt + destAmt + pkDest + pkCash + parseFloat(trip.fuelAdvance||0) + otherAdv + drawFee)
-                 - fuelReal - (tollway + hotel + misc + wht) + remarksApprovedSum();
+                 - fuelReal - (tollway + hotel + misc + wht) + remarksApprovedSum() - destTransferSum();
   var paid = clrCash + clrTrans;
   var netPay = mustReturn - paid; // + = พขร.ค้างบริษัท, − = บริษัทต้องจ่าย พขร
   var fine = netPay >= 2500 ? Math.round(netPay*0.05)
@@ -6713,7 +6713,7 @@ function saveClearTrip(){
     workFee: (trip._delivered!=null? parseFloat(trip.ratePerBill||0)*trip._delivered : null),
     otherAdvance: otherAdv, drawRate: drawRate*100, drawFee: drawFee,
     mustPay: mustReturn, clrCash: clrCash, clrTrans: clrTrans,
-    destXfer: destTransferSum(),   // ยอด ปท.->โอน ที่หักแล้ว (marker)
+    destXfer: destTransferSum(), xferVer: 2,
     diff: netPay, clearedAt: new Date().toISOString(),
     clearedBy: CU ? CU.username : ""
   };
