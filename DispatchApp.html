@@ -748,7 +748,7 @@ tr:hover td{background:#f8fffe}
 <div class="topbar">
   <span class="title">🚛 จัดการขนส่ง</span>
   <span id="session-info" style="font-size:11px;opacity:.8"></span>
-  <span style="font-size:10px;opacity:.65;margin-left:auto">build 2026-06-10z136</span>
+  <span style="font-size:10px;opacity:.65;margin-left:auto">build 2026-06-10z137</span>
   <a href="GolodApp.html" style="margin-left:10px">← หน้าหลัก</a>
 </div>
 <div class="container">
@@ -4223,6 +4223,8 @@ function renderMonthlyView(drivers, allTrips, selMonth, selDriver, dateFrom, dat
       var clrT = parseFloat(cd.clrTrans||0);
       var diff = parseFloat(cd.diff||0);
       var fine = parseFloat(cd.fine||0);
+      var staleXfer = (cd.mustPay!=null && cd.destXfer==null &&
+        (t.clearRemarks||[]).some(function(r){ return r.type==="ปท.→โอน" && r.status==="approved"; }));
       tot.fare+=fare; tot.hotel+=hotel; tot.labor+=labor; tot.fareTotal+=fareTotal; tot.pkComm=(tot.pkComm||0)+pkComm; tot.bonus=(tot.bonus||0)+bonus; tot.grandTotal=(tot.grandTotal||0)+grandTotal;
       tot.fuel+=fuel; tot.dest+=dest; tot.cod+=cod;
       tot.pkCash+=pkC; tot.pkDest+=pkD; tot.mustPay+=mustP;
@@ -4262,10 +4264,10 @@ function renderMonthlyView(drivers, allTrips, selMonth, selDriver, dateFrom, dat
         +'<td style="text-align:right;font-size:11px;color:#c0392b">'+fmt(cod)+'</td>'
         +'<td style="text-align:right;font-size:11px">'+fmt(pkC)+'</td>'
         +'<td style="text-align:right;font-size:11px">'+fmt(pkD)+'</td>'
-        +'<td style="text-align:right;font-size:11px;font-weight:700;color:#c0392b">'+fmt(mustP)+'</td>'
+        +'<td style="text-align:right;font-size:11px;font-weight:700;color:#c0392b">'+fmt(mustP)+(staleXfer?' <span title="เที่ยวนี้เคลียร์ไว้ก่อนระบบหัก ปท.→โอน — เปิดเคลียร์เที่ยวแล้วกดบันทึกใหม่ ยอดจะอัปเดต" style="cursor:help">⚠️</span>':'')+'</td>'
         +'<td style="text-align:right;font-size:11px">'+fmt(clrC)+'</td>'
         +'<td style="text-align:right;font-size:11px">'+fmt(clrT)+'</td>'
-        +'<td style="text-align:right;font-size:11px;font-weight:700;'+diffClr+'">'+fmt(diff)+'</td>'
+        +'<td style="text-align:right;font-size:11px;font-weight:700;'+diffClr+'">'+fmt(diff)+(staleXfer?' <span title="ยอดเก่า — เปิดเคลียร์แล้วบันทึกใหม่" style="cursor:help">⚠️</span>':'')+'</td>'
         +'<td style="text-align:right;font-size:11px;color:#c0392b">'+fmt(fine)+'</td>'
         +'</tr>';
     }).join("");
@@ -6711,6 +6713,7 @@ function saveClearTrip(){
     workFee: (trip._delivered!=null? parseFloat(trip.ratePerBill||0)*trip._delivered : null),
     otherAdvance: otherAdv, drawRate: drawRate*100, drawFee: drawFee,
     mustPay: mustReturn, clrCash: clrCash, clrTrans: clrTrans,
+    destXfer: destTransferSum(),   // ยอด ปท.->โอน ที่หักแล้ว (marker)
     diff: netPay, clearedAt: new Date().toISOString(),
     clearedBy: CU ? CU.username : ""
   };
