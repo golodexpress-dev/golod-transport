@@ -748,7 +748,7 @@ tr:hover td{background:#f8fffe}
 <div class="topbar">
   <span class="title">🚛 จัดการขนส่ง</span>
   <span id="session-info" style="font-size:11px;opacity:.8"></span>
-  <span style="font-size:10px;opacity:.65;margin-left:auto">build 2026-06-10z128</span>
+  <span style="font-size:10px;opacity:.65;margin-left:auto">build 2026-06-10z130</span>
   <a href="GolodApp.html" style="margin-left:10px">← หน้าหลัก</a>
 </div>
 <div class="container">
@@ -1954,6 +1954,50 @@ function submitTvp(){
   });
 }
 
+function addBillToTripByNo(tripId){
+  if(!(CU && CU.role==="admin")){ alert("เฉพาะแอดมินเท่านั้นครับ — เสมียนให้เพิ่มบิลจากรายการปกติ (บิลรอจ่าย/ออกบิล)"); return; }
+  tripId = tripId || _tripState.editId;
+  if(!tripId){ alert("เปิดหน้าแก้ไขเที่ยวก่อนครับ"); return; }
+  if(!(GolodDB&&GolodDB.findBillDocs)){ alert("ระบบค้นบิลยังไม่พร้อม"); return; }
+  var no=(prompt("พิมพ์เลขบิลที่จะเพิ่มเข้าเที่ยว (เช่น BP2905-54)")||"").trim().toUpperCase();
+  if(!no) return;
+  GolodDB.findBillDocs(no).then(function(arr){
+    if(!arr || !arr.length){ alert("❌ ไม่พบเลขบิล \""+no+"\" ในระบบ"); return; }
+    var b=arr[0]; var cur=(b.tripId||"");
+    if(cur && cur===tripId){
+      firebase.firestore().collection("trips").doc(tripId).update({ billIds: firebase.firestore.FieldValue.arrayUnion(no) })
+        .then(function(){ _addBillFinish(tripId, b, no, false); })
+        .catch(function(e){ alert("ไม่สำเร็จ: "+((e&&e.message)||e)); });
+      return;
+    }
+    var msg = cur
+      ? ("⚠️ บิล "+no+" อยู่ในเที่ยวอื่นอยู่แล้ว (ID: "+cur+")\n\nย้ายออกจากเที่ยวนั้น แล้วเพิ่มเข้าเที่ยวนี้แทน?")
+      : ("เพิ่มบิล "+no+" เข้าเที่ยวนี้?\n("+ (b.senderName||"") +" → "+ (b.receiverName||"") +")");
+    if(!confirm(msg)) return;
+    var db=firebase.firestore();
+    var ops=[
+      db.collection("trips").doc(tripId).update({ billIds: firebase.firestore.FieldValue.arrayUnion(no) }),
+      GolodDB.updateBill(no, {tripId:tripId})
+    ];
+    if(cur) ops.push(db.collection("trips").doc(cur).update({ billIds: firebase.firestore.FieldValue.arrayRemove(no) }).catch(function(){}));
+    Promise.all(ops).then(function(){ _addBillFinish(tripId, b, no, !!cur); })
+      .catch(function(e){ alert("เพิ่มไม่สำเร็จ: "+((e&&e.message)||e)); });
+  }).catch(function(e){ alert("ค้นบิลไม่สำเร็จ: "+((e&&e.message)||e)); });
+}
+function _addBillFinish(tripId, b, no, moved){
+  // อัปเดตในหน่วยความจำให้เห็นทันที
+  var tr=(_tripState.openTrips||[]).find(function(x){ return x.id===tripId; });
+  if(tr){ tr.billIds=tr.billIds||[]; if(tr.billIds.indexOf(no)<0) tr.billIds.push(no); }
+  var nb=b;
+  if(nb.form && typeof nb.form==="string"){ try{nb.form=JSON.parse(nb.form);}catch(e){nb.form={};} }
+  if(!nb.form) nb.form={};
+  if(!nb.status) nb.status="ออกบิลรับของ";
+  nb.tripId=tripId;
+  if(typeof BILLS!=="undefined" && !BILLS.find(function(x){ return x.billNo===no; })) BILLS.push(nb);
+  alert("✅ เพิ่มบิล "+no+" เข้าเที่ยวแล้ว"+(moved?" (ย้ายจากเที่ยวเดิม)":""));
+  try{ editTrip(tripId); }catch(e){ location.reload(); }
+}
+
 function editTrip(tripId){
   _tripState.mode = "edit";
   _tripState.editId = tripId;
@@ -2494,6 +2538,7 @@ function renderTripForm(existingTrip){
     +'<button class="btn btn-gray" onclick="cancelTripForm()">← กลับ</button>'
     +'<div class="card-title" style="margin:0">'+(isEdit?"✏️ แก้ไขเที่ยว":"+ สร้างเที่ยวใหม่")+'</div>'
     +(isEdit?'<button class="btn" onclick="openTripVehiclePhoto(\''+(t.id||"")+'\')" style="background:#34495e;color:#fff;margin-left:auto">📷 รูปรถ ('+((t.vehiclePhotos||[]).length)+') '+((t.vehiclePhotos||[]).length<2?'⚠️ต้อง≥2':'✓')+'</button>':'')
+    +((isEdit&&isAdmin)?'<button class="btn" onclick="addBillToTripByNo(\''+(t.id||"")+'\')" style="background:#8e5b00;color:#fff;margin-left:6px" title="เครื่องมือแอดมิน: กู้บิลที่หลุดจากเที่ยว หรือย้ายบิลข้ามเที่ยว">🔧 กู้บิลเข้าเที่ยว</button>':'')
     +'</div>'
     +'<div class="trip-form">'
     +'<div class="trip-section-title">▶ คนขับ & เส้นทาง</div>'
