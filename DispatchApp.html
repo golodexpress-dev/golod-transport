@@ -748,7 +748,7 @@ tr:hover td{background:#f8fffe}
 <div class="topbar">
   <span class="title">🚛 จัดการขนส่ง</span>
   <span id="session-info" style="font-size:11px;opacity:.8"></span>
-  <span style="font-size:10px;opacity:.65;margin-left:auto">build 2026-06-10z134</span>
+  <span style="font-size:10px;opacity:.65;margin-left:auto">build 2026-06-10z135</span>
   <a href="GolodApp.html" style="margin-left:10px">← หน้าหลัก</a>
 </div>
 <div class="container">
@@ -5762,6 +5762,10 @@ function addClearRemark(){
   if(type==="ปท.→โอน"){
     if(!billNo){ alert("ใส่เลขบิลที่เปลี่ยน ปท.→โอน ด้วยครับ"); return; }
     var _qf=Math.abs(amount)||0;
+    if(!_qf && billNo && typeof BILLS!=="undefined"){   // ไม่กรอกยอด → ดึงยอดปลายทางของบิลมาหักเอง
+      var _pb=BILLS.find(function(x){ return String(x.billNo||"").toUpperCase()===String(billNo).toUpperCase(); });
+      if(_pb) _qf=Math.abs(parseFloat(_pb.freightNet||0))||0;
+    }
     note=(note?note+" ":"")+"ปลายทางจ่ายผ่านโอน"+(_qf?" (฿"+_qf.toLocaleString("th-TH")+")":"")+" — คนรถไม่ได้เก็บ · หักออกจากยอดต้องเก็บ (มีสลิป)";
     amount = _qf;
   }
@@ -5842,7 +5846,12 @@ function _remarkXfer(r){
   var a=Math.abs(parseFloat(r.amount)||0);
   if(a) return a;
   var m=String(r.note||"").match(/\u0E3F\s*([\d,]+)/);  // record เก่า amount=0 → ดึงจากโน้ต (฿X)
-  return m ? (parseFloat(m[1].replace(/,/g,""))||0) : 0;
+  if(m) return parseFloat(m[1].replace(/,/g,""))||0;
+  if(r.billNo && typeof BILLS!=="undefined"){   // fallback: ดึงยอดปลายทางของบิลนั้น
+    var b=BILLS.find(function(x){ return String(x.billNo||"").toUpperCase()===String(r.billNo).toUpperCase(); });
+    if(b) return Math.abs(parseFloat(b.freightNet||0))||0;
+  }
+  return 0;
 }
 function destTransferSum(){
   return (_clearRemarks||[]).filter(function(r){return r.status==="approved" && r.type==="ปท.→โอน";})
