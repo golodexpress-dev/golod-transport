@@ -748,7 +748,7 @@ tr:hover td{background:#f8fffe}
 <div class="topbar">
   <span class="title">🚛 จัดการขนส่ง</span>
   <span id="session-info" style="font-size:11px;opacity:.8"></span>
-  <span style="font-size:10px;opacity:.65;margin-left:auto">build 2026-06-10z132</span>
+  <span style="font-size:10px;opacity:.65;margin-left:auto">build 2026-06-10z133</span>
   <a href="GolodApp.html" style="margin-left:10px">← หน้าหลัก</a>
 </div>
 <div class="container">
@@ -6491,7 +6491,7 @@ function openClearTrip(tripId){
     gg("ct-dest-amt", liveDest.toLocaleString("th-TH"));
     gg("ct-cod-amt", liveCod.toLocaleString("th-TH"));
     // + งานรับระหว่างทางที่ "เก็บค่าส่งตอนรับแล้ว" → เข้ายอดเคลียร์อัตโนมัติ (เสมียนไม่ต้องพิมพ์เอง)
-    (tb.pickups||[]).forEach(function(pu){
+    (trip.pickups||[]).forEach(function(pu){
       var fr=parseFloat(pu.freight||0); if(!fr) return;
       var pt=pu.payType||"cash_origin";
       if(pu.paidOnPickup && (pt==="cash_origin"||pt==="origin")) pkCash+=fr;      // รับสดต้นทาง
