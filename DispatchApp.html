@@ -425,7 +425,7 @@ tr:hover td{background:#f8fffe}
             <option value="หาบิลไม่เจอ">หาบิลไม่เจอ</option>
             <option value="ยอดไม่ตรง">ยอดไม่ตรง</option>
             <option value="รับงานนอกระบบ">📦 รายการรับงาน (เพิ่มภายหลัง · หักคอม)</option>
-            <option value="ปท.→โอน">ปลายทาง→โอน (บันทึก+สลิป ไม่กระทบยอด)</option>
+            <option value="ปท.→โอน">ปลายทาง→โอน (คนรถไม่ได้เก็บ · หักยอดต้องเก็บ)</option>
             <option value="อื่นๆ">อื่นๆ</option>
           </select>
           <select id="ct-rmk-pay" style="display:none;width:100%;margin-top:3px;padding:6px;border:1px solid #ddd;border-radius:6px;font-size:11px">
@@ -748,7 +748,7 @@ tr:hover td{background:#f8fffe}
 <div class="topbar">
   <span class="title">🚛 จัดการขนส่ง</span>
   <span id="session-info" style="font-size:11px;opacity:.8"></span>
-  <span style="font-size:10px;opacity:.65;margin-left:auto">build 2026-06-10z130</span>
+  <span style="font-size:10px;opacity:.65;margin-left:auto">build 2026-06-10z131</span>
   <a href="GolodApp.html" style="margin-left:10px">← หน้าหลัก</a>
 </div>
 <div class="container">
@@ -5759,8 +5759,8 @@ function addClearRemark(){
   if(type==="ปท.→โอน"){
     if(!billNo){ alert("ใส่เลขบิลที่เปลี่ยน ปท.→โอน ด้วยครับ"); return; }
     var _qf=Math.abs(amount)||0;
-    note=(note?note+" ":"")+"ปลายทางจ่ายผ่านโอน"+(_qf?" (฿"+_qf.toLocaleString("th-TH")+")":"")+" — บันทึก/สลิป ไม่กระทบยอด";
-    amount = 0;
+    note=(note?note+" ":"")+"ปลายทางจ่ายผ่านโอน"+(_qf?" (฿"+_qf.toLocaleString("th-TH")+")":"")+" — คนรถไม่ได้เก็บ · หักออกจากยอดต้องเก็บ (มีสลิป)";
+    amount = _qf;
   }
   var commRate=0, payType="";
   if(type==="รับงานนอกระบบ"){
@@ -5791,8 +5791,8 @@ function convertRemarkToTransfer(id){
   if(!confirm("แปลงรายการนี้เป็น \"ปลายทาง→โอน\" (บันทึก+สลิป ไม่กระทบยอดคนรถ)?\n"+(r.billNo||"")+" — ยอดปรับจะกลายเป็น 0\nอย่าลืมแนบสลิปก่อนบันทึก")) return;
   var _af=Math.abs(r.amount)||0;
   r.type="ปท.→โอน";
-  r.note=(r.note?r.note+" ":"")+"(จ่ายผ่านโอน"+(_af?" ฿"+_af.toLocaleString("th-TH"):"")+" — ไม่กระทบยอด)";
-  r.amount=0;
+  r.note=(r.note?r.note+" ":"")+"(จ่ายผ่านโอน"+(_af?" ฿"+_af.toLocaleString("th-TH"):"")+" — คนรถไม่ได้เก็บ · หักออกจากยอดต้องเก็บ)";
+  r.amount=_af;
   renderClearRemarks(); calcClearTrip();
 }
 function uploadRemarkSlip(id){
@@ -5834,6 +5834,16 @@ function _remarkEffective(r){
 function remarksApprovedSum(){
   return _clearRemarks.filter(function(r){return r.status==="approved" && r.type!=="ปท.→โอน";})
     .reduce(function(a,r){return a+_remarkEffective(r);},0);
+}
+function _remarkXfer(r){
+  var a=Math.abs(parseFloat(r.amount)||0);
+  if(a) return a;
+  var m=String(r.note||"").match(/\u0E3F\s*([\d,]+)/);  // record เก่า amount=0 → ดึงจากโน้ต (฿X)
+  return m ? (parseFloat(m[1].replace(/,/g,""))||0) : 0;
+}
+function destTransferSum(){
+  return (_clearRemarks||[]).filter(function(r){return r.status==="approved" && r.type==="ปท.→โอน";})
+    .reduce(function(a,r){return a+_remarkXfer(r);},0);
 }
 function remarksPendingSum(){
   return _clearRemarks.filter(function(r){return r.status==="pending" && r.type!=="ปท.→โอน";})
@@ -6593,6 +6603,8 @@ function calcClearTrip(){
   var adjPending  = remarksPendingSum();
   var pkComm = _pickupCommSum();
   mustReturn += adjApproved;
+  var destXfer = destTransferSum();   // บิลปลายทางที่ลูกค้าโอนมาตรง — คนรถไม่ได้เก็บ → หักออก
+  mustReturn -= destXfer;
   var paid = clrCash + clrTrans;            // เงินที่ส่งจริง
   // นิยาม: + = พนักงานเป็นลูกหนี้ (ค้างบริษัท), − = บริษัทเป็นลูกหนี้พนักงาน (บริษัทต้องจ่าย)
   var netPay = mustReturn - paid;
@@ -6608,6 +6620,7 @@ function calcClearTrip(){
   sg("ct-fuel-diff", "น้ำมันจริง "+fmt(fuelReal)+" ฿ · หักค่าใช้จ่าย "+fmt(tollway+hotel+misc+wht)+" ฿"
     +(adjApproved?" · ปรับยอด "+(adjApproved>0?"+":"")+fmt(adjApproved)+" ฿":"")
     +(adjPending?" · ⏳ รออนุมัติ "+(adjPending>0?"+":"")+fmt(adjPending)+" ฿":"")
+    +(destXfer?" · 🔁 ปลายทางโอน −"+fmt(destXfer)+" ฿":"")
     +(fine>0?" · ⚠️ ค่าปรับ "+fmt(fine)+" ฿":"")
     +(pkComm?" · 💰 คอมรับงาน "+fmt(pkComm)+" ฿ → ค่าเที่ยว":""));
 
