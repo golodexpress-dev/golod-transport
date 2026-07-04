@@ -748,7 +748,7 @@ tr:hover td{background:#f8fffe}
 <div class="topbar">
   <span class="title">🚛 จัดการขนส่ง</span>
   <span id="session-info" style="font-size:11px;opacity:.8"></span>
-  <span style="font-size:10px;opacity:.65;margin-left:auto">build 2026-06-10z138</span>
+  <span style="font-size:10px;opacity:.65;margin-left:auto">build 2026-06-10z140</span>
   <a href="GolodApp.html" style="margin-left:10px">← หน้าหลัก</a>
 </div>
 <div class="container">
@@ -4331,6 +4331,18 @@ function renderMonthlyView(drivers, allTrips, selMonth, selDriver, dateFrom, dat
       }).reduce(function(a,e){ return a+parseFloat(e.fuelAdvance||0); },0);
       fuelAdvSum += branchFuelAdv;
       var netIncome   = incomeTotal - tot.diff - tot.fine - insDeduct;   // เบิกน้ำมันรวมอยู่ใน "พขร.ค้าง" รายเที่ยวแล้ว — ไม่หักซ้ำ
+      window._monthlyPrintCache = window._monthlyPrintCache || {};
+      window._monthlyPrintCache[uname] = {
+        name: dData.name, month: (selMonth||""), dateFrom: (dateFrom||""), dateTo: (dateTo||""),
+        tripCount: dTrips.length, fareTotal: tot.fareTotal, bonus: bonus, workFee: tot.workFee,
+        pkComm: (tot.pkComm||0), diff: tot.diff, fine: tot.fine, insDeduct: insDeduct, insDraw: insDraw,
+        fuelAdvSum: fuelAdvSum, netIncome: netIncome,
+        trips: dTrips.map(function(t){
+          var cd=t.clearData||{};
+          return { route:(t.route||"—"), departDate:(t.departDate||"").slice(5),
+            fare:(parseFloat(t.baseFare||0)+parseFloat(t.extraFare||0)), diff:parseFloat(cd.diff||0), fine:parseFloat(cd.fine||0) };
+        })
+      };
 
       var insPanel = '<div style="background:#fff8e1;border:1px solid #ffe082;border-radius:8px;padding:10px;margin-top:8px">'
         +'<div style="font-size:11px;font-weight:700;color:#b7950b;margin-bottom:6px">🛡️ เงินประกัน (เดือน '+(selMonth||(dateFrom?dateFrom.slice(0,7):"-"))+')</div>'
@@ -4359,6 +4371,8 @@ function renderMonthlyView(drivers, allTrips, selMonth, selDriver, dateFrom, dat
         +'<div><div style="font-size:9px;opacity:.8">ค่าปรับ</div><div style="font-weight:800">'+fmt(tot.fine)+'</div></div>'
         +'<div style="opacity:.5">−</div>'
         +'<div><div style="font-size:9px;opacity:.8">หักเข้ากองทุนประกัน</div><div style="font-weight:800">'+fmt(insDeduct)+'</div></div>'
+        +'<div style="opacity:.5">−</div>'
+        +'<div><div style="font-size:9px;opacity:.8">เบิกประกัน(เดือน)</div><div style="font-weight:800">'+fmt(insDraw)+'</div></div>'
         +'<div style="opacity:.35;margin-left:6px">|</div>'
         +'<div style="opacity:.75"><div style="font-size:9px;opacity:.8">เบิกน้ำมัน(เดือน) — รวมในยอดเคลียร์แล้ว ไม่หักซ้ำ</div><div style="font-weight:800">'+fmt(fuelAdvSum)+'</div></div>'
         +'<div style="background:rgba(255,255,255,.2);border-radius:6px;padding:6px 12px;margin-left:auto">'
@@ -4376,7 +4390,7 @@ function renderMonthlyView(drivers, allTrips, selMonth, selDriver, dateFrom, dat
     tables += '<div class="card" style="margin-bottom:12px">'
       +'<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px">'
       +'<div class="card-title" style="margin:0">🚛 '+dData.name+'</div>'
-      +'<div style="font-size:11px;color:#888">'+dTrips.length+' เที่ยว</div>'
+      +'<div style="display:flex;align-items:center;gap:8px">'+'<div style="font-size:11px;color:#888">'+dTrips.length+' เที่ยว</div>'+(isAdmin?('<button class="btn btn-gray" data-u="'+((dTrips[0]&&dTrips[0].driverUsername)||"")+'" style="padding:4px 10px;font-size:11px" onclick="printMonthlySummary(this.dataset.u)">🖨 พิมพ์สรุป</button>'):'')+'</div>'
       +'</div>'
       +'<div style="overflow-x:auto"><table style="width:100%;border-collapse:collapse;font-size:11px">'
       +'<tr style="background:#0F6E56;color:#fff">'+hCols+'</tr>'
@@ -5927,7 +5941,8 @@ function settleSaveRoute(){
   var t=_settle.trip; var ex=t.settlement||{};
   ex.route=_settle.route; ex.day1=_settle.day1; ex.day2=_settle.day2; ex.day1Date=_settle.day1Date||""; ex.day2Date=_settle.day2Date||""; ex.billDay=_settle.billDay||{}; ex.billEta=_settle.billEta||{}; ex.note=_settle.note;
   t.settlement=ex;
-  if(GolodDB.updateTrip){ GolodDB.updateTrip(t.id,{settlement:ex}).then(function(){ alert("✅ บันทึกเส้นทาง/วันที่/หมายเหตุแล้ว"); }).catch(function(){ alert("⚠️ บันทึกไม่สำเร็จ"); }); }
+  if(_settle.route) t.route=_settle.route;
+  if(GolodDB.updateTrip){ GolodDB.updateTrip(t.id,{settlement:ex, route:t.route}).then(function(){ alert("✅ บันทึกเส้นทาง/วันที่/หมายเหตุแล้ว"); }).catch(function(){ alert("⚠️ บันทึกไม่สำเร็จ"); }); }
 }
 function _renderBillDayPlan(){
   if(!_settle) return "";
@@ -6275,6 +6290,52 @@ function printBranchHandover(bills, branchLabel){
   body+='<div style="text-align:right;margin-top:10px;font-size:14px;border-top:2px solid #0F6E56;padding-top:6px"><b>รวมทั้งหมด '+grand+' บิล &middot; ค่าส่งรวม '+_settleFmt(gf)+' บาท</b></div>';
   _printDoc("ใบส่งของถึงสาขา "+(branchLabel||"")+" "+dstr, body);
 }
+function printMonthlySummary(uname){
+  var d = (window._monthlyPrintCache||{})[uname];
+  if(!d){ alert("ไม่พบข้อมูลสรุป — กรุณาเปิดหน้าสรุปเดือนก่อน"); return; }
+  var fmt = function(n){ return (Math.round(n)||0).toLocaleString("th-TH"); };
+  var periodTxt = d.dateFrom ? (d.dateFrom+" ถึง "+(d.dateTo||d.dateFrom)) : (d.month||"-");
+  var rows = d.trips.map(function(t,i){
+    return '<tr><td class="c">'+(i+1)+'</td><td>'+t.departDate+'</td><td>'+t.route+'</td>'
+      +'<td class="r">'+fmt(t.fare)+'</td>'
+      +'<td class="r" style="color:'+(t.diff>=0?"#0F6E56":"#c0392b")+'">'+(t.diff>=0?"+":"")+fmt(t.diff)+'</td>'
+      +'<td class="r">'+(t.fine?fmt(t.fine):"-")+'</td></tr>';
+  }).join("");
+  var w = window.open("", "_blank");
+  w.document.write(
+    '<html><head><meta charset="utf-8"><title>สรุปเดือน '+d.name+'</title><style>'
+    +'body{font-family:"Sarabun",Tahoma,sans-serif;padding:20px;color:#222}'
+    +'h2{margin:0 0 2px}.sub{color:#888;font-size:13px;margin-bottom:16px}'
+    +'table{width:100%;border-collapse:collapse;font-size:13px;margin-bottom:16px}'
+    +'th,td{border-bottom:1px solid #eee;padding:6px 8px;text-align:left}'
+    +'.c{text-align:center}.r{text-align:right}'
+    +'th{background:#0F6E56;color:#fff}'
+    +'.sum{background:#f4f4f4;border-radius:8px;padding:14px;font-size:14px;line-height:1.9}'
+    +'.sum b{float:right}'
+    +'.net{background:#0F6E56;color:#fff;border-radius:8px;padding:14px;margin-top:10px;font-size:18px;font-weight:800;display:flex;justify-content:space-between}'
+    +'@media print{button{display:none}}'
+    +'</style></head><body>'
+    +'<h2>บริษัท โกโลด ทรานสปอร์ต จำกัด</h2>'
+    +'<div class="sub">สรุปรายได้คนขับ &mdash; '+d.name+' &nbsp;&middot;&nbsp; งวด '+periodTxt+' &nbsp;&middot;&nbsp; '+d.tripCount+' เที่ยว</div>'
+    +'<table><thead><tr><th>#</th><th>วันที่</th><th>เส้นทาง</th><th class="r">ค่าเที่ยว</th><th class="r">ค้าง(+)/จ่าย(&minus;)</th><th class="r">ปรับ</th></tr></thead><tbody>'+rows+'</tbody></table>'
+    +'<div class="sum">'
+      +'ค่าเที่ยวรวม <b>'+fmt(d.fareTotal)+' ฿</b><br>'
+      +'เบี้ยขยัน <b>'+fmt(d.bonus)+' ฿</b><br>'
+      +'ค่าส่งงาน <b>'+fmt(d.workFee)+' ฿</b><br>'
+      +'ค่ารับงาน <b>'+fmt(d.pkComm)+' ฿</b><br>'
+      +'พขร.ค้าง(+)/บ.จ่าย(&minus;) <b>'+fmt(d.diff)+' ฿</b><br>'
+      +'ค่าปรับ <b>&minus;'+fmt(d.fine)+' ฿</b><br>'
+      +'หักเข้ากองทุนประกัน <b>&minus;'+fmt(d.insDeduct)+' ฿</b><br>'
+      +'เบิกประกัน(เดือน) <b>&minus;'+fmt(d.insDraw)+' ฿</b><br>'
+      +'<span style="color:#888;font-size:12px">เบิกน้ำมัน(เดือน) '+fmt(d.fuelAdvSum)+' ฿ &mdash; รวมในยอดเคลียร์แล้ว ไม่หักซ้ำ</span>'
+    +'</div>'
+    +'<div class="net"><span>รายได้สุทธิ</span><span>'+fmt(d.netIncome)+' ฿</span></div>'
+    +'<div style="margin-top:16px;text-align:center"><button onclick="window.print()" style="padding:8px 20px;font-size:14px;border-radius:6px;border:1px solid #0F6E56;background:#0F6E56;color:#fff">🖨 พิมพ์ / บันทึกเป็น PDF</button></div>'
+    +'</body></html>'
+  );
+  w.document.close();
+}
+
 function printSettlement(asPdf){
   if(!_settle) return;
   var _hasDrv=!!(_settle.trip&&(_settle.trip.driverName||_settle.trip.driverUsername));
