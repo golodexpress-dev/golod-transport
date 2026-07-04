@@ -357,6 +357,7 @@ tr:hover td{background:#f8fffe}
         <div>
           <div style="font-size:10px;color:#888;margin-bottom:3px">COD (฿) — จากบิล</div>
           <input id="ct-cod-amt" readonly style="width:100%;padding:7px 10px;border:1px solid #ddd;border-radius:7px;font-size:12px;background:#f5f5f5;color:#c0392b;font-weight:700">
+          <div id="ct-cod-list" style="margin-top:4px"></div>
         </div>
       </div>
       <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">
@@ -748,7 +749,7 @@ tr:hover td{background:#f8fffe}
 <div class="topbar">
   <span class="title">🚛 จัดการขนส่ง</span>
   <span id="session-info" style="font-size:11px;opacity:.8"></span>
-  <span style="font-size:10px;opacity:.65;margin-left:auto">build 2026-06-10z142</span>
+  <span style="font-size:10px;opacity:.65;margin-left:auto">build 2026-06-10z147</span>
   <a href="GolodApp.html" style="margin-left:10px">← หน้าหลัก</a>
 </div>
 <div class="container">
@@ -6030,16 +6031,17 @@ function printTripProposal(tripId, asPdf){
 }
 
 function settleCompute(){
-  var byPay={origin:0,dest:0,transfer:0,credit:0}, payAmt={origin:0,dest:0,transfer:0,credit:0}, codCount=0, byProv={}, total=0;
+  var byPay={origin:0,dest:0,transfer:0,credit:0}, payAmt={origin:0,dest:0,transfer:0,credit:0}, codCount=0, codTotal=0, byProv={}, total=0;
   _settle.bills.forEach(function(b){
     var pay=_settlePay(b); if(byPay[pay]==null) byPay[pay]=0; byPay[pay]++;
     var net=_settleNet(b); if(payAmt[pay]==null) payAmt[pay]=0; payAmt[pay]+=net;
-    if(parseFloat(b.codTotal||0)>0) codCount++;
+    var _cod=parseFloat(b.codTotal||0);
+    if(_cod>0){ codCount++; codTotal+=_cod; }
     var prov=b.destProv||(b.form&&b.form.destProv)||"-"; byProv[prov]=(byProv[prov]||0)+1;
     total+=net;
   });
   var adj=0; _settle.adjustments.forEach(function(a){ adj+=parseFloat(a.amount||0); });
-  return {byPay:byPay, payAmt:payAmt, codCount:codCount, byProv:byProv, total:total, adj:adj, adjusted:total+adj, count:_settle.bills.length};
+  return {byPay:byPay, payAmt:payAmt, codCount:codCount, codTotal:codTotal, byProv:byProv, total:total, adj:adj, adjusted:total+adj, count:_settle.bills.length};
 }
 
 function renderSettlement(){
@@ -6341,6 +6343,27 @@ function printMonthlySummary(uname){
     +'<td class="r">'+(d.clrTransSum?fmt(d.clrTransSum):"-")+'</td>'
     +'<td class="r" style="color:'+(d.diff>=0?"#0F6E56":"#c0392b")+'">'+(d.diff>=0?"+":"")+fmt(d.diff)+'</td>'
     +'<td class="r">'+(d.fine?fmt(d.fine):"-")+'</td></tr>';
+  // แถวสรุปแบบจัดคอลัมน์: หัวข้อ (กว้างคงที่ ~20 ตัวอักษร) + ตัวเลข (ชิดขวา ตำแหน่งตรงกันทุกบรรทัด)
+  var sl = function(label, value, neg){
+    return '<div class="sl"><span class="sl-lbl">'+label+'</span><b>'+(neg?"−":"")+fmt(value)+' ฿</b></div>';
+  };
+  var sumLines =
+      sl("ค่าเที่ยวรวม", d.fareTotal)
+    + sl("เบี้ยขยัน", d.bonus)
+    + sl("ค่าส่งงาน", d.workFee)
+    + sl("ค่ารับงาน", d.pkComm)
+    + sl("พขร.ค้าง(+)/บ.จ่าย(−)", d.diff)
+    + sl("ค่าดอก(ค่าปรับ)", d.fine, true)
+    + sl("ประกันยกมา", d.insCarry)
+    + sl("หักเข้ากองทุนประกัน", d.insDeduct, true)
+    + sl("เบิกประกัน(เดือน)", d.insDraw, true)
+    + sl("ค่าประกันยกไป", d.insCarryOut)
+    + '<div class="sl" style="color:#888;font-size:11.5px;margin-top:2px"><span class="sl-lbl">เบิกน้ำมัน(เดือน)</span><span>'+fmt(d.fuelAdvSum)+' ฿ — รวมในยอดเคลียร์แล้ว ไม่หักซ้ำ</span></div>';
+  var manualLines =
+      '<div class="sl"><span class="sl-lbl">เบิกหน้าร้าน</span><input type="number" id="pm-storeAdv" value="0" oninput="pmRecalc()"><span class="sl-suf">฿</span></div>'
+    + '<div class="sl"><span class="sl-lbl">ค่าใช้จ่ายอื่นๆ</span><input type="text" id="pm-otherDesc" placeholder="ระบุประเภท" class="sl-desc"><input type="number" id="pm-otherAmt" value="0" oninput="pmRecalc()"><span class="sl-suf">฿</span></div>'
+    + '<div class="sl"><span class="sl-lbl">ค่าดอกรวม</span><input type="number" id="pm-fineTotal" value="0" oninput="pmRecalc()"><span class="sl-suf">฿</span></div>'
+    + '<div class="sl" style="color:#888;font-size:11px;margin-top:2px"><span class="sl-lbl"></span><span>ค่าดอกรวม = ค่าปรับเบิกหน้าร้าน + ค่าปรับเบิกเกินในเที่ยว (กรอกเอง)</span></div>';
   var w = window.open("", "_blank");
   w.document.write(
     '<html><head><meta charset="utf-8"><title>สรุปเดือน '+d.name+'</title><style>'
@@ -6350,28 +6373,34 @@ function printMonthlySummary(uname){
     +'th,td{border-bottom:1px solid #eee;padding:6px 8px;text-align:left}'
     +'.c{text-align:center}.r{text-align:right}'
     +'th{background:#0F6E56;color:#fff}'
-    +'.sum{background:#f4f4f4;border-radius:8px;padding:14px;font-size:14px;line-height:1.9}'
+    +'.sum{background:#f4f4f4;border-radius:8px;padding:14px;font-size:14px}'
+    +'.sl{display:flex;align-items:baseline;padding:2px 0}'
+    +'.sl-lbl{display:inline-block;min-width:20ch;flex:0 0 auto}'
+    +'.sl b{display:inline-block;min-width:110px;text-align:right;font-variant-numeric:tabular-nums}'
+    +'.sl input[type=number]{width:100px;text-align:right;font-variant-numeric:tabular-nums;border:1px solid #ccc;border-radius:4px;padding:3px 6px;font-size:13px;font-family:inherit}'
+    +'.sl-desc{width:150px;margin-right:8px;border:1px solid #ccc;border-radius:4px;padding:3px 6px;font-size:13px;font-family:inherit}'
+    +'.sl-suf{margin-left:4px}'
+    +'.manual{border-top:1px dashed #ccc;margin-top:8px;padding-top:8px}'
     +'.net{background:#0F6E56;color:#fff;border-radius:8px;padding:14px;margin-top:10px;font-size:18px;font-weight:800;display:flex;justify-content:space-between}'
-    +'@media print{button{display:none}}'
+    +'@media print{button{display:none} .sl input{border:none;background:none;padding:0} .sl-desc{border:none;background:none}}'
     +'</style></head><body>'
     +'<h2>บริษัท โกโลด ทรานสปอร์ต จำกัด</h2>'
     +'<div class="sub">สรุปรายได้คนขับ &mdash; '+d.name+' &nbsp;&middot;&nbsp; งวด '+periodTxt+' &nbsp;&middot;&nbsp; '+d.tripCount+' เที่ยว</div>'
-    +'<table style="font-size:11px"><thead><tr><th>#</th><th>วันที่</th><th>เส้นทาง</th><th class="r">ระยะทาง(กม.)</th><th class="r">เบิกน้ำมัน</th><th class="r">ค่าน้ำมัน</th><th class="r">ค่าเที่ยว</th><th class="r">ค่าโรงแรม</th><th class="r">แรงแบกตร.</th><th class="c">บิล</th><th class="r">COD</th><th class="r">ค่าส่งปลายทาง</th><th class="r">ต้องเคลียร์</th><th class="r">เคลียร์สด</th><th class="r">เคลียร์โอน</th><th class="r">ค้าง(+)/จ่าย(&minus;)</th><th class="r">ค่าดอก(ค่าปรับ)</th></tr></thead><tbody>'+rows+totalRow+'</tbody></table>' 
-    +'<div class="sum">'
-      +'ค่าเที่ยวรวม <b>'+fmt(d.fareTotal)+' ฿</b><br>'
-      +'เบี้ยขยัน <b>'+fmt(d.bonus)+' ฿</b><br>'
-      +'ค่าส่งงาน <b>'+fmt(d.workFee)+' ฿</b><br>'
-      +'ค่ารับงาน <b>'+fmt(d.pkComm)+' ฿</b><br>'
-      +'พขร.ค้าง(+)/บ.จ่าย(&minus;) <b>'+fmt(d.diff)+' ฿</b><br>'
-      +'ค่าดอก(ค่าปรับ) <b>&minus;'+fmt(d.fine)+' ฿</b><br>'
-      +'ประกันยกมา <b>'+fmt(d.insCarry)+' ฿</b><br>'
-      +'หักเข้ากองทุนประกัน <b>&minus;'+fmt(d.insDeduct)+' ฿</b><br>'
-      +'เบิกประกัน(เดือน) <b>&minus;'+fmt(d.insDraw)+' ฿</b><br>'
-      +'ค่าประกันยกไป <b>'+fmt(d.insCarryOut)+' ฿</b><br>'
-      +'<span style="color:#888;font-size:12px">เบิกน้ำมัน(เดือน) '+fmt(d.fuelAdvSum)+' ฿ &mdash; รวมในยอดเคลียร์แล้ว ไม่หักซ้ำ</span>'
-    +'</div>'
-    +'<div class="net"><span>รายได้สุทธิ</span><span>'+fmt(d.netIncome)+' ฿</span></div>'
+    +'<table style="font-size:11px"><thead><tr><th>#</th><th>วันที่</th><th>เส้นทาง</th><th class="r">ระยะทาง(กม.)</th><th class="r">เบิกน้ำมัน</th><th class="r">ค่าน้ำมัน</th><th class="r">ค่าเที่ยว</th><th class="r">ค่าโรงแรม</th><th class="r">แรงแบกตร.</th><th class="c">บิล</th><th class="r">COD</th><th class="r">ค่าส่งปลายทาง</th><th class="r">ต้องเคลียร์</th><th class="r">เคลียร์สด</th><th class="r">เคลียร์โอน</th><th class="r">ค้าง(+)/จ่าย(&minus;)</th><th class="r">ค่าดอก(ค่าปรับ)</th></tr></thead><tbody>'+rows+totalRow+'</tbody></table>'
+    +'<div class="sum">'+sumLines+'<div class="manual">'+manualLines+'</div></div>'
+    +'<div class="net"><span>รายได้สุทธิ</span><span id="pm-net-value">'+fmt(d.netIncome)+' ฿</span></div>'
     +'<div style="margin-top:16px;text-align:center"><button onclick="window.print()" style="padding:8px 20px;font-size:14px;border-radius:6px;border:1px solid #0F6E56;background:#0F6E56;color:#fff">🖨 พิมพ์ / บันทึกเป็น PDF</button></div>'
+    +'<script>'
+    +'var pmBase='+JSON.stringify(d.netIncome)+';'
+    +'function pmFmt(n){ return (Math.round(n)||0).toLocaleString("th-TH"); }'
+    +'function pmRecalc(){'
+      +'var sA=parseFloat(document.getElementById("pm-storeAdv").value)||0;'
+      +'var oA=parseFloat(document.getElementById("pm-otherAmt").value)||0;'
+      +'var fT=parseFloat(document.getElementById("pm-fineTotal").value)||0;'
+      +'var net=pmBase-sA-oA-fT;'
+      +'document.getElementById("pm-net-value").textContent=pmFmt(net)+" ฿";'
+    +'}'
+    +'<\/script>'
     +'</body></html>'
   );
   w.document.close();
@@ -6387,21 +6416,22 @@ function printSettlement(asPdf){
     var f0=its[0]||{};
     var pq=its.reduce(function(s,i){return s+(parseInt(i.qty)||1);},0);
     var prod=(f0.desc||"-")+(its.length>1?(" +"+(its.length-1)):"")+(pq?(" ×"+pq):"");
-    return '<tr><td>'+b.billNo+'</td><td>'+(b.destAmphoe||(b.form&&b.form.destAmphoe)||"-")+'</td><td>'+(b.destProv||(b.form&&b.form.destProv)||"-")+'</td><td>'+(_SETTLE_PAYLBL[_settlePay(b)]||"-")+'</td><td>'+prod+'</td><td style="text-align:right">'+_settleFmt(_settleNet(b))+'</td></tr>';
+    var _codB=parseFloat(b.codTotal||0);
+    return '<tr><td>'+b.billNo+'</td><td>'+(b.destAmphoe||(b.form&&b.form.destAmphoe)||"-")+'</td><td>'+(b.destProv||(b.form&&b.form.destProv)||"-")+'</td><td>'+(_SETTLE_PAYLBL[_settlePay(b)]||"-")+'</td><td>'+prod+'</td><td style="text-align:right">'+_settleFmt(_settleNet(b))+'</td><td style="text-align:right'+(_codB?';color:#b7950b;font-weight:700':'')+'">'+(_codB?_settleFmt(_codB):"-")+'</td></tr>';
   }).join("");
-  var adjRows=_settle.adjustments.map(function(a){ return '<tr><td colspan="5">ปรับ: '+(a.note||"-")+'</td><td style="text-align:right">'+_settleFmt(a.amount)+'</td></tr>'; }).join("");
+  var adjRows=_settle.adjustments.map(function(a){ return '<tr><td colspan="6">ปรับ: '+(a.note||"-")+'</td><td style="text-align:right">'+_settleFmt(a.amount)+'</td></tr>'; }).join("");
   var _pks=( _settle.trip && Array.isArray(_settle.trip.pickups) ) ? _settle.trip.pickups : [];
   var _pkFt=0; _pks.forEach(function(p){ _pkFt+=parseFloat(p.freight||0); });
   var pkRowsSettle = _pks.length ? (
-    '<tr><td colspan="6" style="background:#fff4e6;color:#b9770e;font-weight:700;padding:4px 6px">📥 งานรับระหว่างทาง ('+_pks.length+' งาน · ค่าขนส่งรวม '+_settleFmt(_pkFt)+' ฿)</td></tr>'
+    '<tr><td colspan="7" style="background:#fff4e6;color:#b9770e;font-weight:700;padding:4px 6px">📥 งานรับระหว่างทาง ('+_pks.length+' งาน · ค่าขนส่งรวม '+_settleFmt(_pkFt)+' ฿)</td></tr>'
     + _pks.map(function(p){
         var loc=p.location||p.loc||"-";
         var goods=p.goods||"";
         var fr=parseFloat(p.freight||0);
         var oAddr=[p.originAddr, (p.originTambon?("ต."+p.originTambon):"")].filter(Boolean).join(" ");
         var dAddr=[p.destAddr, (p.destTambon?("ต."+p.destTambon):"")].filter(Boolean).join(" ");
-        return '<tr style="background:#fffaf0"><td>📥 รับ</td><td>'+(p.originAmphoe||"-")+'</td><td>'+(p.originProv||"-")+'</td><td>รับ</td><td>จุดรับ: '+loc+(oAddr?(" · "+oAddr):"")+'</td><td style="text-align:right">'+_settleFmt(fr)+'</td></tr>'
-          +'<tr style="background:#fffaf0"><td style="color:#888">↳ ส่ง</td><td>'+(p.destAmphoe||"-")+'</td><td>'+(p.destProv||"-")+'</td><td></td><td>ของ: '+(goods||"-")+(dAddr?(" · ปลายทาง "+dAddr):"")+'</td><td></td></tr>';
+        return '<tr style="background:#fffaf0"><td>📥 รับ</td><td>'+(p.originAmphoe||"-")+'</td><td>'+(p.originProv||"-")+'</td><td>รับ</td><td>จุดรับ: '+loc+(oAddr?(" · "+oAddr):"")+'</td><td style="text-align:right">'+_settleFmt(fr)+'</td><td>-</td></tr>'
+          +'<tr style="background:#fffaf0"><td style="color:#888">↳ ส่ง</td><td>'+(p.destAmphoe||"-")+'</td><td>'+(p.destProv||"-")+'</td><td></td><td>ของ: '+(goods||"-")+(dAddr?(" · ปลายทาง "+dAddr):"")+'</td><td></td><td></td></tr>';
       }).join("")
   ) : "";
   var stLbl={draft:"ร่าง",proposed:"เสนอ — รออนุมัติ",approved:"อนุมัติเบื้องต้น — รอยืนยันสุดท้าย",confirmed:"ยืนยันสุดท้ายแล้ว"}[_settle.status]||"";
@@ -6416,10 +6446,17 @@ function printSettlement(asPdf){
   html+='<div class="hd"><div style="font-size:12px;font-weight:700;color:#0F6E56">บริษัท โกโลด ทรานสปอร์ต จำกัด</div>'
     +'<div style="font-size:19px;font-weight:800;margin-top:1px">'+_ttl+(stLbl?(' <span style="font-size:11px;font-weight:700;color:#888">('+stLbl+')</span>'):'')+'</div></div>';
   html+='<div class="info" style="display:flex;justify-content:space-between"><div>เส้นทาง: <b>'+(_settle.route||"-")+'</b></div><div>วันที่ออก: <b>'+(_settle.trip.departDate||"-")+'</b></div></div>';
-  html+='<div class="info">'+(_settle.trip.runNo?('เลขเที่ยว <b style="color:#5B3FB3">'+_settle.trip.runNo+'</b> · '):'')+'คนรถ: <b>'+(_settle.trip.driverName||_settle.trip.driverUsername||"— (ยังไม่กำหนด)")+'</b></div>';
+  html+='<div class="info">'+(_settle.trip.runNo?('เลขเที่ยว <b style="color:#5B3FB3">'+_settle.trip.runNo+'</b> · '):'')+'คนรถ: <b>'+(_settle.trip.driverName||_settle.trip.driverUsername||"— (ยังไม่กำหนด)")+'</b>'
+    +' &nbsp;·&nbsp; ไมล์เริ่ม <input type="text" maxlength="10" value="'+((_settle.trip.odomStart)?_settle.trip.odomStart:"")+'" style="width:80px;padding:2px 6px;border:1px solid #ccc;border-radius:4px;font-size:12px;text-align:center" placeholder="กรอกเอง">'
+    +' &nbsp;ไมล์จบ <input type="text" maxlength="10" value="" style="width:80px;padding:2px 6px;border:1px solid #ccc;border-radius:4px;font-size:12px;text-align:center" placeholder="กรอกเอง">'
+    +' &nbsp;·&nbsp; เบิกน้ำมัน(ล่วงหน้า) <b style="color:#0F6E56">'+((_settle.trip.fuelAdvance)?parseFloat(_settle.trip.fuelAdvance).toLocaleString("th-TH"):"-")+' ฿</b>'
+    +'</div>';
+  html+='<div class="info" style="margin-top:3px">เงินที่เคลียร์ &nbsp;·&nbsp; เงินสด <input type="text" maxlength="10" value="" style="width:80px;padding:2px 6px;border:1px solid #ccc;border-radius:4px;font-size:12px;text-align:center" placeholder="กรอกเอง"> ฿'
+    +' &nbsp;&nbsp; เคลียร์โอน <input type="text" maxlength="10" value="" style="width:80px;padding:2px 6px;border:1px solid #ccc;border-radius:4px;font-size:12px;text-align:center" placeholder="กรอกเอง"> ฿'
+    +'</div>';
   html+='<div class="info" style="margin-top:3px"><b>บิลทั้งหมด '+c.count+' บิล</b> · '+pay.join(' · ')+'</div>';
-  html+='<table><thead><tr><th style="text-align:left">เลขบิล</th><th style="text-align:left">อำเภอ</th><th style="text-align:left">จังหวัด</th><th>ประเภท</th><th style="text-align:left">สินค้า (×จำนวน)</th><th style="text-align:right">ค่าส่ง</th></tr></thead><tbody>'+rows+adjRows+pkRowsSettle+'</tbody></table>';
-  html+='<div style="text-align:right;margin-top:6px;font-size:13px">ยอดค่าส่งรวม: '+_settleFmt(c.total)+' ฿'+(c.adj?(' · ปรับ: '+_settleFmt(c.adj)+' ฿'):'')+' · <b style="font-size:15px">สุทธิ: '+_settleFmt(c.adjusted)+' ฿</b></div>';
+  html+='<table><thead><tr><th style="text-align:left">เลขบิล</th><th style="text-align:left">อำเภอ</th><th style="text-align:left">จังหวัด</th><th>ประเภท</th><th style="text-align:left">สินค้า (×จำนวน)</th><th style="text-align:right">ค่าส่ง</th><th style="text-align:right">COD</th></tr></thead><tbody>'+rows+adjRows+pkRowsSettle+'</tbody></table>';
+  html+='<div style="text-align:right;margin-top:6px;font-size:13px">ยอดค่าส่งรวม: '+_settleFmt(c.total)+' ฿'+(c.adj?(' · ปรับ: '+_settleFmt(c.adj)+' ฿'):'')+(c.codTotal?(' · <span style="color:#b7950b;font-weight:700">COD รวม '+c.codCount+' บิล: '+_settleFmt(c.codTotal)+' ฿</span>'):'')+' · <b style="font-size:15px">สุทธิ: '+_settleFmt(c.adjusted)+' ฿</b></div>';
   if(_stNote) html+='<div style="margin-top:6px;font-size:13px;border-top:1px dashed #999;padding-top:4px">หมายเหตุ: <b>'+_stNote+'</b></div>';
   (function(){
     var _be=_settle.billEta||{}; var _bl=_settle.bills||[];
@@ -6606,6 +6643,16 @@ function openClearTrip(tripId){
     var gg=function(id,val){var el=document.getElementById(id);if(el)el.value=(val!=null&&val!=="")?val:"";};
     gg("ct-dest-amt", liveDest.toLocaleString("th-TH"));
     gg("ct-cod-amt", liveCod.toLocaleString("th-TH"));
+    (function(){
+      var codBills = tb.filter(function(b){ return parseFloat(b.codTotal||0)>0; });
+      var box = document.getElementById("ct-cod-list");
+      if(!box) return;
+      if(!codBills.length){ box.innerHTML=""; return; }
+      box.innerHTML = '<div style="font-size:10px;color:#888;cursor:pointer" onclick="var l=this.nextElementSibling;l.style.display=l.style.display===\'none\'?\'block\':\'none\';">👁 ดูรายบิล ('+codBills.length+' บิล) — เคลียร์สถานะจ่าย COD ที่หน้า "ตรวจสอบ COD"</div>'
+        + '<div style="display:none;background:#fff8f0;border:1px solid #f0d8c0;border-radius:6px;padding:6px 8px;margin-top:3px;font-size:11px;max-height:120px;overflow-y:auto">'
+        + codBills.map(function(b){ return '<div style="display:flex;justify-content:space-between;padding:1px 0"><span>'+b.billNo+'</span><span style="color:#c0392b;font-weight:700">'+parseFloat(b.codTotal||0).toLocaleString("th-TH")+' ฿</span></div>'; }).join("")
+        + '</div>';
+    })();
     // + งานรับระหว่างทางที่ "เก็บค่าส่งตอนรับแล้ว" → เข้ายอดเคลียร์อัตโนมัติ (เสมียนไม่ต้องพิมพ์เอง)
     (trip.pickups||[]).forEach(function(pu){
       var fr=parseFloat(pu.freight||0); if(!fr) return;
