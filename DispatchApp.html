@@ -748,7 +748,7 @@ tr:hover td{background:#f8fffe}
 <div class="topbar">
   <span class="title">🚛 จัดการขนส่ง</span>
   <span id="session-info" style="font-size:11px;opacity:.8"></span>
-  <span style="font-size:10px;opacity:.65;margin-left:auto">build 2026-06-10z140</span>
+  <span style="font-size:10px;opacity:.65;margin-left:auto">build 2026-06-10z141</span>
   <a href="GolodApp.html" style="margin-left:10px">← หน้าหลัก</a>
 </div>
 <div class="container">
@@ -4338,8 +4338,15 @@ function renderMonthlyView(drivers, allTrips, selMonth, selDriver, dateFrom, dat
         pkComm: (tot.pkComm||0), diff: tot.diff, fine: tot.fine, insDeduct: insDeduct, insDraw: insDraw,
         fuelAdvSum: fuelAdvSum, netIncome: netIncome,
         trips: dTrips.map(function(t){
-          var cd=t.clearData||{};
+          var cd=t.clearData||{}; var s=t.summary||{}; var ex=t.extras||{};
+          var _labor=(parseFloat(ex.overweight)||0)+(parseFloat(ex.openTail)||0)+(parseFloat(ex.longLoad)||0)+(parseFloat(ex.overHeight)||0)+(parseFloat(ex.twoMan)||0);
+          var _billCount=(s.billCount!=null?s.billCount:(t.billIds?t.billIds.length:0));
+          var _dest=parseFloat(s.destTotal||0), _cod=parseFloat(s.codTotal||0);
+          var _mustP=parseFloat(cd.mustPay!=null?cd.mustPay:(_dest+_cod));
           return { route:(t.route||"—"), departDate:(t.departDate||"").slice(5),
+            distReal:parseFloat(cd.distReal||0), hotel:parseFloat(t.hotelFare||0), labor:_labor,
+            billCount:_billCount, cod:_cod, dest:_dest, mustP:_mustP,
+            clrCash:parseFloat(cd.clrCash||0), clrTrans:parseFloat(cd.clrTrans||0),
             fare:(parseFloat(t.baseFare||0)+parseFloat(t.extraFare||0)), diff:parseFloat(cd.diff||0), fine:parseFloat(cd.fine||0) };
         })
       };
@@ -6297,7 +6304,16 @@ function printMonthlySummary(uname){
   var periodTxt = d.dateFrom ? (d.dateFrom+" ถึง "+(d.dateTo||d.dateFrom)) : (d.month||"-");
   var rows = d.trips.map(function(t,i){
     return '<tr><td class="c">'+(i+1)+'</td><td>'+t.departDate+'</td><td>'+t.route+'</td>'
+      +'<td class="r">'+(t.distReal?fmt(t.distReal):"-")+'</td>'
       +'<td class="r">'+fmt(t.fare)+'</td>'
+      +'<td class="r">'+(t.hotel?fmt(t.hotel):"-")+'</td>'
+      +'<td class="r">'+(t.labor?fmt(t.labor):"-")+'</td>'
+      +'<td class="c">'+(t.billCount||"-")+'</td>'
+      +'<td class="r">'+(t.cod?fmt(t.cod):"-")+'</td>'
+      +'<td class="r">'+(t.dest?fmt(t.dest):"-")+'</td>'
+      +'<td class="r">'+(t.mustP?fmt(t.mustP):"-")+'</td>'
+      +'<td class="r">'+(t.clrCash?fmt(t.clrCash):"-")+'</td>'
+      +'<td class="r">'+(t.clrTrans?fmt(t.clrTrans):"-")+'</td>'
       +'<td class="r" style="color:'+(t.diff>=0?"#0F6E56":"#c0392b")+'">'+(t.diff>=0?"+":"")+fmt(t.diff)+'</td>'
       +'<td class="r">'+(t.fine?fmt(t.fine):"-")+'</td></tr>';
   }).join("");
@@ -6317,14 +6333,14 @@ function printMonthlySummary(uname){
     +'</style></head><body>'
     +'<h2>บริษัท โกโลด ทรานสปอร์ต จำกัด</h2>'
     +'<div class="sub">สรุปรายได้คนขับ &mdash; '+d.name+' &nbsp;&middot;&nbsp; งวด '+periodTxt+' &nbsp;&middot;&nbsp; '+d.tripCount+' เที่ยว</div>'
-    +'<table><thead><tr><th>#</th><th>วันที่</th><th>เส้นทาง</th><th class="r">ค่าเที่ยว</th><th class="r">ค้าง(+)/จ่าย(&minus;)</th><th class="r">ปรับ</th></tr></thead><tbody>'+rows+'</tbody></table>'
+    +'<table style="font-size:11px"><thead><tr><th>#</th><th>วันที่</th><th>เส้นทาง</th><th class="r">ระยะทาง(กม.)</th><th class="r">ค่าเที่ยว</th><th class="r">ค่าโรงแรม</th><th class="r">แรงแบกตร.</th><th class="c">บิล</th><th class="r">COD</th><th class="r">ค่าส่งปลายทาง</th><th class="r">ต้องเคลียร์</th><th class="r">เคลียร์สด</th><th class="r">เคลียร์โอน</th><th class="r">ค้าง(+)/จ่าย(&minus;)</th><th class="r">ค่าดอก(ค่าปรับ)</th></tr></thead><tbody>'+rows+'</tbody></table>' 
     +'<div class="sum">'
       +'ค่าเที่ยวรวม <b>'+fmt(d.fareTotal)+' ฿</b><br>'
       +'เบี้ยขยัน <b>'+fmt(d.bonus)+' ฿</b><br>'
       +'ค่าส่งงาน <b>'+fmt(d.workFee)+' ฿</b><br>'
       +'ค่ารับงาน <b>'+fmt(d.pkComm)+' ฿</b><br>'
       +'พขร.ค้าง(+)/บ.จ่าย(&minus;) <b>'+fmt(d.diff)+' ฿</b><br>'
-      +'ค่าปรับ <b>&minus;'+fmt(d.fine)+' ฿</b><br>'
+      +'ค่าดอก(ค่าปรับ) <b>&minus;'+fmt(d.fine)+' ฿</b><br>'
       +'หักเข้ากองทุนประกัน <b>&minus;'+fmt(d.insDeduct)+' ฿</b><br>'
       +'เบิกประกัน(เดือน) <b>&minus;'+fmt(d.insDraw)+' ฿</b><br>'
       +'<span style="color:#888;font-size:12px">เบิกน้ำมัน(เดือน) '+fmt(d.fuelAdvSum)+' ฿ &mdash; รวมในยอดเคลียร์แล้ว ไม่หักซ้ำ</span>'
