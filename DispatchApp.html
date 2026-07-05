@@ -749,7 +749,7 @@ tr:hover td{background:#f8fffe}
 <div class="topbar">
   <span class="title">🚛 จัดการขนส่ง</span>
   <span id="session-info" style="font-size:11px;opacity:.8"></span>
-  <span style="font-size:10px;opacity:.65;margin-left:auto">build 2026-06-10z154</span>
+  <span style="font-size:10px;opacity:.65;margin-left:auto">build 2026-06-10z155</span>
   <a href="GolodApp.html" style="margin-left:10px">← หน้าหลัก</a>
 </div>
 <div class="container">
@@ -4320,16 +4320,22 @@ function renderMonthlyView(drivers, allTrips, selMonth, selDriver, dateFrom, dat
       var insCap   = parseFloat(insRec.cap||0);
       // ===== รอบตัดประกัน 29(เดือนก่อน) - 28(เดือนนี้) — คนละรอบกับสรุปสิ้นเดือน (ปฏิทิน) =====
       var _cycStart="", _cycEnd="";
-      if(selMonth){
+      if(dateFrom || dateTo){
+        // โหมดช่วงวันที่กำหนดเอง (มีผลเหนือกว่า) — ใช้ช่วงที่แอดมินเลือกตรงๆ ให้ตรงกับตารางเที่ยวที่เห็น
+        _cycStart = dateFrom||"";
+        _cycEnd   = dateTo||"";
+      } else if(selMonth){
         var _mp=selMonth.split("-"), _yy=parseInt(_mp[0],10), _mm=parseInt(_mp[1],10);
         var _py=_yy, _pm=_mm-1; if(_pm<1){ _pm=12; _py=_yy-1; }
         _cycStart = _py+"-"+String(_pm).padStart(2,"0")+"-29";
         _cycEnd   = _yy+"-"+String(_mm).padStart(2,"0")+"-28";
       }
-      var insurTrips = _cycStart ? allTrips.filter(function(t){
+      var insurTrips = (_cycStart||_cycEnd) ? allTrips.filter(function(t){
         if((t.driverUsername||"")!==uname) return false;
         var dp=(t.departDate||t.createdAt||"").slice(0,10);
-        return dp>=_cycStart && dp<=_cycEnd;
+        if(_cycStart && dp<_cycStart) return false;
+        if(_cycEnd && dp>_cycEnd) return false;
+        return true;
       }) : dTrips;
       var insDeduct= parseFloat(insRec.deduct||0) + insurTrips.reduce(function(a,t){ return a+parseFloat(t.insurDeduct||0); },0);   // รวมกล่องตั้งค่า(ถ้ามี) + หักเพิ่มรายเที่ยวในรอบ 29-28
       var insDraw  = insurTrips.reduce(function(a,t){ return a+parseFloat(t.insurDraw||0); },0);
