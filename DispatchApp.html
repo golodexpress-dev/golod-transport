@@ -749,7 +749,7 @@ tr:hover td{background:#f8fffe}
 <div class="topbar">
   <span class="title">🚛 จัดการขนส่ง</span>
   <span id="session-info" style="font-size:11px;opacity:.8"></span>
-  <span style="font-size:10px;opacity:.65;margin-left:auto">build 2026-06-10z150</span>
+  <span style="font-size:10px;opacity:.65;margin-left:auto">build 2026-06-10z151</span>
   <a href="GolodApp.html" style="margin-left:10px">← หน้าหลัก</a>
 </div>
 <div class="container">
@@ -6742,6 +6742,18 @@ function calcClearTrip(){
   var fe = document.getElementById("ct-fuel-real");
   var isCompanyTruck = (!!trip.vehicleType && trip.vehicleType.indexOf("ร่วม")===-1);   // ชื่อรถมีคำว่า "ร่วม" = รถร่วม, ไม่มี = รถบริษัท (ยังไม่ตั้งประเภทรถ = ไม่ถือเป็นรถบริษัท)
   if(fe){
+    var _curTid = _clearTripId||"";
+    if(fe.dataset.forTrip !== _curTid){
+      // เปลี่ยนเที่ยว — ล้างสถานะกรอกมือของเที่ยวก่อนหน้า กันยอดน้ำมันติดข้ามเที่ยว
+      fe.dataset.forTrip = _curTid;
+      if(isCompanyTruck && trip.clearData && parseFloat(trip.clearData.fuelReal||0)>0){
+        fe.value = parseFloat(trip.clearData.fuelReal).toLocaleString("th-TH");
+        fe.dataset.manual = "1";
+      } else {
+        fe.value = "";
+        fe.dataset.manual = "";
+      }
+    }
     fe.readOnly = !isCompanyTruck;   // รถบริษัท: กรอกยอดจากบิลน้ำมันจริงได้เอง
     fe.style.background = isCompanyTruck ? "#fff" : "#fff8e1";
     fe.style.color = isCompanyTruck ? "#c0392b" : "";
