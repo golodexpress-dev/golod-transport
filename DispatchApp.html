@@ -749,7 +749,7 @@ tr:hover td{background:#f8fffe}
 <div class="topbar">
   <span class="title">🚛 จัดการขนส่ง</span>
   <span id="session-info" style="font-size:11px;opacity:.8"></span>
-  <span style="font-size:10px;opacity:.65;margin-left:auto">build 2026-06-10z147</span>
+  <span style="font-size:10px;opacity:.65;margin-left:auto">build 2026-06-10z148</span>
   <a href="GolodApp.html" style="margin-left:10px">← หน้าหลัก</a>
 </div>
 <div class="container">
@@ -6740,7 +6740,25 @@ function calcClearTrip(){
   // ค่าน้ำมันจริง (ใช้ราคารวม = ฐาน + บวกเพิ่ม)
   var fuelReal = fuelRate > 0 ? Math.round((distReal/fuelRate)*fuelEff) : 0;
   var fe = document.getElementById("ct-fuel-real");
-  if(fe) fe.value = fuelReal > 0 ? fuelReal.toLocaleString("th-TH")+" ฿" : "—";
+  var isCompanyTruck = (trip.vehicleType==="company");
+  if(fe){
+    fe.readOnly = !isCompanyTruck;   // รถบริษัท: กรอกยอดจากบิลน้ำมันจริงได้เอง
+    fe.style.background = isCompanyTruck ? "#fff" : "#fff8e1";
+    fe.style.color = isCompanyTruck ? "#c0392b" : "";
+    if(!fe._wired){
+      fe._wired = true;
+      fe.addEventListener("input", function(){
+        this.dataset.manual = "1";        // จำไว้ว่าผู้ใช้กรอกเองแล้ว ไม่ให้ auto ทับ
+        calcClearTrip();
+      });
+    }
+    if(isCompanyTruck && fe.dataset.manual==="1"){
+      // ผู้ใช้กรอกบิลจริงเอง — ไม่ทับด้วยค่าคำนวณจากไมล์
+      fuelReal = parseFloat((fe.value||"").replace(/[^0-9.]/g,""))||0;
+    } else {
+      fe.value = fuelReal > 0 ? fuelReal.toLocaleString("th-TH")+" ฿" : "—";
+    }
+  }
 
   // ===== สูตรตามใบจ่ายงานจริง =====
   var destAmt   = parseFloat(trip._liveDest!=null?trip._liveDest:(s.destTotal||0));
