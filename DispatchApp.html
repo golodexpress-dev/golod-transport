@@ -749,7 +749,7 @@ tr:hover td{background:#f8fffe}
 <div class="topbar">
   <span class="title">🚛 จัดการขนส่ง</span>
   <span id="session-info" style="font-size:11px;opacity:.8"></span>
-  <span style="font-size:10px;opacity:.65;margin-left:auto">build 2026-06-10z148</span>
+  <span style="font-size:10px;opacity:.65;margin-left:auto">build 2026-06-10z149</span>
   <a href="GolodApp.html" style="margin-left:10px">← หน้าหลัก</a>
 </div>
 <div class="container">
@@ -6740,7 +6740,7 @@ function calcClearTrip(){
   // ค่าน้ำมันจริง (ใช้ราคารวม = ฐาน + บวกเพิ่ม)
   var fuelReal = fuelRate > 0 ? Math.round((distReal/fuelRate)*fuelEff) : 0;
   var fe = document.getElementById("ct-fuel-real");
-  var isCompanyTruck = (trip.vehicleType==="company");
+  var isCompanyTruck = (!!trip.vehicleType && trip.vehicleType.indexOf("ร่วม")===-1);   // ชื่อรถมีคำว่า "ร่วม" = รถร่วม, ไม่มี = รถบริษัท (ยังไม่ตั้งประเภทรถ = ไม่ถือเป็นรถบริษัท)
   if(fe){
     fe.readOnly = !isCompanyTruck;   // รถบริษัท: กรอกยอดจากบิลน้ำมันจริงได้เอง
     fe.style.background = isCompanyTruck ? "#fff" : "#fff8e1";
