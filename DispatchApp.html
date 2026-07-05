@@ -749,7 +749,7 @@ tr:hover td{background:#f8fffe}
 <div class="topbar">
   <span class="title">🚛 จัดการขนส่ง</span>
   <span id="session-info" style="font-size:11px;opacity:.8"></span>
-  <span style="font-size:10px;opacity:.65;margin-left:auto">build 2026-06-10z151</span>
+  <span style="font-size:10px;opacity:.65;margin-left:auto">build 2026-06-10z154</span>
   <a href="GolodApp.html" style="margin-left:10px">← หน้าหลัก</a>
 </div>
 <div class="container">
@@ -2616,6 +2616,8 @@ function renderTripForm(existingTrip){
       +'<input id="tf-insur-deduct" type="number" class="trip-inp" placeholder="0" value="'+(t.insurDeduct||"")+'" oninput="calcTotalFare()"></div>'
       +'<div><div class="trip-lbl">เบิกจากประกัน (฿)</div>'
       +'<input id="tf-insur-draw" type="number" class="trip-inp" placeholder="0" value="'+(t.insurDraw||"")+'" oninput="calcTotalFare()"></div>'
+      +'<div><div class="trip-lbl">เบิกหน้าร้าน (฿)</div>'
+      +'<input id="tf-store-adv" type="number" class="trip-inp" placeholder="0" value="'+(t.storeAdvance||"")+'" oninput="calcTotalFare()"></div>'
       +'</div>'
       +'<div class="trip-form-grid" style="grid-template-columns:1fr 1fr;margin-top:6px">'
       +'<div><div class="trip-lbl">เบิกเงินหน้าร้าน (฿)</div>'
@@ -3289,6 +3291,7 @@ function saveTrip(){
     insurCarry: parseFloat((document.getElementById("tf-insur-carry")||{}).value||0),
     insurDeduct: parseFloat((document.getElementById("tf-insur-deduct")||{}).value||0),
     insurDraw: parseFloat((document.getElementById("tf-insur-draw")||{}).value||0),
+    storeAdvance: parseFloat((document.getElementById("tf-store-adv")||{}).value||0),
     drawCash: parseFloat((document.getElementById("tf-draw-cash")||{}).value||0),
     extras: {
       overweight: parseFloat((document.getElementById("tf-x1")||{}).value||0),
@@ -4314,10 +4317,24 @@ function renderMonthlyView(drivers, allTrips, selMonth, selDriver, dateFrom, dat
       var uname = (dTrips[0]&&dTrips[0].driverUsername)||dData.name;
       var insKey = uname + "_" + (selMonth || (dateFrom||"").slice(0,7) || "x");
       var insRec = (window._insurData&&window._insurData[insKey]) || {};
-      var insCarry = parseFloat(insRec.carryIn||0);
       var insCap   = parseFloat(insRec.cap||0);
-      var insDeduct= parseFloat(insRec.deduct||0);
-      var insDraw  = dTrips.reduce(function(a,t){ return a+parseFloat(t.insurDraw||0); },0);
+      // ===== รอบตัดประกัน 29(เดือนก่อน) - 28(เดือนนี้) — คนละรอบกับสรุปสิ้นเดือน (ปฏิทิน) =====
+      var _cycStart="", _cycEnd="";
+      if(selMonth){
+        var _mp=selMonth.split("-"), _yy=parseInt(_mp[0],10), _mm=parseInt(_mp[1],10);
+        var _py=_yy, _pm=_mm-1; if(_pm<1){ _pm=12; _py=_yy-1; }
+        _cycStart = _py+"-"+String(_pm).padStart(2,"0")+"-29";
+        _cycEnd   = _yy+"-"+String(_mm).padStart(2,"0")+"-28";
+      }
+      var insurTrips = _cycStart ? allTrips.filter(function(t){
+        if((t.driverUsername||"")!==uname) return false;
+        var dp=(t.departDate||t.createdAt||"").slice(0,10);
+        return dp>=_cycStart && dp<=_cycEnd;
+      }) : dTrips;
+      var insDeduct= parseFloat(insRec.deduct||0) + insurTrips.reduce(function(a,t){ return a+parseFloat(t.insurDeduct||0); },0);   // รวมกล่องตั้งค่า(ถ้ามี) + หักเพิ่มรายเที่ยวในรอบ 29-28
+      var insDraw  = insurTrips.reduce(function(a,t){ return a+parseFloat(t.insurDraw||0); },0);
+      var _firstCarryTrip = insurTrips.find(function(t){ return parseFloat(t.insurCarry||0)>0; });   // หาเที่ยวไหนก็ได้ในรอบที่กรอกไว้ (ไม่จำกัดว่าต้องเป็นเที่ยวแรก — เพราะปกติกรอกตอนปิดรอบที่เที่ยวท้ายๆ)
+      var insCarry = _firstCarryTrip ? parseFloat(_firstCarryTrip.insurCarry) : parseFloat(insRec.carryIn||0);   // ยอดยกมา: จากเที่ยวที่กรอกไว้ในรอบ ถ้าไม่มีค่อย fallback กล่องตั้งค่าเดิม
       var insCarryOut = insCarry + insDeduct - insDraw;
       var capReached = insCap>0 && insCarry>=insCap;
 
@@ -4331,7 +4348,8 @@ function renderMonthlyView(drivers, allTrips, selMonth, selDriver, dateFrom, dat
         return true;
       }).reduce(function(a,e){ return a+parseFloat(e.fuelAdvance||0); },0);
       fuelAdvSum += branchFuelAdv;
-      var netIncome   = incomeTotal - tot.diff - tot.fine - insDeduct;   // เบิกน้ำมันรวมอยู่ใน "พขร.ค้าง" รายเที่ยวแล้ว — ไม่หักซ้ำ
+      var storeAdvSum = dTrips.reduce(function(a,t){ return a+parseFloat(t.storeAdvance||0); },0);
+      var netIncome   = incomeTotal - tot.diff - tot.fine - insDeduct - storeAdvSum;   // เบิกน้ำมันรวมอยู่ใน "พขร.ค้าง" รายเที่ยวแล้ว — ไม่หักซ้ำ
       var distTotal = dTrips.reduce(function(a,t){ return a+parseFloat((t.clearData&&t.clearData.distReal)||0); },0);
       var fuelAdvOwn = dTrips.reduce(function(a,t){ return a+parseFloat(t.fuelAdvance||0); },0);
       window._monthlyPrintCache = window._monthlyPrintCache || {};
@@ -4339,7 +4357,7 @@ function renderMonthlyView(drivers, allTrips, selMonth, selDriver, dateFrom, dat
         name: dData.name, month: (selMonth||""), dateFrom: (dateFrom||""), dateTo: (dateTo||""),
         tripCount: dTrips.length, fareTotal: tot.fareTotal, bonus: bonus, workFee: tot.workFee,
         pkComm: (tot.pkComm||0), diff: tot.diff, fine: tot.fine, insDeduct: insDeduct, insDraw: insDraw,
-        fuelAdvSum: fuelAdvSum, netIncome: netIncome,
+        fuelAdvSum: fuelAdvSum, storeAdvSum: storeAdvSum, netIncome: netIncome,
         insCarry: insCarry, insCarryOut: insCarryOut,
         distTotal: distTotal, fuelAdvOwn: fuelAdvOwn, fuelRealSum: tot.fuel,
         fareSum: tot.fare, hotelSum: tot.hotel, laborSum: tot.labor, codSum: tot.cod, destSum: tot.dest,
@@ -4360,9 +4378,10 @@ function renderMonthlyView(drivers, allTrips, selMonth, selDriver, dateFrom, dat
       };
 
       var insPanel = '<div style="background:#fff8e1;border:1px solid #ffe082;border-radius:8px;padding:10px;margin-top:8px">'
-        +'<div style="font-size:11px;font-weight:700;color:#b7950b;margin-bottom:6px">🛡️ เงินประกัน (เดือน '+(selMonth||(dateFrom?dateFrom.slice(0,7):"-"))+')</div>'
+        +'<div style="font-size:11px;font-weight:700;color:#b7950b;margin-bottom:2px">🛡️ เงินประกัน — รอบตัด '+(_cycStart||"-")+' ถึง '+(_cycEnd||"-")+'</div>'
+        +'<div style="font-size:10px;color:#999;margin-bottom:6px">คนละรอบกับสรุปสิ้นเดือน (ปฏิทิน) — ยอดยกมา/หัก/เบิก ดึงจากเที่ยวในรอบนี้อัตโนมัติ</div>'
         +'<div style="display:flex;gap:8px;flex-wrap:wrap;align-items:flex-end">'
-        +'<div><div style="font-size:9px;color:#888">ยอดยกมา</div><input id="ins-carry-'+uname+'" type="number" value="'+(insRec.carryIn!=null?insRec.carryIn:"")+'" placeholder="0" style="width:90px;padding:5px 8px;border:1px solid #ddd;border-radius:6px;font-size:12px"></div>'
+        +'<div><div style="font-size:9px;color:#888">ยอดยกมา'+(_firstCarryTrip?' (จากเที่ยว '+(_firstCarryTrip.departDate||"").slice(5)+')':'')+'</div><input id="ins-carry-'+uname+'" type="number" value="'+(insCarry||"")+'" placeholder="0" '+(_firstCarryTrip?'readonly title="ดึงจากเที่ยวอัตโนมัติ — แก้ที่ฟอร์มเที่ยว" style="width:90px;padding:5px 8px;border:1px solid #ddd;border-radius:6px;font-size:12px;background:#f5f5f5"':'style="width:90px;padding:5px 8px;border:1px solid #ddd;border-radius:6px;font-size:12px"')+'</div>'
         +'<div><div style="font-size:9px;color:#888">เพดาน (2หมื่น/3หมื่น)</div><input id="ins-cap-'+uname+'" type="number" value="'+(insRec.cap!=null?insRec.cap:"")+'" placeholder="20000" style="width:90px;padding:5px 8px;border:1px solid #ddd;border-radius:6px;font-size:12px"></div>'
         +'<div><div style="font-size:9px;color:#888">+ หักเข้ากองทุน</div><input id="ins-deduct-'+uname+'" type="number" value="'+(insRec.deduct!=null?insRec.deduct:"")+'" placeholder="0" style="width:90px;padding:5px 8px;border:1px solid '+(capReached?"#e0a0a0":"#0F6E56")+';border-radius:6px;font-size:12px"></div>'
         +'<div><div style="font-size:9px;color:#888">− เบิกประกัน(รายเที่ยว)</div><div style="font-weight:700;color:#c0392b;padding:5px 0">'+fmt(insDraw)+'</div></div>'
@@ -4388,6 +4407,8 @@ function renderMonthlyView(drivers, allTrips, selMonth, selDriver, dateFrom, dat
         +'<div><div style="font-size:9px;opacity:.8">หักเข้ากองทุนประกัน</div><div style="font-weight:800">'+fmt(insDeduct)+'</div></div>'
         +'<div style="opacity:.5">−</div>'
         +'<div><div style="font-size:9px;opacity:.8">เบิกประกัน(เดือน)</div><div style="font-weight:800">'+fmt(insDraw)+'</div></div>'
+        +'<div style="opacity:.5">−</div>'
+        +'<div><div style="font-size:9px;opacity:.8">เบิกหน้าร้าน(เดือน)</div><div style="font-weight:800">'+fmt(storeAdvSum)+'</div></div>'
         +'<div style="opacity:.35;margin-left:6px">|</div>'
         +'<div style="opacity:.75"><div style="font-size:9px;opacity:.8">เบิกน้ำมัน(เดือน) — รวมในยอดเคลียร์แล้ว ไม่หักซ้ำ</div><div style="font-weight:800">'+fmt(fuelAdvSum)+'</div></div>'
         +'<div style="background:rgba(255,255,255,.2);border-radius:6px;padding:6px 12px;margin-left:auto">'
@@ -6358,10 +6379,10 @@ function printMonthlySummary(uname){
     + sl("หักเข้ากองทุนประกัน", d.insDeduct, true)
     + sl("เบิกประกัน(เดือน)", d.insDraw, true)
     + sl("ค่าประกันยกไป", d.insCarryOut)
+    + (d.storeAdvSum ? sl("เบิกหน้าร้าน(เดือน)", d.storeAdvSum, true) : "")
     + '<div class="sl" style="color:#888;font-size:11.5px;margin-top:2px"><span class="sl-lbl">เบิกน้ำมัน(เดือน)</span><span>'+fmt(d.fuelAdvSum)+' ฿ — รวมในยอดเคลียร์แล้ว ไม่หักซ้ำ</span></div>';
   var manualLines =
-      '<div class="sl"><span class="sl-lbl">เบิกหน้าร้าน</span><input type="number" id="pm-storeAdv" value="0" oninput="pmRecalc()"><span class="sl-suf">฿</span></div>'
-    + '<div class="sl"><span class="sl-lbl">ค่าใช้จ่ายอื่นๆ</span><input type="text" id="pm-otherDesc" placeholder="ระบุประเภท" class="sl-desc"><input type="number" id="pm-otherAmt" value="0" oninput="pmRecalc()"><span class="sl-suf">฿</span></div>'
+      '<div class="sl"><span class="sl-lbl">ค่าใช้จ่ายอื่นๆ</span><input type="text" id="pm-otherDesc" placeholder="ระบุประเภท" class="sl-desc"><input type="number" id="pm-otherAmt" value="0" oninput="pmRecalc()"><span class="sl-suf">฿</span></div>'
     + '<div class="sl"><span class="sl-lbl">ค่าดอกรวม</span><input type="number" id="pm-fineTotal" value="0" oninput="pmRecalc()"><span class="sl-suf">฿</span></div>'
     + '<div class="sl" style="color:#888;font-size:11px;margin-top:2px"><span class="sl-lbl"></span><span>ค่าดอกรวม = ค่าปรับเบิกหน้าร้าน + ค่าปรับเบิกเกินในเที่ยว (กรอกเอง)</span></div>';
   var w = window.open("", "_blank");
@@ -6394,10 +6415,9 @@ function printMonthlySummary(uname){
     +'var pmBase='+JSON.stringify(d.netIncome)+';'
     +'function pmFmt(n){ return (Math.round(n)||0).toLocaleString("th-TH"); }'
     +'function pmRecalc(){'
-      +'var sA=parseFloat(document.getElementById("pm-storeAdv").value)||0;'
       +'var oA=parseFloat(document.getElementById("pm-otherAmt").value)||0;'
       +'var fT=parseFloat(document.getElementById("pm-fineTotal").value)||0;'
-      +'var net=pmBase-sA-oA-fT;'
+      +'var net=pmBase-oA-fT;'
       +'document.getElementById("pm-net-value").textContent=pmFmt(net)+" ฿";'
     +'}'
     +'<\/script>'
