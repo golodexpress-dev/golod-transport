@@ -749,7 +749,7 @@ tr:hover td{background:#f8fffe}
 <div class="topbar">
   <span class="title">🚛 จัดการขนส่ง</span>
   <span id="session-info" style="font-size:11px;opacity:.8"></span>
-  <span style="font-size:10px;opacity:.65;margin-left:auto">build 2026-06-10z155</span>
+  <span style="font-size:10px;opacity:.65;margin-left:auto">build 2026-06-10z156</span>
   <a href="GolodApp.html" style="margin-left:10px">← หน้าหลัก</a>
 </div>
 <div class="container">
@@ -2616,8 +2616,6 @@ function renderTripForm(existingTrip){
       +'<input id="tf-insur-deduct" type="number" class="trip-inp" placeholder="0" value="'+(t.insurDeduct||"")+'" oninput="calcTotalFare()"></div>'
       +'<div><div class="trip-lbl">เบิกจากประกัน (฿)</div>'
       +'<input id="tf-insur-draw" type="number" class="trip-inp" placeholder="0" value="'+(t.insurDraw||"")+'" oninput="calcTotalFare()"></div>'
-      +'<div><div class="trip-lbl">เบิกหน้าร้าน (฿)</div>'
-      +'<input id="tf-store-adv" type="number" class="trip-inp" placeholder="0" value="'+(t.storeAdvance||"")+'" oninput="calcTotalFare()"></div>'
       +'</div>'
       +'<div class="trip-form-grid" style="grid-template-columns:1fr 1fr;margin-top:6px">'
       +'<div><div class="trip-lbl">เบิกเงินหน้าร้าน (฿)</div>'
@@ -3291,7 +3289,6 @@ function saveTrip(){
     insurCarry: parseFloat((document.getElementById("tf-insur-carry")||{}).value||0),
     insurDeduct: parseFloat((document.getElementById("tf-insur-deduct")||{}).value||0),
     insurDraw: parseFloat((document.getElementById("tf-insur-draw")||{}).value||0),
-    storeAdvance: parseFloat((document.getElementById("tf-store-adv")||{}).value||0),
     drawCash: parseFloat((document.getElementById("tf-draw-cash")||{}).value||0),
     extras: {
       overweight: parseFloat((document.getElementById("tf-x1")||{}).value||0),
@@ -4354,7 +4351,7 @@ function renderMonthlyView(drivers, allTrips, selMonth, selDriver, dateFrom, dat
         return true;
       }).reduce(function(a,e){ return a+parseFloat(e.fuelAdvance||0); },0);
       fuelAdvSum += branchFuelAdv;
-      var storeAdvSum = dTrips.reduce(function(a,t){ return a+parseFloat(t.storeAdvance||0); },0);
+      var storeAdvSum = dTrips.reduce(function(a,t){ return a+parseFloat(t.drawCash||0); },0);   // เบิกหน้าร้าน = ฟิลด์เดิม "เบิกเงินหน้าร้าน" (t.drawCash)
       var netIncome   = incomeTotal - tot.diff - tot.fine - insDeduct - storeAdvSum;   // เบิกน้ำมันรวมอยู่ใน "พขร.ค้าง" รายเที่ยวแล้ว — ไม่หักซ้ำ
       var distTotal = dTrips.reduce(function(a,t){ return a+parseFloat((t.clearData&&t.clearData.distReal)||0); },0);
       var fuelAdvOwn = dTrips.reduce(function(a,t){ return a+parseFloat(t.fuelAdvance||0); },0);
