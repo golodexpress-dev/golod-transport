@@ -749,7 +749,7 @@ tr:hover td{background:#f8fffe}
 <div class="topbar">
   <span class="title">🚛 จัดการขนส่ง</span>
   <span id="session-info" style="font-size:11px;opacity:.8"></span>
-  <span style="font-size:10px;opacity:.65;margin-left:auto">build 2026-06-10z149</span>
+  <span style="font-size:10px;opacity:.65;margin-left:auto">build 2026-06-10z150</span>
   <a href="GolodApp.html" style="margin-left:10px">← หน้าหลัก</a>
 </div>
 <div class="container">
@@ -6844,6 +6844,14 @@ function saveClearTrip(){
   var odoStart = parseFloat(trip.odomStart||0);
   var distReal = odoEnd > odoStart ? odoEnd - odoStart : parseFloat(trip.fuelDist||0);
   var fuelReal = fuelRate>0 ? Math.round((distReal/fuelRate)*fuelEff) : 0;
+  var isCompanyTruck = (!!trip.vehicleType && trip.vehicleType.indexOf("ร่วม")===-1);
+  if(isCompanyTruck){
+    var _feEl = document.getElementById("ct-fuel-real");
+    if(_feEl){
+      var _manualVal = parseFloat((_feEl.value||"").replace(/[^0-9.]/g,""))||0;
+      if(_manualVal>0) fuelReal = _manualVal;   // รถบริษัท: ใช้ยอดจากบิลน้ำมันจริงที่กรอกเอง แทนค่าคำนวณจากไมล์
+    }
+  }
   var pkCash  = parseFloat((document.getElementById("ct-pickup-cash")||{}).value||0);
   var pkDest  = parseFloat((document.getElementById("ct-pickup-dest")||{}).value||0);
   var otherAdv= parseFloat((document.getElementById("ct-other-advance")||{}).value||0);
