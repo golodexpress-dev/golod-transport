@@ -427,8 +427,9 @@ function loadLatestTrip(callback){
   // ดึงเที่ยวที่มอบให้คนขับคนนี้ — จับคู่ได้ทั้ง driverUsername และ driverName
   // (คนขับลงทะเบียน = username, รถร่วม/พิมพ์ชื่อเอง = ชื่อ) กันปัญหา "เห็นแค่บางเที่ยว"
   var qs = [];
-  if(uname) qs.push(col.where("driverUsername","==",uname).where("status","==","open").limit(20).get());
-  if(dname && dname!==uname) qs.push(col.where("driverName","==",dname).where("status","==","open").limit(20).get());
+  // เพิ่ม limit จาก 20 เป็น 100 — กันเที่ยวสำคัญหลุดถ้ามีเที่ยว open ค้างสะสมเกิน 20 เที่ยว (เคยเจอเคสนี้จริง)
+  if(uname) qs.push(col.where("driverUsername","==",uname).where("status","==","open").limit(100).get());
+  if(dname && dname!==uname) qs.push(col.where("driverName","==",dname).where("status","==","open").limit(100).get());
   if(qs.length===0){ loadTripFromBills(callback); return; }
   Promise.all(qs.map(function(p){ return p.catch(function(e){ console.warn("[DriverApp] trip query fail:", e&&e.message); return null; }); }))
     .then(function(snaps){
