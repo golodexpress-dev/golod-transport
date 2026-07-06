@@ -749,7 +749,7 @@ tr:hover td{background:#f8fffe}
 <div class="topbar">
   <span class="title">🚛 จัดการขนส่ง</span>
   <span id="session-info" style="font-size:11px;opacity:.8"></span>
-  <span style="font-size:10px;opacity:.65;margin-left:auto">build 2026-06-10z162</span>
+  <span style="font-size:10px;opacity:.65;margin-left:auto">build 2026-06-10z163</span>
   <a href="GolodApp.html" style="margin-left:10px">← หน้าหลัก</a>
 </div>
 <div class="container">
@@ -1756,7 +1756,7 @@ function renderTripList(){
           +'<button class="btn" data-tid="'+t.id+'" onclick="openTripVehiclePhoto(this.dataset.tid)" style="background:#34495e;color:#fff">📷 รูปรถ ('+((t.vehiclePhotos||[]).length)+')</button>'
           +(canClearTrip()?'<button class="btn btn-orange" data-tid="'+t.id+'" onclick="openClearTrip(this.dataset.tid)">💰 เคลียร์เที่ยว</button>':'')
           +(canClearTrip()?'<button class="btn btn-green" data-tid="'+t.id+'" onclick="closeTrip(this.dataset.tid)">✅ ปิดเที่ยว</button>':'')
-          +((_isAdminU && !((t.settlement&&t.settlement.status==="confirmed")||t.status==="cleared"||t.status==="closed"))?'<button class="btn" style="background:#c0392b;color:#fff" data-tid="'+t.id+'" onclick="deleteTrip(this.dataset.tid)">🗑 ลบเที่ยว</button>':'')
+          +(_isAdminU?_delBtnHtml(t):'')
           +((CU&&CU.role!=="driver")?('<button class="btn" style="background:#5b3fb5;color:#fff" data-tid="'+t.id+'" onclick="openEtaPlanOnly(this.dataset.tid)">📅 วันคาดส่ง</button>'):'')
           +'<button class="btn btn-blue" data-tid="'+t.id+'" onclick="printTripSummary(this.dataset.tid)">🖨 พิมพ์</button>'
           +'<button class="btn" data-tid="'+t.id+'" onclick="printRunSheet(this.dataset.tid)" style="background:#6a1b9a;color:#fff">🖨 การ์ดเที่ยว</button>'
@@ -3129,13 +3129,24 @@ function canClearTrip(){
   return CLEAR_ALLOWED_USERS.indexOf(CU.username) >= 0;
 }
 
+function _delBtnHtml(t){
+  var closed = (t.settlement&&t.settlement.status==="confirmed")||t.status==="cleared"||t.status==="closed";
+  var label = closed ? "\ud83d\uddd1 ลบเที่ยว \u2014 เคลียร์แล้ว" : "\ud83d\uddd1 ลบเที่ยว";
+  var tip = closed ? "เที่ยวนี้เคลียร์แล้ว ลบได้เฉพาะกรณีซ้ำ/ผิดพลาด ต้องพิมพ์ยืนยัน" : "ลบเที่ยว";
+  return '<button class="btn" style="background:#c0392b;color:#fff" data-tid="'+t.id+'" onclick="deleteTrip(this.dataset.tid)" title="'+tip+'">'+label+'</button>';
+}
+
 function deleteTrip(id){
   if(!CU || CU.role!=="admin"){ alert("เฉพาะแอดมินลบเที่ยวได้"); return; }
   var list=(_tripState&&_tripState.openTrips)||[];
   var t=list.find(function(x){return x.id===id;});
   if(!t){ alert("ไม่พบเที่ยว"); return; }
-  var dispatched=(t.autoDispatched===true)||(t.settlement&&t.settlement.status==="confirmed")||t.status==="open"||t.status==="cleared"||t.status==="closed";
-  if(dispatched){ alert("ลบไม่ได้ — เที่ยวนี้จ่ายงาน/เคลียร์/ปิดแล้ว\nลบได้เฉพาะเที่ยวเปล่า หรือเที่ยวที่ยังไม่จ่ายงาน"); return; }
+  var isClosed = (t.settlement&&t.settlement.status==="confirmed")||t.status==="cleared"||t.status==="closed";
+  if(isClosed){
+    var warnMsg = "\u26a0\ufe0f คำเตือนสำคัญ!\n\nเที่ยวนี้เคลียร์/ปิดยอดแล้ว มีข้อมูลการเงินผูกอยู่ (ยอดเคลียร์ ประวัติจ่ายคนขับ)\nการลบจะทำให้ข้อมูลนี้หายถาวร กู้คืนไม่ได้\n\nใช้เฉพาะกรณีเที่ยวซ้ำ/สร้างผิดพลาดเท่านั้น!\n\nคนรถ: "+(t.driverName||t.driverUsername||"-")+"\nวันที่: "+(t.departDate||"-")+"\nเส้นทาง: "+(t.route||"-")+"\n\n\u2022 พิมพ์ \u201cลบถาวร\u201d (ไม่มีเว้นวรรค) แล้วกด OK เพื่อยืนยัน:";
+    var typed = prompt(warnMsg);
+    if(typed !== "ลบถาวร"){ alert("ยกเลิกการลบ — ข้อความยืนยันไม่ตรง"); return; }
+  }
   var bills=(t.billIds||[]).slice();
   var msg=bills.length
     ? ("ลบเที่ยวนี้?\n\nคนรถ: "+(t.driverName||t.driverUsername||"-")+"\nมีบิล "+bills.length+" ใบ — บิลจะถูกถอดกลับเข้าคลัง (ไม่ถูกลบ) เอาไปจัดเที่ยวใหม่ได้")
