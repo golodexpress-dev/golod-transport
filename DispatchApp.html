@@ -749,7 +749,7 @@ tr:hover td{background:#f8fffe}
 <div class="topbar">
   <span class="title">🚛 จัดการขนส่ง</span>
   <span id="session-info" style="font-size:11px;opacity:.8"></span>
-  <span style="font-size:10px;opacity:.65;margin-left:auto">build 2026-06-10z161</span>
+  <span style="font-size:10px;opacity:.65;margin-left:auto">build 2026-06-10z162</span>
   <a href="GolodApp.html" style="margin-left:10px">← หน้าหลัก</a>
 </div>
 <div class="container">
@@ -3152,6 +3152,7 @@ function deleteTrip(id){
       if(_tripState&&_tripState.openTrips){ _tripState.openTrips=_tripState.openTrips.filter(function(x){return x.id!==id;}); }
       alert("\u2705 ลบเที่ยวแล้ว"+(bills.length?(" — ถอด "+bills.length+" บิลกลับคลัง"):""));
       if(typeof renderTripTab==="function") renderTripTab(); else if(typeof renderApp==="function") renderApp();
+      if(typeof reloadMonthlyRange==="function") reloadMonthlyRange();   // เที่ยวถูกลบจริง — รีเฟรชสรุปเดือนให้ตรงด้วย กันเที่ยวลบแล้วยังค้างโชว์
     })
     .catch(function(e){ alert("ลบไม่สำเร็จ: "+((e&&e.message)||e)); });
 }
