@@ -285,7 +285,8 @@ function showLogin(){
 function showMain(){
   document.getElementById("login-screen").style.display = "none";
   document.getElementById("main-screen").style.display = "";
-  document.getElementById("driver-label").textContent = CU.name || CU.username;
+  document.getElementById("driver-label").textContent = (CU.name||"-")+" | @"+(CU.username||"-");
+  document.getElementById("driver-label").title = "ชื่อ (name): "+(CU.name||"-")+" | username: "+(CU.username||"-")+" — เอาไปเทียบกับที่บันทึกในบิล/เที่ยวได้";
   loadBills();
 }
 
@@ -345,18 +346,21 @@ function loadBills(){
 
     var uname = CU.username || "";
     var dname = CU.name || "";
-    var queries = [];
+    var queries = [];   // {p: promise, type: "username"|"name"}
     ACTIVE.forEach(function(st){
-      if(uname) queries.push(db.collection("bills").where("driver","==",uname).where("status","==",st).limit(200).get());
+      if(uname) queries.push({type:"username", p:db.collection("bills").where("driver","==",uname).where("status","==",st).limit(200).get()});
       // จับคู่ด้วยชื่อด้วย — กันบิลที่มอบด้วยชื่อ (รถร่วม/พิมพ์ชื่อเอง) ไม่ตรงกับ username ไม่โผล่ในแอพคนขับ
-      if(dname && dname!==uname) queries.push(db.collection("bills").where("driverName","==",dname).where("status","==",st).limit(200).get());
+      if(dname && dname!==uname) queries.push({type:"name", p:db.collection("bills").where("driverName","==",dname).where("status","==",st).limit(200).get()});
     });
 
-    Promise.all(queries.map(function(p){ return p.catch(function(e){ console.warn("[DriverApp] bills query fail:", e&&e.message); return null; }); })).then(function(results){
+    Promise.all(queries.map(function(q){ return q.p.catch(function(e){ console.warn("[DriverApp] bills query fail:", e&&e.message); return null; }); })).then(function(results){
       var seen = {};
       var bills = [];
-      results.forEach(function(snap){
+      var matchCount = {username:0, name:0};
+      results.forEach(function(snap, i){
         if(!snap) return;
+        var qtype = queries[i].type;
+        matchCount[qtype] += snap.size;
         snap.forEach(function(doc){
           var d = doc.data();
           if(!seen[d.billNo]){
@@ -369,6 +373,16 @@ function loadBills(){
       });
       BILLS = bills;
       renderBillList();
+      // ป้ายวินิจฉัย — ให้เห็นบนจอมือถือตรงๆ ว่าค้นด้วย username เจอกี่ใบ / ด้วยชื่อเจอกี่ใบ
+      var diagEl = document.getElementById("driver-diag");
+      if(!diagEl){
+        diagEl = document.createElement("div");
+        diagEl.id = "driver-diag";
+        diagEl.style.cssText = "font-size:10px;color:#888;padding:4px 12px;background:#f7f7f7";
+        var topbar = document.querySelector(".topbar");
+        if(topbar && topbar.parentNode) topbar.parentNode.insertBefore(diagEl, topbar.nextSibling);
+      }
+      diagEl.textContent = "🔍 เจอบิลจาก username \"" + uname + "\": " + matchCount.username + " ใบ | จากชื่อ \"" + dname + "\": " + matchCount.name + " ใบ | รวมไม่ซ้ำ: " + bills.length + " ใบ";
     }).catch(function(e){
       document.getElementById("bill-list").innerHTML =
         '<div class="empty-state"><div class="ico">❌</div><div class="msg">โหลดไม่สำเร็จ: '+e.message+'</div></div>';
