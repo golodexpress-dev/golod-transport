@@ -749,7 +749,7 @@ tr:hover td{background:#f8fffe}
 <div class="topbar">
   <span class="title">🚛 จัดการขนส่ง</span>
   <span id="session-info" style="font-size:11px;opacity:.8"></span>
-  <span style="font-size:10px;opacity:.65;margin-left:auto">build 2026-06-10z159</span>
+  <span style="font-size:10px;opacity:.65;margin-left:auto">build 2026-06-10z161</span>
   <a href="GolodApp.html" style="margin-left:10px">← หน้าหลัก</a>
 </div>
 <div class="container">
@@ -4211,7 +4211,7 @@ function renderMonthlyView(drivers, allTrips, selMonth, selDriver, dateFrom, dat
       var failed    = cd.failedCount!=null?cd.failedCount:null;
       var billCount = (s.billCount!=null?s.billCount:(t.billIds?t.billIds.length:0));
       var phoneT    = parseFloat(t.phoneFare||0);
-      var workFee   = parseFloat(t.ratePerBill||0) * (delivered!=null?delivered:billCount);
+      var workFee   = parseFloat(t.ratePerBill||0) * (delivered!=null?delivered:billCount);   // นับจากสถานะ "ส่งสำเร็จ" อย่างเดียว ไม่ต้องมีรูป/ลายเซ็น
       var bonus = parseFloat(t.bonusFare||0);
       var pkComm = parseFloat(cd.pickupComm||0) + (Array.isArray(t.pickups)?t.pickups.reduce(function(s,p){return s+(parseFloat(p.commission)||0);},0):0);
       var fareTotal = fare+hotel+labor;
@@ -4338,6 +4338,7 @@ function renderMonthlyView(drivers, allTrips, selMonth, selDriver, dateFrom, dat
       }) : dTrips;
       var insDeduct= parseFloat(insRec.deduct||0) + insurTrips.reduce(function(a,t){ return a+parseFloat(t.insurDeduct||0); },0);   // รวมกล่องตั้งค่า(ถ้ามี) + หักเพิ่มรายเที่ยวในรอบ 29-28
       var insDraw  = insurTrips.reduce(function(a,t){ return a+parseFloat(t.insurDraw||0); },0);
+      var insurDistTotal = insurTrips.reduce(function(a,t){ return a+parseFloat((t.clearData&&t.clearData.distReal)||0); },0);   // ระยะทางรวมในรอบ 29-28
       var _firstCarryTrip = insurTrips.find(function(t){ return parseFloat(t.insurCarry||0)>0; });   // หาเที่ยวไหนก็ได้ในรอบที่กรอกไว้ (ไม่จำกัดว่าต้องเป็นเที่ยวแรก — เพราะปกติกรอกตอนปิดรอบที่เที่ยวท้ายๆ)
       var insCarry = _firstCarryTrip ? parseFloat(_firstCarryTrip.insurCarry) : parseFloat(insRec.carryIn||0);   // ยอดยกมา: จากเที่ยวที่กรอกไว้ในรอบ ถ้าไม่มีค่อย fallback กล่องตั้งค่าเดิม
       var insCarryOut = insCarry + insDeduct - insDraw;
@@ -4385,6 +4386,7 @@ function renderMonthlyView(drivers, allTrips, selMonth, selDriver, dateFrom, dat
       var insPanel = '<div style="background:#fff8e1;border:1px solid #ffe082;border-radius:8px;padding:10px;margin-top:8px">'
         +'<div style="font-size:11px;font-weight:700;color:#b7950b;margin-bottom:2px">🛡️ เงินประกัน — รอบตัด '+(_cycStart||"-")+' ถึง '+(_cycEnd||"-")+'</div>'
         +'<div style="font-size:10px;color:#999;margin-bottom:6px">คนละรอบกับสรุปสิ้นเดือน (ปฏิทิน) — ยอดยกมา/หัก/เบิก ดึงจากเที่ยวในรอบนี้อัตโนมัติ</div>'
+        +'<div style="font-size:11px;color:#8e6d00;margin-bottom:6px">🚛 ระยะทางวิ่งรวมในรอบนี้: <b>'+fmt(insurDistTotal)+' กม.</b></div>'
         +'<div style="display:flex;gap:8px;flex-wrap:wrap;align-items:flex-end">'
         +'<div><div style="font-size:9px;color:#888">ยอดยกมา'+(_firstCarryTrip?' (จากเที่ยว '+(_firstCarryTrip.departDate||"").slice(5)+')':'')+'</div><input id="ins-carry-'+uname+'" type="number" value="'+(insCarry||"")+'" placeholder="0" '+(_firstCarryTrip?'readonly title="ดึงจากเที่ยวอัตโนมัติ — แก้ที่ฟอร์มเที่ยว" style="width:90px;padding:5px 8px;border:1px solid #ddd;border-radius:6px;font-size:12px;background:#f5f5f5"':'style="width:90px;padding:5px 8px;border:1px solid #ddd;border-radius:6px;font-size:12px"')+'</div>'
         +'<div><div style="font-size:9px;color:#888">เพดาน (2หมื่น/3หมื่น)</div><input id="ins-cap-'+uname+'" type="number" value="'+(insRec.cap!=null?insRec.cap:"")+'" placeholder="20000" style="width:90px;padding:5px 8px;border:1px solid #ddd;border-radius:6px;font-size:12px"></div>'
@@ -6684,7 +6686,7 @@ function openClearTrip(tripId){
   function computeFromBills(tb){
     var liveDest=0, liveCod=0, pkCash=0, pkDest=0, failDest=0, failCod=0; var failBills=[];
     var rOrigin=0, rTransfer=0, rCredit=0, rDestCash=0, rDestTransfer=0;
-    var delivered=0, failed=0;
+    var delivered=0, failed=0, deliveredApp=0;
     tb.forEach(function(b){
       var pay=b.freightPay||(b.form&&b.form.freightPay)||"origin";
       var net=parseFloat(b.freightNet||0), cod=parseFloat(b.codTotal||0);
@@ -6700,12 +6702,12 @@ function openClearTrip(tripId){
       else if(pay==="dest_transfer") rDestTransfer+=net;
       else if(pay==="dest"||pay==="dest_cash") rDestCash+=net;
       // นับส่งได้/ส่งไม่ได้
-      if(SUCCESS_STATUS.indexOf(b.status||"")>=0) delivered++;
+      if(SUCCESS_STATUS.indexOf(b.status||"")>=0){ delivered++; if(b.deliveredAt) deliveredApp++; }
       else if(isFail){ failed++; failBills.push({billNo:b.billNo,status:b.status||"",dest:((pay==="dest"||pay==="dest_cash")&&!isPickup)?net:0,cod:cod||0,recv:(b.receiverName||(b.form&&b.form.receiverName)||""),prov:(b.destProv||(b.form&&b.form.destProv)||"")}); }
     });
     trip._liveDest=liveDest; trip._liveCod=liveCod;
     trip._rev={origin:rOrigin,transfer:rTransfer,credit:rCredit,destCash:rDestCash,destTransfer:rDestTransfer};
-    trip._delivered=delivered; trip._failed=failed;
+    trip._delivered=delivered; trip._failed=failed; trip._deliveredApp=deliveredApp;
     var gg=function(id,val){var el=document.getElementById(id);if(el)el.value=(val!=null&&val!=="")?val:"";};
     gg("ct-dest-amt", liveDest.toLocaleString("th-TH"));
     gg("ct-cod-amt", liveCod.toLocaleString("th-TH"));
@@ -6962,6 +6964,7 @@ function saveClearTrip(){
     adjApproved: remarksApprovedSum(), adjPending: remarksPendingSum(), pickupComm: _pickupCommSum(), remarks: _clearRemarks,
     rev: (trip._rev||null),
     deliveredCount: (trip._delivered!=null?trip._delivered:null),
+    deliveredCountApp: (trip._deliveredApp!=null?trip._deliveredApp:null),   // เก็บไว้เผื่อใช้ภายหลัง — ไม่ได้ใช้คิดค่าส่งงานแล้ว
     failedCount: (trip._failed!=null?trip._failed:null),
     workFee: (trip._delivered!=null? parseFloat(trip.ratePerBill||0)*trip._delivered : null),
     otherAdvance: otherAdv, drawRate: drawRate*100, drawFee: drawFee,
