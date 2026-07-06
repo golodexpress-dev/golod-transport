@@ -531,6 +531,12 @@ tr:hover td{background:#f8fffe}
       <div><label style="font-size:11px;color:#888">อำเภอ</label>
         <input id="ap-dest-amphoe" class="inp" placeholder="อำเภอ"></div>
     </div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:10px">
+      <div><label style="font-size:11px;color:#888">ตำบล</label>
+        <input id="ap-dest-tambon" class="inp" placeholder="ตำบล"></div>
+      <div><label style="font-size:11px;color:#888">บ้านเลขที่/รายละเอียด</label>
+        <input id="ap-dest-addr" class="inp" placeholder="บ้านเลขที่/รายละเอียด"></div>
+    </div>
     <div style="margin-bottom:10px">
       <label style="font-size:11px;color:#888">สินค้า <span style="color:#aaa">(แต่ละรายการขึ้นบรรทัดใหม่)</span></label>
       <div id="ap-goods-list" style="margin-bottom:4px"></div>
@@ -749,7 +755,7 @@ tr:hover td{background:#f8fffe}
 <div class="topbar">
   <span class="title">🚛 จัดการขนส่ง</span>
   <span id="session-info" style="font-size:11px;opacity:.8"></span>
-  <span style="font-size:10px;opacity:.65;margin-left:auto">build 2026-06-10z163</span>
+  <span style="font-size:10px;opacity:.65;margin-left:auto">build 2026-06-10z165</span>
   <a href="GolodApp.html" style="margin-left:10px">← หน้าหลัก</a>
 </div>
 <div class="container">
@@ -810,6 +816,12 @@ tr:hover td{background:#f8fffe}
         <input id="ap-dest-prov" class="inp" placeholder="จังหวัด"></div>
       <div><label style="font-size:11px;color:#888">อำเภอ</label>
         <input id="ap-dest-amphoe" class="inp" placeholder="อำเภอ"></div>
+    </div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:10px">
+      <div><label style="font-size:11px;color:#888">ตำบล</label>
+        <input id="ap-dest-tambon" class="inp" placeholder="ตำบล"></div>
+      <div><label style="font-size:11px;color:#888">บ้านเลขที่/รายละเอียด</label>
+        <input id="ap-dest-addr" class="inp" placeholder="บ้านเลขที่/รายละเอียด"></div>
     </div>
     <div style="margin-bottom:10px">
       <label style="font-size:11px;color:#888">สินค้า <span style="color:#aaa">(แต่ละรายการขึ้นบรรทัดใหม่)</span></label>
@@ -6740,8 +6752,10 @@ function openClearTrip(tripId){
       if(pu.paidOnPickup && (pt==="cash_origin"||pt==="origin")) pkCash+=fr;      // รับสดต้นทาง
       else if(pu.paidOnPickup && (pt==="cash_dest"||pt==="dest"))  pkDest+=fr;     // เก็บปลายทาง
     });
-    if(!(trip.clearData&&trip.clearData.pickupCash)) gg("ct-pickup-cash", pkCash||"");
-    if(!(trip.clearData&&trip.clearData.pickupDest)) gg("ct-pickup-dest", pkDest||"");
+    var _hasPickups = Array.isArray(trip.pickups) && trip.pickups.length>0;
+    // ถ้าเที่ยวนี้ไม่มีงานรับ(pickups)แล้วจริงๆ ให้ล้างยอดเก่าทิ้งเสมอ — กันยอด pickupCash/pickupDest ค้างจากตอนที่เคยมีงานรับ/บิลผูกอยู่ก่อนถูกถอดออกไป
+    if(!_hasPickups || !(trip.clearData&&trip.clearData.pickupCash)) gg("ct-pickup-cash", pkCash||"");
+    if(!_hasPickups || !(trip.clearData&&trip.clearData.pickupDest)) gg("ct-pickup-dest", pkDest||"");
     trip._failDest=failDest; trip._failCod=failCod; trip._failBills=failBills;
     _renderClearFailList(trip);
     calcClearTrip();
@@ -7982,6 +7996,8 @@ function approveBill(billNo){
   document.getElementById("ap-receiver-phone").value= b.receiverPhone||form.receiverPhone||"";
   document.getElementById("ap-dest-prov").value     = b.destProv||form.destProv||"";
   document.getElementById("ap-dest-amphoe").value   = b.destAmphoe||form.destAmphoe||form.receiverAmphoe||"";
+  document.getElementById("ap-dest-tambon").value    = b.destTambon||form.destTambon||form.receiverTambon||"";
+  document.getElementById("ap-dest-addr").value      = b.destAddr||form.destAddr||form.receiverAddr||"";
   // โหลดสินค้าทุกรายการ
   var allItems = Array.isArray(b.items)?b.items:(Array.isArray(form.items)?form.items:[]);
   var goodsText = allItems.map(function(i){return i.desc||"";}).filter(Boolean).join("\n");
@@ -8009,6 +8025,7 @@ function confirmApprove(){
     senderName: g("ap-sender-name"), senderPhone: g("ap-sender-phone"),
     receiverName: g("ap-receiver-name"), receiverPhone: g("ap-receiver-phone"),
     destProv: g("ap-dest-prov"), destAmphoe: g("ap-dest-amphoe"),
+    destTambon: g("ap-dest-tambon"), destAddr: g("ap-dest-addr"), receiverAddr: g("ap-dest-addr"),
     freightNet: parseFloat(g("ap-freight"))||0, freightPay: g("ap-pay"),
     approvedBy: CU?CU.username:"", approvedAt: new Date().toISOString(),
     updatedAt: new Date().toISOString()
