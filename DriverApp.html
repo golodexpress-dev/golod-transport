@@ -343,17 +343,20 @@ function loadBills(){
     try{ db = firebase.firestore(); }catch(e){ db=null; }
     if(!db){ throw new Error("Firestore ไม่พร้อม"); }
 
-    var queries = ACTIVE.map(function(st){
-      return db.collection("bills")
-        .where("driver","==",CU.username)
-        .where("status","==",st)
-        .limit(200).get();
+    var uname = CU.username || "";
+    var dname = CU.name || "";
+    var queries = [];
+    ACTIVE.forEach(function(st){
+      if(uname) queries.push(db.collection("bills").where("driver","==",uname).where("status","==",st).limit(200).get());
+      // จับคู่ด้วยชื่อด้วย — กันบิลที่มอบด้วยชื่อ (รถร่วม/พิมพ์ชื่อเอง) ไม่ตรงกับ username ไม่โผล่ในแอพคนขับ
+      if(dname && dname!==uname) queries.push(db.collection("bills").where("driverName","==",dname).where("status","==",st).limit(200).get());
     });
 
-    Promise.all(queries).then(function(results){
+    Promise.all(queries.map(function(p){ return p.catch(function(e){ console.warn("[DriverApp] bills query fail:", e&&e.message); return null; }); })).then(function(results){
       var seen = {};
       var bills = [];
       results.forEach(function(snap){
+        if(!snap) return;
         snap.forEach(function(doc){
           var d = doc.data();
           if(!seen[d.billNo]){
