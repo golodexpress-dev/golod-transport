@@ -749,7 +749,7 @@ tr:hover td{background:#f8fffe}
 <div class="topbar">
   <span class="title">🚛 จัดการขนส่ง</span>
   <span id="session-info" style="font-size:11px;opacity:.8"></span>
-  <span style="font-size:10px;opacity:.65;margin-left:auto">build 2026-06-10z158</span>
+  <span style="font-size:10px;opacity:.65;margin-left:auto">build 2026-06-10z159</span>
   <a href="GolodApp.html" style="margin-left:10px">← หน้าหลัก</a>
 </div>
 <div class="container">
@@ -6422,7 +6422,7 @@ function printMonthlySummary(uname){
     + sl("ค่าส่งงาน", d.workFee)
     + sl("ค่ารับงาน", d.pkComm)
     + sl("พขร.ค้าง(+)/บ.จ่าย(−)", d.diff)
-    + sl("ค่าดอก(ค่าปรับ)", d.fine, true)
+    + sl("ค่าเบิกเกิน", d.fine, true)
     + sl("ประกันยกมา", d.insCarry)
     + sl("หักเข้ากองทุนประกัน", d.insDeduct, true)
     + sl("เบิกประกัน(เดือน)", d.insDraw, true)
@@ -6431,8 +6431,7 @@ function printMonthlySummary(uname){
     + '<div class="sl" style="color:#888;font-size:11.5px;margin-top:2px"><span class="sl-lbl">เบิกน้ำมัน(เดือน)</span><span>'+fmt(d.fuelAdvSum)+' ฿ — รวมในยอดเคลียร์แล้ว ไม่หักซ้ำ</span></div>';
   var manualLines =
       '<div class="sl"><span class="sl-lbl">ค่าใช้จ่ายอื่นๆ</span><input type="text" id="pm-otherDesc" placeholder="ระบุประเภท" class="sl-desc"><input type="number" id="pm-otherAmt" value="0" oninput="pmRecalc()"><span class="sl-suf">฿</span></div>'
-    + '<div class="sl"><span class="sl-lbl">ค่าดอกรวม</span><input type="number" id="pm-fineTotal" value="0" oninput="pmRecalc()"><span class="sl-suf">฿</span></div>'
-    + '<div class="sl" style="color:#888;font-size:11px;margin-top:2px"><span class="sl-lbl"></span><span>ค่าดอกรวม = ค่าปรับเบิกหน้าร้าน + ค่าปรับเบิกเกินในเที่ยว (กรอกเอง)</span></div>';
+    + '<div class="sl" style="color:#888;font-size:11px;margin-top:2px"><span class="sl-lbl"></span><span>ค่าเบิกเกินรวมอยู่ในยอดด้านบนแล้ว (อัตโนมัติ + เพิ่มเติมจากแอดมิน) ไม่ต้องกรอกซ้ำ</span></div>';
   var w = window.open("", "_blank");
   w.document.write(
     '<html><head><meta charset="utf-8"><title>สรุปเดือน '+d.name+'</title><style>'
@@ -6455,7 +6454,7 @@ function printMonthlySummary(uname){
     +'</style></head><body>'
     +'<h2>บริษัท โกโลด ทรานสปอร์ต จำกัด</h2>'
     +'<div class="sub">สรุปรายได้คนขับ &mdash; '+d.name+' &nbsp;&middot;&nbsp; งวด '+periodTxt+' &nbsp;&middot;&nbsp; '+d.tripCount+' เที่ยว</div>'
-    +'<table style="font-size:11px"><thead><tr><th>#</th><th>วันที่</th><th>เส้นทาง</th><th class="r">ระยะทาง(กม.)</th><th class="r">เบิกน้ำมัน</th><th class="r">ค่าน้ำมัน</th><th class="r">ค่าเที่ยว</th><th class="r">ค่าโรงแรม</th><th class="r">แรงแบกตร.</th><th class="c">บิล</th><th class="r">COD</th><th class="r">ค่าส่งปลายทาง</th><th class="r">ต้องเคลียร์</th><th class="r">เคลียร์สด</th><th class="r">เคลียร์โอน</th><th class="r">ค้าง(+)/จ่าย(&minus;)</th><th class="r">ค่าดอก(ค่าปรับ)</th></tr></thead><tbody>'+rows+totalRow+'</tbody></table>'
+    +'<table style="font-size:11px"><thead><tr><th>#</th><th>วันที่</th><th>เส้นทาง</th><th class="r">ระยะทาง(กม.)</th><th class="r">เบิกน้ำมัน</th><th class="r">ค่าน้ำมัน</th><th class="r">ค่าเที่ยว</th><th class="r">ค่าโรงแรม</th><th class="r">แรงแบกตร.</th><th class="c">บิล</th><th class="r">COD</th><th class="r">ค่าส่งปลายทาง</th><th class="r">ต้องเคลียร์</th><th class="r">เคลียร์สด</th><th class="r">เคลียร์โอน</th><th class="r">ค้าง(+)/จ่าย(&minus;)</th><th class="r">เบิกเกิน</th></tr></thead><tbody>'+rows+totalRow+'</tbody></table>'
     +'<div class="sum">'+sumLines+'<div class="manual">'+manualLines+'</div></div>'
     +'<div class="net"><span>รายได้สุทธิ</span><span id="pm-net-value">'+fmt(d.netIncome)+' ฿</span></div>'
     +'<div style="margin-top:16px;text-align:center"><button onclick="window.print()" style="padding:8px 20px;font-size:14px;border-radius:6px;border:1px solid #0F6E56;background:#0F6E56;color:#fff">🖨 พิมพ์ / บันทึกเป็น PDF</button></div>'
@@ -6464,8 +6463,7 @@ function printMonthlySummary(uname){
     +'function pmFmt(n){ return (Math.round(n)||0).toLocaleString("th-TH"); }'
     +'function pmRecalc(){'
       +'var oA=parseFloat(document.getElementById("pm-otherAmt").value)||0;'
-      +'var fT=parseFloat(document.getElementById("pm-fineTotal").value)||0;'
-      +'var net=pmBase-oA-fT;'
+      +'var net=pmBase-oA;'
       +'document.getElementById("pm-net-value").textContent=pmFmt(net)+" ฿";'
     +'}'
     +'<\/script>'
