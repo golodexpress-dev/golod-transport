@@ -749,7 +749,7 @@ tr:hover td{background:#f8fffe}
 <div class="topbar">
   <span class="title">🚛 จัดการขนส่ง</span>
   <span id="session-info" style="font-size:11px;opacity:.8"></span>
-  <span style="font-size:10px;opacity:.65;margin-left:auto">build 2026-06-10z156</span>
+  <span style="font-size:10px;opacity:.65;margin-left:auto">build 2026-06-10z158</span>
   <a href="GolodApp.html" style="margin-left:10px">← หน้าหลัก</a>
 </div>
 <div class="container">
@@ -4136,12 +4136,16 @@ function renderMonthlyTab(){
     GolodDB.getUsers ? GolodDB.getUsers() : Promise.resolve([]),
     GolodDB.getTrips ? GolodDB.getTrips({limitN:500}) : Promise.resolve([]),
     (GolodDB.getSetting ? GolodDB.getSetting("insuranceMonthly") : Promise.resolve(null)),
-    (GolodDB.getSetting ? GolodDB.getSetting("btfuel_index") : Promise.resolve([]))
+    (GolodDB.getSetting ? GolodDB.getSetting("btfuel_index") : Promise.resolve([])),
+    (GolodDB.getSetting ? GolodDB.getSetting("bonusMonthly") : Promise.resolve(null)),
+    (GolodDB.getSetting ? GolodDB.getSetting("fineAdjMonthly") : Promise.resolve(null))
   ]).then(function(results){
     var drivers = (results[0]||[]).filter(function(u){ return u.role==="driver"; });
     var allTrips = results[1]||[];
     window._insurData = results[2] && typeof results[2]==="object" ? results[2] : {};
     window._btFuelIndex = Array.isArray(results[3])?results[3]:[];
+    window._bonusData = results[4] && typeof results[4]==="object" ? results[4] : {};
+    window._fineAdjData = results[5] && typeof results[5]==="object" ? results[5] : {};
     renderMonthlyView(drivers, allTrips, defMonth, "");
   }).catch(function(e){
     app.innerHTML = '<div class="card"><div class="loading">❌ '+e.message+'</div></div>';
@@ -4244,8 +4248,7 @@ function renderMonthlyView(drivers, allTrips, selMonth, selDriver, dateFrom, dat
         +'<td style="text-align:center;color:#888;font-size:10px">'+(i+1)+'</td>'
         +'<td style="text-align:center">'+status+'</td>'
         +'<td style="font-size:11px;color:#888">'+((t.departDate||"").slice(5)||"—")+'</td>'
-        +'<td style="font-size:11px">'+((t.route||"—").slice(0,10))+'</td>'
-        +'<td style="text-align:center;font-size:11px;color:#555">'+(billCount||"-")+'</td>'
+        +'<td style="font-size:11px">'+((t.route||"—").slice(0,20))+'</td>'
         +'<td style="text-align:center;font-size:11px;color:#0F6E56;font-weight:700">'+(delivered!=null?delivered:"-")+'</td>'
         +'<td style="text-align:center;font-size:11px;color:#c0392b">'+(failed!=null?failed:"-")+'</td>'
         +'<td style="text-align:right;font-size:11px;color:#b7950b">'+fmt(fuel)+'</td>'
@@ -4254,9 +4257,7 @@ function renderMonthlyView(drivers, allTrips, selMonth, selDriver, dateFrom, dat
           +'<td style="text-align:right;font-size:11px">'+fmt(labor)+'</td>'
           +'<td style="text-align:right;font-size:11px;font-weight:700;color:#0F6E56">'+fmt(fareTotal)+'</td>'
           +'<td style="text-align:right;font-size:11px;color:#16a085">'+fmt(pkComm)+'</td>'
-          +'<td style="text-align:right;font-size:11px;color:#0F6E56">'+fmt(workFee)+'</td>'
-          +'<td style="text-align:right;font-size:11px;color:#8e44ad">'+fmt(bonus)+'</td>'
-          +'<td style="text-align:right;font-size:11px;font-weight:800;color:#0F6E56">'+fmt(grandTotal)+'</td>'
+                              +'<td style="text-align:right;font-size:11px;font-weight:800;color:#0F6E56">'+fmt(grandTotal)+'</td>'
           +'<td style="text-align:right;font-size:11px;color:#1565C0">'+fmt(rOrigin)+'</td>'
           +'<td style="text-align:right;font-size:11px;color:#1565C0">'+fmt(rTransfer)+'</td>'
           +'<td style="text-align:right;font-size:11px;color:#8e44ad">'+fmt(rCredit)+'</td>'
@@ -4278,7 +4279,6 @@ function renderMonthlyView(drivers, allTrips, selMonth, selDriver, dateFrom, dat
     var totDiffClr = totDiff<0?"color:#c0392b":"color:#0F6E56";
     var sumRow = '<tr style="background:#f0faf5;font-weight:700;font-size:11px">'
       +'<td colspan="4" style="text-align:right;color:#0F6E56">รวม</td>'
-      +'<td style="text-align:center;color:#555">'+(tot.billCount||0)+'</td>'
       +'<td style="text-align:center;color:#0F6E56">'+tot.delivered+'</td>'
       +'<td style="text-align:center;color:#c0392b">'+tot.failed+'</td>'
       +'<td style="text-align:right;color:#b7950b">'+fmt(tot.fuel)+'</td>'
@@ -4287,8 +4287,6 @@ function renderMonthlyView(drivers, allTrips, selMonth, selDriver, dateFrom, dat
         +'<td style="text-align:right">'+fmt(tot.labor)+'</td>'
         +'<td style="text-align:right;color:#0F6E56">'+fmt(tot.fareTotal)+'</td>'
         +'<td style="text-align:right;color:#16a085">'+fmt(tot.pkComm||0)+'</td>'
-        +'<td style="text-align:right;color:#0F6E56">'+fmt(tot.workFee)+'</td>'
-        +'<td style="text-align:right;color:#8e44ad">'+fmt(tot.bonus||0)+'</td>'
         +'<td style="text-align:right;font-weight:800;color:#0F6E56">'+fmt(tot.grandTotal||0)+'</td>'
         +'<td style="text-align:right;color:#1565C0">'+fmt(tot.rOrigin)+'</td>'
         +'<td style="text-align:right;color:#1565C0">'+fmt(tot.rTransfer)+'</td>'
@@ -4308,11 +4306,15 @@ function renderMonthlyView(drivers, allTrips, selMonth, selDriver, dateFrom, dat
     // สรุปรายได้สุทธิ (admin)
     var netSummary = "";
     if(isAdmin){
-      var bonus   = dTrips.reduce(function(a,t){ return a+parseFloat(t.bonusFare||0); },0);
       var phone   = dTrips.reduce(function(a,t){ return a+parseFloat(t.phoneFare||0); },0);
       // ===== เงินประกัน (ลงตอนสรุปสิ้นเดือน) =====
       var uname = (dTrips[0]&&dTrips[0].driverUsername)||dData.name;
       var insKey = uname + "_" + (selMonth || (dateFrom||"").slice(0,7) || "x");
+      var bonusRec = (window._bonusData && window._bonusData[insKey]) || {};
+      var bonus = parseFloat(bonusRec.amount||0);   // เบี้ยขยัน: กรอกท้ายตาราง (เหมือนเงินประกัน) ไม่รวมจากเที่ยวแล้ว
+      var fineAdjRec = (window._fineAdjData && window._fineAdjData[insKey]) || {};
+      var fineAdj = parseFloat(fineAdjRec.amount||0);   // ค่าเบิกเกิน (เพิ่มเติม) — แอดมินกรอกเอง รวมกับค่าปรับอัตโนมัติรายเที่ยว
+      var fineTotal = tot.fine + fineAdj;
       var insRec = (window._insurData&&window._insurData[insKey]) || {};
       var insCap   = parseFloat(insRec.cap||0);
       // ===== รอบตัดประกัน 29(เดือนก่อน) - 28(เดือนนี้) — คนละรอบกับสรุปสิ้นเดือน (ปฏิทิน) =====
@@ -4352,14 +4354,14 @@ function renderMonthlyView(drivers, allTrips, selMonth, selDriver, dateFrom, dat
       }).reduce(function(a,e){ return a+parseFloat(e.fuelAdvance||0); },0);
       fuelAdvSum += branchFuelAdv;
       var storeAdvSum = dTrips.reduce(function(a,t){ return a+parseFloat(t.drawCash||0); },0);   // เบิกหน้าร้าน = ฟิลด์เดิม "เบิกเงินหน้าร้าน" (t.drawCash)
-      var netIncome   = incomeTotal - tot.diff - tot.fine - insDeduct - storeAdvSum;   // เบิกน้ำมันรวมอยู่ใน "พขร.ค้าง" รายเที่ยวแล้ว — ไม่หักซ้ำ
+      var netIncome   = incomeTotal - tot.diff - fineTotal - insDeduct - storeAdvSum;   // เบิกน้ำมันรวมอยู่ใน "พขร.ค้าง" รายเที่ยวแล้ว — ไม่หักซ้ำ
       var distTotal = dTrips.reduce(function(a,t){ return a+parseFloat((t.clearData&&t.clearData.distReal)||0); },0);
       var fuelAdvOwn = dTrips.reduce(function(a,t){ return a+parseFloat(t.fuelAdvance||0); },0);
       window._monthlyPrintCache = window._monthlyPrintCache || {};
       window._monthlyPrintCache[uname] = {
         name: dData.name, month: (selMonth||""), dateFrom: (dateFrom||""), dateTo: (dateTo||""),
         tripCount: dTrips.length, fareTotal: tot.fareTotal, bonus: bonus, workFee: tot.workFee,
-        pkComm: (tot.pkComm||0), diff: tot.diff, fine: tot.fine, insDeduct: insDeduct, insDraw: insDraw,
+        pkComm: (tot.pkComm||0), diff: tot.diff, fine: fineTotal, insDeduct: insDeduct, insDraw: insDraw,
         fuelAdvSum: fuelAdvSum, storeAdvSum: storeAdvSum, netIncome: netIncome,
         insCarry: insCarry, insCarryOut: insCarryOut,
         distTotal: distTotal, fuelAdvOwn: fuelAdvOwn, fuelRealSum: tot.fuel,
@@ -4394,6 +4396,23 @@ function renderMonthlyView(drivers, allTrips, selMonth, selDriver, dateFrom, dat
         +(capReached?'<div style="font-size:10px;color:#c0392b;margin-top:4px">⚠️ ยอดยกมาถึงเพดาน '+fmt(insCap)+' แล้ว — ปกติไม่ต้องหักเข้ากองทุนอีก</div>':'')
         +'</div>';
 
+      var bonusPanel = '<div style="background:#f3edff;border:1px solid #d8c8ff;border-radius:8px;padding:10px;margin-top:8px">'
+        +'<div style="font-size:11px;font-weight:700;color:#6b3fa0;margin-bottom:6px">🎁 เบี้ยขยัน — เดือน '+(selMonth||(dateFrom?dateFrom.slice(0,7):"-"))+'</div>'
+        +'<div style="display:flex;gap:8px;flex-wrap:wrap;align-items:flex-end">'
+        +'<div><div style="font-size:9px;color:#888">ยอดเบี้ยขยัน (฿)</div><input id="bonus-amt-'+uname+'" type="number" value="'+(bonusRec.amount!=null?bonusRec.amount:"")+'" placeholder="0" style="width:110px;padding:5px 8px;border:1px solid #ddd;border-radius:6px;font-size:12px"></div>'
+        +'<button class="btn" style="background:#6b3fa0;color:#fff;font-size:11px" onclick="saveBonusMonthly(\''+uname+'\',\''+(selMonth||(dateFrom?dateFrom.slice(0,7):""))+'\')">💾 บันทึกเบี้ยขยัน</button>'
+        +'</div>'
+        +'</div>';
+
+      var fineAdjPanel = '<div style="background:#fdeeee;border:1px solid #f0c8c8;border-radius:8px;padding:10px;margin-top:8px">'
+        +'<div style="font-size:11px;font-weight:700;color:#a03f3f;margin-bottom:2px">⚠️ ค่าเบิกเกิน (เพิ่มเติม) — เดือน '+(selMonth||(dateFrom?dateFrom.slice(0,7):"-"))+'</div>'
+        +'<div style="font-size:10px;color:#999;margin-bottom:6px">แอดมินกรอกเอง — รวมกับค่าเบิกเกินที่คำนวณอัตโนมัติรายเที่ยว ('+fmt(tot.fine)+' ฿) เป็นยอดรวม '+fmt(fineTotal)+' ฿</div>'
+        +'<div style="display:flex;gap:8px;flex-wrap:wrap;align-items:flex-end">'
+        +'<div><div style="font-size:9px;color:#888">ยอดเพิ่มเติม (฿)</div><input id="fineadj-amt-'+uname+'" type="number" value="'+(fineAdjRec.amount!=null?fineAdjRec.amount:"")+'" placeholder="0" style="width:110px;padding:5px 8px;border:1px solid #ddd;border-radius:6px;font-size:12px"></div>'
+        +'<button class="btn" style="background:#a03f3f;color:#fff;font-size:11px" onclick="saveFineAdjMonthly(\''+uname+'\',\''+(selMonth||(dateFrom?dateFrom.slice(0,7):""))+'\')">💾 บันทึกค่าเบิกเกิน</button>'
+        +'</div>'
+        +'</div>';
+
       netSummary = '<div style="background:#0F6E56;color:#fff;border-radius:8px;padding:10px 14px;margin-top:8px;display:flex;gap:16px;flex-wrap:wrap;align-items:center">'
         +'<div><div style="font-size:9px;opacity:.8">ค่าเที่ยวรวม</div><div style="font-weight:800">'+fmt(tot.fareTotal)+'</div></div>'
         +'<div style="opacity:.5">+</div>'
@@ -4405,7 +4424,7 @@ function renderMonthlyView(drivers, allTrips, selMonth, selDriver, dateFrom, dat
         +'<div style="opacity:.5">−</div>'
         +'<div><div style="font-size:9px;opacity:.8">พขร.ค้าง(+)/บ.จ่าย(−)</div><div style="font-weight:800">'+fmt(tot.diff)+'</div></div>'
         +'<div style="opacity:.5">−</div>'
-        +'<div><div style="font-size:9px;opacity:.8">ค่าปรับ</div><div style="font-weight:800">'+fmt(tot.fine)+'</div></div>'
+        +'<div><div style="font-size:9px;opacity:.8">ค่าเบิกเกิน</div><div style="font-weight:800">'+fmt(fineTotal)+'</div></div>'
         +'<div style="opacity:.5">−</div>'
         +'<div><div style="font-size:9px;opacity:.8">หักเข้ากองทุนประกัน</div><div style="font-weight:800">'+fmt(insDeduct)+'</div></div>'
         +'<div style="opacity:.5">−</div>'
@@ -4418,13 +4437,13 @@ function renderMonthlyView(drivers, allTrips, selMonth, selDriver, dateFrom, dat
         +'<div style="font-size:10px;opacity:.8">รายได้สุทธิ</div>'
         +'<div style="font-size:18px;font-weight:800">'+fmt(netIncome)+' ฿</div>'
         +'</div></div>'
-        + insPanel;
+        + insPanel + bonusPanel + fineAdjPanel;
     }
 
-    var hCols = '<th>⬛</th><th>สถานะ</th><th>วันที่</th><th>เส้นทาง</th><th>บิล</th><th>ส่งได้</th><th>ส่งไม่ได้</th><th>น้ำมัน</th>'
-      +(isAdmin?'<th>ค่าเที่ยว</th><th>โรงแรม</th><th>ค่าแรงค่าตร.</th><th>รวมเที่ยว</th><th>ค่ารับงาน</th><th>ค่าส่งงาน</th><th>เบี้ยขยัน</th><th>รายได้ทั้งหมด</th><th>ต้นทาง</th><th>โอน</th><th>เครดิต</th><th>ปลายทางโอน</th>':'')
+    var hCols = '<th>⬛</th><th>สถานะ</th><th>วันที่</th><th>เส้นทาง</th><th>ส่งได้</th><th>ส่งไม่ได้</th><th>น้ำมัน</th>'
+      +(isAdmin?'<th>ค่าเที่ยว</th><th>โรงแรม</th><th>ค่าแรงค่าตร.</th><th>รวมเที่ยว</th><th>ค่ารับงาน</th><th>รายได้ทั้งหมด</th><th>ต้นทาง</th><th>โอน</th><th>เครดิต</th><th>ปลายทางโอน</th>':'')
       +'<th>ปลายทาง</th><th>COD</th><th>รับสด</th><th>รับปลาย</th>'
-      +'<th>ต้องเคลียร์</th><th>เคลียร์สด</th><th>เคลียร์โอน</th><th>ค้าง(+)/จ่าย(−)</th><th>ปรับ</th>';
+      +'<th>ต้องเคลียร์</th><th>เคลียร์สด</th><th>เคลียร์โอน</th><th>ค้าง(+)/จ่าย(−)</th><th>เบิกเกิน</th>';
 
     tables += '<div class="card" style="margin-bottom:12px">'
       +'<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px">'
@@ -4470,6 +4489,32 @@ function reloadMonthly(month, driver, from, to){
   } else {
     renderMonthlyTab();
   }
+}
+
+function saveFineAdjMonthly(uname, month){
+  if(!month){ alert("เลือกเดือนก่อนบันทึกค่าเบิกเกิน"); return; }
+  var amount = parseFloat((document.getElementById("fineadj-amt-"+uname)||{}).value||0);
+  window._fineAdjData = window._fineAdjData||{};
+  var key = uname+"_"+month;
+  window._fineAdjData[key] = {amount:amount, savedAt:new Date().toISOString(), savedBy:CU?CU.username:""};
+  if(!GolodDB.saveSetting){ alert("golod-firebase.js ยังไม่อัปเดต"); return; }
+  GolodDB.saveSetting("fineAdjMonthly", window._fineAdjData).then(function(){
+    alert("✅ บันทึกค่าเบิกเกิน(เพิ่มเติม) ของ "+uname+" เดือน "+month+" แล้ว");
+    reloadMonthlyRange();
+  }).catch(function(e){ alert("❌ "+e.message); });
+}
+
+function saveBonusMonthly(uname, month){
+  if(!month){ alert("เลือกเดือนก่อนบันทึกเบี้ยขยัน"); return; }
+  var amount = parseFloat((document.getElementById("bonus-amt-"+uname)||{}).value||0);
+  window._bonusData = window._bonusData||{};
+  var key = uname+"_"+month;
+  window._bonusData[key] = {amount:amount, savedAt:new Date().toISOString(), savedBy:CU?CU.username:""};
+  if(!GolodDB.saveSetting){ alert("golod-firebase.js ยังไม่อัปเดต"); return; }
+  GolodDB.saveSetting("bonusMonthly", window._bonusData).then(function(){
+    alert("✅ บันทึกเบี้ยขยันของ "+uname+" เดือน "+month+" แล้ว");
+    reloadMonthlyRange();
+  }).catch(function(e){ alert("❌ "+e.message); });
 }
 
 function saveInsuranceMonthly(uname, month, insDraw){
