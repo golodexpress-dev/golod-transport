@@ -755,7 +755,7 @@ tr:hover td{background:#f8fffe}
 <div class="topbar">
   <span class="title">🚛 จัดการขนส่ง</span>
   <span id="session-info" style="font-size:11px;opacity:.8"></span>
-  <span style="font-size:10px;opacity:.65;margin-left:auto">build 2026-06-10z165</span>
+  <span style="font-size:10px;opacity:.65;margin-left:auto">build 2026-06-10z166</span>
   <a href="GolodApp.html" style="margin-left:10px">← หน้าหลัก</a>
 </div>
 <div class="container">
@@ -1798,7 +1798,9 @@ function renderTripList(){
 
   var openTrips = trips.filter(function(t){ return t.status!=="closed"; });
   // กันการ์ดซ้ำเฉพาะตอนแสดงผล (ไม่แตะ _tripState.openTrips เพื่อให้ออโต้อนุมัติเห็นเที่ยวครบ)
-  openTrips = (function(arr){ var out=[], claimed={}; arr.forEach(function(t){ var ids=(t.billIds||[]).slice(); if(ids.length){ if(ids.every(function(id){return claimed[id];})) return; ids.forEach(function(id){claimed[id]=1;}); } out.push(t); }); return out; })(openTrips);
+  var _hiddenDupTrips = [];
+  openTrips = (function(arr){ var out=[], claimed={}; arr.forEach(function(t){ var ids=(t.billIds||[]).slice(); if(ids.length){ if(ids.every(function(id){return claimed[id];})){ _hiddenDupTrips.push(t); return; } ids.forEach(function(id){claimed[id]=1;}); } out.push(t); }); return out; })(openTrips);
+  window._hiddenDupTrips = _hiddenDupTrips;   // เก็บไว้ให้ปุ่ม "เที่ยวซ้ำที่ถูกซ่อน" ด้านล่างดึงมาแสดง/ลบได้
 
   // ===== ตัวกรอง คนรถ / วันที่ออก (ค้างไว้ใน _tripState ข้ามการแก้เที่ยว) =====
   var fltD=_tripState.fltDriver||"", fltDate=_tripState.fltDate||"";
@@ -1889,6 +1891,7 @@ function renderTripList(){
     +'<button class="btn btn-gray" onclick="renderTripTab()">🔄 รีเฟรช</button>'
     +(isAdmin?'<button class="btn btn-gray" onclick="openAutoTrip()" title="จัดบิลเข้าเที่ยวอัตโนมัติตามเส้นทาง">🤖 ออโต้จัดเที่ยว</button>':'')
     +(isAdmin?'<button class="btn btn-gray" onclick="openDupBills()" title="ตรวจบิลซ้ำ">🔁 บิลซ้ำ</button>':'')
+    +(isAdmin&&_hiddenDupTrips.length?'<button class="btn" style="background:#c0392b;color:#fff" onclick="openHiddenDupTrips()" title="เที่ยวที่ถูกซ่อนเพราะบิลซ้ำกับเที่ยวอื่น">⚠️ เที่ยวซ้ำที่ซ่อนไว้ ('+_hiddenDupTrips.length+')</button>':'')
     +'<button class="btn btn-green" onclick="openCreateTrip()">+ สร้างเที่ยวใหม่</button>'
     +'</div></div>'
     +(openCards||'<div style="text-align:center;padding:20px;color:#aaa">ไม่มีเที่ยวที่เปิดอยู่</div>')
@@ -3148,6 +3151,34 @@ function _delBtnHtml(t){
   return '<button class="btn" style="background:#c0392b;color:#fff" data-tid="'+t.id+'" onclick="deleteTrip(this.dataset.tid)" title="'+tip+'">'+label+'</button>';
 }
 
+function openHiddenDupTrips(){
+  if(!CU||CU.role!=="admin"){ alert("เฉพาะ Admin"); return; }
+  var list = window._hiddenDupTrips || [];
+  if(!list.length){ alert("ไม่มีเที่ยวซ้ำที่ถูกซ่อนอยู่ตอนนี้"); return; }
+  var rows = list.map(function(t){
+    return '<div style="border:1px solid #f0c8c8;background:#fff8f8;border-radius:8px;padding:10px;margin-bottom:8px">'
+      +'<div style="font-weight:700">'+(t.driverName||t.driverUsername||"-")+' · '+(t.route||"—")+'</div>'
+      +'<div style="font-size:11px;color:#888;margin:2px 0">วันที่: '+(t.departDate||"-")+' · สถานะ: '+(t.status||"-")+' · บิล: '+((t.billIds||[]).length)+' ใบ</div>'
+      +'<div style="font-size:11px;color:#c0392b;margin-bottom:6px">⚠️ ถูกซ่อนเพราะเลขบิลตรงกับเที่ยวอื่นที่แสดงอยู่แล้วทั้งหมด — ถ้าเป็นเที่ยวซ้ำจริง ลบได้เลย</div>'
+      +'<div style="display:flex;gap:6px">'
+        +'<button class="btn btn-gray" data-tid="'+t.id+'" onclick="printTripSummary(this.dataset.tid)">🖨 พิมพ์ดูก่อน</button>'
+        +_delBtnHtml(t)
+      +'</div>'
+    +'</div>';
+  }).join("");
+  var ov = document.createElement("div");
+  ov.id = "hiddenDupOverlay";
+  ov.style.cssText = "position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:9999;display:flex;align-items:center;justify-content:center;padding:16px";
+  ov.innerHTML = '<div style="background:#fff;border-radius:10px;padding:16px;max-width:480px;width:100%;max-height:80vh;overflow-y:auto">'
+    +'<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px">'
+      +'<div style="font-weight:700;font-size:15px">⚠️ เที่ยวซ้ำที่ถูกซ่อน ('+list.length+')</div>'
+      +'<button class="btn btn-gray" onclick="document.getElementById(\'hiddenDupOverlay\').remove()">✕ ปิด</button>'
+    +'</div>'
+    +rows
+    +'</div>';
+  document.body.appendChild(ov);
+}
+
 function deleteTrip(id){
   if(!CU || CU.role!=="admin"){ alert("เฉพาะแอดมินลบเที่ยวได้"); return; }
   var list=(_tripState&&_tripState.openTrips)||[];
@@ -3176,6 +3207,7 @@ function deleteTrip(id){
       alert("\u2705 ลบเที่ยวแล้ว"+(bills.length?(" — ถอด "+bills.length+" บิลกลับคลัง"):""));
       if(typeof renderTripTab==="function") renderTripTab(); else if(typeof renderApp==="function") renderApp();
       if(typeof reloadMonthlyRange==="function") reloadMonthlyRange();   // เที่ยวถูกลบจริง — รีเฟรชสรุปเดือนให้ตรงด้วย กันเที่ยวลบแล้วยังค้างโชว์
+      var _hdOv=document.getElementById("hiddenDupOverlay"); if(_hdOv) _hdOv.remove();   // ปิด modal เที่ยวซ้ำที่ซ่อนไว้ (ถ้าเปิดอยู่) กันข้อมูลเก่าค้าง
     })
     .catch(function(e){ alert("ลบไม่สำเร็จ: "+((e&&e.message)||e)); });
 }
