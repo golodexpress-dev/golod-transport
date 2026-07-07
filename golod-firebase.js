@@ -576,7 +576,8 @@ var GolodDB = (function() {
   function saveSetting(key, value){
     return new Promise(function(resolve,reject){
       ready(function(){
-        db.collection("settings").doc(key).set({value:value, updatedAt:new Date().toISOString()})
+        // merge:true กันข้อมูลของคนอื่น/แท็บอื่นที่ยังไม่ได้โหลดเข้ามาตอนนี้ ถูกลบทิ้งจากการเขียนทับทั้ง document
+        db.collection("settings").doc(key).set({value:value, updatedAt:new Date().toISOString()}, {merge:true})
           .then(resolve).catch(reject);
       });
     });

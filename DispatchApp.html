@@ -755,7 +755,7 @@ tr:hover td{background:#f8fffe}
 <div class="topbar">
   <span class="title">🚛 จัดการขนส่ง</span>
   <span id="session-info" style="font-size:11px;opacity:.8"></span>
-  <span style="font-size:10px;opacity:.65;margin-left:auto">build 2026-06-10z169</span>
+  <span style="font-size:10px;opacity:.65;margin-left:auto">build 2026-06-10z170</span>
   <a href="GolodApp.html" style="margin-left:10px">← หน้าหลัก</a>
 </div>
 <div class="container">
@@ -4544,7 +4544,16 @@ function renderMonthlyView(drivers, allTrips, selMonth, selDriver, dateFrom, dat
 function reloadMonthly(month, driver, from, to){
   if(!window._monthlyCtx || !GolodDB.getTrips){ renderMonthlyTab(); return; }
   var drivers = window._monthlyCtx.drivers;
-  GolodDB.getTrips({limitN:5000}).then(function(allTrips){   // ดึงสดใหม่เสมอ ไม่ใช้แคชเก่า — กันยอดผันผวน/เที่ยวที่ลบไปแล้วยังค้าง
+  Promise.all([
+    GolodDB.getTrips({limitN:5000}),
+    (GolodDB.getSetting ? GolodDB.getSetting("insuranceMonthly") : Promise.resolve(null)),
+    (GolodDB.getSetting ? GolodDB.getSetting("bonusMonthly") : Promise.resolve(null)),
+    (GolodDB.getSetting ? GolodDB.getSetting("fineAdjMonthly") : Promise.resolve(null))
+  ]).then(function(r){   // ดึงสดใหม่เสมอ ไม่ใช้แคชเก่า — กันยอดผันผวน/เที่ยวที่ลบไปแล้วยังค้าง/เบี้ยขยัน-ค่าเบิกเกินไม่อัปเดต
+    var allTrips = r[0]||[];
+    window._insurData = r[1] && typeof r[1]==="object" ? r[1] : {};
+    window._bonusData = r[2] && typeof r[2]==="object" ? r[2] : {};
+    window._fineAdjData = r[3] && typeof r[3]==="object" ? r[3] : {};
     window._monthlyCtx = {drivers: drivers, allTrips: allTrips};
     renderMonthlyView(drivers, allTrips, month, driver, from||"", to||"");
   }).catch(function(e){ alert("โหลดข้อมูลใหม่ไม่สำเร็จ: "+((e&&e.message)||e)); });
@@ -4603,7 +4612,16 @@ function reloadMonthlyRange(){
   var driver=(document.getElementById("monthly-driver")||{}).value||"";
   if(!window._monthlyCtx || !GolodDB.getTrips){ return; }
   var drivers = window._monthlyCtx.drivers;
-  GolodDB.getTrips({limitN:5000}).then(function(allTrips){   // ดึงสดใหม่เสมอ ไม่ใช้แคชเก่า — กันยอดผันผวน/เที่ยวที่ลบไปแล้วยังค้าง
+  Promise.all([
+    GolodDB.getTrips({limitN:5000}),
+    (GolodDB.getSetting ? GolodDB.getSetting("insuranceMonthly") : Promise.resolve(null)),
+    (GolodDB.getSetting ? GolodDB.getSetting("bonusMonthly") : Promise.resolve(null)),
+    (GolodDB.getSetting ? GolodDB.getSetting("fineAdjMonthly") : Promise.resolve(null))
+  ]).then(function(r){   // ดึงสดใหม่เสมอ ไม่ใช้แคชเก่า — กันยอดผันผวน/เที่ยวที่ลบไปแล้วยังค้าง/เบี้ยขยัน-ค่าเบิกเกินไม่อัปเดต
+    var allTrips = r[0]||[];
+    window._insurData = r[1] && typeof r[1]==="object" ? r[1] : {};
+    window._bonusData = r[2] && typeof r[2]==="object" ? r[2] : {};
+    window._fineAdjData = r[3] && typeof r[3]==="object" ? r[3] : {};
     window._monthlyCtx = {drivers: drivers, allTrips: allTrips};
     renderMonthlyView(drivers, allTrips, month, driver, from, to);
   }).catch(function(e){ alert("โหลดข้อมูลใหม่ไม่สำเร็จ: "+((e&&e.message)||e)); });
