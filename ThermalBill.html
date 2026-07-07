@@ -4597,12 +4597,26 @@ function ThermalBillingApp() {
       borderRadius: 4
     }
   }, /*#__PURE__*/React.createElement(ThermalBill, {
-    form: viewBill.form,
+    form: Object.assign({}, viewBill.form, {
+      // เติมที่อยู่ปลายทางจาก top-level ของบิล ถ้า form.* (ข้อมูลตอนสร้างบิล) ไม่มี — กันข้อมูลที่อนุมัติแล้วไม่โผล่ตอนพิมพ์
+      receiverTambon: (viewBill.form&&viewBill.form.receiverTambon) || viewBill.destTambon || "",
+      receiverAddr:   (viewBill.form&&viewBill.form.receiverAddr)   || viewBill.destAddr   || "",
+      receiverAmphoe: (viewBill.form&&viewBill.form.receiverAmphoe) || viewBill.destAmphoe || ""
+    }),
     items: viewBill.items,
     summary: viewBill.summary,
     billNo: viewBill.billNo,
     printDate: (function(d){
-    if(!d) return "";
+    if(!d){
+      // ไม่มีวันที่แบบไทย (บิลที่คนขับออกผ่านแอพไม่เคยมีฟิลด์นี้) — แปลงจาก createdAt (ISO) แทน
+      if(viewBill.createdAt){
+        try{
+          var _dt=new Date(viewBill.createdAt);
+          return _dt.getDate()+"/"+(_dt.getMonth()+1)+"/"+(_dt.getFullYear()+543);
+        }catch(e){}
+      }
+      return "";
+    }
     // แปลง 20/05/2569 → 20/5/2569 (ลบ 0 นำหน้า)
     var p=d.split("/");
     if(p.length===3) return parseInt(p[0])+"/"+parseInt(p[1])+"/"+p[2];
