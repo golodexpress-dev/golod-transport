@@ -755,7 +755,7 @@ tr:hover td{background:#f8fffe}
 <div class="topbar">
   <span class="title">🚛 จัดการขนส่ง</span>
   <span id="session-info" style="font-size:11px;opacity:.8"></span>
-  <span style="font-size:10px;opacity:.65;margin-left:auto">build 2026-06-10z170</span>
+  <span style="font-size:10px;opacity:.65;margin-left:auto">build 2026-06-10z171</span>
   <a href="GolodApp.html" style="margin-left:10px">← หน้าหลัก</a>
 </div>
 <div class="container">
@@ -4365,15 +4365,7 @@ function renderMonthlyView(drivers, allTrips, selMonth, selDriver, dateFrom, dat
       var phone   = dTrips.reduce(function(a,t){ return a+parseFloat(t.phoneFare||0); },0);
       // ===== เงินประกัน (ลงตอนสรุปสิ้นเดือน) =====
       var uname = (dTrips[0]&&dTrips[0].driverUsername)||dData.name;
-      var insKey = uname + "_" + (selMonth || (dateTo||dateFrom||"").slice(0,7) || "x");   // ใช้เดือนของ dateTo (วันสิ้นสุดรอบ) ไม่ใช่ dateFrom — กันคีย์ไม่ตรงกันตอนสลับ "เลือกเดือน" กับ "ช่วงวันที่กำหนดเอง" (เช่น รอบ 29-28 ควรนับเป็นเดือนของวันที่ 28)
-      var bonusRec = (window._bonusData && window._bonusData[insKey]) || {};
-      var bonus = parseFloat(bonusRec.amount||0);   // เบี้ยขยัน: กรอกท้ายตาราง (เหมือนเงินประกัน) ไม่รวมจากเที่ยวแล้ว
-      var fineAdjRec = (window._fineAdjData && window._fineAdjData[insKey]) || {};
-      var fineAdj = parseFloat(fineAdjRec.amount||0);   // ค่าเบิกเกิน (เพิ่มเติม) — แอดมินกรอกเอง รวมกับค่าปรับอัตโนมัติรายเที่ยว
-      var fineTotal = tot.fine + fineAdj;
-      var insRec = (window._insurData&&window._insurData[insKey]) || {};
-      var insCap   = parseFloat(insRec.cap||0);
-      // ===== รอบตัดประกัน 29(เดือนก่อน) - 28(เดือนนี้) — คนละรอบกับสรุปสิ้นเดือน (ปฏิทิน) =====
+      // ===== รอบตัดประกัน 29(เดือนก่อน) - 28(เดือนนี้) — คนละรอบกับสรุปสิ้นเดือน (ปฏิทิน) — คำนวณก่อน แล้วให้ insKey/เบี้ยขยัน/ค่าเบิกเกิน ใช้รอบเดียวกันนี้ทั้งหมด กันคีย์ไม่ตรงกัน =====
       var _cycStart="", _cycEnd="";
       if(dateFrom || dateTo){
         // โหมดช่วงวันที่กำหนดเอง (มีผลเหนือกว่า) — ใช้ช่วงที่แอดมินเลือกตรงๆ ให้ตรงกับตารางเที่ยวที่เห็น
@@ -4385,6 +4377,14 @@ function renderMonthlyView(drivers, allTrips, selMonth, selDriver, dateFrom, dat
         _cycStart = _py+"-"+String(_pm).padStart(2,"0")+"-29";
         _cycEnd   = _yy+"-"+String(_mm).padStart(2,"0")+"-28";
       }
+      var insKey = uname + "_" + ((_cycEnd||_cycStart||selMonth||"").slice(0,7) || "x");   // ใช้เดือนของวันสิ้นสุดรอบ (_cycEnd) เป็นหลัก — ให้ตรงกับรอบ 29-28 เดียวกับที่ใช้แสดงผลจริง ไม่ว่าจะดูแบบเลือกเดือนหรือกำหนดช่วงเอง
+      var bonusRec = (window._bonusData && window._bonusData[insKey]) || {};
+      var bonus = parseFloat(bonusRec.amount||0);   // เบี้ยขยัน: กรอกท้ายตาราง (เหมือนเงินประกัน) ไม่รวมจากเที่ยวแล้ว
+      var fineAdjRec = (window._fineAdjData && window._fineAdjData[insKey]) || {};
+      var fineAdj = parseFloat(fineAdjRec.amount||0);   // ค่าเบิกเกิน (เพิ่มเติม) — แอดมินกรอกเอง รวมกับค่าปรับอัตโนมัติรายเที่ยว
+      var fineTotal = tot.fine + fineAdj;
+      var insRec = (window._insurData&&window._insurData[insKey]) || {};
+      var insCap   = parseFloat(insRec.cap||0);
       var insurTrips = (_cycStart||_cycEnd) ? allTrips.filter(function(t){
         if((t.driverUsername||"")!==uname) return false;
         var dp=(t.departDate||t.createdAt||"").slice(0,10);
@@ -4449,25 +4449,25 @@ function renderMonthlyView(drivers, allTrips, selMonth, selDriver, dateFrom, dat
         +'<div><div style="font-size:9px;color:#888">+ หักเข้ากองทุน</div><input id="ins-deduct-'+uname+'" type="number" value="'+(insRec.deduct!=null?insRec.deduct:"")+'" placeholder="0" style="width:90px;padding:5px 8px;border:1px solid '+(capReached?"#e0a0a0":"#0F6E56")+';border-radius:6px;font-size:12px"></div>'
         +'<div><div style="font-size:9px;color:#888">− เบิกประกัน(รายเที่ยว)</div><div style="font-weight:700;color:#c0392b;padding:5px 0">'+fmt(insDraw)+'</div></div>'
         +'<div><div style="font-size:9px;color:#888">= ยกไป</div><div style="font-weight:800;color:#0F6E56;padding:5px 0">'+fmt(insCarryOut)+'</div></div>'
-        +'<button class="btn btn-green" onclick="saveInsuranceMonthly(\''+uname+'\',\''+(selMonth||(dateTo?dateTo.slice(0,7):(dateFrom?dateFrom.slice(0,7):"")))+'\','+insDraw+')" style="font-size:11px">💾 บันทึกประกัน</button>'
+        +'<button class="btn btn-green" onclick="saveInsuranceMonthly(\''+uname+'\',\''+((_cycEnd||_cycStart||selMonth||"").slice(0,7)||"x")+'\','+insDraw+')" style="font-size:11px">💾 บันทึกประกัน</button>'
         +'</div>'
         +(capReached?'<div style="font-size:10px;color:#c0392b;margin-top:4px">⚠️ ยอดยกมาถึงเพดาน '+fmt(insCap)+' แล้ว — ปกติไม่ต้องหักเข้ากองทุนอีก</div>':'')
         +'</div>';
 
       var bonusPanel = '<div style="background:#f3edff;border:1px solid #d8c8ff;border-radius:8px;padding:10px;margin-top:8px">'
-        +'<div style="font-size:11px;font-weight:700;color:#6b3fa0;margin-bottom:6px">🎁 เบี้ยขยัน — เดือน '+(selMonth||(dateTo?dateTo.slice(0,7):(dateFrom?dateFrom.slice(0,7):"-")))+'</div>'
+        +'<div style="font-size:11px;font-weight:700;color:#6b3fa0;margin-bottom:6px">🎁 เบี้ยขยัน — รอบ '+(_cycStart||"-")+' ถึง '+(_cycEnd||"-")+'</div>'
         +'<div style="display:flex;gap:8px;flex-wrap:wrap;align-items:flex-end">'
         +'<div><div style="font-size:9px;color:#888">ยอดเบี้ยขยัน (฿)</div><input id="bonus-amt-'+uname+'" type="number" value="'+(bonusRec.amount!=null?bonusRec.amount:"")+'" placeholder="0" style="width:110px;padding:5px 8px;border:1px solid #ddd;border-radius:6px;font-size:12px"></div>'
-        +'<button class="btn" style="background:#6b3fa0;color:#fff;font-size:11px" onclick="saveBonusMonthly(\''+uname+'\',\''+(selMonth||(dateTo?dateTo.slice(0,7):(dateFrom?dateFrom.slice(0,7):"")))+'\')">💾 บันทึกเบี้ยขยัน</button>'
+        +'<button class="btn" style="background:#6b3fa0;color:#fff;font-size:11px" onclick="saveBonusMonthly(\''+uname+'\',\''+((_cycEnd||_cycStart||selMonth||"").slice(0,7)||"x")+'\')">💾 บันทึกเบี้ยขยัน</button>'
         +'</div>'
         +'</div>';
 
       var fineAdjPanel = '<div style="background:#fdeeee;border:1px solid #f0c8c8;border-radius:8px;padding:10px;margin-top:8px">'
-        +'<div style="font-size:11px;font-weight:700;color:#a03f3f;margin-bottom:2px">⚠️ ค่าเบิกเกิน (เพิ่มเติม) — เดือน '+(selMonth||(dateTo?dateTo.slice(0,7):(dateFrom?dateFrom.slice(0,7):"-")))+'</div>'
+        +'<div style="font-size:11px;font-weight:700;color:#a03f3f;margin-bottom:2px">⚠️ ค่าเบิกเกิน (เพิ่มเติม) — รอบ '+(_cycStart||"-")+' ถึง '+(_cycEnd||"-")+'</div>'
         +'<div style="font-size:10px;color:#999;margin-bottom:6px">แอดมินกรอกเอง — รวมกับค่าเบิกเกินที่คำนวณอัตโนมัติรายเที่ยว ('+fmt(tot.fine)+' ฿) เป็นยอดรวม '+fmt(fineTotal)+' ฿</div>'
         +'<div style="display:flex;gap:8px;flex-wrap:wrap;align-items:flex-end">'
         +'<div><div style="font-size:9px;color:#888">ยอดเพิ่มเติม (฿)</div><input id="fineadj-amt-'+uname+'" type="number" value="'+(fineAdjRec.amount!=null?fineAdjRec.amount:"")+'" placeholder="0" style="width:110px;padding:5px 8px;border:1px solid #ddd;border-radius:6px;font-size:12px"></div>'
-        +'<button class="btn" style="background:#a03f3f;color:#fff;font-size:11px" onclick="saveFineAdjMonthly(\''+uname+'\',\''+(selMonth||(dateTo?dateTo.slice(0,7):(dateFrom?dateFrom.slice(0,7):"")))+'\')">💾 บันทึกค่าเบิกเกิน</button>'
+        +'<button class="btn" style="background:#a03f3f;color:#fff;font-size:11px" onclick="saveFineAdjMonthly(\''+uname+'\',\''+((_cycEnd||_cycStart||selMonth||"").slice(0,7)||"x")+'\')">💾 บันทึกค่าเบิกเกิน</button>'
         +'</div>'
         +'</div>';
 
