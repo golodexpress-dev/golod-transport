@@ -1,0 +1,540 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>GOLOD · คำนวณค่าขนส่ง</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+Thai:wght@400;500;600;700&family=IBM+Plex+Mono:wght@500;600&display=swap" rel="stylesheet">
+<style>
+:root{
+  --ink:#12181c; --ink-2:#5a6a73; --line:#dfe5e3; --paper:#f7f8f6;
+  --card:#ffffff; --green:#00a651; --orange:#f47a20; --red:#c0392b;
+  --green-dk:#00713a;
+}
+*{box-sizing:border-box}
+body{margin:0;background:var(--paper);color:var(--ink);
+  font-family:"IBM Plex Sans Thai",system-ui,sans-serif;font-size:15px;line-height:1.5}
+.mono{font-family:"IBM Plex Mono","IBM Plex Sans Thai",monospace;font-variant-numeric:tabular-nums}
+
+/* ---------- login ---------- */
+#login{min-height:100dvh;display:grid;place-items:center;padding:24px}
+.loginbox{width:100%;max-width:340px;background:var(--card);border:1px solid var(--line);
+  border-radius:14px;padding:28px 24px}
+.brand{display:flex;align-items:center;gap:10px;margin-bottom:4px}
+.dot{width:10px;height:10px;border-radius:50%;background:var(--green)}
+.brand b{font-size:18px;letter-spacing:-.01em}
+.sub{color:var(--ink-2);font-size:13px;margin:0 0 20px}
+
+/* ---------- app ---------- */
+#app{display:none;max-width:940px;margin:0 auto;padding:16px 16px 60px}
+header{display:flex;align-items:center;justify-content:space-between;gap:12px;
+  padding:12px 0 16px;border-bottom:1px solid var(--line);margin-bottom:20px;flex-wrap:wrap}
+.who{font-size:13px;color:var(--ink-2)}
+.grid{display:grid;grid-template-columns:1fr 380px;gap:20px;align-items:start}
+@media(max-width:820px){.grid{grid-template-columns:1fr}}
+
+.card{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:18px}
+.card h2{font-size:12px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;
+  color:var(--ink-2);margin:0 0 14px}
+label{display:block;font-size:13px;font-weight:500;margin:0 0 5px}
+.field{margin-bottom:14px}
+input,select{width:100%;padding:9px 11px;border:1px solid var(--line);border-radius:8px;
+  font:inherit;background:#fff;color:var(--ink)}
+input:focus,select:focus{outline:2px solid var(--green);outline-offset:-1px;border-color:var(--green)}
+.row{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.row3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px}
+.hint{font-size:12px;color:var(--ink-2);margin-top:4px}
+
+.tabs{display:flex;gap:6px;margin-bottom:16px;background:var(--paper);padding:4px;border-radius:9px}
+.tab{flex:1;padding:8px;border:0;background:transparent;border-radius:6px;font:inherit;
+  font-weight:500;cursor:pointer;color:var(--ink-2)}
+.tab[aria-selected="true"]{background:var(--card);color:var(--ink);
+  box-shadow:0 1px 3px rgba(0,0,0,.08)}
+
+button.go{width:100%;padding:12px;border:0;border-radius:9px;background:var(--green);color:#fff;
+  font:inherit;font-weight:600;cursor:pointer}
+button.go:hover{background:var(--green-dk)}
+button.ghost{padding:8px 12px;border:1px solid var(--line);background:#fff;border-radius:8px;
+  font:inherit;font-size:13px;cursor:pointer;color:var(--ink)}
+button.ghost:hover{border-color:var(--ink-2)}
+
+/* ---------- price tape: the signature ---------- */
+.tape{background:var(--card);border:1px solid var(--line);border-radius:12px;overflow:hidden;
+  position:sticky;top:16px}
+.tape .head{padding:14px 18px;border-bottom:1px dashed var(--line);
+  display:flex;justify-content:space-between;align-items:baseline}
+.tape .head span{font-size:12px;letter-spacing:.08em;text-transform:uppercase;color:var(--ink-2)}
+.tape .dest{padding:14px 18px 6px;font-weight:600}
+.tape .meta{padding:0 18px 14px;font-size:13px;color:var(--ink-2)}
+.steps{padding:6px 18px;border-top:1px dashed var(--line)}
+.step{display:flex;justify-content:space-between;gap:10px;padding:8px 0;font-size:14px;
+  border-bottom:1px dotted var(--line)}
+.step:last-child{border-bottom:0}
+.step .lbl{color:var(--ink-2)}
+.step.mut{color:var(--ink-2);text-decoration:line-through;opacity:.65}
+.step.win .lbl{color:var(--orange);font-weight:600}
+.total{padding:16px 18px;background:#0d1a12;color:#fff;display:flex;
+  justify-content:space-between;align-items:baseline}
+.total .n{font-size:30px;font-weight:600;letter-spacing:-.02em}
+.total .u{font-size:13px;opacity:.7}
+.tape .foot{padding:12px 18px;display:flex;gap:8px}
+.empty{padding:40px 18px;text-align:center;color:var(--ink-2);font-size:14px}
+.flag{margin:0 18px 14px;padding:9px 11px;border-radius:8px;font-size:13px;
+  background:#fff4ec;color:#8a4211;border:1px solid #ffd9bd}
+.err{color:var(--red);font-size:13px;margin-top:10px;min-height:18px}
+.badge{display:inline-block;padding:2px 7px;border-radius:5px;font-size:11px;font-weight:600;
+  background:#e8f6ee;color:var(--green-dk);margin-left:6px}
+.badge.sp{background:#fff0e3;color:#a4500c}
+.toast{position:fixed;left:50%;bottom:24px;transform:translateX(-50%) translateY(20px);
+  background:#12181c;color:#fff;padding:10px 18px;border-radius:8px;font-size:14px;
+  opacity:0;pointer-events:none;transition:.2s}
+.toast.on{opacity:1;transform:translateX(-50%)}
+@media (prefers-reduced-motion:reduce){*{transition:none!important}}
+</style>
+</head>
+<body>
+
+<!-- ══════════ LOGIN ══════════ -->
+<div id="login">
+  <form class="loginbox" onsubmit="doLogin(event)">
+    <div class="brand"><span class="dot"></span><b>GOLOD</b></div>
+    <p class="sub">คำนวณค่าขนส่ง — สำหรับพนักงาน</p>
+    <div class="field">
+      <label for="u">ชื่อผู้ใช้</label>
+      <input id="u" autocomplete="username" required>
+    </div>
+    <div class="field">
+      <label for="p">รหัสผ่าน</label>
+      <input id="p" type="password" autocomplete="current-password" required>
+    </div>
+    <button class="go" type="submit" id="loginBtn">เข้าใช้งาน</button>
+    <div class="err" id="loginErr"></div>
+  </form>
+</div>
+
+<!-- ══════════ APP ══════════ -->
+<div id="app">
+  <header>
+    <div class="brand"><span class="dot"></span><b>คำนวณค่าขนส่ง</b></div>
+    <div class="who"><span id="who"></span> · <button class="ghost" onclick="signOut()">ออก</button></div>
+  </header>
+
+  <div class="grid">
+    <!-- input -->
+    <div class="card">
+      <h2>รายละเอียดการส่ง</h2>
+
+      <div class="field">
+        <label for="origin">ต้นทาง (ศูนย์/สาขาที่รับของ)</label>
+        <select id="origin" onchange="calc()">
+          <option value="BKK">ศูนย์กรุงเทพ</option>
+          <option value="KRT">สาขานครราชสีมา</option>
+          <option value="SSK">สาขาศรีสะเกษ</option>
+        </select>
+      </div>
+
+      <div class="row">
+        <div class="field">
+          <label for="prov">จังหวัดปลายทาง</label>
+          <select id="prov" onchange="calc()"><option value="">— เลือก —</option></select>
+        </div>
+        <div class="field">
+          <label for="amphoe">อำเภอปลายทาง</label>
+          <input id="amphoe" list="amphoeList" placeholder="เช่น เมือง, สิรินธร" oninput="calc()">
+          <datalist id="amphoeList"></datalist>
+          <div class="hint">อำเภอมีผลกับพื้นที่พิเศษ/ขั้นต่ำ</div>
+        </div>
+      </div>
+
+      <div class="tabs" role="tablist">
+        <button class="tab" role="tab" aria-selected="true" onclick="setMode('gen')">ของทั่วไป</button>
+        <button class="tab" role="tab" aria-selected="false" onclick="setMode('sp')">สินค้าพิเศษ</button>
+      </div>
+
+      <div id="paneGen">
+        <div class="row">
+          <div class="field">
+            <label for="kg">น้ำหนัก (กก.)</label>
+            <input id="kg" type="number" min="0" step="0.1" inputmode="decimal" oninput="calc()">
+          </div>
+          <div class="field">
+            <label for="cm">ขนาด 3 ด้านรวม (ซม.)</label>
+            <input id="cm" type="number" min="0" step="1" inputmode="numeric" oninput="calc()">
+          </div>
+        </div>
+      </div>
+
+      <div id="paneSp" style="display:none">
+        <div class="field">
+          <label for="spItem">ประเภทสินค้า</label>
+          <select id="spItem" onchange="calc()">
+            <option value="">— เลือก —</option>
+          </select>
+        </div>
+      </div>
+
+      <div class="row3">
+        <div class="field">
+          <label for="qty">จำนวน (ชิ้น)</label>
+          <input id="qty" type="number" min="1" step="1" value="1" inputmode="numeric" oninput="calc()">
+        </div>
+        <div class="field">
+          <label for="disc">ส่วนลด (บาท)</label>
+          <input id="disc" type="number" min="0" step="1" value="0" inputmode="numeric" oninput="calc()">
+        </div>
+        <div class="field">
+          <label for="cod">COD (บาท)</label>
+          <input id="cod" type="number" min="0" step="1" value="0" inputmode="numeric" oninput="calc()">
+          <div class="hint">ไม่บังคับ</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- output -->
+    <div class="tape" id="tape">
+      <div class="head"><span>ผลการคำนวณ</span><span id="srcTag"></span></div>
+      <div id="tapeBody"><div class="empty">เลือกจังหวัดปลายทาง<br>แล้วกรอกน้ำหนัก/ขนาด</div></div>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<!-- Firebase (compat) -->
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
+<script>
+/* ═══════════════════════════════════════════════════════════════
+   ⚠️ 1) วาง firebaseConfig ของโปรเจกต์ status-81cd0 ตรงนี้
+       (ก๊อปมาจาก CODCheck.html / DispatchApp.html ได้เลย)
+   ⚠️ 2) USERS_COLLECTION = collection ที่เก็บผู้ใช้
+       โครงสร้างที่คาดไว้: doc id = username, field pwHash = SHA-256(password) แบบ hex, field name = ชื่อแสดง
+       ถ้าโครงสร้างจริงต่างจากนี้ แก้ที่ฟังก์ชัน doLogin() จุดเดียว
+   ═══════════════════════════════════════════════════════════════ */
+var firebaseConfig = {
+  apiKey: "PASTE_API_KEY",
+  authDomain: "status-81cd0.firebaseapp.com",
+  projectId: "status-81cd0",
+  storageBucket: "status-81cd0.appspot.com",
+  messagingSenderId: "PASTE",
+  appId: "PASTE"
+};
+var USERS_COLLECTION = "quoteUsers";
+
+firebase.initializeApp(firebaseConfig);
+var db = firebase.firestore();
+
+/* ═══════════ ตารางราคา (พอร์ตจาก ThermalBill / GolodLineBot) ═══════════ */
+var SIZES = [
+  {id:"mini", label:"Mini",   maxKg:2,  maxCm:30,  near:30,  far:40},
+  {id:"s",    label:"S",      maxKg:5,  maxCm:50,  near:60,  far:80},
+  {id:"m",    label:"M",      maxKg:10, maxCm:80,  near:80,  far:100},
+  {id:"mplus",label:"M+",     maxKg:15, maxCm:100, near:100, far:120},
+  {id:"l",    label:"L",      maxKg:20, maxCm:120, near:120, far:140},
+  {id:"xl",   label:"XL",     maxKg:25, maxCm:150, near:150, far:180},
+  {id:"jumbo",label:"Jumbo",  maxKg:30, maxCm:180, near:180, far:220},
+  {id:"jumbx",label:"JumboX", maxKg:35, maxCm:200, near:250, far:300}
+];
+
+/* สินค้าพิเศษ: เรทเหมาต่อหน่วย  (special = เรทเมื่อปลายทางเป็นพื้นที่พิเศษ,
+   special2 = เรทเมื่อพื้นที่พิเศษนั้นมีขั้นต่ำ >= 1000) */
+var SPECIAL_ITEMS = [
+  {id:"oil_small", label:"น้ำมันเครื่อง/ไฮดรอลิก 18-20 ลิตร", near:120, far:150,  special:180,  special2:null},
+  {id:"oil_drum",  label:"น้ำมันเครื่อง/ไฮดรอลิก ถัง 200 ลิตร", near:800, far:900,  special:1000, special2:1200},
+  {id:"chem_small",label:"น้ำยา 20 ลิตร (≤23 กก.)",             near:150, far:180,  special:200,  special2:null},
+  {id:"chem_drum", label:"น้ำยา ถัง 200 ลิตร",                   near:900, far:1000, special:1200, special2:null}
+];
+
+var SERVE_BKK = ["กรุงเทพมหานคร","นนทบุรี","ปทุมธานี","สมุทรปราการ","สมุทรสาคร","นครปฐม",
+  "พระนครศรีอยุธยา","อ่างทอง","สิงห์บุรี","ลพบุรี","สระบุรี","ชัยนาท",
+  "ชลบุรี","ระยอง","จันทบุรี","ตราด","ฉะเชิงเทรา","ปราจีนบุรี","สระแก้ว","นครนายก",
+  "ราชบุรี","สุพรรณบุรี","กาญจนบุรี","สมุทรสงคราม","เพชรบุรี","ประจวบคีรีขันธ์",
+  "นครสวรรค์","อุทัยธานี","กำแพงเพชร","พิจิตร","พิษณุโลก","สุโขทัย","เพชรบูรณ์","ตาก","อุตรดิตถ์",
+  "ชุมพร","นครราชสีมา"];
+var SERVE_KRT = ["ชัยภูมิ","ขอนแก่น","มหาสารคาม","ร้อยเอ็ด","กาฬสินธุ์","อุดรธานี","หนองคาย",
+  "หนองบัวลำภู","เลย","สกลนคร","นครพนม","มุกดาหาร","บึงกาฬ"];
+var SERVE_SSK = ["ศรีสะเกษ","อุบลราชธานี","ยโสธร","อำนาจเจริญ","สุรินทร์","บุรีรัมย์"];
+var LAMPANG = "ลำปาง", LAMPANG_OK = ["แม่พริก","เถิน"];
+
+/* โซนจากต้นทางกรุงเทพ (ของจริง ใช้อยู่ในบิล) */
+var ZONES_BKK = {
+  "กรุงเทพมหานคร":"near","นนทบุรี":"near","สมุทรปราการ":"near","ปทุมธานี":"near",
+  "สมุทรสาคร":"near","สมุทรสงคราม":"near","นครปฐม":"near","พระนครศรีอยุธยา":"near",
+  "ลพบุรี":"near","สระบุรี":"near","อ่างทอง":"near","สิงห์บุรี":"near","ชัยนาท":"near",
+  "อุทัยธานี":"near","สุพรรณบุรี":"near","กาญจนบุรี":"near","ราชบุรี":"near","เพชรบุรี":"near",
+  "ชลบุรี":"near","ระยอง":"near","ฉะเชิงเทรา":"near","ปราจีนบุรี":"near","นครนายก":"near",
+  "นครสวรรค์":"far","กำแพงเพชร":"far","พิจิตร":"far","ตาก":"far","จันทบุรี":"far","ตราด":"far",
+  "สระแก้ว":"far","ประจวบคีรีขันธ์":"far","ชุมพร":"far","นครราชสีมา":"far","บุรีรัมย์":"far",
+  "สุรินทร์":"far","ชัยภูมิ":"far","ศรีสะเกษ":"far","อุบลราชธานี":"far","ยโสธร":"far",
+  "อำนาจเจริญ":"far","พิษณุโลก":"far","สุโขทัย":"far","เพชรบูรณ์":"far","อุตรดิตถ์":"far",
+  "ขอนแก่น":"far","อุดรธานี":"far","หนองคาย":"far","นครพนม":"far","สกลนคร":"far",
+  "กาฬสินธุ์":"far","มหาสารคาม":"far","ร้อยเอ็ด":"far","เลย":"far","หนองบัวลำภู":"far",
+  "บึงกาฬ":"far","มุกดาหาร":"far","ลำปาง":"far"
+};
+
+/* ⚠️ ต้นทาง KRT / SSK — ยังไม่มีตารางโซนจริง
+   ค่าเริ่มต้น: จังหวัดในความรับผิดชอบของสาขา = ใกล้, นอกนั้น = ไกล
+   ถ้าเรทจริงต่างจากนี้ แก้ 2 อ็อบเจกต์ข้างล่างได้เลย */
+var ZONES_KRT = zonesFromCoverage(SERVE_KRT.concat(["นครราชสีมา"]));
+var ZONES_SSK = zonesFromCoverage(SERVE_SSK);
+function zonesFromCoverage(nearList){
+  var z = {}, all = SERVE_BKK.concat(SERVE_KRT, SERVE_SSK, [LAMPANG]);
+  all.forEach(function(p){ z[p] = nearList.indexOf(p) >= 0 ? "near" : "far"; });
+  return z;
+}
+var ZONE_TABLE = {BKK:ZONES_BKK, KRT:ZONES_KRT, SSK:ZONES_SSK};
+var ZONE_VERIFIED = {BKK:true, KRT:false, SSK:false};
+
+var KANCHAN_FAR = ["สังขละบุรี","ทองผาภูมิ","ศรีสวัสดิ์","ไทรโยค","หนองปรือ"];
+var MIN1000 = ["น้ำหนาว","นาแห้ว","ทองผาภูมิ","ปิล็อก"];
+var MIN500 = ["ศรีสวัสดิ์","สังขละบุรี","ปากชม","นาด้วง","ตาพระยา","โคกสูง","คลองหาด",
+  "สอยดาว","เขาสมิง","บ่อไร่","เขาชะเมา","สวี","หลังสวน","บ้านไร่","สามเงา",
+  "เถิน","แม่พริก","น้ำปาด","นครไทย","ชาติตระการ","หล่มสัก","หล่มเก่า",
+  "ภูเรือ","ด่านซ้าย","ศรีสัชนาลัย","สังคม","บ้านแพง","บึงโขงหลง",
+  "ดงหลวง","ภูพาน","เต่างอย","สามชัย","ภักดีชุมพล","เทพสถิต",
+  "สิรินธร","ศรีเมืองใหม่","นาจะหลวย","น้ำยืน","ภูสิงห์","แม่สอด","พบพระ"];
+
+var MIN_100 = ["กรุงเทพมหานคร","ปทุมธานี","สมุทรปราการ","สมุทรสาคร","นนทบุรี"];
+var MIN_120 = ["พระนครศรีอยุธยา","นครปฐม","สมุทรสงคราม","เพชรบุรี","ราชบุรี","สุพรรณบุรี",
+  "สิงห์บุรี","อ่างทอง","ลพบุรี","สระบุรี","ปราจีนบุรี","นครนายก","ฉะเชิงเทรา","ชลบุรี","ระยอง"];
+var MIN_150 = ["กาญจนบุรี","สระแก้ว","จันทบุรี","ชัยนาท","ประจวบคีรีขันธ์","นครราชสีมา","บุรีรัมย์",
+  "มหาสารคาม","ชัยภูมิ","ร้อยเอ็ด","ยโสธร","อุบลราชธานี","ศรีสะเกษ","สุรินทร์"];
+var MIN_200 = ["อุตรดิตถ์","สุโขทัย","พิษณุโลก","พิจิตร","กำแพงเพชร","ตาก","อุทัยธานี","เพชรบูรณ์",
+  "ชุมพร","มุกดาหาร","นครพนม","บึงกาฬ","สกลนคร","หนองคาย","เลย","อุดรธานี","กาฬสินธุ์",
+  "ตราด","หนองบัวลำภู","อำนาจเจริญ","นครสวรรค์"];
+
+var specialAreas = [];   // โหลดสดจาก Firestore
+
+/* ═══════════ engine ═══════════ */
+function calcSize(kg, cm){
+  var k = parseFloat(kg)||0, c = parseFloat(cm)||0;
+  if (k<=0 && c<=0) return null;
+  var byKg=null, byCm=null, i;
+  for(i=0;i<SIZES.length;i++) if(k<=SIZES[i].maxKg){byKg=SIZES[i];break;}
+  for(i=0;i<SIZES.length;i++) if(c<=SIZES[i].maxCm){byCm=SIZES[i];break;}
+  if(!byKg||!byCm) return "OVER";
+  return SIZES.indexOf(byKg) >= SIZES.indexOf(byCm) ? byKg : byCm;
+}
+function getZone(origin, prov, amphoe){
+  if (origin==="BKK" && prov==="กาญจนบุรี" && KANCHAN_FAR.indexOf(amphoe||"")>=0) return "far";
+  return (ZONE_TABLE[origin]||{})[prov] || "far";
+}
+function specialAreaMin(prov, amphoe){
+  var amp = (amphoe||"").trim(), override = null;
+  specialAreas.forEach(function(sa){
+    if(!sa || !sa.amphoe) return;
+    if(String(sa.amphoe).trim() !== amp) return;
+    if(sa.prov && String(sa.prov).trim() !== prov) return;
+    if(String(sa.tambon||"").trim()) return;         // ตำบลเจาะจง — หน้านี้ไม่รับตำบล
+    var m = parseInt(sa.min)||0;
+    override = (override==null) ? m : Math.max(override, m);
+  });
+  if(override != null) return override;
+  if(MIN1000.indexOf(amp)>=0) return 1000;
+  if(MIN500.indexOf(amp)>=0)  return 500;
+  return 0;
+}
+function minFreight(prov, amphoe){
+  if(!prov) return 0;
+  var sp = specialAreaMin(prov, amphoe);
+  if(sp>0) return sp;
+  var isMuang = (amphoe||"").indexOf("เมือง")===0;
+  if(MIN_100.indexOf(prov)>=0) return 100;
+  if(MIN_120.indexOf(prov)>=0) return 120;
+  if(MIN_150.indexOf(prov)>=0) return isMuang?120:150;
+  if(MIN_200.indexOf(prov)>=0) return isMuang?180:200;
+  return 0;
+}
+function baht(n){ return Number(n).toLocaleString("th-TH"); }
+
+/* ═══════════ ui ═══════════ */
+var mode = "gen";
+function setMode(m){
+  mode = m;
+  document.querySelectorAll(".tab").forEach(function(t,i){
+    t.setAttribute("aria-selected", (i===0) === (m==="gen") ? "true":"false");
+  });
+  document.getElementById("paneGen").style.display = m==="gen" ? "" : "none";
+  document.getElementById("paneSp").style.display  = m==="sp"  ? "" : "none";
+  calc();
+}
+
+function initSelects(){
+  var provs = SERVE_BKK.concat(SERVE_KRT, SERVE_SSK, [LAMPANG]).sort(function(a,b){
+    return a.localeCompare(b,"th");
+  });
+  var sel = document.getElementById("prov");
+  provs.forEach(function(p){
+    var o=document.createElement("option"); o.value=p; o.textContent=p; sel.appendChild(o);
+  });
+  var sp = document.getElementById("spItem");
+  SPECIAL_ITEMS.forEach(function(it){
+    var o=document.createElement("option"); o.value=it.id; o.textContent=it.label; sp.appendChild(o);
+  });
+  var dl = document.getElementById("amphoeList");
+  MIN500.concat(MIN1000,["เมือง"]).forEach(function(a){
+    var o=document.createElement("option"); o.value=a; dl.appendChild(o);
+  });
+}
+
+function tapeEmpty(msg){
+  document.getElementById("srcTag").textContent = "";
+  document.getElementById("tapeBody").innerHTML = '<div class="empty">'+msg+'</div>';
+}
+
+function calc(){
+  var origin = document.getElementById("origin").value;
+  var prov   = document.getElementById("prov").value;
+  var amphoe = document.getElementById("amphoe").value.trim();
+  var qty    = Math.max(1, parseInt(document.getElementById("qty").value)||1);
+  var disc   = Math.max(0, parseInt(document.getElementById("disc").value)||0);
+  var cod    = Math.max(0, parseInt(document.getElementById("cod").value)||0);
+
+  if(!prov) return tapeEmpty("เลือกจังหวัดปลายทาง<br>แล้วกรอกน้ำหนัก/ขนาด");
+
+  if(prov===LAMPANG && LAMPANG_OK.indexOf(amphoe)<0)
+    return tapeEmpty("ลำปางส่งได้เฉพาะอำเภอ<br><b>แม่พริก</b> และ <b>เถิน</b>");
+
+  var zone = getZone(origin, prov, amphoe);
+  var perPiece = 0, itemLabel = "", isSp = false;
+
+  if(mode==="sp"){
+    var id = document.getElementById("spItem").value;
+    if(!id) return tapeEmpty("เลือกประเภทสินค้าพิเศษ");
+    var row = SPECIAL_ITEMS.filter(function(x){return x.id===id;})[0];
+    var saMin = specialAreaMin(prov, amphoe);
+    if(row.special != null && saMin > 0){
+      perPiece = (saMin >= 1000) ? (row.special2 || row.special) : row.special;
+      isSp = true;
+    } else {
+      perPiece = (zone==="near") ? row.near : row.far;
+    }
+    itemLabel = row.label;
+  } else {
+    var kg = document.getElementById("kg").value, cm = document.getElementById("cm").value;
+    var size = calcSize(kg, cm);
+    if(!size) return tapeEmpty("กรอกน้ำหนัก (กก.)<br>หรือขนาด 3 ด้านรวม (ซม.)");
+    if(size==="OVER" || size.id==="jumbx")
+      return tapeEmpty("เกินเรทมาตรฐาน (>35 กก. / >200 ซม.)<br>ต้องตีราคาพิเศษ");
+    perPiece = (zone==="near") ? size.near : size.far;
+    itemLabel = "ขนาด " + size.label;
+  }
+
+  var floor    = minFreight(prov, amphoe);
+  var rawTotal = perPiece * qty;
+  var afterMin = Math.max(rawTotal, floor);
+  var hitMin   = afterMin > rawTotal;
+  var total    = Math.max(0, afterMin - disc);
+
+  var zoneTh = zone==="near" ? "ใกล้" : "ไกล";
+  var spBadge = isSp ? '<span class="badge sp">เรทพื้นที่พิเศษ</span>' : "";
+  var minBadge = (!isSp && specialAreaMin(prov,amphoe)>0) ? '<span class="badge sp">พื้นที่พิเศษ</span>' : "";
+
+  var steps = "";
+  steps += row2("ค่าส่ง/ชิ้น", baht(perPiece)+" ฿");
+  steps += row2("จำนวน", qty+" ชิ้น");
+  steps += row2("รวม ("+baht(perPiece)+" × "+qty+")", baht(rawTotal)+" ฿", hitMin?"mut":"");
+  if(floor>0) steps += row2("ขั้นต่ำพื้นที่ (ต่อรายการ)", baht(floor)+" ฿", hitMin?"win":"mut");
+  if(disc>0)  steps += row2("ส่วนลด", "−"+baht(disc)+" ฿");
+
+  var flag = "";
+  if(!ZONE_VERIFIED[origin])
+    flag = '<div class="flag">โซนใกล้/ไกล ของต้นทางนี้ยังใช้ค่าเริ่มต้น ตรวจกับเรทจริงก่อนแจ้งลูกค้า</div>';
+
+  document.getElementById("srcTag").textContent = "โซน" + zoneTh;
+  document.getElementById("tapeBody").innerHTML =
+    '<div class="dest">'+ (amphoe? amphoe+" ":"") + prov + spBadge + minBadge +'</div>'+
+    '<div class="meta">'+ itemLabel +' · ต้นทาง '+ originName(origin) +'</div>'+
+    flag +
+    '<div class="steps mono">'+steps+'</div>'+
+    '<div class="total"><span class="u">ค่าขนส่งรวม</span><span class="n mono">'+baht(total)+'<span class="u"> ฿</span></span></div>'+
+    '<div class="foot">'+
+      '<button class="ghost" style="flex:1" onclick="copyQuote()">คัดลอกข้อความ</button>'+
+      '<button class="ghost" onclick="resetForm()">ล้าง</button>'+
+    '</div>';
+
+  window._quote = {prov:prov, amphoe:amphoe, item:itemLabel, zoneTh:zoneTh, origin:originName(origin),
+    perPiece:perPiece, qty:qty, rawTotal:rawTotal, floor:floor, hitMin:hitMin, disc:disc,
+    total:total, cod:cod};
+}
+function row2(l,v,cls){
+  return '<div class="step '+(cls||"")+'"><span class="lbl">'+l+'</span><span>'+v+'</span></div>';
+}
+function originName(o){ return {BKK:"ศูนย์กรุงเทพ",KRT:"สาขานครราชสีมา",SSK:"สาขาศรีสะเกษ"}[o]; }
+
+/* ข้อความพร้อมวางในไลน์ */
+function copyQuote(){
+  var q = window._quote; if(!q) return;
+  var t = "ค่าขนส่ง "+ (q.amphoe? q.amphoe+" ":"") + q.prov + "\n";
+  t += q.item + " · โซน" + q.zoneTh + "\n";
+  t += "ค่าส่ง/ชิ้น " + baht(q.perPiece) + " บาท × " + q.qty + " ชิ้น\n";
+  if(q.hitMin) t += "ขั้นต่ำพื้นที่ " + baht(q.floor) + " บาท → คิดตามขั้นต่ำ\n";
+  if(q.disc>0) t += "ส่วนลด " + baht(q.disc) + " บาท\n";
+  t += "รวม " + baht(q.total) + " บาท";
+  if(q.cod>0) t += "\nCOD " + baht(q.cod) + " บาท";
+  navigator.clipboard.writeText(t).then(function(){ toast("คัดลอกแล้ว"); },
+    function(){ toast("คัดลอกไม่สำเร็จ"); });
+}
+function resetForm(){
+  ["kg","cm","amphoe"].forEach(function(id){ document.getElementById(id).value=""; });
+  document.getElementById("qty").value = 1;
+  document.getElementById("disc").value = 0;
+  document.getElementById("cod").value = 0;
+  document.getElementById("prov").value = "";
+  document.getElementById("spItem").value = "";
+  calc();
+}
+function toast(m){
+  var t=document.getElementById("toast"); t.textContent=m; t.classList.add("on");
+  setTimeout(function(){ t.classList.remove("on"); }, 1600);
+}
+
+/* ═══════════ auth ═══════════ */
+async function sha256(s){
+  var buf = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(s));
+  return Array.from(new Uint8Array(buf)).map(function(b){return b.toString(16).padStart(2,"0");}).join("");
+}
+async function doLogin(e){
+  e.preventDefault();
+  var btn = document.getElementById("loginBtn"), err = document.getElementById("loginErr");
+  var u = document.getElementById("u").value.trim();
+  var p = document.getElementById("p").value;
+  err.textContent = ""; btn.disabled = true; btn.textContent = "กำลังตรวจสอบ…";
+  try{
+    var snap = await db.collection(USERS_COLLECTION).doc(u).get();
+    if(!snap.exists) throw new Error("ไม่พบชื่อผู้ใช้นี้");
+    var d = snap.data();
+    var hash = await sha256(p);
+    if(d.pwHash !== hash) throw new Error("รหัสผ่านไม่ถูกต้อง");
+    sessionStorage.setItem("quoteUser", JSON.stringify({u:u, name:d.name||u}));
+    await enterApp();
+  }catch(ex){
+    err.textContent = ex.message || "เข้าใช้งานไม่สำเร็จ";
+  }finally{
+    btn.disabled = false; btn.textContent = "เข้าใช้งาน";
+  }
+}
+function signOut(){ sessionStorage.removeItem("quoteUser"); location.reload(); }
+
+async function loadSpecialAreas(){
+  try{
+    var snap = await db.collection("settings").doc("specialAreas").get();
+    var v = snap.exists ? snap.data().value : null;
+    specialAreas = Array.isArray(v) ? v : [];
+  }catch(e){ specialAreas = []; }
+}
+async function enterApp(){
+  var s = JSON.parse(sessionStorage.getItem("quoteUser"));
+  document.getElementById("who").textContent = s.name;
+  document.getElementById("login").style.display = "none";
+  document.getElementById("app").style.display = "block";
+  initSelects();
+  await loadSpecialAreas();   // เรทพื้นที่พิเศษล่าสุด
+  calc();
+}
+if(sessionStorage.getItem("quoteUser")) enterApp();
+</script>
+</body>
+</html>
