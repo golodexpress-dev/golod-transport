@@ -489,6 +489,7 @@ var MENU=[
   {k:"bills",lb:"รายการบิล",ic:"📋",perm:"billing",roles:["admin","branch","clerk"]},
   {k:"transport",lb:"จัดการขนส่ง",ic:"🚛",perm:"transport",roles:["admin","branch","clerk","driver"],extUrl:"DispatchApp.html",driverUrl:"DriverApp.html"},
   {k:"pickup",lb:"กรอกงานรับ",ic:"📦",roles:["admin","branch","clerk"],extUrl:"PickupIntake.html"},
+  {k:"quote",lb:"เช็คราคา",ic:"🧮",roles:["admin","branch","clerk"],extUrl:"Quote.html"},
   {k:"tracking",lb:"ติดตามสินค้า",ic:"📍",roles:["admin","branch","clerk","driver","customer"],extUrl:"TrackingSystem.html"},
   {k:"finance",lb:"การเงิน",ic:"💰",perm:"finance",roles:["admin","branch","clerk"],extUrl:"FinanceSystem.html"},
   {k:"cod",lb:"ตรวจสอบ COD",ic:"💸",roles:["admin","branch","clerk"],extUrl:"CODCheck.html"},
@@ -512,9 +513,9 @@ function canAccess(k){
 function buildSidebar(){
   var isDriver=CU.role==="driver"||CU.role==="customer";
   var h="";
-  var secs=[{lb:"เมนูหลัก",ks:["dashboard","billing","bills","transport","pickup","tracking"]},{lb:"ข้อมูล",ks:["finance","cod","reports","salesreport","overview","customers","drivers"]},{lb:"ระบบ",ks:["users","profile"]}];
+  var secs=[{lb:"เมนูหลัก",ks:["dashboard","billing","bills","transport","pickup","quote","tracking"]},{lb:"ข้อมูล",ks:["finance","cod","reports","salesreport","overview","customers","drivers"]},{lb:"ระบบ",ks:["users","profile"]}];
   secs.forEach(function(s){
-    var visItems=MENU.filter(function(m){return s.ks.includes(m.k)&&m.roles.includes(CU.role);});
+    var visItems=MENU.filter(function(m){return s.ks.includes(m.k)&&m.roles.includes(CU.role)&&(m.k!=="cod"||canAccess("cod"));});
     if(!visItems.length)return;
     h+='<div class="sb-sec">'+s.lb+"</div>";
     visItems.forEach(function(m){
@@ -689,9 +690,12 @@ function pgDashboard(showAll){
     h+='<div style="font-size:12px;font-weight:600;color:#085041">'+fmt(rev)+' ฿</div></div>';
   });
   h+="</div>";
-  // Menu shortcuts
+  // Menu shortcuts — กำหนดลำดับเอง (เห็นบนมือถือทันที ไม่ต้องเปิดไซด์บาร์)
+  // canAccess() คุมสิทธิ์: quote = admin/branch/clerk, cod = admin + คนที่ตั้งสิทธิ์ไว้ใน Firestore
+  var QUICK=["billing","bills","transport","pickup","quote","cod","tracking","finance"];
   h+='<div class="card"><div class="ct">เมนูลัด</div><div style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px">';
-  MENU.filter(function(m){return canAccess(m.k)&&m.k!=="dashboard"&&m.k!=="profile";}).slice(0,6).forEach(function(m){
+  QUICK.map(function(k){return MENU.find(function(m){return m.k===k;});})
+       .filter(function(m){return m&&canAccess(m.k);}).slice(0,8).forEach(function(m){
     h+='<div onclick="goSection(\''+m.k+'\')" style="padding:10px 6px;border-radius:8px;text-align:center;cursor:pointer;border:1px solid #E1F5EE;background:#F7FBF9">';
     h+='<div style="font-size:20px;margin-bottom:4px">'+m.ic+'</div>';
     h+='<div style="font-size:11px;font-weight:600;color:#0F6E56">'+m.lb+"</div></div>";
