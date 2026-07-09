@@ -211,6 +211,25 @@ var MIN_200=["อุตรดิตถ์","สุโขทัย","พิษณ
  "ชุมพร","มุกดาหาร","นครพนม","บึงกาฬ","สกลนคร","หนองคาย","เลย","อุดรธานี","กาฬสินธุ์",
  "ตราด","หนองบัวลำภู","อำนาจเจริญ","นครสวรรค์"];
 
+/* อำเภอพิเศษ → จังหวัดที่สังกัด (กัน "สิรินธร" ไปโผล่ตอนเลือกกรุงเทพ) */
+var SP_AMPHOE_PROV={
+ "น้ำหนาว":"เพชรบูรณ์","นาแห้ว":"เลย","ทองผาภูมิ":"กาญจนบุรี","ปิล็อก":"กาญจนบุรี",
+ "ศรีสวัสดิ์":"กาญจนบุรี","สังขละบุรี":"กาญจนบุรี","ไทรโยค":"กาญจนบุรี","หนองปรือ":"กาญจนบุรี",
+ "ปากชม":"เลย","นาด้วง":"เลย","ภูเรือ":"เลย","ด่านซ้าย":"เลย",
+ "ตาพระยา":"สระแก้ว","โคกสูง":"สระแก้ว","คลองหาด":"สระแก้ว",
+ "สอยดาว":"จันทบุรี","เขาสมิง":"ตราด","บ่อไร่":"ตราด","เขาชะเมา":"ระยอง",
+ "สวี":"ชุมพร","หลังสวน":"ชุมพร","บ้านไร่":"อุทัยธานี",
+ "สามเงา":"ตาก","แม่สอด":"ตาก","พบพระ":"ตาก",
+ "เถิน":"ลำปาง","แม่พริก":"ลำปาง","น้ำปาด":"อุตรดิตถ์",
+ "นครไทย":"พิษณุโลก","ชาติตระการ":"พิษณุโลก",
+ "หล่มสัก":"เพชรบูรณ์","หล่มเก่า":"เพชรบูรณ์","ศรีสัชนาลัย":"สุโขทัย",
+ "สังคม":"หนองคาย","บ้านแพง":"นครพนม","บึงโขงหลง":"บึงกาฬ","ดงหลวง":"มุกดาหาร",
+ "ภูพาน":"สกลนคร","เต่างอย":"สกลนคร","สามชัย":"กาฬสินธุ์",
+ "ภักดีชุมพล":"ชัยภูมิ","เทพสถิต":"ชัยภูมิ",
+ "สิรินธร":"อุบลราชธานี","ศรีเมืองใหม่":"อุบลราชธานี","นาจะหลวย":"อุบลราชธานี","น้ำยืน":"อุบลราชธานี",
+ "ภูสิงห์":"ศรีสะเกษ"
+};
+
 var CU=null;
 var specialAreas=[];   // โหลดสดจาก Firestore (settings/specialAreas) เหมือน ThermalBill/บอท
 
@@ -239,8 +258,11 @@ function specialAreaMin(prov,amphoe){
     ov=(ov==null)?m:Math.max(ov,m);
   });
   if(ov!=null) return ov;
-  if(MIN1000.indexOf(amp)>=0) return 1000;
-  if(MIN500.indexOf(amp)>=0) return 500;
+  // ลิสต์ฝังในโค้ด: ต้องเป็นอำเภอของจังหวัดที่เลือกเท่านั้น
+  if(amp && SP_AMPHOE_PROV[amp]===prov){
+    if(MIN1000.indexOf(amp)>=0) return 1000;
+    if(MIN500.indexOf(amp)>=0) return 500;
+  }
   return 0;
 }
 function minFreight(prov,amphoe){
@@ -275,6 +297,26 @@ function resEmpty(msg){
 function stepRow(l,v,cls){
   return '<div class="step '+(cls||"")+'"><span class="l">'+l+'</span><span>'+v+'</span></div>';
 }
+/* อำเภอที่เลือกได้ = "เมือง" + อำเภอพิเศษของจังหวัดนั้น (+ อำเภอพิเศษจาก Firestore) */
+function refreshAmphoeList(){
+  var prov=document.getElementById("prov").value;
+  var dl=document.getElementById("amphoeList");
+  dl.innerHTML="";
+  if(!prov) return;
+  var list=["เมือง"];
+  Object.keys(SP_AMPHOE_PROV).forEach(function(a){ if(SP_AMPHOE_PROV[a]===prov) list.push(a); });
+  specialAreas.forEach(function(sa){
+    if(sa&&sa.amphoe&&(!sa.prov||sa.prov===prov)&&list.indexOf(sa.amphoe)<0) list.push(sa.amphoe);
+  });
+  list.forEach(function(a){ var o=document.createElement("option"); o.value=a; dl.appendChild(o); });
+}
+/* อำเภอที่พิมพ์เป็นของจังหวัดอื่นหรือเปล่า */
+function amphoeMismatch(prov,amp){
+  if(!prov||!amp||amp.indexOf("เมือง")===0) return "";
+  var owner=SP_AMPHOE_PROV[amp];
+  return (owner&&owner!==prov) ? owner : "";
+}
+
 function calc(){
   var origin=document.getElementById("origin").value;
   var prov=document.getElementById("prov").value;
@@ -330,6 +372,9 @@ function calc(){
 
   var warn = ZONE_VERIFIED[origin] ? "" :
     '<div class="warn">โซนใกล้/ไกล ของต้นทางนี้ยังใช้ค่าเริ่มต้น — ตรวจกับเรทจริงก่อนแจ้งลูกค้า</div>';
+  var mm = amphoeMismatch(prov,amphoe);
+  if(mm) warn += '<div class="warn">อำเภอ "'+amphoe+'" อยู่ในจังหวัด'+mm+' ไม่ใช่'+prov+
+                 ' — ระบบไม่ได้คิดเรทพื้นที่พิเศษให้ ตรวจปลายทางอีกครั้ง</div>';
 
   document.getElementById("zoneTag").textContent=zoneTh;
   document.getElementById("resBody").innerHTML=
@@ -387,8 +432,7 @@ function initSelects(){
   provs.forEach(function(p){var o=document.createElement("option");o.value=p;o.textContent=p;sel.appendChild(o);});
   var sp=document.getElementById("spItem");
   SPECIAL_ITEMS.forEach(function(it){var o=document.createElement("option");o.value=it.id;o.textContent=it.label;sp.appendChild(o);});
-  var dl=document.getElementById("amphoeList");
-  MIN500.concat(MIN1000,["เมือง"]).forEach(function(a){var o=document.createElement("option");o.value=a;dl.appendChild(o);});
+  document.getElementById("prov").addEventListener("change",refreshAmphoeList);
   ["origin","prov","amphoe","kg","cm","spItem","qty","disc","cod"].forEach(function(id){
     var el=document.getElementById(id);
     el.addEventListener(el.tagName==="SELECT"?"change":"input",calc);
@@ -427,7 +471,7 @@ function loadSpecialAreas(){
   if(!authGate()) return;
   document.getElementById("app-main").classList.remove("hidden");
   initSelects();
-  loadSpecialAreas().then(calc);   // เรทพื้นที่พิเศษล่าสุด แล้วค่อยคำนวณ
+  loadSpecialAreas().then(function(){ refreshAmphoeList(); calc(); });   // เรทพื้นที่พิเศษล่าสุด แล้วค่อยคำนวณ
 })();
 </script>
 </body>
