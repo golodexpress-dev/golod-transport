@@ -755,7 +755,7 @@ tr:hover td{background:#f8fffe}
 <div class="topbar">
   <span class="title">🚛 จัดการขนส่ง</span>
   <span id="session-info" style="font-size:11px;opacity:.8"></span>
-  <span style="font-size:10px;opacity:.65;margin-left:auto">build 2026-06-10z171</span>
+  <span style="font-size:10px;opacity:.65;margin-left:auto">build 2026-07-10z172</span>
   <a href="GolodApp.html" style="margin-left:10px">← หน้าหลัก</a>
 </div>
 <div class="container">
@@ -4255,11 +4255,48 @@ function renderMonthlyView(drivers, allTrips, selMonth, selDriver, dateFrom, dat
   });
 
   // group by driver
-  var byDriver = {};
+  // เดิม: key = driverUsername เท่านั้น → รถร่วม/ชื่อพิมพ์เอง (ไม่มี username) ตกไปกอง "unknown" รวมกันหมด
+  //       และคนเดียวกันที่บางเที่ยวชื่อ "สมชาย" บางเที่ยว "สมชาย (ศรีสะเกษ)" จะแยกเป็น 2 ตาราง
+  // ใหม่: key = ชื่อฐาน (ตัด "(...)" ออก) — แต่ถ้าชื่อฐานเดียวกันแต่คนละ username = คนละคน ให้แยกไว้เหมือนเดิม
+  function _drvBase(n){
+    return String(n||"").replace(/\([^)]*\)/g, " ").replace(/\s+/g, " ").trim();
+  }
+
+  var _buckets = {};   // baseName -> [trips]
   trips.forEach(function(t){
-    var k = t.driverUsername||"unknown";
-    if(!byDriver[k]) byDriver[k]={name:t.driverName||k, trips:[]};
-    byDriver[k].trips.push(t);
+    var base = _drvBase(t.driverName) || t.driverUsername || "ไม่ระบุคนขับ";
+    (_buckets[base] = _buckets[base] || []).push(t);
+  });
+
+  var byDriver = {};
+  Object.keys(_buckets).forEach(function(base){
+    var bt = _buckets[base];
+    var unames = {};
+    bt.forEach(function(t){ if(t.driverUsername) unames[t.driverUsername] = 1; });
+    var uList = Object.keys(unames);
+
+    if(uList.length <= 1){
+      // คนเดียว (หรือไม่มี account) → รวมตารางเดียว
+      var variants = {};
+      bt.forEach(function(t){ if(t.driverName && t.driverName !== base) variants[t.driverName] = 1; });
+      byDriver[base] = {
+        name: base,
+        uname: uList[0] || base,       // ใช้เป็น key ของ ประกัน/เบี้ยขยัน/ค่าเบิกเกิน
+        variants: Object.keys(variants),
+        trips: bt
+      };
+    } else {
+      // ชื่อฐานซ้ำแต่คนละ account → แยกตาราง กันข้อมูลการเงินปนกัน
+      uList.forEach(function(u){
+        var sub = bt.filter(function(t){ return t.driverUsername === u; });
+        var nm = (sub[0] && sub[0].driverName) || base;
+        byDriver[base + "|" + u] = {name: nm, uname: u, variants: [], trips: sub, dupWarn: true};
+      });
+      var orphan = bt.filter(function(t){ return !t.driverUsername; });
+      if(orphan.length){
+        byDriver[base + "|__noacct"] = {name: base + " (ไม่มีบัญชี)", uname: base, variants: [], trips: orphan, dupWarn: true};
+      }
+    }
   });
 
   var driverOpts = drivers.map(function(d){
@@ -4390,7 +4427,7 @@ function renderMonthlyView(drivers, allTrips, selMonth, selDriver, dateFrom, dat
     if(isAdmin){
       var phone   = dTrips.reduce(function(a,t){ return a+parseFloat(t.phoneFare||0); },0);
       // ===== เงินประกัน (ลงตอนสรุปสิ้นเดือน) =====
-      var uname = (dTrips[0]&&dTrips[0].driverUsername)||dData.name;
+      var uname = dData.uname || (dTrips[0]&&dTrips[0].driverUsername) || dData.name;
       // ===== รอบตัดประกัน 29(เดือนก่อน) - 28(เดือนนี้) — คนละรอบกับสรุปสิ้นเดือน (ปฏิทิน) — คำนวณก่อน แล้วให้ insKey/เบี้ยขยัน/ค่าเบิกเกิน ใช้รอบเดียวกันนี้ทั้งหมด กันคีย์ไม่ตรงกัน =====
       var _cycStart="", _cycEnd="";
       if(dateFrom || dateTo){
@@ -4531,8 +4568,13 @@ function renderMonthlyView(drivers, allTrips, selMonth, selDriver, dateFrom, dat
 
     tables += '<div class="card" style="margin-bottom:12px">'
       +'<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px">'
-      +'<div class="card-title" style="margin:0">🚛 '+dData.name+'</div>'
-      +'<div style="display:flex;align-items:center;gap:8px">'+'<div style="font-size:11px;color:#888">'+dTrips.length+' เที่ยว</div>'+(isAdmin?('<button class="btn btn-gray" data-u="'+((dTrips[0]&&dTrips[0].driverUsername)||"")+'" style="padding:4px 10px;font-size:11px" onclick="printMonthlySummary(this.dataset.u)">🖨 พิมพ์สรุป</button>'):'')+'</div>'
+      +'<div>'
+      +'<div class="card-title" style="margin:0">🚛 '+dData.name
+        +(dData.dupWarn?' <span style="font-size:10px;color:#c0392b;font-weight:700">⚠ ชื่อซ้ำ คนละบัญชี</span>':'')+'</div>'
+      +((dData.variants&&dData.variants.length)
+        ? '<div style="font-size:10px;color:#999;margin-top:2px">รวมชื่อ: '+dData.variants.join(" · ")+'</div>' : '')
+      +'</div>'
+      +'<div style="display:flex;align-items:center;gap:8px">'+'<div style="font-size:11px;color:#888">'+dTrips.length+' เที่ยว</div>'+(isAdmin?('<button class="btn btn-gray" data-u="'+String(dData.uname||"").replace(/"/g,"&quot;")+'" style="padding:4px 10px;font-size:11px" onclick="printMonthlySummary(this.dataset.u)">🖨 พิมพ์สรุป</button>'):'')+'</div>'
       +'</div>'
       +'<div style="overflow-x:auto"><table style="width:100%;border-collapse:collapse;font-size:11px">'
       +'<tr style="background:#0F6E56;color:#fff">'+hCols+'</tr>'
@@ -5930,10 +5972,12 @@ function renderClearRemarks(){
                 : r.status==="rejected" ? '<span style="color:#c0392b;font-weight:700">❌ ไม่อนุมัติ</span>'
                 : '<span style="color:#E67E22;font-weight:700">⏳ รออนุมัติ</span>';
     var eff = _remarkEffective(r);
+    var _isDup = _remarkIsDup(r);
     var _isXfer = (r.type==="ปท.→โอน");
     var _xferAmt = _isXfer ? _remarkXfer(r) : 0;
     var _dispEff = _isXfer ? -_xferAmt : eff;   // ปท.→โอน = หักยอด (ติดลบ)
-    var amtClr = _dispEff>=0 ? "#0F6E56" : "#c0392b";
+    var amtClr = _isDup ? "#999" : (_dispEff>=0 ? "#0F6E56" : "#c0392b");
+    var amtStyle = _isDup ? ";text-decoration:line-through" : "";
     var adminBtns = (isAdmin && r.status!=="approved" && r.status!=="rejected")
       ? ' <button onclick="approveRemark(\''+r.id+'\')" style="background:#0F6E56;color:#fff;border:none;border-radius:5px;padding:2px 8px;font-size:10px;cursor:pointer">อนุมัติ</button>'
         +' <button onclick="rejectRemark(\''+r.id+'\')" style="background:#c0392b;color:#fff;border:none;border-radius:5px;padding:2px 8px;font-size:10px;cursor:pointer">ไม่อนุมัติ</button>'
@@ -5942,11 +5986,12 @@ function renderClearRemarks(){
       ? ' <button onclick="deleteRemark(\''+r.id+'\')" style="background:#eee;border:none;border-radius:5px;padding:2px 7px;font-size:10px;cursor:pointer">🗑</button>' : '';
     var convBtn = (isAdmin && r.type!=="ปท.→โอน" && r.type!=="รับงานนอกระบบ" && r.amount>0)
       ? ' <button onclick="convertRemarkToTransfer(\''+r.id+'\')" style="background:#fff3e0;border:1px solid #f0c97a;border-radius:5px;padding:2px 7px;font-size:10px;cursor:pointer;color:#b7950b">🔄 ปท.→โอน</button>' : '';
-    return '<div style="background:#fff;border:1px solid #e5dcf5;border-radius:6px;padding:6px 8px;margin-bottom:4px;font-size:11px">'
+    return '<div style="background:'+(_isDup?"#fff5f5":"#fff")+';border:1px solid '+(_isDup?"#f0b4b4":"#e5dcf5")+';border-radius:6px;padding:6px 8px;margin-bottom:4px;font-size:11px">'
       +'<div style="display:flex;justify-content:space-between;gap:8px;flex-wrap:wrap;align-items:center">'
       +'<div><b>'+r.type+'</b>'+(r.billNo?' · '+r.billNo:'')+(r.note?' · '+String(r.note).replace(/ไม่กระทบยอด/g,"หักจากยอดต้องเก็บ"):'')+'</div>'
-      +'<div style="white-space:nowrap"><b style="color:'+amtClr+'">'+(_dispEff>=0?"+":"")+Math.round(_dispEff).toLocaleString("th-TH")+' ฿</b> '+stBadge+adminBtns+convBtn+delBtn+'</div>'
+      +'<div style="white-space:nowrap"><b style="color:'+amtClr+amtStyle+'">'+(_dispEff>=0?"+":"")+Math.round(_dispEff).toLocaleString("th-TH")+' ฿</b> '+stBadge+adminBtns+convBtn+delBtn+'</div>'
       +'</div>'
+      +(_isDup ? '<div style="font-size:10px;color:#c0392b;font-weight:700;margin-top:3px">🚫 ไม่นับยอดนี้ — บิล '+r.billNo+' เข้าระบบแล้ว (นับจากบิลจริงไปแล้ว) · ลบรายการนี้ทิ้งได้</div>' : '')
       +'<div style="font-size:9px;color:#aaa;margin-top:2px">โดย '+(r.byName||r.by||"-")+(r.approvedByName?' · อนุมัติโดย '+r.approvedByName:'')+'</div>'
       +(r.type==="รับงานนอกระบบ" ? ('<div style="font-size:9px;color:#6a3fb5;margin-top:2px">'+_pickupRmkDesc(r)+'</div>') : '')
       +(r.type==="ปท.→โอน" ? ('<div style="margin-top:3px">'+(r._uploading?'<span style="color:#E67E22;font-size:10px">⏳ กำลังอัปโหลดสลิป...</span>':((r.slipUrl?'<a href="'+r.slipUrl+'" target="_blank" style="color:#0F6E56;font-size:10px;font-weight:700">📎 ดูสลิป</a>':'<span style="color:#c0392b;font-size:10px;font-weight:700">⚠ ยังไม่แนบสลิป</span>')+' <button onclick="uploadRemarkSlip(\''+r.id+'\')" style="background:#eef;border:1px solid #ccd;border-radius:5px;padding:2px 7px;font-size:10px;cursor:pointer">📷 '+(r.slipUrl?'เปลี่ยน':'แนบสลิป')+'</button>'))+'</div>') : '')
@@ -6046,8 +6091,19 @@ function _remarkEffective(r){
   }
   return amt;
 }
+// ===== กันนับซ้ำ =====
+// รายการ "บิลไม่เข้าระบบ" ที่ต่อมาเสมียนออกบิลเข้าระบบจริง จะถูกนับ 2 รอบ
+// (รอบแรกใน liveDest/liveCod จากบิล, รอบสองใน adjApproved)
+// → ถ้าเลขบิลของรายการปรับยอด ตรงกับบิลที่อยู่ในเที่ยวแล้ว ให้ตัดออกจากการรวมยอด
+function _remarkIsDup(r){
+  if(!r || !r.billNo) return false;
+  if(r.type !== "บิลไม่เข้าระบบ") return false;
+  var inSys = (_clearTripData && _clearTripData._inSystemBills) || {};
+  return !!inSys[String(r.billNo).toUpperCase().trim()];
+}
+
 function remarksApprovedSum(){
-  return _clearRemarks.filter(function(r){return r.status==="approved" && r.type!=="ปท.→โอน";})
+  return _clearRemarks.filter(function(r){return r.status==="approved" && r.type!=="ปท.→โอน" && !_remarkIsDup(r);})
     .reduce(function(a,r){return a+_remarkEffective(r);},0);
 }
 function _remarkXfer(r){
@@ -6066,7 +6122,7 @@ function destTransferSum(){
     .reduce(function(a,r){return a+_remarkXfer(r);},0);
 }
 function remarksPendingSum(){
-  return _clearRemarks.filter(function(r){return r.status==="pending" && r.type!=="ปท.→โอน";})
+  return _clearRemarks.filter(function(r){return r.status==="pending" && r.type!=="ปท.→โอน" && !_remarkIsDup(r);})
     .reduce(function(a,r){return a+_remarkEffective(r);},0);
 }
 function _pickupCommSum(){
@@ -6793,6 +6849,10 @@ function openClearTrip(tripId){
     var liveDest=0, liveCod=0, pkCash=0, pkDest=0, failDest=0, failCod=0; var failBills=[];
     var rOrigin=0, rTransfer=0, rCredit=0, rDestCash=0, rDestTransfer=0;
     var delivered=0, failed=0, deliveredApp=0;
+    // เก็บเลขบิลที่ "อยู่ในระบบ/ในเที่ยว" ไว้ตรวจว่ารายการปรับยอดซ้ำกับบิลจริงหรือไม่
+    var inSys = {};
+    tb.forEach(function(b){ if(b.billNo) inSys[String(b.billNo).toUpperCase().trim()] = true; });
+    trip._inSystemBills = inSys;
     tb.forEach(function(b){
       var pay=b.freightPay||(b.form&&b.form.freightPay)||"origin";
       var net=parseFloat(b.freightNet||0), cod=parseFloat(b.codTotal||0);
@@ -6880,7 +6940,13 @@ function openClearTrip(tripId){
   computeFromBills(getTripBills(trip));
   fetchTripBillsFromDB(trip).then(function(dbBills){
     console.log("[clearTrip] bills from DB:", (dbBills||[]).length, "for trip", trip.id, "billIds:", (trip.billIds||[]).length);
-    if(dbBills && dbBills.length){ computeFromBills(dbBills); _renderClearEtaPlan(trip, dbBills); }
+    if(dbBills && dbBills.length){
+      computeFromBills(dbBills);
+      _renderClearEtaPlan(trip, dbBills);
+      // บิลจาก DB ครบแล้ว → รู้แน่ว่ารายการปรับยอดใบไหนซ้ำกับบิลจริง
+      renderClearRemarks();
+      calcClearTrip();
+    }
   });
 
   renderClearRemarks();
@@ -8117,7 +8183,23 @@ function confirmApprove(){
     destTambon: g("ap-dest-tambon"), destAddr: g("ap-dest-addr"), receiverAddr: g("ap-dest-addr"),
     freightNet: parseFloat(g("ap-freight"))||0, freightPay: g("ap-pay"),
     approvedBy: CU?CU.username:"", approvedAt: new Date().toISOString(),
-    updatedAt: new Date().toISOString()
+    updatedAt: new Date().toISOString(),
+
+    // ⚠️ บิลมีข้อมูล 2 ชั้น: top-level (ระบบการเงินอ่าน) กับ form.* (ThermalBill พิมพ์)
+    // เดิมอนุมัติแล้วเขียนแค่ top-level → แก้ "โอน" แต่บิลพิมพ์ออกมา "ปลายทาง"
+    // Firestore .update() รองรับ dotted path → แก้เฉพาะคีย์ใน form ไม่ทับทั้งก้อน
+    "form.senderName":     g("ap-sender-name"),
+    "form.senderPhone":    g("ap-sender-phone"),
+    "form.receiverName":   g("ap-receiver-name"),
+    "form.receiverPhone":  g("ap-receiver-phone"),
+    "form.destProv":       g("ap-dest-prov"),
+    "form.destAmphoe":     g("ap-dest-amphoe"),
+    "form.receiverAmphoe": g("ap-dest-amphoe"),
+    "form.destTambon":     g("ap-dest-tambon"),
+    "form.receiverTambon": g("ap-dest-tambon"),
+    "form.destAddr":       g("ap-dest-addr"),
+    "form.receiverAddr":   g("ap-dest-addr"),
+    "form.freightPay":     g("ap-pay")
   };
   if(goods){
     var goodsList2 = goods.split(/[\n]+/).map(function(s){return s.trim();}).filter(Boolean);

@@ -153,7 +153,7 @@ body{font-family:'Sarabun',Arial,sans-serif;background:#f0f4f0;min-height:100vh;
 <!-- Main app -->
 <div id="main-screen" style="display:none">
   <div class="topbar">
-    <span class="title">🚛 งานของฉัน <span style="font-size:9px;opacity:.6;font-weight:400">b0620a</span></span>
+    <span class="title">🚛 งานของฉัน <span style="font-size:9px;opacity:.6;font-weight:400">b0710a</span></span>
     <span class="driver-name" id="driver-label"></span>
     <button class="btn-logout" onclick="doLogout()">ออก</button>
   </div>
@@ -1160,9 +1160,10 @@ function openPickupFromTrip(idx){
     // เติมสินค้าช่องแรก
     var goodsInp = document.querySelector(".pb-goods-inp");
     if(goodsInp && p.goods) goodsInp.value = p.goods;
-    // ชำระปลายทางเป็น default งานรับ
+    // วิธีชำระ: ใช้ค่าที่เสมียนตั้งไว้ในงานรับ ถ้าไม่มีค่อย default เป็นปลายทาง
+    // (เดิมบังคับ "dest" ทับเสมอ — งานที่ลูกค้าโอนมาแล้วก็ยังพิมพ์ว่าปลายทาง คนขับไปเก็บซ้ำ)
     var payEl = document.getElementById("pb-pay");
-    if(payEl) payEl.value = "dest";
+    if(payEl) payEl.value = p.freightPay || p.payType || "dest";
   }, 100);
 }
 
@@ -1417,7 +1418,7 @@ function submitPickupBill(){
     senderAmphoe: g("pb-sender-amphoe"),
     senderTambon: g("pb-sender-tambon"),
     senderAddr: g("pb-sender-addr"),
-    senderPhone: "",
+    senderPhone: g("pb-sender-phone"),
     receiverName: g("pb-receiver-name"),
     receiverPhone: g("pb-receiver-phone"),
     destAmphoe: g("pb-dest-amphoe"),
@@ -1427,7 +1428,6 @@ function submitPickupBill(){
     destTambon: g("pb-dest-tambon"),
     destAddr: g("pb-dest-addr"),
     destProv: g("pb-dest-prov"),
-    destAmphoe: "",
     freightNet: parseFloat(g("pb-freight"))||0,
     freightPay: g("pb-pay"),
     note: (Array.from(document.querySelectorAll(".pb-goods-inp")).map(function(x){return x.value.trim();}).filter(Boolean).join(", ")),
