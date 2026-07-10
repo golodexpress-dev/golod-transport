@@ -398,22 +398,36 @@ var PAY_LABEL = {origin:"ต้นทาง",dest:"ปลายทาง",transf
 
 function renderBillList(){
   var el = document.getElementById("bill-list");
-  if(BILLS.length === 0){
-    el.innerHTML = '<div class="empty-state"><div class="ico">✅</div><div class="msg">ไม่มีงานค้างในขณะนี้<br><br><button onclick="loadBills()" style="padding:8px 18px;background:#0F6E56;color:#fff;border:none;border-radius:8px;font-size:13px;cursor:pointer">🔄 รีเฟรช</button></div></div>';
-    return;
-  }
-  // ดึง open trip ล่าสุดก่อน แล้วค่อย render
+  // สำคัญ: ห้าม return ตรงนี้แม้ BILLS ว่าง — ไม่งั้น loadLatestTrip() ไม่ถูกเรียก
+  // ทำให้ dropdown เที่ยวไม่โผล่ คนขับกดอัพสถานะ/เคลียร์เที่ยวไม่ได้
+  // (เที่ยวเพิ่งจ่ายงาน บิลอาจยังไม่อยู่ในสถานะ ACTIVE → BILLS = 0)
+  el.innerHTML = '<div class="loading-state"><span class="spin-inline">⏳</span><br><br>กำลังโหลดเที่ยว...</div>';
   loadLatestTrip(function(tripBillIds){ renderBillListWithTrip(tripBillIds); });
 }
 
 var DRIVER_TRIPS = [];
 var SELECTED_TRIP_ID = null;
 
+// แปลงวันที่ให้เทียบกันได้เสมอ — รองรับทั้ง 2026-07-08 และ 08/07/2026
+function _tripDateKey(t){
+  var v = String(t.departDate || t.createdAt || "");
+  var m = v.match(/^(\d{2})\/(\d{2})\/(\d{4})$/);
+  if(m) return m[3]+"-"+m[2]+"-"+m[1];
+  return v.slice(0,10);
+}
 function _driverSortPick(){
   DRIVER_TRIPS.sort(function(a,b){
-    var da=(a.departDate||a.createdAt||""), db2=(b.departDate||b.createdAt||"");
-    return db2.localeCompare(da);
+    var c = _tripDateKey(b).localeCompare(_tripDateKey(a));
+    if(c!==0) return c;
+    return String(b.createdAt||"").localeCompare(String(a.createdAt||""));
   });
+  // เที่ยวเก่าค้างสะสมเยอะ (โคราช/ศรีสะเกษ) → แสดงแค่ 20 เที่ยวล่าสุด ไม่ให้ dropdown ยาวเกิน
+  if(DRIVER_TRIPS.length > 20){
+    var keep = DRIVER_TRIPS.slice(0,20);
+    var selT = DRIVER_TRIPS.find(function(t){ return t.id===SELECTED_TRIP_ID; });
+    if(selT && keep.indexOf(selT)<0) keep.push(selT);
+    DRIVER_TRIPS = keep;
+  }
   // เก็บเที่ยวที่เลือกไว้ถ้ายังเปิดอยู่ มิฉะนั้นเด้งไปงานปัจจุบัน (เที่ยวล่าสุดตามวันวิ่ง)
   if(!SELECTED_TRIP_ID || !DRIVER_TRIPS.some(function(t){return t.id===SELECTED_TRIP_ID;})){
     SELECTED_TRIP_ID = DRIVER_TRIPS[0].id;
@@ -427,20 +441,30 @@ function loadLatestTrip(callback){
   // ดึงเที่ยวที่มอบให้คนขับคนนี้ — จับคู่ได้ทั้ง driverUsername และ driverName
   // (คนขับลงทะเบียน = username, รถร่วม/พิมพ์ชื่อเอง = ชื่อ) กันปัญหา "เห็นแค่บางเที่ยว"
   var qs = [];   // {type:"username"|"name", p:promise}
-  // เพิ่ม limit จาก 100 เป็น 500 — บางสาขา (โคราช/ศรีสะเกษ) มีเที่ยว open ค้างสะสมเยอะกว่า อาจเกิน 100 ทำให้เที่ยวล่าสุดหลุดได้เหมือนกัน
-  if(uname) qs.push({type:"username", p:col.where("driverUsername","==",uname).where("status","==","open").limit(500).get()});
-  if(dname && dname!==uname) qs.push({type:"name", p:col.where("driverName","==",dname).where("status","==","open").limit(500).get()});
+  // ⚠️ ห้ามใส่ .where("status","==","open") ใน query
+  // Firestore จะ "ตัดเอกสารที่ไม่มีฟิลด์ status ทิ้งทั้งหมด" (ไม่ใช่แค่ค่าไม่ตรง)
+  // → เที่ยวเก่าที่ไม่มี status / เที่ยวที่เป็น cleared / สถานะอื่น หายหมด (อาการ "เกินครึ่งไม่แสดง")
+  // ดึงมาทั้งหมดของคนขับคนนี้ แล้วค่อยกรองฝั่ง client ด้านล่าง
+  if(uname) qs.push({type:"username", p:col.where("driverUsername","==",uname).limit(500).get()});
+  if(dname && dname!==uname) qs.push({type:"name", p:col.where("driverName","==",dname).limit(500).get()});
   if(qs.length===0){ loadTripFromBills(callback); return; }
   Promise.all(qs.map(function(q){ return q.p.catch(function(e){ console.warn("[DriverApp] trip query fail:", e&&e.message); return null; }); }))
     .then(function(snaps){
       var seen={}; DRIVER_TRIPS = [];
       var tripMatchCount = {username:0, name:0};
+      var rawCount = 0, hiddenClosed = 0;
       snaps.forEach(function(snap, i){
         if(!snap) return;
         tripMatchCount[qs[i].type] += snap.size;
         snap.forEach(function(doc){
           var d=doc.data(); var id=d.id||doc.id;
           if(id && seen[id]) return; if(id) seen[id]=1;
+          if(!d.id) d.id = doc.id;   // เที่ยวเก่าบางใบไม่มี field id ในตัว doc
+          rawCount++;
+          // กรองฝั่ง client: ซ่อนเฉพาะเที่ยวที่ปิดจบแล้วจริงๆ
+          // ที่เหลือ (open / cleared / ไม่มี status / ค่าอื่น) แสดงทั้งหมด
+          var st = String(d.status||"").toLowerCase();
+          if(st==="closed" || st==="cancelled" || st==="ยกเลิก"){ hiddenClosed++; return; }
           DRIVER_TRIPS.push(d);
         });
       });
@@ -453,8 +477,9 @@ function loadLatestTrip(callback){
         var _diagRef = document.getElementById("driver-diag") || document.querySelector(".topbar");
         if(_diagRef && _diagRef.parentNode) _diagRef.parentNode.insertBefore(tripDiagEl, _diagRef.nextSibling);
       }
-      tripDiagEl.textContent = "🚚 เที่ยวจาก username \"" + uname + "\": " + tripMatchCount.username + " | จากชื่อ \"" + dname + "\": " + tripMatchCount.name + " | รวมไม่ซ้ำ: " + DRIVER_TRIPS.length;
-      DRIVER_TRIPS.sort(function(a,b){ return String(b.createdAt||"").localeCompare(String(a.createdAt||"")); });
+      tripDiagEl.textContent = "🚚 เที่ยว username \"" + uname + "\": " + tripMatchCount.username
+        + " | ชื่อ \"" + dname + "\": " + tripMatchCount.name
+        + " | ไม่ซ้ำ " + rawCount + " (ปิดแล้ว " + hiddenClosed + ") → แสดง " + DRIVER_TRIPS.length;
       if(DRIVER_TRIPS.length === 0){ loadTripFromBills(callback); return; }
       _driverSortPick();
       var sel = DRIVER_TRIPS.find(function(t){ return t.id===SELECTED_TRIP_ID; });
@@ -483,6 +508,11 @@ function switchTrip(tripId){
 
 function renderBillListWithTrip(tripBillIds){
   var el = document.getElementById("bill-list");
+  // ไม่มีทั้งบิลและเที่ยว → ว่างจริง
+  if(BILLS.length === 0 && DRIVER_TRIPS.length === 0){
+    el.innerHTML = '<div class="empty-state"><div class="ico">✅</div><div class="msg">ไม่มีงานค้างในขณะนี้<br><br><button onclick="loadBills()" style="padding:8px 18px;background:#0F6E56;color:#fff;border:none;border-radius:8px;font-size:13px;cursor:pointer">🔄 รีเฟรช</button></div></div>';
+    return;
+  }
   // summary เฉพาะบิลใน trip ล่าสุด (ถ้ามี)
   // มี trip → แสดงเฉพาะบิลในเที่ยว, ไม่มี → แสดงทุกบิลของตัวเอง
   var hasTripData = tripBillIds && tripBillIds.length > 0;
@@ -574,6 +604,13 @@ function renderBillListWithTrip(tripBillIds){
     +'<button onclick="openPickupBill()" style="padding:5px 12px;background:#EF9F27;color:#fff;border:none;border-radius:8px;font-size:12px;cursor:pointer;font-weight:600">📦 ออกบิลรับงาน</button>'
     +'<button onclick="showDrHistory()" style="padding:5px 12px;background:#6c5ce7;color:#fff;border:none;border-radius:8px;font-size:12px;cursor:pointer;font-weight:600">📜 ประวัติ</button>'
     +'</div>';
+
+  if(summaryBills.length === 0){
+    html += '<div style="background:#fff8e1;border:1px solid #ffe082;border-radius:10px;padding:14px;font-size:12px;color:#8a6d3b;line-height:1.6">'
+      + 'เที่ยวนี้ยังไม่มีบิลที่พร้อมส่ง<br>'
+      + '<span style="font-size:11px;color:#a08a5e">อาจเป็นเพราะเสมียนยังไม่กด “ขึ้นของเสร็จ” หรือบิลยังไม่ถูกเปลี่ยนสถานะเป็นกำลังวิ่งส่ง — กดรีเฟรชอีกครั้งหลังเสมียนยืนยัน</span>'
+      + '</div>';
+  }
 
   summaryBills.forEach(function(b){
     var form = (typeof b.form === "object" && b.form) ? b.form : {};
