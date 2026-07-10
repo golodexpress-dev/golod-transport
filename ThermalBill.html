@@ -2037,7 +2037,7 @@ function BillList({
         background: "#f0f0f0",
         color: "#555"
       }
-    }, (_FREIGHT_PAY$find2 = FREIGHT_PAY.find(f => f.id === b.form.freightPay)) === null || _FREIGHT_PAY$find2 === void 0 ? void 0 : _FREIGHT_PAY$find2.label)), /*#__PURE__*/React.createElement("td", {
+    }, (_FREIGHT_PAY$find2 = FREIGHT_PAY.find(f => f.id === (b.freightPay || (b.form&&b.form.freightPay)))) === null || _FREIGHT_PAY$find2 === void 0 ? void 0 : _FREIGHT_PAY$find2.label)), /*#__PURE__*/React.createElement("td", {
       style: {
         padding: "7px 9px"
       }
@@ -4601,7 +4601,10 @@ function ThermalBillingApp() {
       // เติมที่อยู่ปลายทางจาก top-level ของบิล ถ้า form.* (ข้อมูลตอนสร้างบิล) ไม่มี — กันข้อมูลที่อนุมัติแล้วไม่โผล่ตอนพิมพ์
       receiverTambon: (viewBill.form&&viewBill.form.receiverTambon) || viewBill.destTambon || "",
       receiverAddr:   (viewBill.form&&viewBill.form.receiverAddr)   || viewBill.destAddr   || "",
-      receiverAmphoe: (viewBill.form&&viewBill.form.receiverAmphoe) || viewBill.destAmphoe || ""
+      receiverAmphoe: (viewBill.form&&viewBill.form.receiverAmphoe) || viewBill.destAmphoe || "",
+      // ⚠️ วิธีชำระ: top-level คือความจริง (ระบบการเงิน/เที่ยว อ่านตัวนี้)
+      // ตอนเสมียนอนุมัติบิลคนขับ เคยแก้แค่ top-level → form.freightPay ค้างค่าเดิม → พิมพ์ผิด
+      freightPay: viewBill.freightPay || (viewBill.form&&viewBill.form.freightPay) || "origin"
     }),
     items: viewBill.items,
     summary: viewBill.summary,
@@ -4660,7 +4663,7 @@ function ThermalBillingApp() {
     style: {
       color: "#854F0B"
     }
-  }, viewBill.summary.codTotal.toLocaleString("th-TH"), " \u0E3F")), /*#__PURE__*/React.createElement("div", null, "\u0E0A\u0E33\u0E23\u0E30: ", (_FREIGHT_PAY$find3 = FREIGHT_PAY.find(f => f.id === viewBill.form.freightPay)) === null || _FREIGHT_PAY$find3 === void 0 ? void 0 : _FREIGHT_PAY$find3.label))), /*#__PURE__*/React.createElement("div", {
+  }, viewBill.summary.codTotal.toLocaleString("th-TH"), " \u0E3F")), /*#__PURE__*/React.createElement("div", null, "\u0E0A\u0E33\u0E23\u0E30: ", (_FREIGHT_PAY$find3 = FREIGHT_PAY.find(f => f.id === (viewBill.freightPay || (viewBill.form&&viewBill.form.freightPay)))) === null || _FREIGHT_PAY$find3 === void 0 ? void 0 : _FREIGHT_PAY$find3.label))), /*#__PURE__*/React.createElement("div", {
     style: {
       marginTop: 10,
       padding: "10px 14px",
