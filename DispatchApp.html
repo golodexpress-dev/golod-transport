@@ -3145,7 +3145,7 @@ function canClearTrip(){
 }
 
 function _delBtnHtml(t){
-  var closed = (t.settlement&&t.settlement.status==="confirmed")||t.status==="cleared"||t.status==="closed";
+  var closed = (t.settlement&&t.settlement.status==="confirmed")||_tripCleared(t)||t.status==="closed";
   var label = closed ? "\ud83d\uddd1 ลบเที่ยว \u2014 เคลียร์แล้ว" : "\ud83d\uddd1 ลบเที่ยว";
   var tip = closed ? "เที่ยวนี้เคลียร์แล้ว ลบได้เฉพาะกรณีซ้ำ/ผิดพลาด ต้องพิมพ์ยืนยัน" : "ลบเที่ยว";
   return '<button class="btn" style="background:#c0392b;color:#fff" data-tid="'+t.id+'" onclick="deleteTrip(this.dataset.tid)" title="'+tip+'">'+label+'</button>';
@@ -3184,7 +3184,7 @@ function deleteTrip(id){
   var list=(_tripState&&_tripState.openTrips)||[];
   var t=list.find(function(x){return x.id===id;});
   if(!t){ alert("ไม่พบเที่ยว"); return; }
-  var isClosed = (t.settlement&&t.settlement.status==="confirmed")||t.status==="cleared"||t.status==="closed";
+  var isClosed = (t.settlement&&t.settlement.status==="confirmed")||_tripCleared(t)||t.status==="closed";
   if(isClosed){
     var warnMsg = "\u26a0\ufe0f คำเตือนสำคัญ!\n\nเที่ยวนี้เคลียร์/ปิดยอดแล้ว มีข้อมูลการเงินผูกอยู่ (ยอดเคลียร์ ประวัติจ่ายคนขับ)\nการลบจะทำให้ข้อมูลนี้หายถาวร กู้คืนไม่ได้\n\nใช้เฉพาะกรณีเที่ยวซ้ำ/สร้างผิดพลาดเท่านั้น!\n\nคนรถ: "+(t.driverName||t.driverUsername||"-")+"\nวันที่: "+(t.departDate||"-")+"\nเส้นทาง: "+(t.route||"-")+"\n\n\u2022 พิมพ์ \u201cลบถาวร\u201d (ไม่มีเว้นวรรค) แล้วกด OK เพื่อยืนยัน:";
     var typed = prompt(warnMsg);
@@ -3464,12 +3464,40 @@ function saveTrip(){
   }).catch(function(e){ alert("❌ "+e.message); });
 }
 
+// ===== สถานะเที่ยว: แยก "งาน" ออกจาก "เงิน" =====
+// status    = open / proposed / closed / cancelled  → วงจรชีวิตงาน (ตัวเดียวที่ใช้ซ่อนเที่ยวจากคนขับ)
+// clearedAt = เวลาที่เคลียร์เงิน                      → ไม่มีผลต่อการมองเห็นของคนขับ
+// รองรับข้อมูลเก่าที่เขียน status:"cleared" ปนมา (ก่อน migration)
+function _tripCleared(t){
+  if(!t) return false;
+  return !!t.clearedAt
+      || String(t.status||"").toLowerCase()==="cleared"
+      || !!(t.clearData && t.clearData.clearedAt);
+}
+
 function closeTrip(tripId){
   var t = (_tripState.openTrips||[]).find(function(x){ return x.id===tripId; });
-  var cleared = t && (t.status==="cleared" || (t.clearData && t.clearData.clearedAt));
-  var msg = cleared
+  var cleared = _tripCleared(t);
+
+  // ปิดเที่ยว = เที่ยวหายจาก DriverApp → คนขับอัพสถานะบิลไม่ได้อีก
+  // ตรวจก่อนว่าบิลในเที่ยวจบครบหรือยัง
+  var DONE_ST = ["ส่งสำเร็จ","delivered","ส่งไม่สำเร็จ","ส่งไม่ได้","ปิดงาน","นำกลับสาขา","ลูกค้ารับกลับ"];
+  var ids = (t && t.billIds) || [];
+  var pending = ids.filter(function(bn){
+    var b = (typeof BILLS!=="undefined") && BILLS.find(function(x){ return x.billNo===bn; });
+    if(!b) return false;                       // หาบิลไม่เจอ ไม่นับ (อาจยังไม่โหลด)
+    return DONE_ST.indexOf(b.status||"") < 0;  // ยังไม่จบ
+  });
+
+  var warn = "";
+  if(pending.length > 0){
+    warn = "🚨 ยังมีบิลที่ยังไม่จบ " + pending.length + " ใบ:\n"
+         + "   " + pending.slice(0,6).join(", ") + (pending.length>6?" …":"") + "\n\n"
+         + "ปิดเที่ยวแล้วเที่ยวจะหายจากแอปคนขับ — อัพสถานะบิลเหล่านี้ไม่ได้อีก\n\n";
+  }
+  var msg = warn + (cleared
     ? "ปิดเที่ยวนี้? (เคลียร์เงินแล้ว)\nปิดแล้วจะย้ายไปตารางเที่ยวที่ปิดแล้ว"
-    : "⚠️ เที่ยวนี้ยังไม่ได้เคลียร์เงิน!\nควรกด 💰 เคลียร์เที่ยว ก่อนปิด\n\nยืนยันปิดเลยหรือไม่?";
+    : "⚠️ เที่ยวนี้ยังไม่ได้เคลียร์เงิน!\nควรกด 💰 เคลียร์เที่ยว ก่อนปิด\n\nยืนยันปิดเลยหรือไม่?");
   if(!confirm(msg)) return;
   GolodDB.updateTrip(tripId, {status:"closed", closedAt: new Date().toISOString()})
     .then(function(){ renderTripTab(); })
@@ -3478,10 +3506,8 @@ function closeTrip(tripId){
 
 function reopenTrip(tripId){
   if(!confirm("เปิดเที่ยวนี้กลับมาแก้ไข/เคลียร์อีกครั้ง?")) return;
-  // ถ้าเคยเคลียร์แล้วให้กลับเป็น cleared ไม่งั้นเป็น open
-  var t = (_tripState.openTrips||[]).find(function(x){ return x.id===tripId; });
-  var back = (t && t.clearData && t.clearData.clearedAt) ? "cleared" : "open";
-  GolodDB.updateTrip(tripId, {status:back, closedAt: null})
+  // กลับเป็น open เสมอ — ข้อมูลการเคลียร์เงินอยู่ที่ clearedAt/clearData ไม่ใช่ status
+  GolodDB.updateTrip(tripId, {status:"open", closedAt: null})
     .then(function(){ renderTripTab(); })
     .catch(function(e){ alert("❌ "+e.message); });
 }
@@ -4130,7 +4156,7 @@ function _clrSave(){
   t.clearData=clearData;
   t.odomEnd=f.me; t.clrCash=cash; t.clrTrans=trans; t.toll=toll; t.tax=tax; t.otherExpense=other;
   if(GolodDB.updateTrip){
-    GolodDB.updateTrip(t.id,{clearData:clearData, odomEnd:f.me, clrCash:cash, clrTrans:trans, toll:toll, tax:tax, otherExpense:other})
+    GolodDB.updateTrip(t.id,{clearData:clearData, clearedAt:clearData.clearedAt, clearedBy:clearData.clearedBy, odomEnd:f.me, clrCash:cash, clrTrans:trans, toll:toll, tax:tax, otherExpense:other})
       .then(function(){ alert("✅ บันทึกการเคลียร์แล้ว (เขียนกลับเที่ยว · sync ทุกเครื่อง)"); })
       .catch(function(){ alert("⚠️ บันทึกในเครื่องแล้ว แต่ sync Firestore ไม่สำเร็จ"); });
   } else { alert("บันทึกแล้ว"); }
@@ -4295,7 +4321,7 @@ function renderMonthlyView(drivers, allTrips, selMonth, selDriver, dateFrom, dat
       tot.delivered+=(delivered||0); tot.failed+=(failed||0); tot.workFee+=(workFee||0);
       tot.billCount=(tot.billCount||0)+(billCount||0); tot.phone=(tot.phone||0)+phoneT;
 
-      var status = t.status==="cleared"?'<span style="color:#0F6E56;font-weight:700">✅</span>'
+      var status = _tripCleared(t)?'<span style="color:#0F6E56;font-weight:700">✅</span>'
                  : t.status==="open"?'<span style="color:#EF9F27">🟡</span>':'';
       var diffClr = diff<0?"color:#c0392b":"color:#0F6E56";
       var rowClick = canClearTrip()? ' onclick="openClearTripFromMonthly(\''+t.id+'\')" style="border-bottom:1px solid #f0f0f0;cursor:pointer" title="คลิกเพื่อแก้ไข/เคลียร์เที่ยวนี้"'
@@ -6989,7 +7015,7 @@ function calcClearDiff(){
 function saveClearTrip(){
   if(!_clearTripId) return;
   var _ctTrip=_clearTripData||{};
-  var _ctDispatched=(_ctTrip.autoDispatched===true)||(_ctTrip.settlement&&_ctTrip.settlement.status==="confirmed")||_ctTrip.status==="open"||_ctTrip.status==="cleared";
+  var _ctDispatched=(_ctTrip.autoDispatched===true)||(_ctTrip.settlement&&_ctTrip.settlement.status==="confirmed")||_ctTrip.status==="open"||_tripCleared(_ctTrip);
   if(!_ctDispatched){
     if(!confirm("\u26a0\ufe0f เที่ยวนี้ยังไม่ได้จ่ายงานให้คนรถ (ยังไม่อนุมัติ/ส่งงาน)\n\nการกด \u201cบันทึกเคลียร์\u201d จะปิดเที่ยวเป็น \u201cเคลียร์แล้ว\u201d และทำให้ออโต้ส่งงานไม่ทำงาน\n\nถ้าต้องการแค่ตั้งวันถึงผู้รับ ให้กดปุ่ม \u201c\ud83d\udcbe บันทึกวันถึงผู้รับ\u201d ในกล่องสีม่วงแทน\n\nยืนยันจะเคลียร์เงินเที่ยวนี้?")) return;
   }
@@ -7056,9 +7082,16 @@ function saveClearTrip(){
     clearedBy: CU ? CU.username : ""
   };
 
-  GolodDB.updateTrip(_clearTripId, {clearData: clearData, clearRemarks: _clearRemarks, status:"cleared", fuelPrice:fuelPrice, fuelRate:fuelRate, odomEnd:odoEnd})
+  GolodDB.updateTrip(_clearTripId, {
+    clearData: clearData, clearRemarks: _clearRemarks,
+    // ⚠️ ห้ามเขียน status:"cleared" — จะทำให้เที่ยวหายจาก DriverApp ทั้งที่บิลยังส่งไม่ครบ
+    // เคลียร์เงิน = clearedAt / ปิดงาน = กดปุ่ม "✅ ปิดเที่ยว" (status:"closed")
+    clearedAt: clearData.clearedAt,
+    clearedBy: clearData.clearedBy,
+    fuelPrice:fuelPrice, fuelRate:fuelRate, odomEnd:odoEnd
+  })
     .then(function(){
-      alert("✅ บันทึกการเคลียร์แล้ว");
+      alert("✅ บันทึกการเคลียร์แล้ว\n\nเที่ยวยังเปิดอยู่ — คนขับอัพสถานะบิลที่เหลือได้\nเมื่องานจบครบแล้ว กด \"✅ ปิดเที่ยว\"");
       closeClearTrip();
       renderTripTab();
     }).catch(function(e){ alert("❌ "+e.message); });

@@ -408,6 +408,18 @@ function renderBillList(){
 var DRIVER_TRIPS = [];
 var SELECTED_TRIP_ID = null;
 
+// ===== สถานะเที่ยว: แยก "งาน" กับ "เงิน" ออกจากกัน =====
+// status    = open / closed / cancelled  → วงจรชีวิตงาน (ตัวเดียวที่ใช้ซ่อนเที่ยว)
+// clearedAt = เวลาเคลียร์เงิน (ไม่มี = ยังไม่เคลียร์)  → ไม่มีผลต่อการมองเห็น
+// รองรับข้อมูลเก่าที่เขียน status:"cleared" ปนมา
+function _tripCleared(t){
+  return !!t.clearedAt || String(t.status||"").toLowerCase()==="cleared";
+}
+function _tripClosed(t){
+  var st = String(t.status||"").toLowerCase();
+  return st==="closed" || st==="cancelled" || st==="ยกเลิก";
+}
+
 // แปลงวันที่ให้เทียบกันได้เสมอ — รองรับทั้ง 2026-07-08 และ 08/07/2026
 function _tripDateKey(t){
   var v = String(t.departDate || t.createdAt || "");
@@ -461,10 +473,9 @@ function loadLatestTrip(callback){
           if(id && seen[id]) return; if(id) seen[id]=1;
           if(!d.id) d.id = doc.id;   // เที่ยวเก่าบางใบไม่มี field id ในตัว doc
           rawCount++;
-          // กรองฝั่ง client: ซ่อนเฉพาะเที่ยวที่ปิดจบแล้วจริงๆ
-          // ที่เหลือ (open / cleared / ไม่มี status / ค่าอื่น) แสดงทั้งหมด
-          var st = String(d.status||"").toLowerCase();
-          if(st==="closed" || st==="cancelled" || st==="ยกเลิก"){ hiddenClosed++; return; }
+          // กรองฝั่ง client: ซ่อนเฉพาะเที่ยวที่ปิดงานแล้วจริงๆ
+          // เที่ยวที่เคลียร์เงินแล้ว (clearedAt / status "cleared" ของเก่า) ยังต้องแสดง
+          if(_tripClosed(d)){ hiddenClosed++; return; }
           DRIVER_TRIPS.push(d);
         });
       });
@@ -542,12 +553,18 @@ function renderBillListWithTrip(tripBillIds){
       +'<select onchange="switchTrip(this.value)" style="flex:1;padding:8px 10px;border:1px solid #d0ede5;border-radius:8px;font-size:12px;background:#fff">'
       +DRIVER_TRIPS.map(function(t){
         var sel = t.id===SELECTED_TRIP_ID ? " selected" : "";
-        var st = t.status==="cleared"?" ✅":"";
+        var st = _tripCleared(t)?" 💵เคลียร์เงินแล้ว":"";
         var label = (t.route||"ไม่ระบุเส้นทาง")+" ("+fmtDate(t.departDate||t.createdAt)+") — "+(t.summary?t.summary.billCount+"ใบ":(t.billIds||[]).length+"ใบ")+st;
         return '<option value="'+t.id+'"'+sel+'>'+label+'</option>';
       }).join("")
       +'</select>'
-      +'<button data-tid="'+SELECTED_TRIP_ID+'" onclick="openDriverClearTrip(this.dataset.tid)" style="padding:8px 12px;background:#EF9F27;color:#fff;border:none;border-radius:8px;font-size:12px;font-weight:700;cursor:pointer;white-space:nowrap">💰 เคลียร์</button>'
+      +(function(){
+        var t=DRIVER_TRIPS.find(function(x){return x.id===SELECTED_TRIP_ID;});
+        if(t && _tripCleared(t)){
+          return '<button disabled style="padding:8px 12px;background:#dfe6e9;color:#7f8c8d;border:none;border-radius:8px;font-size:12px;font-weight:700;white-space:nowrap;cursor:not-allowed">💵 เคลียร์แล้ว</button>';
+        }
+        return '<button data-tid="'+SELECTED_TRIP_ID+'" onclick="openDriverClearTrip(this.dataset.tid)" style="padding:8px 12px;background:#EF9F27;color:#fff;border:none;border-radius:8px;font-size:12px;font-weight:700;cursor:pointer;white-space:nowrap">💰 เคลียร์</button>';
+      })()
       +'</div>'
       +(function(){
         var t=DRIVER_TRIPS.find(function(x){return x.id===SELECTED_TRIP_ID;});
@@ -1061,11 +1078,15 @@ function saveDriverClearTrip(){
   var diff=(clrC+clrT)-mustPay;
   var fine=diff<0?(Math.abs(diff)>=2500?Math.round(Math.abs(diff)*0.05):Math.abs(diff)>=1200?Math.round(Math.abs(diff)*0.03):0):0;
   if(!GolodDB.updateTrip){alert("แจ้งเสมียนให้บันทึก");return;}
+  var _now = new Date().toISOString();
   GolodDB.updateTrip(_driverClearTripId,{
     clearData:{odomEnd:odoE,distReal:dist,fuelReal:fuelR,
       mustPay:mustPay,clrCash:clrC,clrTrans:clrT,diff:diff,fine:fine,
-      clearedAt:new Date().toISOString(),clearedBy:CU?CU.username:""},
-    status:"cleared"
+      clearedAt:_now,clearedBy:CU?CU.username:""},
+    // ⚠️ ห้ามเขียน status:"cleared" — status คุม "งาน" ไม่ใช่ "เงิน"
+    // ถ้าเขียน เที่ยวจะหายจาก DriverApp ทันทีทั้งที่บิลยังส่งไม่ครบ
+    clearedAt:_now,
+    clearedBy:CU?CU.username:""
   }).then(function(){
     alert("✅ ส่งยอดเคลียร์แล้ว รอเสมียนยืนยัน");
     closeDriverClearTrip();
