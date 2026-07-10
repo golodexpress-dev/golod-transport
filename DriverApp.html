@@ -351,9 +351,9 @@ function loadBills(){
     var dname = CU.name || "";
     var queries = [];   // {p: promise, type: "username"|"name"}
     ACTIVE.forEach(function(st){
-      if(uname) queries.push({type:"username", p:db.collection("bills").where("driver","==",uname).where("status","==",st).limit(200).get()});
+      if(uname) queries.push({type:"username", p:db.collection("bills").where("driver","==",uname).where("status","==",st).limit(500).get()});
       // จับคู่ด้วยชื่อด้วย — กันบิลที่มอบด้วยชื่อ (รถร่วม/พิมพ์ชื่อเอง) ไม่ตรงกับ username ไม่โผล่ในแอพคนขับ
-      if(dname && dname!==uname) queries.push({type:"name", p:db.collection("bills").where("driverName","==",dname).where("status","==",st).limit(200).get()});
+      if(dname && dname!==uname) queries.push({type:"name", p:db.collection("bills").where("driverName","==",dname).where("status","==",st).limit(500).get()});
     });
 
     Promise.all(queries.map(function(q){ return q.p.catch(function(e){ console.warn("[DriverApp] bills query fail:", e&&e.message); return null; }); })).then(function(results){
@@ -426,22 +426,34 @@ function loadLatestTrip(callback){
   var col = db.collection("trips");
   // ดึงเที่ยวที่มอบให้คนขับคนนี้ — จับคู่ได้ทั้ง driverUsername และ driverName
   // (คนขับลงทะเบียน = username, รถร่วม/พิมพ์ชื่อเอง = ชื่อ) กันปัญหา "เห็นแค่บางเที่ยว"
-  var qs = [];
-  // เพิ่ม limit จาก 20 เป็น 100 — กันเที่ยวสำคัญหลุดถ้ามีเที่ยว open ค้างสะสมเกิน 20 เที่ยว (เคยเจอเคสนี้จริง)
-  if(uname) qs.push(col.where("driverUsername","==",uname).where("status","==","open").limit(100).get());
-  if(dname && dname!==uname) qs.push(col.where("driverName","==",dname).where("status","==","open").limit(100).get());
+  var qs = [];   // {type:"username"|"name", p:promise}
+  // เพิ่ม limit จาก 100 เป็น 500 — บางสาขา (โคราช/ศรีสะเกษ) มีเที่ยว open ค้างสะสมเยอะกว่า อาจเกิน 100 ทำให้เที่ยวล่าสุดหลุดได้เหมือนกัน
+  if(uname) qs.push({type:"username", p:col.where("driverUsername","==",uname).where("status","==","open").limit(500).get()});
+  if(dname && dname!==uname) qs.push({type:"name", p:col.where("driverName","==",dname).where("status","==","open").limit(500).get()});
   if(qs.length===0){ loadTripFromBills(callback); return; }
-  Promise.all(qs.map(function(p){ return p.catch(function(e){ console.warn("[DriverApp] trip query fail:", e&&e.message); return null; }); }))
+  Promise.all(qs.map(function(q){ return q.p.catch(function(e){ console.warn("[DriverApp] trip query fail:", e&&e.message); return null; }); }))
     .then(function(snaps){
       var seen={}; DRIVER_TRIPS = [];
-      snaps.forEach(function(snap){
+      var tripMatchCount = {username:0, name:0};
+      snaps.forEach(function(snap, i){
         if(!snap) return;
+        tripMatchCount[qs[i].type] += snap.size;
         snap.forEach(function(doc){
           var d=doc.data(); var id=d.id||doc.id;
           if(id && seen[id]) return; if(id) seen[id]=1;
           DRIVER_TRIPS.push(d);
         });
       });
+      // ป้ายวินิจฉัยระดับ "เที่ยว" (คนละอันกับป้ายระดับ "บิล") — โผล่ใต้ป้ายบิล ถ้ามี
+      var tripDiagEl = document.getElementById("trip-diag");
+      if(!tripDiagEl){
+        tripDiagEl = document.createElement("div");
+        tripDiagEl.id = "trip-diag";
+        tripDiagEl.style.cssText = "font-size:10px;color:#888;padding:4px 12px;background:#f0f0ff";
+        var _diagRef = document.getElementById("driver-diag") || document.querySelector(".topbar");
+        if(_diagRef && _diagRef.parentNode) _diagRef.parentNode.insertBefore(tripDiagEl, _diagRef.nextSibling);
+      }
+      tripDiagEl.textContent = "🚚 เที่ยวจาก username \"" + uname + "\": " + tripMatchCount.username + " | จากชื่อ \"" + dname + "\": " + tripMatchCount.name + " | รวมไม่ซ้ำ: " + DRIVER_TRIPS.length;
       DRIVER_TRIPS.sort(function(a,b){ return String(b.createdAt||"").localeCompare(String(a.createdAt||"")); });
       if(DRIVER_TRIPS.length === 0){ loadTripFromBills(callback); return; }
       _driverSortPick();
@@ -1224,14 +1236,21 @@ function showDrHistory(){
   // 2) ดึงจาก Firestore: บิลทั้งหมดที่คนรถคนนี้ออก (ทุกเครื่องเห็นตรงกัน)
   try{
     var db=firebase.firestore();
-    db.collection("bills").where("driver","==",(CU?CU.username:"")).limit(100).get().then(function(snap){
-      var arr=[]; snap.forEach(function(doc){
+    var _hUname=(CU?CU.username:""), _hDname=(CU?CU.name:"");
+    var _hQs=[db.collection("bills").where("driver","==",_hUname).limit(500).get()];
+    if(_hDname && _hDname!==_hUname) _hQs.push(db.collection("bills").where("driverName","==",_hDname).limit(500).get());
+    Promise.all(_hQs.map(function(p){ return p.catch(function(){ return null; }); })).then(function(snaps){
+      var arr=[]; var _seen={};
+      snaps.forEach(function(snap){ if(!snap) return; snap.forEach(function(doc){
         var d=doc.data(); var f=d.form||{};
+        if(d.billNo && _seen[d.billNo]) return;   // กันบิลซ้ำ ถ้า match ทั้ง 2 query (username กับชื่อ)
+        if(d.billNo) _seen[d.billNo]=1;
         var ts=d.createdAt||d.updatedAt||"";
         arr.push({billNo:d.billNo, receiverName:d.receiverName||f.receiverName||"", destProv:d.destProv||f.destProv||"",
           items:Array.isArray(d.items)?d.items:(Array.isArray(f.items)?f.items:[]),
           freight:d.freightNet||0, status:d.status||"",
           time:String(ts).slice(0,16).replace("T"," "), _ts:String(ts)});
+        });
       });
       var seen={}; arr.forEach(function(x){ seen[x.billNo]=1; });
       localH.forEach(function(x){ if(x.billNo && !seen[x.billNo]) arr.push(x); });
