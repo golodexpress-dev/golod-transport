@@ -14,7 +14,7 @@
   <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
 </head><body>
 <div class="golod-bar no-print">
-  <h1>โกโลด ทรานสปอร์ต — ออกบิล Thermal 80mm <span style="font-size:11px;font-weight:400;opacity:.6">build 2026-07-11·b48</span></h1>
+  <h1>โกโลด ทรานสปอร์ต — ออกบิล Thermal 80mm <span style="font-size:11px;font-weight:400;opacity:.6">build 2026-07-11·b49</span></h1>
   <div id="golod-chip"></div>
   <a href="GolodApp.html" style="font-size:11px;color:#9FE1CB;background:rgba(255,255,255,.15);padding:3px 10px;border-radius:20px;text-decoration:none">← หน้าหลัก</a>
   <a href="DailyReport.html" style="font-size:11px;color:#FFE082;background:rgba(255,255,255,.15);padding:3px 10px;border-radius:20px;text-decoration:none">📊 รายงานสิ้นวัน</a>
@@ -1395,11 +1395,14 @@ function ThermalBill({
     const sz = calcSize(item.kg, sumCm);
     const z = getZone(form.branch, form.destProv, form.receiverAmphoe);
     const upCalc = getSizePrice(sz, z, item.cpN, item.cpF);
-    // บิลมือใช้ item.price โดยตรง ถ้ามีค่า / บิลยอดรวม (_hideUnitFreight) → ไม่แสดงราคาต่อชิ้น
+    // ลำดับ: spLock (เรทพิเศษ) > item.price/บิลมือ/customPrice > อัตโนมัติตามขนาด
+    const _spLocked = item.spLock !== undefined && item.spLock !== "";
     const up = form._hideUnitFreight ? 0
-      : ((form.isManual || parseFloat(item.price) > 0) && parseFloat(item.price) > 0
-        ? parseFloat(item.price)
-        : upCalc);
+      : (_spLocked ? (parseFloat(item.spLock) || 0)
+        : ((item.customPrice !== undefined && item.customPrice !== "") ? (parseFloat(item.customPrice) || 0)
+        : ((form.isManual || parseFloat(item.price) > 0) && parseFloat(item.price) > 0
+          ? parseFloat(item.price)
+          : upCalc)));
     const lt = form._hideUnitFreight ? 0 : up * (parseInt(item.qty) || 1);
     return /*#__PURE__*/React.createElement(React.Fragment, {
       key: item.id
@@ -3665,7 +3668,8 @@ function ThermalBillingApp() {
       const autoRows = items.map((it, i) => {
         const scA = parseFloat(it.sumCm) || (parseFloat(it.w)||0)+(parseFloat(it.l)||0)+(parseFloat(it.h)||0);
         const szA = calcSize(it.kg, scA);
-        const isAuto = (it.customPrice === undefined || it.customPrice === "") && szA.id !== "custom";
+        const _spL = it.spLock !== undefined && it.spLock !== "";
+        const isAuto = !_spL && (it.customPrice === undefined || it.customPrice === "") && szA.id !== "custom";
         const autoP = getSizePrice(szA, zone, it.cpN, it.cpF);
         return isAuto ? { n: i+1, desc: it.desc || "(ไม่มีชื่อ)", price: autoP, size: szA.label } : null;
       }).filter(Boolean);
