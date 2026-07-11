@@ -14,7 +14,7 @@
   <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
 </head><body>
 <div class="golod-bar no-print">
-  <h1>โกโลด ทรานสปอร์ต — ออกบิล Thermal 80mm <span style="font-size:11px;font-weight:400;opacity:.6">build 2026-07-11·b44</span></h1>
+  <h1>โกโลด ทรานสปอร์ต — ออกบิล Thermal 80mm <span style="font-size:11px;font-weight:400;opacity:.6">build 2026-07-11·b47</span></h1>
   <div id="golod-chip"></div>
   <a href="GolodApp.html" style="font-size:11px;color:#9FE1CB;background:rgba(255,255,255,.15);padding:3px 10px;border-radius:20px;text-decoration:none">← หน้าหลัก</a>
   <a href="DailyReport.html" style="font-size:11px;color:#FFE082;background:rgba(255,255,255,.15);padding:3px 10px;border-radius:20px;text-decoration:none">📊 รายงานสิ้นวัน</a>
@@ -1001,7 +1001,8 @@ function GoodsInput({
   value,
   goodsType,
   onChange,
-  style
+  style,
+  disabled
 }) {
   const [sugg, setSugg] = useState([]);
   const [show, setShow] = useState(false);
@@ -1025,12 +1026,15 @@ function GoodsInput({
     }
   }, /*#__PURE__*/React.createElement("input", {
     value: value,
+    disabled: disabled,
     onChange: e => {
+      if(disabled) return;
       onChange(e.target.value);
       search(e.target.value);
       setShow(true);
     },
     onFocus: () => {
+      if(disabled) return;
       search(value || " ");
       setShow(true);
     },
@@ -1038,7 +1042,8 @@ function GoodsInput({
     placeholder: "\u0E0A\u0E37\u0E48\u0E2D\u0E2A\u0E34\u0E19\u0E04\u0E49\u0E32 / \u0E23\u0E32\u0E22\u0E01\u0E32\u0E23",
     style: {
       ...style,
-      width: "100%"
+      width: "100%",
+      ...(disabled ? {background:"#eef7f2",color:"#0F6E56",fontWeight:600,cursor:"not-allowed"} : {})
     }
   }), show && sugg.length > 0 && /*#__PURE__*/React.createElement("div", {
     style: {
@@ -1654,7 +1659,11 @@ function ItemRow({
       padding: "2px 8px",
       borderRadius: 20
     }
-  }, "#", idx + 1), size.id !== "custom" && zone && /*#__PURE__*/React.createElement("span", {
+  }, "#", idx + 1), spLocked
+    ? /*#__PURE__*/React.createElement("span", {
+        style: { fontSize:11, background:"#E1F5EE", padding:"2px 8px", borderRadius:20, color:"#0F6E56", fontWeight:600 }
+      }, (item.spLabel||"เรทพิเศษ"), " = ", /*#__PURE__*/React.createElement("strong", null, up, "\u0E3F/\u0E0A\u0E34\u0E49\u0E19"))
+    : (size.id !== "custom" && zone && /*#__PURE__*/React.createElement("span", {
     style: {
       fontSize: 11,
       background: "#f0f0f0",
@@ -1662,7 +1671,7 @@ function ItemRow({
       borderRadius: 20,
       color: "#555"
     }
-  }, size.label, " = ", /*#__PURE__*/React.createElement("strong", null, up, "\u0E3F/\u0E0A\u0E34\u0E49\u0E19")), /*#__PURE__*/React.createElement("span", {
+  }, size.label, " = ", /*#__PURE__*/React.createElement("strong", null, up, "\u0E3F/\u0E0A\u0E34\u0E49\u0E19"))), /*#__PURE__*/React.createElement("span", {
     style: {
       fontSize: 12,
       fontWeight: 700,
@@ -1716,12 +1725,15 @@ function ItemRow({
     c: "\u0E23\u0E32\u0E22\u0E25\u0E30\u0E40\u0E2D\u0E35\u0E22\u0E14\u0E2A\u0E34\u0E19\u0E04\u0E49\u0E32"
   }), /*#__PURE__*/React.createElement(GoodsInput, {
     value: item.desc,
+    disabled: spLocked,
     onChange: (d, gt) => {
       u("desc", d);
       u("goodsType", gt ? gt : classifyGoods(d));
     },
     style: INP
-  }), /*#__PURE__*/React.createElement("div", {
+  }), spLocked
+    ? /*#__PURE__*/React.createElement("div", {style:{fontSize:9,color:"#0F6E56",marginTop:2}}, "🔒 ชื่อล็อกตามเรทพิเศษ — กด ✕ ยกเลิก เพื่อพิมพ์เอง")
+    : /*#__PURE__*/React.createElement("div", {
     style: {
       fontSize: 9,
       color: "#1D9E75",
@@ -1793,7 +1805,8 @@ function ItemRow({
         u("spLock", String(r.price));         // ล็อกราคาเรทพิเศษ
         u("spLabel", r.label);
         u("customPrice", "");                 // เคลียร์ราคาพิมพ์เอง กันชนกัน
-        if(!item.desc || !item.desc.trim()){ u("desc", DIM_GOODS[gid].label); u("goodsType", classifyGoods(DIM_GOODS[gid].label)); }
+        u("desc", DIM_GOODS[gid].label);      // ชื่อสินค้า = ชื่อเรท (ล็อกให้ตรงกัน)
+        u("goodsType", classifyGoods(DIM_GOODS[gid].label));
       },
       style: {border:"1px solid #d9c48a",background:"#fdf6e3",borderRadius:5,padding:"4px 6px",cursor:"pointer",fontSize:11,color:"#7a5c00",fontWeight:600}
     },
@@ -1813,7 +1826,8 @@ function ItemRow({
         u("spLock", String(r.price));
         u("spLabel", r.label);
         u("customPrice", "");
-        if(!item.desc || !item.desc.trim()){ u("desc", r.label); u("goodsType", classifyGoods(r.label)); }
+        u("desc", r.label);                   // ชื่อสินค้า = ชื่อเรท (ล็อกให้ตรงกัน)
+        u("goodsType", classifyGoods(r.label));
       },
       style: {border:"1px solid #9ec5e8",background:"#eef6fd",borderRadius:5,padding:"4px 6px",cursor:"pointer",fontSize:11,color:"#0c447c",fontWeight:600}
     },
