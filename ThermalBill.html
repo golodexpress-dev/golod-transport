@@ -14,7 +14,7 @@
   <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
 </head><body>
 <div class="golod-bar no-print">
-  <h1>โกโลด ทรานสปอร์ต — ออกบิล Thermal 80mm <span style="font-size:11px;font-weight:400;opacity:.6">build 2026-07-10·b38</span></h1>
+  <h1>โกโลด ทรานสปอร์ต — ออกบิล Thermal 80mm <span style="font-size:11px;font-weight:400;opacity:.6">build 2026-07-11·b41</span></h1>
   <div id="golod-chip"></div>
   <a href="GolodApp.html" style="font-size:11px;color:#9FE1CB;background:rgba(255,255,255,.15);padding:3px 10px;border-radius:20px;text-decoration:none">← หน้าหลัก</a>
   <a href="DailyReport.html" style="font-size:11px;color:#FFE082;background:rgba(255,255,255,.15);padding:3px 10px;border-radius:20px;text-decoration:none">📊 รายงานสิ้นวัน</a>
@@ -853,6 +853,62 @@ function getSizePrice(size, zone, cpN, cpF) {
   if (zone === "special") return (size.near || 0) + SPECIAL_SURCHARGE;
   return zone === "near" ? size.near : size.far;
 }
+
+// ===== สินค้าคิดตาม "ยาว+น้ำหนัก" — ตรงกับ Quote.html DIM_GOODS =====
+var DIM_GOODS = {
+  tile: { label:"กระเบื้อง", bands:[
+    {maxCm:60,  label:"ยาว≤60ซม",  w:[{maxKg:20,near:120,far:150},{maxKg:25,near:150,far:180},{maxKg:30,near:180,far:220},{maxKg:35,near:220,far:240}]},
+    {maxCm:90,  label:"ยาว≤90ซม",  w:[{maxKg:20,near:150,far:180},{maxKg:25,near:200,far:220},{maxKg:30,near:220,far:240},{maxKg:35,near:240,far:300}]},
+    {maxCm:120, label:"ยาว≤120ซม", w:[{maxKg:20,near:180,far:220},{maxKg:25,near:220,far:240},{maxKg:30,near:240,far:300},{maxKg:35,near:300,far:340}]},
+    {maxCm:180, label:"ยาว≤180ซม", w:[{maxKg:35,near:400,far:500}]}
+  ]},
+  wood: { label:"ไม้เทียม", bands:[
+    {maxCm:300, label:"ยาว≤3ม", w:[{maxKg:25,near:400,far:500},{maxKg:30,near:450,far:500},{maxKg:35,near:500,far:600}]},
+    {maxCm:400, label:"ยาว≤4ม", w:[{maxKg:25,near:500,far:600},{maxKg:30,near:600,far:700},{maxKg:35,near:700,far:800}]},
+    {maxCm:600, label:"ยาว≤6ม", w:[{maxKg:35,near:1500,far:1800}]}
+  ]}
+};
+// แยกความยาวจาก string ขนาด "กxยxส" → เอาเลขมากสุด
+function tileMaxDim(sizeStr){
+  var nums = String(sizeStr||"").match(/\d+(\.\d+)?/g);
+  if(!nums||!nums.length) return 0;
+  return Math.max.apply(null, nums.map(parseFloat));
+}
+function dimGoodsMaxCmTB(goodsId){ var g=DIM_GOODS[goodsId]; return g? g.bands[g.bands.length-1].maxCm : 0; }
+function dimGoodsPriceTB(goodsId, kg, cm, zone){
+  var g=DIM_GOODS[goodsId]; if(!g) return {err:"ไม่รู้จักสินค้า"};
+  kg=parseFloat(kg)||0; cm=parseFloat(cm)||0;
+  if(kg<=0||cm<=0) return {err:"กรอกน้ำหนัก(กก.)และขนาดของแถวนี้ก่อน"};
+  var band=g.bands.filter(function(b){return cm<=b.maxCm;})[0];
+  if(!band) return {err:g.label+"ยาวเกิน "+dimGoodsMaxCmTB(goodsId)+" ซม. — ตีราคาพิเศษ"};
+  var row=band.w.filter(function(x){return kg<=x.maxKg;})[0];
+  if(!row) return {err:"น้ำหนักเกินเรทไซส์นี้ — ตีราคาพิเศษ"};
+  var price=(zone==="near")?row.near:row.far;
+  return {price:price, label:g.label+" "+band.label+" ≤"+row.maxKg+"กก"};
+}
+
+// ===== สินค้าพิเศษเรทเหมาต่อหน่วย (น้ำมัน/น้ำยา ฯลฯ) — ตรงกับ Quote.html SPECIAL_ITEMS =====
+// special = เรทเมื่อปลายทางเป็นพื้นที่พิเศษ · special2 = เมื่อพื้นที่พิเศษมีขั้นต่ำ ≥1000
+var SP_RATE = [
+ {id:"oil_small", label:"น้ำมันเครื่อง/ไฮดรอลิก 18-20 ลิตร", near:120, far:150, special:180,  special2:null},
+ {id:"oil_drum",  label:"น้ำมันเครื่อง/ไฮดรอลิก ถัง 200 ลิตร", near:800, far:900, special:1000, special2:1200},
+ {id:"chem_small",label:"น้ำยา 20 ลิตร (≤23 กก.)",           near:150, far:180, special:200,  special2:null},
+ {id:"chem_drum", label:"น้ำยา ถัง 200 ลิตร",                near:900, far:1000,special:1200, special2:null}
+];
+// คืน {price,label} — zone/saMin คิดจากปลายทาง (specialAreaMin มีอยู่แล้วในไฟล์)
+function spRatePrice(id, zone, prov, amphoe){
+  var row = SP_RATE.filter(function(x){return x.id===id;})[0];
+  if(!row) return null;
+  var saMin = (typeof specialAreaMin==="function") ? specialAreaMin(prov,amphoe) : 0;
+  var price;
+  if(row.special!=null && saMin>0){
+    price = (saMin>=1000) ? (row.special2||row.special) : row.special;
+  } else {
+    price = (zone==="near") ? row.near : row.far;
+  }
+  return {price:price, label:row.label};
+}
+
 // genBillNo — ดึง max billNo จาก Firestore เพื่อป้องกันเลขซ้ำ/ข้าม
 async function genBillNo(staff) {
   const d = new Date();
@@ -4932,7 +4988,51 @@ function ManualBillForm({ staffCode, staffName, onSave }) {
             React.createElement("td",{style:{padding:"3px 4px"}},React.createElement("input",{type:"number",value:it.qty,onChange:e=>{const ni=[...items];ni[i]={...ni[i],qty:e.target.value};setItems(ni);},style:{...INP2,width:50,textAlign:"center"}})),
             React.createElement("td",{style:{padding:"3px 4px"}},React.createElement("input",{value:it.w,onChange:e=>{const ni=[...items];ni[i]={...ni[i],w:e.target.value};setItems(ni);},style:{...INP2,width:70}})),
             React.createElement("td",{style:{padding:"3px 4px"}},React.createElement("input",{value:it.size,onChange:e=>{const ni=[...items];ni[i]={...ni[i],size:e.target.value};setItems(ni);},style:{...INP2,width:80},placeholder:"กxยxส"})),
-            React.createElement("td",{style:{padding:"3px 4px"}},React.createElement("input",{type:"number",value:it.price||"",onChange:e=>{const ni=[...items];ni[i]={...ni[i],price:parseFloat(e.target.value)||0};setItems(ni);},style:{...INP2,width:80,textAlign:"right"}})),
+            React.createElement("td",{style:{padding:"3px 4px"}},
+              React.createElement("div",{style:{display:"flex",flexDirection:"column",gap:3}},
+                React.createElement("div",{style:{display:"flex",gap:3,alignItems:"center"}},
+                  React.createElement("input",{type:"number",value:it.price||"",onChange:e=>{const ni=[...items];ni[i]={...ni[i],price:parseFloat(e.target.value)||0};setItems(ni);},style:{...INP2,width:70,textAlign:"right"}}),
+                  React.createElement("select",{
+                    value:"",
+                    title:"ดึงเรทสินค้าคิดตามยาว+น้ำหนัก จากแถวนี้",
+                    onChange:e=>{
+                      var gid=e.target.value; if(!gid) return;
+                      var _br = (typeof getSessionBranch==="function" ? getSessionBranch() : "") || "bkk";
+                      var z=getZone(_br, form.destProv, form.receiverAmphoe);
+                      var cm=tileMaxDim(it.size);
+                      var r=dimGoodsPriceTB(gid, it.w, cm, z);
+                      if(r.err){ alert("📐 "+(DIM_GOODS[gid]?DIM_GOODS[gid].label:"")+"\n\n"+r.err+"\n\n(อ่านจากแถวนี้: น้ำหนัก \""+(it.w||"-")+"\" กก. · ขนาด \""+(it.size||"-")+"\" → ยาว "+(cm||"?")+" ซม.)"); return; }
+                      var ni=[...items];
+                      ni[i]={...ni[i], price:r.price, desc:(it.desc&&it.desc.trim())?it.desc:(DIM_GOODS[gid]?DIM_GOODS[gid].label:"")};
+                      setItems(ni);
+                    },
+                    style:{border:"1px solid #d9c48a",background:"#fdf6e3",borderRadius:5,padding:"3px 4px",cursor:"pointer",fontSize:10,width:70}
+                  },
+                    React.createElement("option",{value:""},"📐 ยาว+นน."),
+                    Object.keys(DIM_GOODS).map(gid=>React.createElement("option",{key:gid,value:gid},DIM_GOODS[gid].label))
+                  )
+                ),
+                React.createElement("select",{
+                  value:"",
+                  title:"เลือกสินค้าพิเศษ → เติมราคาตามโซนปลายทาง",
+                  onChange:e=>{
+                    var id=e.target.value; if(!id) return;
+                    if(!form.destProv){ alert("เลือกจังหวัดปลายทางก่อน แล้วค่อยเลือกสินค้าพิเศษ"); return; }
+                    var _br=(typeof getSessionBranch==="function"?getSessionBranch():"")||"bkk";
+                    var z=getZone(_br, form.destProv, form.receiverAmphoe);
+                    var r=spRatePrice(id, z, form.destProv, form.receiverAmphoe);
+                    if(!r) return;
+                    var ni=[...items];
+                    ni[i]={...ni[i], price:r.price, desc:(it.desc&&it.desc.trim())?it.desc:r.label};
+                    setItems(ni);
+                  },
+                  style:{...INP2,width:110,fontSize:10,padding:"2px 4px"}
+                },
+                  React.createElement("option",{value:""},"+ สินค้าพิเศษ"),
+                  SP_RATE.map(sp=>React.createElement("option",{key:sp.id,value:sp.id},sp.label))
+                )
+              )
+            ),
             React.createElement("td",{style:{padding:"3px 4px"}},
               i>0&&React.createElement("button",{onClick:()=>setItems(items.filter((_,j)=>j!==i)),style:{border:"none",background:"#fee",borderRadius:5,padding:"3px 7px",cursor:"pointer",color:"#c00"}},"✕")
             )

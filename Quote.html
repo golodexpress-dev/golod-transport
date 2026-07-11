@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8"/>
 <meta name="viewport" content="width=device-width,initial-scale=1"/>
-<!-- Quote build 2026-07-09a -->
+<!-- Quote build 2026-07-11b · +กระเบื้อง+ไม้เทียม -->
 <title>โกโลด — เช็คราคาค่าขนส่ง</title>
 <script src="session.js"></script>
 <script src="firebase-app-compat.js"></script>
@@ -112,6 +112,13 @@ input:focus,select:focus{outline:none;border-color:#0F6E56;box-shadow:0 0 0 2px 
         <div id="paneSp" class="hidden">
           <div class="f"><label for="spItem">ประเภทสินค้า</label>
             <select id="spItem"><option value="">— เลือก —</option></select></div>
+          <div id="tileDims" class="g2 hidden" style="margin-top:8px">
+            <div class="f"><label for="spKg">น้ำหนัก (กก.)</label>
+              <input id="spKg" type="number" min="0" step="0.1" inputmode="decimal"/></div>
+            <div class="f"><label for="spCm">ด้านยาวสุด (ซม.)</label>
+              <input id="spCm" type="number" min="0" step="1" inputmode="numeric"/>
+              <div class="hint">กระเบื้อง: คิดตามความยาว + น้ำหนัก</div></div>
+          </div>
         </div>
 
         <div class="g3">
@@ -154,8 +161,39 @@ var SPECIAL_ITEMS=[
  {id:"oil_small",label:"น้ำมันเครื่อง/ไฮดรอลิก 18-20 ลิตร",near:120,far:150,special:180,special2:null},
  {id:"oil_drum",label:"น้ำมันเครื่อง/ไฮดรอลิก ถัง 200 ลิตร",near:800,far:900,special:1000,special2:1200},
  {id:"chem_small",label:"น้ำยา 20 ลิตร (≤23 กก.)",near:150,far:180,special:200,special2:null},
- {id:"chem_drum",label:"น้ำยา ถัง 200 ลิตร",near:900,far:1000,special:1200,special2:null}
+ {id:"chem_drum",label:"น้ำยา ถัง 200 ลิตร",near:900,far:1000,special:1200,special2:null},
+ {id:"tile",label:"กระเบื้อง (คิดตามยาว+น้ำหนัก)",dim:"tile"},
+ {id:"wood",label:"ไม้เทียม (คิดตามยาว+น้ำหนัก)",dim:"wood"}
 ];
+
+/* สินค้าคิดตาม "ยาว + น้ำหนัก" (ยาว=หลัก, เพดานน้ำหนักกำกับ) ใกล้/ไกล ต่อกล่อง/ท่อน
+   เพิ่มสินค้าใหม่: เพิ่ม key ใน DIM_GOODS — จะโผล่ใน dropdown อัตโนมัติ */
+var DIM_GOODS = {
+  tile: { label:"กระเบื้อง", bands:[
+    {maxCm:60,  label:"ยาว≤60ซม",  w:[{maxKg:20,near:120,far:150},{maxKg:25,near:150,far:180},{maxKg:30,near:180,far:220},{maxKg:35,near:220,far:240}]},
+    {maxCm:90,  label:"ยาว≤90ซม",  w:[{maxKg:20,near:150,far:180},{maxKg:25,near:200,far:220},{maxKg:30,near:220,far:240},{maxKg:35,near:240,far:300}]},
+    {maxCm:120, label:"ยาว≤120ซม", w:[{maxKg:20,near:180,far:220},{maxKg:25,near:220,far:240},{maxKg:30,near:240,far:300},{maxKg:35,near:300,far:340}]},
+    {maxCm:180, label:"ยาว≤180ซม", w:[{maxKg:35,near:400,far:500}]}
+  ]},
+  wood: { label:"ไม้เทียม", bands:[
+    {maxCm:300, label:"ยาว≤3ม",  w:[{maxKg:25,near:400,far:500},{maxKg:30,near:450,far:500},{maxKg:35,near:500,far:600}]},
+    {maxCm:400, label:"ยาว≤4ม",  w:[{maxKg:25,near:500,far:600},{maxKg:30,near:600,far:700},{maxKg:35,near:700,far:800}]},
+    {maxCm:600, label:"ยาว≤6ม",  w:[{maxKg:35,near:1500,far:1800}]}
+  ]}
+};
+/* คืน {near,far,label} หรือ {err} */
+function dimGoodsPrice(goodsId, kg, cm){
+  var g=DIM_GOODS[goodsId]; if(!g) return {err:"unknown"};
+  kg=parseFloat(kg)||0; cm=parseFloat(cm)||0;
+  if(kg<=0||cm<=0) return {err:"need"};
+  var band=g.bands.filter(function(b){return cm<=b.maxCm;})[0];   // ไซส์เล็กสุดที่ครอบความยาว
+  if(!band) return {err:"over_cm"};                               // ยาวเกินสุด
+  var row=band.w.filter(function(x){return kg<=x.maxKg;})[0];     // น้ำหนักที่ครอบได้
+  if(!row) return {err:"over_kg"};                                // หนักเกินช่วงของไซส์นั้น
+  return {near:row.near, far:row.far, label:g.label+" "+band.label+" ≤"+row.maxKg+"กก"};
+}
+// ความยาวสูงสุดของสินค้า (ไว้แจ้ง error)
+function dimGoodsMaxCm(goodsId){ var g=DIM_GOODS[goodsId]; return g? g.bands[g.bands.length-1].maxCm : 0; }
 
 var SERVE_BKK=["กรุงเทพมหานคร","นนทบุรี","ปทุมธานี","สมุทรปราการ","สมุทรสาคร","นครปฐม",
  "พระนครศรีอยุธยา","อ่างทอง","สิงห์บุรี","ลพบุรี","สระบุรี","ชัยนาท",
@@ -335,14 +373,26 @@ function calc(){
     var id=document.getElementById("spItem").value;
     if(!id) return resEmpty("เลือกประเภทสินค้าพิเศษ");
     var row=SPECIAL_ITEMS.filter(function(x){return x.id===id;})[0];
-    var saMin=specialAreaMin(prov,amphoe);
-    if(row.special!=null&&saMin>0){
-      perPiece=(saMin>=1000)?(row.special2||row.special):row.special;
-      usedSpRate=true;
+
+    if(row&&row.dim){
+      // สินค้าคิดตามยาว+น้ำหนัก (กระเบื้อง/ไม้เทียม)
+      var tKg=document.getElementById("spKg").value, tCm=document.getElementById("spCm").value;
+      var tp=dimGoodsPrice(row.dim,tKg,tCm);
+      if(tp.err==="need") return resEmpty("กรอกน้ำหนัก (กก.) และด้านยาวสุด (ซม.) ก่อน");
+      if(tp.err==="over_cm") return resEmpty(row.label.split(" ")[0]+"ยาวเกิน "+dimGoodsMaxCm(row.dim)+" ซม.<br/>ต้องตีราคาพิเศษ — ทัก LINE @golod");
+      if(tp.err==="over_kg") return resEmpty("น้ำหนักเกินเรทของไซส์นี้<br/>ต้องตีราคาพิเศษ — ทัก LINE @golod");
+      perPiece=(zone==="near")?tp.near:tp.far;
+      itemLabel=tp.label;
     } else {
-      perPiece=(zone==="near")?row.near:row.far;
+      var saMin=specialAreaMin(prov,amphoe);
+      if(row.special!=null&&saMin>0){
+        perPiece=(saMin>=1000)?(row.special2||row.special):row.special;
+        usedSpRate=true;
+      } else {
+        perPiece=(zone==="near")?row.near:row.far;
+      }
+      itemLabel=row.label;
     }
-    itemLabel=row.label;
   } else {
     var size=calcSize(document.getElementById("kg").value,document.getElementById("cm").value);
     if(!size) return resEmpty("กรอกน้ำหนัก (กก.)<br/>หรือขนาด 3 ด้านรวม (ซม.)");
@@ -432,8 +482,12 @@ function initSelects(){
   provs.forEach(function(p){var o=document.createElement("option");o.value=p;o.textContent=p;sel.appendChild(o);});
   var sp=document.getElementById("spItem");
   SPECIAL_ITEMS.forEach(function(it){var o=document.createElement("option");o.value=it.id;o.textContent=it.label;sp.appendChild(o);});
+  document.getElementById("spItem").addEventListener("change",function(){
+    var it=SPECIAL_ITEMS.filter(function(x){return x.id===this.value;},this)[0];
+    document.getElementById("tileDims").classList.toggle("hidden", !(it&&it.dim));
+  });
   document.getElementById("prov").addEventListener("change",refreshAmphoeList);
-  ["origin","prov","amphoe","kg","cm","spItem","qty","disc","cod"].forEach(function(id){
+  ["origin","prov","amphoe","kg","cm","spItem","spKg","spCm","qty","disc","cod"].forEach(function(id){
     var el=document.getElementById(id);
     el.addEventListener(el.tagName==="SELECT"?"change":"input",calc);
   });
