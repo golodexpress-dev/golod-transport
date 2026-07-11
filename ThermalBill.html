@@ -14,7 +14,7 @@
   <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
 </head><body>
 <div class="golod-bar no-print">
-  <h1>โกโลด ทรานสปอร์ต — ออกบิล Thermal 80mm <span style="font-size:11px;font-weight:400;opacity:.6">build 2026-07-11·b43</span></h1>
+  <h1>โกโลด ทรานสปอร์ต — ออกบิล Thermal 80mm <span style="font-size:11px;font-weight:400;opacity:.6">build 2026-07-11·b44</span></h1>
   <div id="golod-chip"></div>
   <a href="GolodApp.html" style="font-size:11px;color:#9FE1CB;background:rgba(255,255,255,.15);padding:3px 10px;border-radius:20px;text-decoration:none">← หน้าหลัก</a>
   <a href="DailyReport.html" style="font-size:11px;color:#FFE082;background:rgba(255,255,255,.15);padding:3px 10px;border-radius:20px;text-decoration:none">📊 รายงานสิ้นวัน</a>
@@ -1088,6 +1088,8 @@ const blankItem = () => ({
   sumCm: "",
   cpN: "",
   cpF: "",
+  spLock: "",
+  spLabel: "",
   hasCOD: false,
   codAmount: "",
   declaredValue: ""
@@ -1616,10 +1618,16 @@ function ItemRow({
   const size = calcSize(item.kg, sumCm);
   const zone = getZone(branch, destProv);
   const autoUp = getSizePrice(size, zone, item.cpN, item.cpF);
-  // พื้นที่พิเศษ: ใช้ราคากรอกเอง ถ้ามี
-  const up = item.customPrice !== undefined && item.customPrice !== ""
-    ? (parseFloat(item.customPrice) || 0)
-    : autoUp;
+  // ราคาสุดท้าย ตามลำดับความสำคัญ:
+  // 1. spLock  = เรทสินค้าพิเศษ (กระเบื้อง/ไม้เทียม/น้ำมัน) — ล็อกไว้ ระบบ size/custom ห้ามยุ่ง
+  // 2. customPrice = พนักงานพิมพ์เอง
+  // 3. autoUp  = ราคาอัตโนมัติตามขนาด
+  const spLocked = item.spLock !== undefined && item.spLock !== "";
+  const up = spLocked
+    ? (parseFloat(item.spLock) || 0)
+    : (item.customPrice !== undefined && item.customPrice !== ""
+        ? (parseFloat(item.customPrice) || 0)
+        : autoUp);
   const lt = up * (parseInt(item.qty) || 1);
   const u = (k, v) => onUpdate(idx, k, v);
   return /*#__PURE__*/React.createElement("div", {
@@ -1662,18 +1670,29 @@ function ItemRow({
       marginLeft: "auto"
     }
   }, /*#__PURE__*/React.createElement("span", {style:{display:"flex",alignItems:"center",gap:4}},
-          (item.customPrice === undefined || item.customPrice === "") && size.id !== "custom"
-            ? /*#__PURE__*/React.createElement("span", {style:{fontSize:10,fontWeight:700,color:"#fff",background:"#EF9F27",padding:"1px 6px",borderRadius:10}}, "อัตโนมัติ")
-            : null,
-          /*#__PURE__*/React.createElement("input", {
-            type: "number",
-            value: item.customPrice !== undefined ? item.customPrice : "",
-            onChange: e => u("customPrice", e.target.value),
-            placeholder: String(autoUp||0),
-            style: (item.customPrice === undefined || item.customPrice === "") && size.id !== "custom"
-              ? {width:60,padding:"2px 5px",border:"2px solid #EF9F27",borderRadius:5,fontSize:12,textAlign:"right",background:"#FFF6E9"}
-              : {width:60,padding:"2px 5px",border:"1px solid #ccc",borderRadius:5,fontSize:12,textAlign:"right",background:"#f8f8f8"}
-          }),
+          spLocked
+            ? /*#__PURE__*/React.createElement("span", {style:{fontSize:10,fontWeight:700,color:"#fff",background:"#0F6E56",padding:"1px 6px",borderRadius:10}}, "เรทพิเศษ")
+            : ((item.customPrice === undefined || item.customPrice === "") && size.id !== "custom"
+              ? /*#__PURE__*/React.createElement("span", {style:{fontSize:10,fontWeight:700,color:"#fff",background:"#EF9F27",padding:"1px 6px",borderRadius:10}}, "อัตโนมัติ")
+              : null),
+          spLocked
+            ? /*#__PURE__*/React.createElement("span", {style:{display:"flex",alignItems:"center",gap:4}},
+                /*#__PURE__*/React.createElement("strong", {style:{fontSize:13,color:"#0F6E56"}}, up, " ฿"),
+                /*#__PURE__*/React.createElement("button", {
+                  title:"ยกเลิกเรทพิเศษ กลับไปคิดตามขนาด/กรอกเอง",
+                  onClick:()=>{ u("spLock",""); u("spLabel",""); },
+                  style:{border:"none",background:"#eee",borderRadius:4,padding:"1px 5px",cursor:"pointer",fontSize:10,color:"#888"}
+                }, "✕ ยกเลิก")
+              )
+            : /*#__PURE__*/React.createElement("input", {
+                type: "number",
+                value: item.customPrice !== undefined ? item.customPrice : "",
+                onChange: e => u("customPrice", e.target.value),
+                placeholder: String(autoUp||0),
+                style: (item.customPrice === undefined || item.customPrice === "") && size.id !== "custom"
+                  ? {width:60,padding:"2px 5px",border:"2px solid #EF9F27",borderRadius:5,fontSize:12,textAlign:"right",background:"#FFF6E9"}
+                  : {width:60,padding:"2px 5px",border:"1px solid #ccc",borderRadius:5,fontSize:12,textAlign:"right",background:"#f8f8f8"}
+              }),
           " ฿/ชิ้น → ",
           /*#__PURE__*/React.createElement("strong",null, lt.toLocaleString("th-TH"), " ฿")
         )
@@ -1768,10 +1787,12 @@ function ItemRow({
         e.target.value = "";
         if(!destProv){ alert("เลือกจังหวัดปลายทางก่อน"); return; }
         var z = getZone(branch, destProv, receiverAmphoe);
-        var cm = parseFloat(item.l) || 0;   // ใช้ช่อง "ยาว/ด้านยาวสุด"
+        var cm = parseFloat(item.l) || 0;   // ใช้ "ยาว/ด้านยาวสุด" เท่านั้น ไม่แตะความยาวรวม
         var r = dimGoodsPriceTB(gid, item.kg, cm, z);
         if(r.err){ alert("📐 "+(DIM_GOODS[gid]?DIM_GOODS[gid].label:"")+"\n\n"+r.err+"\n\n(รายการนี้: น้ำหนัก \""+(item.kg||"-")+"\" กก. · ด้านยาว \""+(item.l||"-")+"\" ซม.)"); return; }
-        u("customPrice", String(r.price));
+        u("spLock", String(r.price));         // ล็อกราคาเรทพิเศษ
+        u("spLabel", r.label);
+        u("customPrice", "");                 // เคลียร์ราคาพิมพ์เอง กันชนกัน
         if(!item.desc || !item.desc.trim()){ u("desc", DIM_GOODS[gid].label); u("goodsType", classifyGoods(DIM_GOODS[gid].label)); }
       },
       style: {border:"1px solid #d9c48a",background:"#fdf6e3",borderRadius:5,padding:"4px 6px",cursor:"pointer",fontSize:11,color:"#7a5c00",fontWeight:600}
@@ -1789,7 +1810,9 @@ function ItemRow({
         var z = getZone(branch, destProv, receiverAmphoe);
         var r = spRatePrice(id, z, destProv, receiverAmphoe);
         if(!r) return;
-        u("customPrice", String(r.price));
+        u("spLock", String(r.price));
+        u("spLabel", r.label);
+        u("customPrice", "");
         if(!item.desc || !item.desc.trim()){ u("desc", r.label); u("goodsType", classifyGoods(r.label)); }
       },
       style: {border:"1px solid #9ec5e8",background:"#eef6fd",borderRadius:5,padding:"4px 6px",cursor:"pointer",fontSize:11,color:"#0c447c",fontWeight:600}
@@ -3508,10 +3531,12 @@ function ThermalBillingApp() {
     const sc = parseFloat(item.sumCm) || (parseFloat(item.w) || 0) + (parseFloat(item.l) || 0) + (parseFloat(item.h) || 0);
     const sz = calcSize(item.kg, sc);
     const autoP = getSizePrice(sz, zone, item.cpN, item.cpF);
-    // ใช้ customPrice ถ้ากรอกเอง (ทุกพื้นที่)
-    const unitP = item.customPrice !== undefined && item.customPrice !== ""
-      ? (parseFloat(item.customPrice) || 0)
-      : (custPP > 0 ? custPP : autoP);
+    // ลำดับ: spLock (เรทพิเศษ) > customPrice (กรอกเอง) > ราคาลูกค้าพิเศษ/อัตโนมัติ
+    const unitP = (item.spLock !== undefined && item.spLock !== "")
+      ? (parseFloat(item.spLock) || 0)
+      : (item.customPrice !== undefined && item.customPrice !== ""
+          ? (parseFloat(item.customPrice) || 0)
+          : (custPP > 0 ? custPP : autoP));
     return s + unitP * (parseInt(item.qty) || 1);
   }, 0);
   const discountAmt = parseFloat(form.discount) || 0;
