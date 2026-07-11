@@ -14,7 +14,7 @@
   <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
 </head><body>
 <div class="golod-bar no-print">
-  <h1>โกโลด ทรานสปอร์ต — ออกบิล Thermal 80mm <span style="font-size:11px;font-weight:400;opacity:.6">build 2026-07-11·b41</span></h1>
+  <h1>โกโลด ทรานสปอร์ต — ออกบิล Thermal 80mm <span style="font-size:11px;font-weight:400;opacity:.6">build 2026-07-11·b42</span></h1>
   <div id="golod-chip"></div>
   <a href="GolodApp.html" style="font-size:11px;color:#9FE1CB;background:rgba(255,255,255,.15);padding:3px 10px;border-radius:20px;text-decoration:none">← หน้าหลัก</a>
   <a href="DailyReport.html" style="font-size:11px;color:#FFE082;background:rgba(255,255,255,.15);padding:3px 10px;border-radius:20px;text-decoration:none">📊 รายงานสิ้นวัน</a>
@@ -4977,7 +4977,7 @@ function ManualBillForm({ staffCode, staffName, onSave }) {
       React.createElement("table",{style:{width:"100%",borderCollapse:"collapse",fontSize:12}},
         React.createElement("thead",null,
           React.createElement("tr",{style:{background:"#f0faf5"}},
-            ["สินค้า","ชิ้น","น้ำหนัก(กก.)","ขนาด","ค่าส่ง/ชิ้น",""].map(h=>
+            ["สินค้า","ชิ้น","น้ำหนัก(กก.)","ขนาด","ค่าส่ง/ชิ้น + เรทพิเศษ",""].map(h=>
               React.createElement("th",{key:h,style:{padding:"4px 6px",textAlign:"left",fontSize:11,fontWeight:600}},h)
             )
           )
@@ -4989,34 +4989,36 @@ function ManualBillForm({ staffCode, staffName, onSave }) {
             React.createElement("td",{style:{padding:"3px 4px"}},React.createElement("input",{value:it.w,onChange:e=>{const ni=[...items];ni[i]={...ni[i],w:e.target.value};setItems(ni);},style:{...INP2,width:70}})),
             React.createElement("td",{style:{padding:"3px 4px"}},React.createElement("input",{value:it.size,onChange:e=>{const ni=[...items];ni[i]={...ni[i],size:e.target.value};setItems(ni);},style:{...INP2,width:80},placeholder:"กxยxส"})),
             React.createElement("td",{style:{padding:"3px 4px"}},
-              React.createElement("div",{style:{display:"flex",flexDirection:"column",gap:3}},
-                React.createElement("div",{style:{display:"flex",gap:3,alignItems:"center"}},
-                  React.createElement("input",{type:"number",value:it.price||"",onChange:e=>{const ni=[...items];ni[i]={...ni[i],price:parseFloat(e.target.value)||0};setItems(ni);},style:{...INP2,width:70,textAlign:"right"}}),
-                  React.createElement("select",{
-                    value:"",
-                    title:"ดึงเรทสินค้าคิดตามยาว+น้ำหนัก จากแถวนี้",
-                    onChange:e=>{
-                      var gid=e.target.value; if(!gid) return;
-                      var _br = (typeof getSessionBranch==="function" ? getSessionBranch() : "") || "bkk";
-                      var z=getZone(_br, form.destProv, form.receiverAmphoe);
-                      var cm=tileMaxDim(it.size);
-                      var r=dimGoodsPriceTB(gid, it.w, cm, z);
-                      if(r.err){ alert("📐 "+(DIM_GOODS[gid]?DIM_GOODS[gid].label:"")+"\n\n"+r.err+"\n\n(อ่านจากแถวนี้: น้ำหนัก \""+(it.w||"-")+"\" กก. · ขนาด \""+(it.size||"-")+"\" → ยาว "+(cm||"?")+" ซม.)"); return; }
-                      var ni=[...items];
-                      ni[i]={...ni[i], price:r.price, desc:(it.desc&&it.desc.trim())?it.desc:(DIM_GOODS[gid]?DIM_GOODS[gid].label:"")};
-                      setItems(ni);
-                    },
-                    style:{border:"1px solid #d9c48a",background:"#fdf6e3",borderRadius:5,padding:"3px 4px",cursor:"pointer",fontSize:10,width:70}
+              React.createElement("div",{style:{display:"flex",flexDirection:"column",gap:4}},
+                React.createElement("input",{type:"number",value:it.price||"",placeholder:"ราคา",onChange:e=>{const ni=[...items];ni[i]={...ni[i],price:parseFloat(e.target.value)||0};setItems(ni);},style:{...INP2,width:90,textAlign:"right"}}),
+                React.createElement("div",{style:{fontSize:9,color:"#888",marginTop:2}},"⬇ ดึงเรทพิเศษ"),
+                React.createElement("select",{
+                  value:"",
+                  title:"กระเบื้อง/ไม้เทียม — คิดจากน้ำหนัก+ขนาดของแถวนี้",
+                  onChange:e=>{
+                    var gid=e.target.value; if(!gid) return;
+                    if(!form.destProv){ alert("เลือกจังหวัดปลายทางก่อน"); e.target.value=""; return; }
+                    var _br = (typeof getSessionBranch==="function" ? getSessionBranch() : "") || "bkk";
+                    var z=getZone(_br, form.destProv, form.receiverAmphoe);
+                    var cm=tileMaxDim(it.size);
+                    var r=dimGoodsPriceTB(gid, it.w, cm, z);
+                    e.target.value="";
+                    if(r.err){ alert("📐 "+(DIM_GOODS[gid]?DIM_GOODS[gid].label:"")+"\n\n"+r.err+"\n\n(อ่านจากแถวนี้: น้ำหนัก \""+(it.w||"-")+"\" กก. · ขนาด \""+(it.size||"-")+"\" → ยาว "+(cm||"?")+" ซม.)"); return; }
+                    var ni=[...items];
+                    ni[i]={...ni[i], price:r.price, desc:(it.desc&&it.desc.trim())?it.desc:(DIM_GOODS[gid]?DIM_GOODS[gid].label:"")};
+                    setItems(ni);
                   },
-                    React.createElement("option",{value:""},"📐 ยาว+นน."),
-                    Object.keys(DIM_GOODS).map(gid=>React.createElement("option",{key:gid,value:gid},DIM_GOODS[gid].label))
-                  )
+                  style:{border:"1px solid #d9c48a",background:"#fdf6e3",borderRadius:5,padding:"4px",cursor:"pointer",fontSize:11,width:130,color:"#7a5c00",fontWeight:600}
+                },
+                  React.createElement("option",{value:""},"📐 กระเบื้อง/ไม้เทียม"),
+                  Object.keys(DIM_GOODS).map(gid=>React.createElement("option",{key:gid,value:gid},DIM_GOODS[gid].label+" (ยาว+นน.)"))
                 ),
                 React.createElement("select",{
                   value:"",
-                  title:"เลือกสินค้าพิเศษ → เติมราคาตามโซนปลายทาง",
+                  title:"น้ำมัน/น้ำยา — เลือกรายการ ราคาตามโซนปลายทาง",
                   onChange:e=>{
                     var id=e.target.value; if(!id) return;
+                    e.target.value="";
                     if(!form.destProv){ alert("เลือกจังหวัดปลายทางก่อน แล้วค่อยเลือกสินค้าพิเศษ"); return; }
                     var _br=(typeof getSessionBranch==="function"?getSessionBranch():"")||"bkk";
                     var z=getZone(_br, form.destProv, form.receiverAmphoe);
@@ -5026,9 +5028,9 @@ function ManualBillForm({ staffCode, staffName, onSave }) {
                     ni[i]={...ni[i], price:r.price, desc:(it.desc&&it.desc.trim())?it.desc:r.label};
                     setItems(ni);
                   },
-                  style:{...INP2,width:110,fontSize:10,padding:"2px 4px"}
+                  style:{border:"1px solid #9ec5e8",background:"#eef6fd",borderRadius:5,padding:"4px",cursor:"pointer",fontSize:11,width:130,color:"#0c447c",fontWeight:600}
                 },
-                  React.createElement("option",{value:""},"+ สินค้าพิเศษ"),
+                  React.createElement("option",{value:""},"🛢️ น้ำมัน/น้ำยา"),
                   SP_RATE.map(sp=>React.createElement("option",{key:sp.id,value:sp.id},sp.label))
                 )
               )
