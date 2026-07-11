@@ -14,7 +14,7 @@
   <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
 </head><body>
 <div class="golod-bar no-print">
-  <h1>โกโลด ทรานสปอร์ต — ออกบิล Thermal 80mm <span style="font-size:11px;font-weight:400;opacity:.6">build 2026-07-11·b47</span></h1>
+  <h1>โกโลด ทรานสปอร์ต — ออกบิล Thermal 80mm <span style="font-size:11px;font-weight:400;opacity:.6">build 2026-07-11·b48</span></h1>
   <div id="golod-chip"></div>
   <a href="GolodApp.html" style="font-size:11px;color:#9FE1CB;background:rgba(255,255,255,.15);padding:3px 10px;border-radius:20px;text-decoration:none">← หน้าหลัก</a>
   <a href="DailyReport.html" style="font-size:11px;color:#FFE082;background:rgba(255,255,255,.15);padding:3px 10px;border-radius:20px;text-decoration:none">📊 รายงานสิ้นวัน</a>
@@ -1790,49 +1790,40 @@ function ItemRow({
       background: "#fbfaf5", border: "1px dashed #d9c48a", borderRadius: 7, padding: "6px 8px"
     }
   },
-    /*#__PURE__*/React.createElement("span", {style:{fontSize:10,color:"#8a6d3b",fontWeight:700}}, "⬇ ดึงเรทพิเศษ:"),
+    /*#__PURE__*/React.createElement("span", {style:{fontSize:10,color:"#8a6d3b",fontWeight:700}}, "สินค้าพิเศษ:"),
     /*#__PURE__*/React.createElement("select", {
       value: "",
-      title: "กระเบื้อง/ไม้เทียม — คิดจากน้ำหนัก + ด้านยาว ของรายการนี้",
+      title: "เลือกชนิดสินค้าพิเศษ → ดึงเรทของสินค้านั้นให้เลย",
       onChange: e => {
-        var gid = e.target.value; if(!gid) return;
+        var val = e.target.value; if(!val) return;
         e.target.value = "";
         if(!destProv){ alert("เลือกจังหวัดปลายทางก่อน"); return; }
         var z = getZone(branch, destProv, receiverAmphoe);
-        var cm = parseFloat(item.l) || 0;   // ใช้ "ยาว/ด้านยาวสุด" เท่านั้น ไม่แตะความยาวรวม
-        var r = dimGoodsPriceTB(gid, item.kg, cm, z);
-        if(r.err){ alert("📐 "+(DIM_GOODS[gid]?DIM_GOODS[gid].label:"")+"\n\n"+r.err+"\n\n(รายการนี้: น้ำหนัก \""+(item.kg||"-")+"\" กก. · ด้านยาว \""+(item.l||"-")+"\" ซม.)"); return; }
-        u("spLock", String(r.price));         // ล็อกราคาเรทพิเศษ
-        u("spLabel", r.label);
-        u("customPrice", "");                 // เคลียร์ราคาพิมพ์เอง กันชนกัน
-        u("desc", DIM_GOODS[gid].label);      // ชื่อสินค้า = ชื่อเรท (ล็อกให้ตรงกัน)
-        u("goodsType", classifyGoods(DIM_GOODS[gid].label));
-      },
-      style: {border:"1px solid #d9c48a",background:"#fdf6e3",borderRadius:5,padding:"4px 6px",cursor:"pointer",fontSize:11,color:"#7a5c00",fontWeight:600}
-    },
-      /*#__PURE__*/React.createElement("option", {value:""}, "📐 กระเบื้อง/ไม้เทียม"),
-      Object.keys(DIM_GOODS).map(gid => /*#__PURE__*/React.createElement("option", {key:gid,value:gid}, DIM_GOODS[gid].label+" (ยาว+นน.)"))
-    ),
-    /*#__PURE__*/React.createElement("select", {
-      value: "",
-      title: "น้ำมัน/น้ำยา — เลือกรายการ ราคาตามโซนปลายทาง",
-      onChange: e => {
-        var id = e.target.value; if(!id) return;
-        e.target.value = "";
-        if(!destProv){ alert("เลือกจังหวัดปลายทางก่อน"); return; }
-        var z = getZone(branch, destProv, receiverAmphoe);
-        var r = spRatePrice(id, z, destProv, receiverAmphoe);
-        if(!r) return;
+        var kind = val.split(":")[0], id = val.split(":")[1];
+        var r;
+        if(kind==="dim"){
+          var cm = parseFloat(item.l) || 0;   // ใช้ "ยาว/ด้านยาวสุด" เท่านั้น
+          r = dimGoodsPriceTB(id, item.kg, cm, z);
+          if(r.err){ alert("📐 "+(DIM_GOODS[id]?DIM_GOODS[id].label:"")+"\n\n"+r.err+"\n\n(รายการนี้: น้ำหนัก \""+(item.kg||"-")+"\" กก. · ด้านยาว \""+(item.l||"-")+"\" ซม.)\n\nกรอกน้ำหนัก+ด้านยาวให้ครบก่อนเลือก"); return; }
+        } else {
+          r = spRatePrice(id, z, destProv, receiverAmphoe);
+          if(!r) return;
+        }
         u("spLock", String(r.price));
         u("spLabel", r.label);
         u("customPrice", "");
-        u("desc", r.label);                   // ชื่อสินค้า = ชื่อเรท (ล็อกให้ตรงกัน)
+        u("desc", r.label);                   // ชื่อ = เรทที่เลือก (ล็อกให้ตรงกัน)
         u("goodsType", classifyGoods(r.label));
       },
-      style: {border:"1px solid #9ec5e8",background:"#eef6fd",borderRadius:5,padding:"4px 6px",cursor:"pointer",fontSize:11,color:"#0c447c",fontWeight:600}
+      style: {border:"1px solid #d9c48a",background:"#fdf6e3",borderRadius:5,padding:"4px 6px",cursor:"pointer",fontSize:11,color:"#7a5c00",fontWeight:600,flex:1,minWidth:180}
     },
-      /*#__PURE__*/React.createElement("option", {value:""}, "🛢️ น้ำมัน/น้ำยา"),
-      SP_RATE.map(sp => /*#__PURE__*/React.createElement("option", {key:sp.id,value:sp.id}, sp.label))
+      /*#__PURE__*/React.createElement("option", {value:""}, "— เลือกสินค้าพิเศษ (กระเบื้อง/ไม้เทียม/น้ำมัน/น้ำยา) —"),
+      /*#__PURE__*/React.createElement("optgroup", {label:"คิดตามยาว+น้ำหนัก (กรอกน้ำหนัก+ด้านยาวก่อน)"},
+        Object.keys(DIM_GOODS).map(gid => /*#__PURE__*/React.createElement("option", {key:"dim:"+gid,value:"dim:"+gid}, "📐 "+DIM_GOODS[gid].label))
+      ),
+      /*#__PURE__*/React.createElement("optgroup", {label:"เรทเหมาต่อหน่วย"},
+        SP_RATE.map(sp => /*#__PURE__*/React.createElement("option", {key:"sp:"+sp.id,value:"sp:"+sp.id}, "🛢️ "+sp.label))
+      )
     )
   ), size.id === "custom" && /*#__PURE__*/React.createElement("div", {
     style: {
