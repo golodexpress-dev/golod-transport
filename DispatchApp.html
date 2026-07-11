@@ -755,7 +755,7 @@ tr:hover td{background:#f8fffe}
 <div class="topbar">
   <span class="title">🚛 จัดการขนส่ง</span>
   <span id="session-info" style="font-size:11px;opacity:.8"></span>
-  <span style="font-size:10px;opacity:.65;margin-left:auto">build 2026-07-10z173</span>
+  <span style="font-size:10px;opacity:.65;margin-left:auto">build 2026-07-10z175</span>
   <a href="GolodApp.html" style="margin-left:10px">← หน้าหลัก</a>
 </div>
 <div class="container">
@@ -1009,6 +1009,24 @@ var CU = null;
 
 // ===== DATA =====
 var BILLS = [];
+
+// คิดยอดปลายทาง/COD สดจากบิลปัจจุบัน — scope บนสุด เรียกได้ทั้งหน้าเที่ยวและสรุปสิ้นเดือน
+// ใช้ได้เมื่อบิลของเที่ยวโหลดครบใน BILLS เท่านั้น ไม่ครบ → return null (ผู้เรียก fallback เอง)
+function _liveTripTotalsG(t){
+  if(!t || !t.billIds || !t.billIds.length || typeof BILLS==="undefined" || !Array.isArray(BILLS)) return null;
+  var allPresent = t.billIds.every(function(id){ return BILLS.some(function(b){ return b.billNo===id; }); });
+  if(!allPresent) return null;
+  var dest=0, cod=0;
+  t.billIds.forEach(function(id){
+    var b = BILLS.find(function(x){ return x.billNo===id; }); if(!b) return;
+    var pay = b.freightPay||(b.form&&b.form.freightPay)||"origin";
+    var net = parseFloat(b.freightNet||0), c = parseFloat(b.codTotal||0);
+    if(pay==="dest"||pay==="dest_cash") dest+=net;
+    if(c>0) cod+=c;
+  });
+  return {dest:dest, cod:cod};
+}
+
 var DRIVERS = [];
 var BRANCHES = [
   {id:"bkk", label:"สาขากรุงเทพ"},
@@ -1714,19 +1732,9 @@ function renderTripList(){
   // คิดยอดปลายทาง/COD สดจากบิลปัจจุบัน — กันยอดค้างเก่าตอนบิลถูกแก้วิธีจ่ายภายหลัง
   // ใช้ได้เฉพาะเมื่อบิลของเที่ยวโหลดมาครบใน BILLS (ไม่ครบ → ใช้ค่าที่เก็บไว้)
   function liveTripTotals(t){
-    if(!t || !t.billIds || !t.billIds.length || typeof BILLS==="undefined") return null;
-    var allPresent = t.billIds.every(function(id){ return BILLS.some(function(b){ return b.billNo===id; }); });
-    if(!allPresent) return null;
-    var dest=0, cod=0;
-    t.billIds.forEach(function(id){
-      var b = BILLS.find(function(x){ return x.billNo===id; }); if(!b) return;
-      var pay = b.freightPay||(b.form&&b.form.freightPay)||"origin";
-      var net = parseFloat(b.freightNet||0), c = parseFloat(b.codTotal||0);
-      if(pay==="dest"||pay==="dest_cash") dest+=net;
-      if(c>0) cod+=c;
-    });
-    return {dest:dest, cod:cod};
+    return _liveTripTotalsG(t);
   }
+  // ย้ายตรรกะออกมาไว้ scope บนสุด (ประกาศไว้ท้ายไฟล์) เพื่อให้สรุปสิ้นเดือนเรียกได้ด้วย
 
   var tripCardHTML = function(t){
     var s = t.summary||{};
@@ -3278,6 +3286,30 @@ function saveTrip(){
   var billIds = Object.keys(_tripState.selectedBills);
   var selBills = Object.values(_tripState.selectedBills);
 
+  // ===== กันสร้างเที่ยวซ้ำ =====
+  // ถ้าบิลที่เลือกอยู่ในเที่ยว open/proposed อื่นอยู่แล้ว = เที่ยวซ้ำ (เสมียนเผลอสร้างซ้ำ)
+  // ตรวจเฉพาะตอนสร้างใหม่ — ตอนแก้ไขเที่ยวเดิมไม่ต้องเช็ค (บิลอยู่เที่ยวตัวเองอยู่แล้ว)
+  if(!_tripState.editId && billIds.length){
+    var _openTrips = _tripState.openTrips || [];
+    var _clash = {};   // billNo -> route ของเที่ยวที่ชนกัน
+    billIds.forEach(function(bn){
+      var hit = _openTrips.find(function(t){
+        var st = String((t.settlement&&t.settlement.status)||t.status||"").toLowerCase();
+        if(st==="closed"||st==="cancelled") return false;
+        return Array.isArray(t.billIds) && t.billIds.indexOf(bn)>=0;
+      });
+      if(hit) _clash[bn] = (hit.route||hit.departDate||hit.id||"เที่ยวอื่น");
+    });
+    var _clashList = Object.keys(_clash);
+    if(_clashList.length){
+      var _preview = _clashList.slice(0,8).map(function(bn){ return "  • "+bn+" → อยู่เที่ยว \""+_clash[bn]+"\""; }).join("\n");
+      alert("🚫 บิล "+_clashList.length+" ใบนี้อยู่ในเที่ยวอื่นแล้ว — น่าจะเป็นเที่ยวซ้ำ\n\n"+_preview
+        + (_clashList.length>8?"\n  …":"")
+        + "\n\nถ้าจะย้ายบิลมาเที่ยวนี้ ให้ไปเอาออกจากเที่ยวเดิมก่อน\nหรือแก้ที่เที่ยวเดิมแทนการสร้างใหม่");
+      return;
+    }
+  }
+
   // คำนวณ summary
   var destTotal=0, codTotal=0, pickupCount=0;
   var revOrigin=0, revTransfer=0, revCredit=0, revDestCash=0, revDestTransfer=0;
@@ -4323,6 +4355,8 @@ function renderMonthlyView(drivers, allTrips, selMonth, selDriver, dateFrom, dat
       var rev = cd.rev || {origin:s.revOrigin,transfer:s.revTransfer,credit:s.revCredit,destTransfer:s.revDestTransfer};
       var rOrigin=parseFloat(rev.origin||0), rTransfer=parseFloat(rev.transfer||0), rCredit=parseFloat(rev.credit||0), rDestTransfer=parseFloat(rev.destTransfer||0);
       var fare = parseFloat(t.baseFare||0)+parseFloat(t.extraFare||0);
+      // ถ้ายังไม่ตั้งค่าเที่ยว (baseFare ว่าง) ลองดึงจาก summary ที่เคยบันทึกไว้
+      if(fare===0 && s.baseFare!=null) fare = parseFloat(s.baseFare||0)+parseFloat(s.extraFare||0);
       var hotel = parseFloat(t.hotelFare||0);
       var ex = t.extras||{};
       var labor = (parseFloat(ex.overweight)||0)+(parseFloat(ex.openTail)||0)+(parseFloat(ex.longLoad)||0)+(parseFloat(ex.overHeight)||0)+(parseFloat(ex.twoMan)||0);
@@ -4336,8 +4370,15 @@ function renderMonthlyView(drivers, allTrips, selMonth, selDriver, dateFrom, dat
       var fareTotal = fare+hotel+labor;
       var grandTotal = fareTotal+pkComm+workFee+bonus;
       var fuel = parseFloat(cd.fuelReal||t.fuelEst||0);
-      var dest = parseFloat(s.destTotal||0);
-      var cod  = parseFloat(s.codTotal||0);
+      // dest/cod: ใช้ค่า live ที่คำนวณตอนเปิดเที่ยว (trip._liveDest) เป็นอันดับแรก
+      // แล้วจึง summary → คำนวณสดจากบิลในหน่วยความจำ  (เที่ยวที่ยังไม่เคลียร์ summary ยังว่าง ค่าเลยหาย)
+      var _liveTot = _liveTripTotalsG(t);
+      var dest = (t._liveDest!=null) ? parseFloat(t._liveDest)
+               : (s.destTotal!=null && s.destTotal!=="") ? parseFloat(s.destTotal)
+               : (_liveTot ? _liveTot.dest : 0);
+      var cod  = (t._liveCod!=null) ? parseFloat(t._liveCod)
+               : (s.codTotal!=null && s.codTotal!=="") ? parseFloat(s.codTotal)
+               : (_liveTot ? _liveTot.cod : 0);
       var pkD  = parseFloat(cd.pickupDest||0);
       var pkC  = parseFloat(cd.pickupCash||0);
       var mustP= parseFloat(cd.mustPay||dest+cod+pkD);
@@ -4367,7 +4408,8 @@ function renderMonthlyView(drivers, allTrips, selMonth, selDriver, dateFrom, dat
         +'<td style="text-align:center;color:#888;font-size:10px">'+(i+1)+'</td>'
         +'<td style="text-align:center">'+status+'</td>'
         +'<td style="font-size:11px;color:#888">'+((t.departDate||"").slice(5)||"—")+'</td>'
-        +'<td style="font-size:11px">'+((t.route||"—").slice(0,20))+'</td>'
+        +'<td style="font-size:11px">'+((t.route||"—").slice(0,20))
+          +((fare===0 && t.status!=="closed")?' <span title="เที่ยวนี้ยังไม่ได้ตั้งค่าเที่ยว — คลิกเพื่อแก้" style="cursor:help;color:#EF9F27">⚠️</span>':'')+'</td>'
         +'<td style="text-align:center;font-size:11px;color:#0F6E56;font-weight:700">'+(delivered!=null?delivered:"-")+'</td>'
         +'<td style="text-align:center;font-size:11px;color:#c0392b">'+(failed!=null?failed:"-")+'</td>'
         +'<td style="text-align:right;font-size:11px;color:#b7950b">'+fmt(fuel)+'</td>'
