@@ -14,7 +14,7 @@
   <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
 </head><body>
 <div class="golod-bar no-print">
-  <h1>โกโลด ทรานสปอร์ต — ออกบิล Thermal 80mm <span style="font-size:11px;font-weight:400;opacity:.6">build 2026-07-12·b53</span></h1>
+  <h1>โกโลด ทรานสปอร์ต — ออกบิล Thermal 80mm <span style="font-size:11px;font-weight:400;opacity:.6">build 2026-07-12·b54</span></h1>
   <div id="golod-chip"></div>
   <a href="GolodApp.html" style="font-size:11px;color:#9FE1CB;background:rgba(255,255,255,.15);padding:3px 10px;border-radius:20px;text-decoration:none">← หน้าหลัก</a>
   <a href="DailyReport.html" style="font-size:11px;color:#FFE082;background:rgba(255,255,255,.15);padding:3px 10px;border-radius:20px;text-decoration:none">📊 รายงานสิ้นวัน</a>
@@ -928,6 +928,17 @@ function spRatePrice(id, zone, prov, amphoe, kg){
   return {price: base+over, label: lbl};
 }
 
+// ===== คำนวณราคาสินค้าพิเศษ "สด" จาก item ปัจจุบัน (กันช่องโหว่เปลี่ยนน้ำหนักหลังเลือก) =====
+function liveSpPrice(item, branch, destProv, receiverAmphoe){
+  if(!item || !item.spId) return null;
+  var z = getZone(branch, destProv, receiverAmphoe);
+  if(item.spKind==="dim"){
+    var cm = parseFloat(item.l)||0;
+    return dimGoodsPriceTB(item.spId, item.kg, cm, z);
+  }
+  return spRatePrice(item.spId, z, destProv, receiverAmphoe, item.kg);
+}
+
 // genBillNo — ดึง max billNo จาก Firestore เพื่อป้องกันเลขซ้ำ/ข้าม
 async function genBillNo(staff) {
   const d = new Date();
@@ -1112,6 +1123,8 @@ const blankItem = () => ({
   sumCm: "",
   cpN: "",
   cpF: "",
+  spId: "",
+  spKind: "",
   spLock: "",
   spLabel: "",
   spNoSize: "",
@@ -1415,10 +1428,11 @@ function ThermalBill({
     const sz = calcSize(item.kg, sumCm);
     const z = getZone(form.branch, form.destProv, form.receiverAmphoe);
     const upCalc = getSizePrice(sz, z, item.cpN, item.cpF);
-    // ลำดับ: spLock (เรทพิเศษ) > item.price/บิลมือ/customPrice > อัตโนมัติตามขนาด
-    const _spLocked = item.spLock !== undefined && item.spLock !== "";
+    // สินค้าพิเศษ: คำนวณสดจากน้ำหนัก/ขนาดปัจจุบัน (กันเปลี่ยนน้ำหนักหลังเลือก)
+    const _spLive = liveSpPrice(item, form.branch, form.destProv, form.receiverAmphoe);
+    const _spLocked = !!(item.spId);
     const up = form._hideUnitFreight ? 0
-      : (_spLocked ? (parseFloat(item.spLock) || 0)
+      : (_spLocked ? (_spLive && !_spLive.err ? _spLive.price : 0)
         : ((item.customPrice !== undefined && item.customPrice !== "") ? (parseFloat(item.customPrice) || 0)
         : ((form.isManual || parseFloat(item.price) > 0) && parseFloat(item.price) > 0
           ? parseFloat(item.price)
@@ -1650,9 +1664,12 @@ function ItemRow({
   // 1. spLock  = เรทสินค้าพิเศษ (กระเบื้อง/ไม้เทียม/น้ำมัน) — ล็อกไว้ ระบบ size/custom ห้ามยุ่ง
   // 2. customPrice = พนักงานพิมพ์เอง
   // 3. autoUp  = ราคาอัตโนมัติตามขนาด
-  const spLocked = item.spLock !== undefined && item.spLock !== "";
+  // สินค้าพิเศษ: คำนวณสดจากน้ำหนัก/ขนาดปัจจุบัน (ไม่ใช้ราคาค้าง — กันเปลี่ยนน้ำหนักหลังเลือก)
+  const _spLive = liveSpPrice(item, branch, destProv, receiverAmphoe);
+  const spLocked = !!(item.spId);
+  const spErr = spLocked && _spLive && _spLive.err ? _spLive.err : "";
   const up = spLocked
-    ? (parseFloat(item.spLock) || 0)
+    ? (_spLive && !_spLive.err ? _spLive.price : 0)
     : (item.customPrice !== undefined && item.customPrice !== ""
         ? (parseFloat(item.customPrice) || 0)
         : autoUp);
@@ -1683,9 +1700,13 @@ function ItemRow({
       borderRadius: 20
     }
   }, "#", idx + 1), spLocked
-    ? /*#__PURE__*/React.createElement("span", {
-        style: { fontSize:11, background:"#E1F5EE", padding:"2px 8px", borderRadius:20, color:"#0F6E56", fontWeight:600 }
-      }, (item.spLabel||"เรทพิเศษ"), " = ", /*#__PURE__*/React.createElement("strong", null, up, "\u0E3F/\u0E0A\u0E34\u0E49\u0E19"))
+    ? (spErr
+        ? /*#__PURE__*/React.createElement("span", {
+            style: { fontSize:11, background:"#fdecea", padding:"2px 8px", borderRadius:20, color:"#c0392b", fontWeight:700 }
+          }, "⚠️ " + spErr)
+        : /*#__PURE__*/React.createElement("span", {
+            style: { fontSize:11, background:"#E1F5EE", padding:"2px 8px", borderRadius:20, color:"#0F6E56", fontWeight:600 }
+          }, ((_spLive && _spLive.label) || item.spLabel || "เรทพิเศษ"), " = ", /*#__PURE__*/React.createElement("strong", null, up, "\u0E3F/\u0E0A\u0E34\u0E49\u0E19")))
     : (size.id !== "custom" && zone && /*#__PURE__*/React.createElement("span", {
     style: {
       fontSize: 11,
@@ -1712,7 +1733,7 @@ function ItemRow({
                 /*#__PURE__*/React.createElement("strong", {style:{fontSize:13,color:"#0F6E56"}}, up, " ฿"),
                 /*#__PURE__*/React.createElement("button", {
                   title:"ยกเลิกเรทพิเศษ กลับไปคิดตามขนาด/กรอกเอง",
-                  onClick:()=>{ u("spLock",""); u("spLabel",""); u("spNoSize",""); },
+                  onClick:()=>{ u("spId",""); u("spKind",""); u("spLock",""); u("spLabel",""); u("spNoSize",""); },
                   style:{border:"none",background:"#eee",borderRadius:4,padding:"1px 5px",cursor:"pointer",fontSize:10,color:"#888"}
                 }, "✕ ยกเลิก")
               )
@@ -1833,7 +1854,8 @@ function ItemRow({
           if(!r) return;
           if(r.err){ alert("🛢️ สินค้าพิเศษ\n\n"+r.err+"\n\n(รายการนี้: น้ำหนัก \""+(item.kg||"-")+"\" กก.)\n\nกรอกน้ำหนักให้ครบก่อนเลือก"); return; }
         }
-        u("spLock", String(r.price));
+        u("spId", id);
+        u("spKind", kind);                    // "dim" หรือ "sp"
         u("spLabel", r.label);
         u("customPrice", "");
         u("desc", r.label);                   // ชื่อ = เรทที่เลือก (ล็อกให้ตรงกัน)
@@ -3637,9 +3659,10 @@ function ThermalBillingApp() {
     const sc = parseFloat(item.sumCm) || (parseFloat(item.w) || 0) + (parseFloat(item.l) || 0) + (parseFloat(item.h) || 0);
     const sz = calcSize(item.kg, sc);
     const autoP = getSizePrice(sz, zone, item.cpN, item.cpF);
-    // ลำดับ: spLock (เรทพิเศษ) > customPrice (กรอกเอง) > ราคาลูกค้าพิเศษ/อัตโนมัติ
-    const unitP = (item.spLock !== undefined && item.spLock !== "")
-      ? (parseFloat(item.spLock) || 0)
+    // สินค้าพิเศษ: คำนวณสดจากน้ำหนัก/ขนาดปัจจุบัน (จุดบันทึกยอดจริง — กันทุจริตเปลี่ยนน้ำหนัก)
+    const _spLive = liveSpPrice(item, form.branch, form.destProv, form.receiverAmphoe);
+    const unitP = (item.spId)
+      ? (_spLive && !_spLive.err ? _spLive.price : 0)
       : (item.customPrice !== undefined && item.customPrice !== ""
           ? (parseFloat(item.customPrice) || 0)
           : (custPP > 0 ? custPP : autoP));
@@ -3761,12 +3784,27 @@ function ThermalBillingApp() {
         if(!confirm("\u26a0\ufe0f ชื่อผู้ส่งนี้เป็นลูกค้า COD ที่ลงทะเบียนแล้ว\nรหัสลูกค้า COD: "+_codCust.code+"\n\nควรใส่รหัสลูกค้า COD แทนการพิมพ์ชื่อ เพื่อผูกบัญชีรับเงินให้ถูกต้อง\n\nกด ยกเลิก = กลับไปใส่รหัส (แนะนำ)\nกด ตกลง = ออกบิลต่อโดยไม่ใส่รหัส")) return;
       }
     }catch(e){}
+    // กันบันทึกบิลที่สินค้าพิเศษน้ำหนักเกินเรท (ราคาเป็น 0 = ผิด ต้องตีราคาพิเศษ)
+    try {
+      var _spBad = [];
+      items.forEach(function(it, i){
+        if(it.spId){
+          var lv = liveSpPrice(it, form.branch, form.destProv, form.receiverAmphoe);
+          if(lv && lv.err) _spBad.push("• รายการ "+(i+1)+" ("+(it.desc||it.spLabel||"")+"): "+lv.err);
+        }
+      });
+      if(_spBad.length){
+        alert("🚫 ออกบิลไม่ได้ — มีสินค้าพิเศษน้ำหนักเกินเรท:\n\n"+_spBad.join("\n")+
+              "\n\nต้องตีราคาพิเศษผ่าน @golod แล้วพิมพ์ราคาเอง (กด ✕ ยกเลิกเรท แล้วกรอกราคา)");
+        return;
+      }
+    } catch(e) {}
     // เตือนถ้ามีรายการที่ยังใช้ "ราคาอัตโนมัติ" (เสมียนไม่ได้พิมพ์ราคาเอง) — กันคิดราคาเกิน/ขาด
     try {
       const autoRows = items.map((it, i) => {
         const scA = parseFloat(it.sumCm) || (parseFloat(it.w)||0)+(parseFloat(it.l)||0)+(parseFloat(it.h)||0);
         const szA = calcSize(it.kg, scA);
-        const _spL = it.spLock !== undefined && it.spLock !== "";
+        const _spL = !!(it.spId);
         const isAuto = !_spL && (it.customPrice === undefined || it.customPrice === "") && szA.id !== "custom";
         const autoP = getSizePrice(szA, zone, it.cpN, it.cpF);
         return isAuto ? { n: i+1, desc: it.desc || "(ไม่มีชื่อ)", price: autoP, size: szA.label } : null;
