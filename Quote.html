@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8"/>
 <meta name="viewport" content="width=device-width,initial-scale=1"/>
-<!-- Quote build 2026-07-11c -->
+<!-- Quote build 2026-07-12a -->
 <title>โกโลด — เช็คราคาค่าขนส่ง</title>
 <script src="session.js"></script>
 <script src="firebase-app-compat.js"></script>
@@ -158,10 +158,14 @@ var SIZES=[
    special  = เรทเมื่อปลายทางเป็นพื้นที่พิเศษ
    special2 = เรทเมื่อพื้นที่พิเศษนั้นมีขั้นต่ำ >= 1000 */
 var SPECIAL_ITEMS=[
- {id:"oil_small",label:"น้ำมันเครื่อง/ไฮดรอลิก 18-20 ลิตร",near:120,far:150,special:180,special2:null},
- {id:"oil_drum",label:"น้ำมันเครื่อง/ไฮดรอลิก ถัง 200 ลิตร",near:800,far:900,special:1000,special2:1200},
- {id:"chem_small",label:"น้ำยา 20 ลิตร (≤23 กก.)",near:150,far:180,special:200,special2:null},
- {id:"chem_drum",label:"น้ำยา ถัง 200 ลิตร",near:900,far:1000,special:1200,special2:null},
+ {id:"oil_small",label:"น้ำมันเครื่อง/ไฮดรอลิก 18-20 ลิตร",kind:"step",
+   w:[{maxKg:20,near:120,far:150},{maxKg:25,near:150,far:180},{maxKg:30,near:180,far:220}]},
+ {id:"chem_small",label:"น้ำยา 20 ลิตร",kind:"step",
+   w:[{maxKg:23,near:150,far:180},{maxKg:25,near:180,far:220},{maxKg:30,near:220,far:240}]},
+ {id:"oil_drum",label:"น้ำมันเครื่อง/ไฮดรอลิก ถัง 200 ลิตร",kind:"drum",
+   maxKg:210,near:800,far:900,special:1000,special2:1200,overKg:200},
+ {id:"chem_drum",label:"น้ำยา ถัง 200 ลิตร",kind:"drum",
+   maxKg:230,near:900,far:1000,special:1200,special2:null,overKg:200},
  {id:"tile",label:"กระเบื้อง (คิดตามยาว+น้ำหนัก)",dim:"tile"},
  {id:"wood",label:"ไม้เทียม (คิดตามยาว+น้ำหนัก)",dim:"wood"}
 ];
@@ -383,6 +387,24 @@ function calc(){
       if(tp.err==="over_kg") return resEmpty("น้ำหนักเกินเรทของไซส์นี้<br/>ต้องตีราคาพิเศษ — ทัก LINE @golod");
       perPiece=(zone==="near")?tp.near:tp.far;
       itemLabel=tp.label;
+    } else if(row&&row.kind==="step"){
+      // น้ำมัน/น้ำยา แกลลอน — บันไดราคาตามน้ำหนัก
+      var sKg=parseFloat(document.getElementById("spKg").value)||0;
+      if(sKg<=0) return resEmpty("กรอกน้ำหนัก (กก.) ของสินค้าก่อน");
+      var band=row.w.filter(function(b){return sKg<=b.maxKg;})[0];
+      if(!band) return resEmpty(row.label+" เกิน "+row.w[row.w.length-1].maxKg+" กก.<br/>ต้องตีราคาพิเศษ — ทัก LINE @golod");
+      perPiece=(zone==="near")?band.near:band.far;
+      itemLabel=row.label+" (≤"+band.maxKg+"กก)";
+    } else if(row&&row.kind==="drum"){
+      // ถัง 200 ลิตร — เกินเพดานบวก overKg
+      var dKg=parseFloat(document.getElementById("spKg").value)||0;
+      var saMinD=specialAreaMin(prov,amphoe);
+      var baseD;
+      if(row.special!=null&&saMinD>0){ baseD=(saMinD>=1000)?(row.special2||row.special):row.special; usedSpRate=true; }
+      else { baseD=(zone==="near")?row.near:row.far; }
+      var overD=(dKg>0&&dKg>row.maxKg)?(row.overKg||0):0;
+      perPiece=baseD+overD;
+      itemLabel=row.label+(overD>0?" (เกิน"+row.maxKg+"กก +"+overD+")":"");
     } else {
       var saMin=specialAreaMin(prov,amphoe);
       if(row.special!=null&&saMin>0){
@@ -484,7 +506,12 @@ function initSelects(){
   SPECIAL_ITEMS.forEach(function(it){var o=document.createElement("option");o.value=it.id;o.textContent=it.label;sp.appendChild(o);});
   document.getElementById("spItem").addEventListener("change",function(){
     var it=SPECIAL_ITEMS.filter(function(x){return x.id===this.value;},this)[0];
-    document.getElementById("tileDims").classList.toggle("hidden", !(it&&it.dim));
+    var needKg = !!(it && (it.dim || it.kind==="step" || it.kind==="drum"));
+    var needCm = !!(it && it.dim);   // ยาว: เฉพาะกระเบื้อง/ไม้เทียม
+    document.getElementById("tileDims").classList.toggle("hidden", !needKg);
+    // ซ่อนช่องด้านยาวเมื่อเป็นน้ำมัน/น้ำยา (กรอกแค่น้ำหนัก)
+    var cmWrap = document.getElementById("spCm").parentNode;
+    cmWrap.style.display = needCm ? "" : "none";
   });
   document.getElementById("prov").addEventListener("change",refreshAmphoeList);
   ["origin","prov","amphoe","kg","cm","spItem","spKg","spCm","qty","disc","cod"].forEach(function(id){
