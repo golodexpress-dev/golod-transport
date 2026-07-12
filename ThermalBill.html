@@ -14,7 +14,7 @@
   <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
 </head><body>
 <div class="golod-bar no-print">
-  <h1>โกโลด ทรานสปอร์ต — ออกบิล Thermal 80mm <span style="font-size:11px;font-weight:400;opacity:.6">build 2026-07-11·b49</span></h1>
+  <h1>โกโลด ทรานสปอร์ต — ออกบิล Thermal 80mm <span style="font-size:11px;font-weight:400;opacity:.6">build 2026-07-11·b50</span></h1>
   <div id="golod-chip"></div>
   <a href="GolodApp.html" style="font-size:11px;color:#9FE1CB;background:rgba(255,255,255,.15);padding:3px 10px;border-radius:20px;text-decoration:none">← หน้าหลัก</a>
   <a href="DailyReport.html" style="font-size:11px;color:#FFE082;background:rgba(255,255,255,.15);padding:3px 10px;border-radius:20px;text-decoration:none">📊 รายงานสิ้นวัน</a>
@@ -2624,6 +2624,77 @@ function exportAllBillsCSV(dateFrom, dateTo) {
 }
 // ===== ระบบแก้ไขบิล =====
 const EDIT_WINDOW_MS = 3 * 60 * 60 * 1000; // 3 ชั่วโมง
+
+// อ่าน approved edit-window จาก Firestore (ข้ามเครื่องได้) — cache ลง localStorage ให้ canEditBill sync ใช้
+function syncEditWindowsFromCloud(){
+  var db; try{ db=firebase.firestore(); }catch(e){ return; }
+  db.collection("editRequests").where("status","==","approved").get().then(function(snap){
+    var win={}; var now=Date.now();
+    snap.forEach(function(d){
+      var r=d.data();
+      if(r.approvedUntil && new Date(r.approvedUntil).getTime()>now){
+        win[r.billNo]=new Date(r.approvedUntil).getTime();
+      }
+    });
+    try{ localStorage.setItem("golod_edit_windows", JSON.stringify(win)); }catch(e){}
+  }).catch(function(){});
+}
+
+function EditRequestsPanel({ isAdmin, staffName }) {
+  const [reqs, setReqs] = React.useState([]);
+  const [loading, setLoading] = React.useState(true);
+  const load = React.useCallback(()=>{
+    var db; try{ db=firebase.firestore(); }catch(e){ setLoading(false); return; }
+    db.collection("editRequests").where("status","==","pending").get().then(function(snap){
+      var out=[]; snap.forEach(function(d){ var r=d.data(); r._id=d.id; out.push(r); });
+      out.sort(function(a,b){ return String(b.requestedAt||"").localeCompare(String(a.requestedAt||"")); });
+      setReqs(out); setLoading(false);
+    }).catch(function(){ setLoading(false); });
+  },[]);
+  React.useEffect(()=>{ if(isAdmin) load(); },[isAdmin,load]);
+  if(!isAdmin) return null;
+  if(loading) return null;
+  if(!reqs.length) return null;
+
+  const approve = (r)=>{
+    var db=firebase.firestore();
+    var until=new Date(Date.now()+EDIT_WINDOW_MS).toISOString();
+    db.collection("editRequests").doc(r._id).update({
+      status:"approved", approvedUntil:until, approvedBy:(staffName||""), approvedAt:new Date().toISOString()
+    }).then(function(){
+      // เปิด window ที่เครื่อง admin ด้วย เผื่อ admin แก้เอง
+      try{ var w=JSON.parse(localStorage.getItem("golod_edit_windows")||"{}"); w[r.billNo]=new Date(until).getTime(); localStorage.setItem("golod_edit_windows",JSON.stringify(w)); }catch(e){}
+      alert("✅ อนุมัติแก้บิล "+r.billNo+" — เสมียนแก้ได้ภายใน 3 ชม.");
+      load();
+    }).catch(function(e){ alert("❌ "+(e&&e.message||e)); });
+  };
+  const reject = (r)=>{
+    var reason=prompt("เหตุผลที่ปฏิเสธ (ไม่บังคับ):")||"";
+    var db=firebase.firestore();
+    db.collection("editRequests").doc(r._id).update({
+      status:"rejected", rejectReason:reason, rejectedBy:(staffName||""), rejectedAt:new Date().toISOString()
+    }).then(function(){ alert("ปฏิเสธคำขอบิล "+r.billNo+" แล้ว"); load(); })
+      .catch(function(e){ alert("❌ "+(e&&e.message||e)); });
+  };
+
+  return React.createElement("div",{style:{border:"1px solid #ffd599",background:"#fff8ef",borderRadius:10,padding:"10px 12px",marginBottom:10}},
+    React.createElement("div",{style:{fontWeight:700,color:"#B8860B",fontSize:13,marginBottom:8}},"📨 คำขอแก้ไขบิล — รออนุมัติ ("+reqs.length+")"),
+    reqs.map(function(r,i){
+      return React.createElement("div",{key:i,style:{display:"flex",justifyContent:"space-between",alignItems:"center",gap:8,flexWrap:"wrap",background:"#fff",border:"1px solid #f0e0c0",borderRadius:7,padding:"7px 10px",marginBottom:5}},
+        React.createElement("div",{style:{fontSize:12}},
+          React.createElement("b",{style:{color:"#0F6E56"}},r.billNo),
+          React.createElement("span",{style:{color:"#888",marginLeft:8}},"โดย "+(r.requestedBy||r.requesterCode||"-")+(r.branch?(" · "+r.branch):"")),
+          r.requestedAt?React.createElement("span",{style:{color:"#aaa",marginLeft:8,fontSize:10}}, new Date(r.requestedAt).toLocaleString("th-TH")):null
+        ),
+        React.createElement("div",{style:{display:"flex",gap:6}},
+          React.createElement("button",{onClick:()=>approve(r),style:{background:"#0F6E56",color:"#fff",border:"none",borderRadius:6,padding:"4px 12px",fontSize:12,cursor:"pointer",fontWeight:600}},"✓ อนุมัติ"),
+          React.createElement("button",{onClick:()=>reject(r),style:{background:"#fee",color:"#c0392b",border:"none",borderRadius:6,padding:"4px 12px",fontSize:12,cursor:"pointer"}},"✕ ปฏิเสธ")
+        )
+      );
+    })
+  );
+}
+
 function canEditBill(bill, sessionUser) {
   if (!bill) return {
     allowed: false,
@@ -2701,22 +2772,26 @@ function saveEditLog(billNo, oldData, newData, editor) {
   } catch (e) {}
 }
 function requestAdminEdit(billNo) {
-  const requests = JSON.parse(localStorage.getItem("golod_edit_requests") || "[]");
-  const already = requests.find(r => r.billNo === billNo && r.status === "pending");
-  if (already) {
-    alert("ส่งคำขอไปแล้ว รอ Admin อนุมัติ");
-    return false;
-  }
   const session = JSON.parse(localStorage.getItem("golod_session") || "{}");
-  requests.unshift({
-    billNo,
-    requestedAt: new Date().toISOString(),
-    requestedBy: session.name || "",
-    requesterCode: session.clerkCode || "",
-    status: "pending"
-  });
-  localStorage.setItem("golod_edit_requests", JSON.stringify(requests.slice(0, 200)));
-  alert(`ส่งคำขอแก้ไขบิล ${billNo} ถึง Admin แล้วครับ`);
+  var db; try { db = firebase.firestore(); } catch(e){}
+  if(!db){ alert("เชื่อมต่อฐานข้อมูลไม่ได้ ลองรีเฟรช"); return false; }
+
+  // กันส่งซ้ำ: เช็คคำขอ pending ของบิลนี้ใน Firestore ก่อน
+  db.collection("editRequests").where("billNo","==",billNo).where("status","==","pending").limit(1).get()
+    .then(function(snap){
+      if(!snap.empty){ alert("ส่งคำขอบิลนี้ไปแล้ว รอ Admin อนุมัติ"); return; }
+      return db.collection("editRequests").add({
+        billNo: billNo,
+        requestedAt: new Date().toISOString(),
+        requestedBy: session.name || session.username || "",
+        requesterCode: session.clerkCode || "",
+        branch: (typeof getSessionBranch==="function"?getSessionBranch():"") || "",
+        status: "pending"
+      }).then(function(){
+        alert("✅ ส่งคำขอแก้ไขบิล "+billNo+" ถึง Admin แล้ว\nรอ Admin อนุมัติในหน้า 'คำขอแก้ไขบิล'");
+      });
+    })
+    .catch(function(e){ alert("ส่งคำขอไม่สำเร็จ: "+(e&&e.message||e)); });
   return false;
 }
 function getSessionBranch() {
@@ -3306,6 +3381,7 @@ function ThermalBillingApp() {
   useEffect(() => {
     var code = staffCode;
     setF("staff", code);
+    if(typeof syncEditWindowsFromCloud==="function") syncEditWindowsFromCloud();   // ดึงคำอนุมัติแก้บิลจาก cloud
     // ถ้า edit mode ให้ใช้ billNo เดิม ไม่สร้างใหม่
     if (window._editBillData && window._editBillData.billNo) {
       billNo.current = window._editBillData.billNo;
@@ -3894,7 +3970,10 @@ function ThermalBillingApp() {
       maxWidth: 900,
       margin: "0 auto"
     }
-  }, view === "list" && /*#__PURE__*/React.createElement("div", { style: { fontSize: 11, background: "#FFF8E1", border: "1px solid #FFE0B2", color: "#5D4037", padding: "6px 10px", borderRadius: 8, marginBottom: 8, lineHeight: 1.5 } }, "\uD83D\uDD0E ระบบมองคุณเป็น \u2014 รหัส: " + (staffCode || "-") + " \u00B7 สาขา: " + (_myBranchTB || "-") + " \u00B7 บทบาท: " + ((sessionUser && sessionUser.role) || "-") + " \u00B7 ผู้ใช้: " + ((sessionUser && sessionUser.username) || "-") + " \u00B7 เห็น " + bills.length + " บิล" + (isAdminRole ? " (เห็นทุกสาขา)" : "")), view === "list" && /*#__PURE__*/React.createElement(BillList, {
+  }, view === "list" && /*#__PURE__*/React.createElement(EditRequestsPanel, {
+    isAdmin: isAdminRole,
+    staffName: staffName
+  }), view === "list" && /*#__PURE__*/React.createElement("div", { style: { fontSize: 11, background: "#FFF8E1", border: "1px solid #FFE0B2", color: "#5D4037", padding: "6px 10px", borderRadius: 8, marginBottom: 8, lineHeight: 1.5 } }, "\uD83D\uDD0E ระบบมองคุณเป็น \u2014 รหัส: " + (staffCode || "-") + " \u00B7 สาขา: " + (_myBranchTB || "-") + " \u00B7 บทบาท: " + ((sessionUser && sessionUser.role) || "-") + " \u00B7 ผู้ใช้: " + ((sessionUser && sessionUser.username) || "-") + " \u00B7 เห็น " + bills.length + " บิล" + (isAdminRole ? " (เห็นทุกสาขา)" : "")), view === "list" && /*#__PURE__*/React.createElement(BillList, {
     bills: bills,
     onNew: resetForm,
     onView: b => {
