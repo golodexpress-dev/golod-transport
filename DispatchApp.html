@@ -755,7 +755,7 @@ tr:hover td{background:#f8fffe}
 <div class="topbar">
   <span class="title">🚛 จัดการขนส่ง</span>
   <span id="session-info" style="font-size:11px;opacity:.8"></span>
-  <span style="font-size:10px;opacity:.65;margin-left:auto">build 2026-07-10z175</span>
+  <span style="font-size:10px;opacity:.65;margin-left:auto">build 2026-07-12z177</span>
   <a href="GolodApp.html" style="margin-left:10px">← หน้าหลัก</a>
 </div>
 <div class="container">
@@ -4995,10 +4995,15 @@ function loadDoneBills(){
   // เพราะบิลบางสาขา/บิลเก่าไม่มี field createdAt จะถูกตัดทิ้ง)
   // limit 5000/สถานะ — ครอบทุกใบ (ส่งสำเร็จมี ~1,850) และอยู่ในระดับที่ Firestore รับได้
   // (เคยตั้ง 20000 → query reject ทั้งหมด เลยเป็น 0)
-  var perStatus = 5000;
-  var doneQueries = DONE_ST.map(function(st){
-    return db.collection("bills").where("status","==",st).limit(perStatus).get()
-      .catch(function(e){ console.warn("[loadDoneBills] query fail:", st, e && e.message); return {forEach:function(){}}; });
+  var perStatus = 8000;
+  var doneQueries = [];
+  DONE_ST.forEach(function(st){
+    // query หลัก: ไม่เรียง (ไม่ต้องใช้ composite index) limit สูงพอครอบทุกใบ
+    // บิลส่งสำเร็จมี ~7,300 ใบ → limit 8000 ครอบได้ทั้งหมด รวม BR
+    doneQueries.push(
+      db.collection("bills").where("status","==",st).limit(perStatus).get()
+        .catch(function(e){ console.warn("[loadDoneBills] fail:", st, e && e.message); return {forEach:function(){}}; })
+    );
   });
 
   Promise.all(doneQueries)
