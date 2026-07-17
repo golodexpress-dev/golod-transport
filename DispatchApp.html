@@ -756,7 +756,7 @@ tr:hover td{background:#f8fffe}
 <div class="topbar">
   <span class="title">🚛 จัดการขนส่ง</span>
   <span id="session-info" style="font-size:11px;opacity:.8"></span>
-  <span style="font-size:10px;opacity:.65;margin-left:auto">build 2026-07-12z179</span>
+  <span style="font-size:10px;opacity:.65;margin-left:auto">build 2026-07-12z180</span>
   <a href="GolodApp.html" style="margin-left:10px">← หน้าหลัก</a>
 </div>
 <div class="container">
@@ -2488,7 +2488,9 @@ function renderTripForm(existingTrip){
     return _dbr(d.branch)===_ubn;
   });
   var driverOpts = drivers.map(function(d){
-    return '<option value="'+d.username+'" data-name="'+d.name+'"'+(t.driverUsername===d.username?" selected":"")+'>'+d.name+' ('+d.branch+')</option>';
+    var sel = (t.driverUsername && t.driverUsername===d.username)
+           || (!t.driverUsername && t.driverName && t.driverName===d.name);  // fallback: match ด้วยชื่อ
+    return '<option value="'+d.username+'" data-name="'+d.name+'"'+(sel?" selected":"")+'>'+d.name+' ('+d.branch+')</option>';
   }).join("");
 
   // บิลที่เพิ่มเข้าเที่ยวได้ = เฉพาะบิลรอจ่าย (ออกบิลรับของ/issued/นำส่งใหม่) + บิลที่อยู่ในเที่ยวนี้อยู่แล้ว
@@ -7055,11 +7057,22 @@ function gotoEditFromClear(){
   _clearTripOrigin = "";   // ไม่ต้องเด้งกลับสรุปสิ้นเดือนตอนปิด modal (กำลังไปหน้าแก้ไข)
   document.getElementById("modal-clear-trip").style.display = "none";
   _clearTripId = null; _clearTripData = null;
-  // ให้แน่ใจว่าเที่ยวอยู่ใน openTrips (เผื่อเปิดมาจากสรุปสิ้นเดือน)
-  if(!( _tripState.openTrips||[]).find(function(x){return x.id===tid;})){
+
+  // หาเที่ยวเวอร์ชันเต็ม: openTrips ก่อน (มี field ครบ เช่น driverUsername) ไม่งั้นเอาจากสรุปสิ้นเดือน
+  _tripState.openTrips = _tripState.openTrips||[];
+  var full = _tripState.openTrips.find(function(x){return x.id===tid;});
+  if(!full){
     var ctx=window._monthlyCtx;
-    var t=ctx&&(ctx.allTrips||[]).find(function(x){return x.id===tid;});
-    if(t){ _tripState.openTrips=_tripState.openTrips||[]; _tripState.openTrips.push(t); }
+    var mt=ctx&&(ctx.allTrips||[]).find(function(x){return x.id===tid;});
+    if(mt){
+      // เติม driverUsername จากชื่อ ถ้าเวอร์ชันสรุปสิ้นเดือนไม่มี (กันคนขับหายในหน้าแก้ไข)
+      if(!mt.driverUsername && mt.driverName){
+        var drv=(_tripState.drivers||[]).find(function(d){return d.name===mt.driverName;});
+        if(drv) mt.driverUsername=drv.username;
+      }
+      _tripState.openTrips.push(mt);
+      full=mt;
+    }
   }
   if(typeof currentTab!=="undefined") currentTab="trip";   // สลับไปแท็บเที่ยว (ไม่เรียก renderApp)
   _tripState.mode="edit";
