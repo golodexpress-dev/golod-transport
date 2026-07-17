@@ -755,7 +755,7 @@ tr:hover td{background:#f8fffe}
 <div class="topbar">
   <span class="title">🚛 จัดการขนส่ง</span>
   <span id="session-info" style="font-size:11px;opacity:.8"></span>
-  <span style="font-size:10px;opacity:.65;margin-left:auto">build 2026-07-12z177</span>
+  <span style="font-size:10px;opacity:.65;margin-left:auto">build 2026-07-12z178</span>
   <a href="GolodApp.html" style="margin-left:10px">← หน้าหลัก</a>
 </div>
 <div class="container">
@@ -4778,8 +4778,10 @@ function openClearTripFromMonthly(tripId){
   if(!t){ alert("ไม่พบข้อมูลเที่ยว"); return; }
   _tripState.openTrips = _tripState.openTrips||[];
   if(!_tripState.openTrips.find(function(x){return x.id===tripId;})) _tripState.openTrips.push(t);
+  _clearTripOrigin = "monthly";   // จำว่ามาจากสรุปสิ้นเดือน → เคลียร์เสร็จกลับมาที่นี่
   openClearTrip(tripId);
 }
+var _clearTripOrigin = "";  // "" = มาจากหน้าเที่ยว, "monthly" = มาจากสรุปสิ้นเดือน
 
 // ===== HISTORY TAB =====
 var historyDateMode = "week";
@@ -7038,6 +7040,11 @@ function openClearTrip(tripId){
 function closeClearTrip(){
   document.getElementById("modal-clear-trip").style.display = "none";
   _clearTripId = null; _clearTripData = null;
+  // ถ้าปิด modal โดยไม่ได้บันทึก (กดยกเลิก) แล้วเปิดมาจากสรุปสิ้นเดือน → กลับไปที่นั่น
+  if(_clearTripOrigin==="monthly"){
+    _clearTripOrigin="";
+    if(typeof reloadMonthlyRange==="function") reloadMonthlyRange();
+  }
 }
 
 function calcClearTrip(){
@@ -7238,8 +7245,14 @@ function saveClearTrip(){
   })
     .then(function(){
       alert("✅ บันทึกการเคลียร์แล้ว\n\nเที่ยวยังเปิดอยู่ — คนขับอัพสถานะบิลที่เหลือได้\nเมื่องานจบครบแล้ว กด \"✅ ปิดเที่ยว\"");
+      var _backMonthly = (_clearTripOrigin==="monthly");
+      _clearTripOrigin="";           // เคลียร์ก่อน เพื่อไม่ให้ closeClearTrip เรียก reload ซ้ำ
       closeClearTrip();
-      renderTripTab();
+      if(_backMonthly){
+        if(typeof reloadMonthlyRange==="function") reloadMonthlyRange();  // กลับ + รีเฟรชสรุปสิ้นเดือน
+      } else {
+        renderTripTab();
+      }
     }).catch(function(e){ alert("❌ "+e.message); });
 }
 
