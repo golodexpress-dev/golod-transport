@@ -14,7 +14,7 @@
   <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
 </head><body>
 <div class="golod-bar no-print">
-  <h1>โกโลด ทรานสปอร์ต — ออกบิล Thermal 80mm <span style="font-size:11px;font-weight:400;opacity:.6">build 2026-07-12·b54</span></h1>
+  <h1>โกโลด ทรานสปอร์ต — ออกบิล Thermal 80mm <span style="font-size:11px;font-weight:400;opacity:.6">build 2026-07-12·b56</span></h1>
   <div id="golod-chip"></div>
   <a href="GolodApp.html" style="font-size:11px;color:#9FE1CB;background:rgba(255,255,255,.15);padding:3px 10px;border-radius:20px;text-decoration:none">← หน้าหลัก</a>
   <a href="DailyReport.html" style="font-size:11px;color:#FFE082;background:rgba(255,255,255,.15);padding:3px 10px;border-radius:20px;text-decoration:none">📊 รายงานสิ้นวัน</a>
@@ -372,13 +372,19 @@ null})}),!0):!1};M.unstable_batchedUpdates=ai;M.unstable_createPortal=function(a
 var SPECIAL_AREAS = []; // override จากหน้า "จัดการพื้นที่พิเศษ" (Firestore setting)
 var SPECIAL_RECEIVERS = []; // ขั้นต่ำปลายทางเฉพาะราย (ชื่อบริษัท/ผู้รับ + จังหวัด)
 var CUSTOMER_PRICES = []; // [{name, code, pricePerPiece}] จากหน้า "ราคาลูกค้าพิเศษ" ใน Dispatch
+// ตัดคำนำหน้าบริษัท + ช่องว่าง + จุด เพื่อเทียบชื่อแบบยืดหยุ่น
+function _normName(s){
+  return String(s||"").trim().toLowerCase()
+    .replace(/บริษัท|บมจ\.?|บจก\.?|บจ\.?|หจก\.?|หสน\.?|ห้างหุ้นส่วนจำกัด|ห้างหุ้นส่วนสามัญ|\(มหาชน\)|\(สำนักงานใหญ่\)|จำกัด|สาขา/g,"")
+    .replace(/[\s.\-]/g,"");
+}
 function getReceiverMin(name, prov, addr){
   if(!Array.isArray(SPECIAL_RECEIVERS)) return 0;
-  var n=String(name||"").trim().toLowerCase(), p=String(prov||"").trim().toLowerCase(), ad=String(addr||"").trim().toLowerCase(), best=0;
+  var n=_normName(name), p=String(prov||"").trim().toLowerCase(), ad=_normName(addr), best=0;
   for(var i=0;i<SPECIAL_RECEIVERS.length;i++){
     var sr=SPECIAL_RECEIVERS[i]; if(!sr) continue;
-    var sn=String(sr.name||"").trim().toLowerCase();
-    var sl=String(sr.loc||"").trim().toLowerCase();
+    var sn=_normName(sr.name);
+    var sl=_normName(sr.loc);
     if(!sn && !sl) continue;
     var nameHit = sn && n && n.indexOf(sn)>=0;
     var locHit  = sl && ad && ad.indexOf(sl)>=0;
@@ -418,11 +424,11 @@ function getSpecialAreaMin(prov, amphoe, tambon){
 }
 function getReceiverQueue(name, prov, addr){
   if(!Array.isArray(SPECIAL_RECEIVERS)) return 0;
-  var n=String(name||"").trim().toLowerCase(), p=String(prov||"").trim().toLowerCase(), ad=String(addr||"").trim().toLowerCase(), best=0;
+  var n=_normName(name), p=String(prov||"").trim().toLowerCase(), ad=_normName(addr), best=0;
   for(var i=0;i<SPECIAL_RECEIVERS.length;i++){
     var sr=SPECIAL_RECEIVERS[i]; if(!sr) continue;
-    var sn=String(sr.name||"").trim().toLowerCase();
-    var sl=String(sr.loc||"").trim().toLowerCase();
+    var sn=_normName(sr.name);
+    var sl=_normName(sr.loc);
     if(!sn && !sl) continue;
     var nameHit = sn && n && n.indexOf(sn)>=0;
     var locHit  = sl && ad && ad.indexOf(sl)>=0;
@@ -432,16 +438,21 @@ function getReceiverQueue(name, prov, addr){
   }
   return best;
 }
-function getMinFreight(prov, amphoe, tambon) {
+function getMinFreight(prov, amphoe, tambon, receiverName, receiverAddr) {
   if(!prov) return 0;
+  // 1) ขั้นต่ำตามชื่อบริษัท/ผู้รับ หรือคำในที่อยู่ (ตั้งในหน้า "ขั้นต่ำปลายทางพิเศษ")
+  var rMin = getReceiverMin(receiverName, prov, receiverAddr);
+  // 2) ขั้นต่ำตามอำเภอ/ตำบล
   var sp = getSpecialAreaMin(prov, amphoe, tambon);
-  if(sp>0) return sp;
+  // 3) ขั้นต่ำตามจังหวัด (ฮาร์ดโค้ด)
+  var provMin = 0;
   var amp = amphoe||"";
-  if(["กรุงเทพมหานคร","ปทุมธานี","สมุทรปราการ","สมุทรสาคร","นนทบุรี"].indexOf(prov)>=0) return 100;
-  if(["พระนครศรีอยุธยา","นครปฐม","สมุทรสงคราม","เพชรบุรี","ราชบุรี","สุพรรณบุรี","สิงห์บุรี","อ่างทอง","ลพบุรี","สระบุรี","ปราจีนบุรี","นครนายก","ฉะเชิงเทรา","ชลบุรี","ระยอง"].indexOf(prov)>=0) return 120;
-  if(["กาญจนบุรี","สระแก้ว","จันทบุรี","ชัยนาท","ประจวบคีรีขันธ์","นครราชสีมา","บุรีรัมย์","มหาสารคาม","ชัยภูมิ","ร้อยเอ็ด","ยโสธร","อุบลราชธานี","ศรีสะเกษ","สุรินทร์"].indexOf(prov)>=0) return amp.startsWith("เมือง")?120:150;
-  if(["อุตรดิตถ์","สุโขทัย","พิษณุโลก","พิจิตร","กำแพงเพชร","ตาก","อุทัยธานี","เพชรบูรณ์","ชุมพร","มุกดาหาร","นครพนม","บึงกาฬ","สกลนคร","หนองคาย","เลย","อุดรธานี","กาฬสินธุ์","ตราด","หนองบัวลำภู","อำนาจเจริญ","นครสวรรค์"].indexOf(prov)>=0) return amp.startsWith("เมือง")?180:200;
-  return 0;
+  if(["กรุงเทพมหานคร","ปทุมธานี","สมุทรปราการ","สมุทรสาคร","นนทบุรี"].indexOf(prov)>=0) provMin = 100;
+  else if(["พระนครศรีอยุธยา","นครปฐม","สมุทรสงคราม","เพชรบุรี","ราชบุรี","สุพรรณบุรี","สิงห์บุรี","อ่างทอง","ลพบุรี","สระบุรี","ปราจีนบุรี","นครนายก","ฉะเชิงเทรา","ชลบุรี","ระยอง"].indexOf(prov)>=0) provMin = 120;
+  else if(["กาญจนบุรี","สระแก้ว","จันทบุรี","ชัยนาท","ประจวบคีรีขันธ์","นครราชสีมา","บุรีรัมย์","มหาสารคาม","ชัยภูมิ","ร้อยเอ็ด","ยโสธร","อุบลราชธานี","ศรีสะเกษ","สุรินทร์"].indexOf(prov)>=0) provMin = amp.startsWith("เมือง")?120:150;
+  else if(["อุตรดิตถ์","สุโขทัย","พิษณุโลก","พิจิตร","กำแพงเพชร","ตาก","อุทัยธานี","เพชรบูรณ์","ชุมพร","มุกดาหาร","นครพนม","บึงกาฬ","สกลนคร","หนองคาย","เลย","อุดรธานี","กาฬสินธุ์","ตราด","หนองบัวลำภู","อำนาจเจริญ","นครสวรรค์"].indexOf(prov)>=0) provMin = amp.startsWith("เมือง")?180:200;
+  // เลือกค่าสูงสุด — ผู้รับพิเศษ/อำเภอพิเศษ ทับพื้นจังหวัด
+  return Math.max(rMin, sp, provMin);
 }
 </script>
 <script>var useState=React.useState,useRef=React.useRef,useEffect=React.useEffect,useCallback=React.useCallback,useMemo=React.useMemo,useContext=React.useContext,useReducer=React.useReducer;
@@ -1606,6 +1617,15 @@ function ThermalBill({
       lineHeight: 1.7
     }
   }, /*#__PURE__*/React.createElement("div", null, "\u0E02\u0E2D\u0E1A\u0E04\u0E38\u0E13\u0E17\u0E35\u0E48\u0E43\u0E0A\u0E49\u0E1A\u0E23\u0E34\u0E01\u0E32\u0E23 \u0E1A\u0E08.\u0E42\u0E01\u0E42\u0E25\u0E14 \u0E17\u0E23\u0E32\u0E19\u0E2A\u0E1B\u0E2D\u0E23\u0E4C\u0E15"), /*#__PURE__*/React.createElement("div", {
+    style: {
+      fontSize: 8,
+      color: "#0F6E56",
+      fontWeight: 700,
+      marginTop: 3,
+      marginBottom: 2,
+      lineHeight: 1.5
+    }
+  }, "\uD83D\uDCE6 \u0E23\u0E31\u0E1A\u0E2A\u0E48\u0E07\u0E2A\u0E34\u0E19\u0E04\u0E49\u0E32\u0E1E\u0E34\u0E40\u0E28\u0E29 \u0E01\u0E23\u0E30\u0E40\u0E1A\u0E37\u0E49\u0E2D\u0E07/\u0E44\u0E21\u0E49\u0E40\u0E17\u0E35\u0E22\u0E21/\u0E19\u0E49\u0E33\u0E21\u0E31\u0E19/\u0E19\u0E49\u0E33\u0E22\u0E32 \u2014 \u0E15\u0E35\u0E23\u0E32\u0E04\u0E32\u0E2D\u0E31\u0E15\u0E42\u0E19\u0E21\u0E31\u0E15\u0E34\u0E17\u0E35\u0E48 @glexpress"), /*#__PURE__*/React.createElement("div", {
     style: {
       fontWeight: 700,
       fontSize: 9,
