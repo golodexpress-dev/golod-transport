@@ -495,6 +495,7 @@ tr:hover td{background:#f8fffe}
 
     <div class="btn-row">
       <button class="btn btn-gray" onclick="closeClearTrip()">ยกเลิก</button>
+      <button class="btn" style="background:#5b7ea6;color:#fff" onclick="gotoEditFromClear()">✏️ ไปหน้าแก้ไขเที่ยว</button>
       <button class="btn btn-orange" onclick="saveClearTrip()">💾 บันทึกเคลียร์</button>
     </div>
   </div>
@@ -755,7 +756,7 @@ tr:hover td{background:#f8fffe}
 <div class="topbar">
   <span class="title">🚛 จัดการขนส่ง</span>
   <span id="session-info" style="font-size:11px;opacity:.8"></span>
-  <span style="font-size:10px;opacity:.65;margin-left:auto">build 2026-07-12z178</span>
+  <span style="font-size:10px;opacity:.65;margin-left:auto">build 2026-07-12z179</span>
   <a href="GolodApp.html" style="margin-left:10px">← หน้าหลัก</a>
 </div>
 <div class="container">
@@ -7045,6 +7046,24 @@ function closeClearTrip(){
     _clearTripOrigin="";
     if(typeof reloadMonthlyRange==="function") reloadMonthlyRange();
   }
+}
+
+// จากหน้าเคลียร์ → กระโดดไปหน้าแก้ไขเที่ยวใบเดียวกัน
+function gotoEditFromClear(){
+  var tid = _clearTripId;
+  if(!tid){ alert("ไม่พบเที่ยว"); return; }
+  _clearTripOrigin = "";   // ไม่ต้องเด้งกลับสรุปสิ้นเดือนตอนปิด modal (กำลังไปหน้าแก้ไข)
+  document.getElementById("modal-clear-trip").style.display = "none";
+  _clearTripId = null; _clearTripData = null;
+  // ให้แน่ใจว่าเที่ยวอยู่ใน openTrips (เผื่อเปิดมาจากสรุปสิ้นเดือน)
+  if(!( _tripState.openTrips||[]).find(function(x){return x.id===tid;})){
+    var ctx=window._monthlyCtx;
+    var t=ctx&&(ctx.allTrips||[]).find(function(x){return x.id===tid;});
+    if(t){ _tripState.openTrips=_tripState.openTrips||[]; _tripState.openTrips.push(t); }
+  }
+  if(typeof currentTab!=="undefined") currentTab="trip";   // สลับไปแท็บเที่ยว (ไม่เรียก renderApp)
+  _tripState.mode="edit";
+  editTrip(tid);                                            // เปิดหน้าแก้ไข (render form เอง)
 }
 
 function calcClearTrip(){
