@@ -14,7 +14,7 @@
   <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
 </head><body>
 <div class="golod-bar no-print">
-  <h1>โกโลด ทรานสปอร์ต — ออกบิล Thermal 80mm <span style="font-size:11px;font-weight:400;opacity:.6">build 2026-07-12·b56</span></h1>
+  <h1>โกโลด ทรานสปอร์ต — ออกบิล Thermal 80mm <span style="font-size:11px;font-weight:400;opacity:.6">build 2026-07-12·b57</span></h1>
   <div id="golod-chip"></div>
   <a href="GolodApp.html" style="font-size:11px;color:#9FE1CB;background:rgba(255,255,255,.15);padding:3px 10px;border-radius:20px;text-decoration:none">← หน้าหลัก</a>
   <a href="DailyReport.html" style="font-size:11px;color:#FFE082;background:rgba(255,255,255,.15);padding:3px 10px;border-radius:20px;text-decoration:none">📊 รายงานสิ้นวัน</a>
@@ -2787,6 +2787,12 @@ function canEditBill(bill, sessionUser) {
     } catch(e){}
     return sessionUser.clerkCode || null;
   })();
+  // หัวหน้าสาขา/เสมียน แก้บิลที่คนรถออก (DR) ได้ — คนรถออกบิลแทน แต่เสมียนดูแลแก้ไข
+  const _role = (sessionUser && sessionUser.role) || "";
+  const _isDriverBill = bill.isDriverBill || (bill.clerkCode||"").toUpperCase().indexOf("DR")===0;
+  if (_isDriverBill && (_role==="branch" || _role==="clerk")) {
+    return { allowed: true, reason: "เสมียน/หัวหน้าแก้บิลคนรถ" };
+  }
   if (userCode && bill.clerkCode && bill.clerkCode !== userCode &&
       !(bill.billNo && bill.billNo.startsWith(userCode))) {
     return { allowed: false, reason: "บิลนี้ออกโดย " + (bill.clerkCode||"ผู้อื่น") + " — แก้ไขได้เฉพาะเจ้าของบิล" };
@@ -3275,21 +3281,31 @@ function ThermalBillingApp() {
           } catch(e) { console.warn("admin sync error:", e.message); }
         }).catch(function(){});
       } else {
-        // เสมียน: นอกจากบิลของเครื่องตัวเอง ให้ดึง "บิลที่คนรถออก / บิลรออนุมัติ" จาก Firestore มาด้วย เพื่อให้พริ้นได้
-        GolodDB.getBillsNew && GolodDB.getBillsNew(500).then(function(bills) {
+        // เสมียน/หัวหน้า: ดึงบิลที่คนรถออก + บิลของสาขาเดียวกัน (พริ้น/แก้ไขได้)
+        GolodDB.getBillsNew && GolodDB.getBillsNew(1000).then(function(bills) {
           try {
             if (bills && bills.length > 0) {
-              var driverBills = bills.filter(function(b){ return b && b.billNo && (b.isDriverBill || b.status==="รออนุมัติ"); });
-              if (driverBills.length > 0) {
+              // สาขาของเสมียนที่ล็อกอิน
+              var myBr = ((s.branch)||"").toString();
+              var _sameBranch = function(b){
+                var bb = (b.originBranch||"").toString();
+                if(!bb) return false;            // บิลไม่มีสาขา — ไม่เดา
+                return bb === myBr;
+              };
+              // เอาบิลที่: เป็นบิลคนรถ / รออนุมัติ / สาขาเดียวกับเสมียน
+              var extraBills = bills.filter(function(b){
+                return b && b.billNo && (b.isDriverBill || b.status==="รออนุมัติ" || _sameBranch(b));
+              });
+              if (extraBills.length > 0) {
                 var local = [];
                 try { local = JSON.parse(localStorage.getItem("golod_bills")||"[]"); } catch(e) {}
                 var map = {};
                 local.forEach(function(b){ if(b.billNo) map[b.billNo]=b; });
-                driverBills.forEach(function(b){ map[b.billNo]=b; });
+                extraBills.forEach(function(b){ map[b.billNo]=b; });
                 var merged = Object.values(map);
                 setAllBills(merged);
                 try { localStorage.setItem("golod_bills", JSON.stringify(merged)); } catch(e) {}
-                console.log("[ThermalBill] clerk loaded "+driverBills.length+" driver bills for printing");
+                console.log("[ThermalBill] clerk loaded "+extraBills.length+" extra bills (driver/branch)");
               }
             }
           } catch(e) { console.warn("clerk driver-bill sync error:", e.message); }
