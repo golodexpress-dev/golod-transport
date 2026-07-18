@@ -1196,7 +1196,7 @@ function closePickupBill(){
 }
 
 function showPickupSuccess(billNo, receiverName, destProv, items, freight, freightPay){
-  var trackUrl = "https://golodexpress-dev.github.io/golod-transport/TrackingSystem.html?bill="+billNo;
+  var trackUrl = "https://status-81cd0.web.app/track.html?bill="+billNo;
   var lineMsg = encodeURIComponent("📦 โกโลด ทรานสปอร์ต\nเลขบิล: "+billNo+"\nติดตามสินค้า: "+trackUrl);
   var PAY_TH = {origin:"ต้นทาง",dest:"ปลายทาง(สด)",transfer:"โอนล่วงหน้า",credit:"เครดิต"};
   var itemsHtml = (items||[]).filter(function(i){return i.desc;}).map(function(it){
