@@ -756,7 +756,7 @@ tr:hover td{background:#f8fffe}
 <div class="topbar">
   <span class="title">🚛 จัดการขนส่ง</span>
   <span id="session-info" style="font-size:11px;opacity:.8"></span>
-  <span style="font-size:10px;opacity:.65;margin-left:auto">build 2026-07-12z180</span>
+  <span style="font-size:10px;opacity:.65;margin-left:auto">build 2026-07-12z181</span>
   <a href="GolodApp.html" style="margin-left:10px">← หน้าหลัก</a>
 </div>
 <div class="container">
@@ -7076,7 +7076,26 @@ function gotoEditFromClear(){
   }
   if(typeof currentTab!=="undefined") currentTab="trip";   // สลับไปแท็บเที่ยว (ไม่เรียก renderApp)
   _tripState.mode="edit";
-  editTrip(tid);                                            // เปิดหน้าแก้ไข (render form เอง)
+
+  // โหลดรายชื่อคนขับก่อน ถ้ายังว่าง (เข้าจากสรุปสิ้นเดือนไม่ผ่านแท็บเที่ยว → drivers ยังไม่โหลด)
+  function _openEdit(){
+    // เติม driverUsername จากชื่อ ถ้าเที่ยวไม่มี (หลังโหลด drivers แล้ว)
+    if(full && !full.driverUsername && full.driverName){
+      var drv=(_tripState.drivers||[]).find(function(d){return d.name===full.driverName;});
+      if(drv) full.driverUsername=drv.username;
+    }
+    editTrip(tid);
+  }
+  if(!_tripState.drivers || _tripState.drivers.length===0){
+    if(typeof GolodDB!=="undefined" && GolodDB.getUsers){
+      GolodDB.getUsers().then(function(us){
+        _tripState.drivers=(us||[]).filter(function(u){return u.role==="driver";});
+        _openEdit();
+      }).catch(function(){ _openEdit(); });
+      return;
+    }
+  }
+  _openEdit();
 }
 
 function calcClearTrip(){
