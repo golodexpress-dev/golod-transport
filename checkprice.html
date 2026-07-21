@@ -1,0 +1,286 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>เช็คค่าส่ง — GOLOD Transport</title>
+<meta name="description" content="คำนวณค่าส่งของและพัสดุด่วนกับ GOLOD Transport ส่งถึงหน้าบ้าน 57 จังหวัด รู้ราคาก่อนส่งจริง">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+Thai:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --green:#0F6E56; --green-d:#0A4A3A; --green-t:#E3EFE9;
+    --ink:#17231f; --muted:#6b7a74; --line:#d9e2dd;
+    --bg:#F5F4EF; --card:#ffffff; --amber:#E39A2B;
+    --shadow:0 1px 2px rgba(16,40,32,.06),0 8px 24px rgba(16,40,32,.06);
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  html{-webkit-text-size-adjust:100%}
+  body{
+    font-family:"IBM Plex Sans Thai",system-ui,sans-serif;
+    background:var(--bg); color:var(--ink); line-height:1.5;
+    padding:0 16px calc(28px + env(safe-area-inset-bottom));
+    font-size:16px; -webkit-font-smoothing:antialiased;
+  }
+  .wrap{max-width:460px;margin:0 auto}
+
+  /* ---- header ---- */
+  header{
+    display:flex;align-items:center;gap:10px;
+    padding:16px 2px 18px;
+  }
+  .mark{
+    width:38px;height:38px;border-radius:10px;flex:none;
+    background:var(--green);color:#fff;font-weight:700;
+    display:flex;align-items:center;justify-content:center;font-size:19px;
+    letter-spacing:-.5px;box-shadow:var(--shadow);
+  }
+  header h1{font-size:16px;font-weight:700;line-height:1.2}
+  header p{font-size:12.5px;color:var(--muted);font-weight:500}
+
+  /* ---- hero line ---- */
+  .lead{
+    font-size:22px;font-weight:700;line-height:1.3;margin:2px 2px 4px;
+    letter-spacing:-.2px;
+  }
+  .lead b{color:var(--green)}
+  .sub{font-size:13.5px;color:var(--muted);margin:0 2px 18px;font-weight:500}
+
+  /* ---- card ---- */
+  .card{
+    background:var(--card);border:1px solid var(--line);border-radius:16px;
+    padding:18px 16px;box-shadow:var(--shadow);
+  }
+  .field{margin-bottom:16px}
+  .field:last-child{margin-bottom:0}
+  label.lbl{display:block;font-size:13px;font-weight:600;margin-bottom:7px;color:var(--ink)}
+  .hint{font-size:11.5px;color:var(--muted);font-weight:400;margin-left:2px}
+
+  /* segmented branch */
+  .seg{display:flex;gap:6px}
+  .seg button{
+    flex:1;padding:11px 4px;border:1.5px solid var(--line);background:#fff;
+    border-radius:11px;font-family:inherit;font-size:13.5px;font-weight:600;
+    color:var(--muted);cursor:pointer;transition:.15s;line-height:1.15;
+  }
+  .seg button .s{display:block;font-size:11px;font-weight:500;opacity:.75;margin-top:2px}
+  .seg button[aria-pressed="true"]{
+    border-color:var(--green);background:var(--green-t);color:var(--green-d);
+  }
+
+  select,input[type=number]{
+    width:100%;padding:12px 13px;border:1.5px solid var(--line);border-radius:11px;
+    font-family:inherit;font-size:16px;color:var(--ink);background:#fff;appearance:none;
+  }
+  select{background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='20' height='20' viewBox='0 0 24 24' fill='none' stroke='%236b7a74' stroke-width='2.2' stroke-linecap='round'%3E%3Cpath d='M6 9l6 6 6-6'/%3E%3C/svg%3E");background-repeat:no-repeat;background-position:right 12px center;padding-right:38px}
+  select:focus,input:focus{outline:none;border-color:var(--green);box-shadow:0 0 0 3px rgba(15,110,86,.13)}
+
+  .dims{display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px}
+  .dims .d{position:relative}
+  .dims .d span{position:absolute;top:-8px;left:9px;background:#fff;padding:0 5px;font-size:10.5px;color:var(--muted);font-weight:600}
+  .dims input{text-align:center;padding:12px 6px}
+  .sumline{font-size:12px;color:var(--muted);margin-top:7px;font-weight:500;text-align:right}
+  .sumline b{color:var(--green-d)}
+
+  .go{
+    width:100%;margin-top:4px;padding:15px;border:none;border-radius:12px;
+    background:var(--green);color:#fff;font-family:inherit;font-size:16px;font-weight:700;
+    cursor:pointer;transition:.15s;box-shadow:0 4px 14px rgba(15,110,86,.28);
+  }
+  .go:active{transform:translateY(1px)}
+  .go:disabled{opacity:.55;box-shadow:none;cursor:default}
+
+  /* ---- result ticket ---- */
+  .ticket{margin-top:16px;display:none}
+  .ticket.show{display:block;animation:rise .28s ease both}
+  @keyframes rise{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:none}}
+  @media (prefers-reduced-motion:reduce){.ticket.show{animation:none}}
+  .tk{
+    background:var(--card);border:1px solid var(--line);border-radius:16px;
+    overflow:hidden;box-shadow:var(--shadow);
+  }
+  .tk-top{
+    background:var(--green);color:#fff;padding:12px 16px;
+    display:flex;align-items:center;justify-content:space-between;
+  }
+  .tk-top .r{font-size:12.5px;font-weight:500;opacity:.85}
+  .zonepill{
+    font-size:12px;font-weight:700;background:rgba(255,255,255,.18);
+    padding:4px 10px;border-radius:20px;
+  }
+  .tk-body{padding:16px}
+  .route{font-size:14px;font-weight:600;margin-bottom:2px}
+  .route .arw{color:var(--muted);margin:0 6px;font-weight:400}
+  .sz{font-size:12.5px;color:var(--muted);font-weight:500}
+  .pricebox{
+    display:flex;align-items:baseline;gap:8px;margin:12px 0 2px;
+    padding-top:14px;border-top:1.5px dashed var(--line);
+  }
+  .pricebox .num{font-size:40px;font-weight:700;color:var(--green-d);letter-spacing:-1px;line-height:1}
+  .pricebox .unit{font-size:15px;font-weight:600;color:var(--muted)}
+  .est{font-size:11.5px;color:var(--muted);margin-top:8px;font-weight:400}
+
+  .err{
+    margin-top:12px;padding:13px 14px;border-radius:12px;
+    background:#FBF3E6;border:1px solid #F0DCB8;color:#8a5a12;
+    font-size:13.5px;font-weight:500;line-height:1.45;
+  }
+
+  /* ---- CTA ---- */
+  .cta{display:flex;gap:9px;margin-top:12px}
+  .cta a{
+    flex:1;display:flex;align-items:center;justify-content:center;gap:7px;
+    padding:14px;border-radius:12px;font-weight:700;font-size:15px;
+    text-decoration:none;transition:.15s;
+  }
+  .cta a:active{transform:translateY(1px)}
+  .line{background:#06C755;color:#fff;box-shadow:0 4px 14px rgba(6,199,85,.28)}
+  .call{background:#fff;color:var(--green-d);border:1.5px solid var(--line)}
+  .cta svg{flex:none}
+
+  .notes{margin:16px 4px 0;font-size:12px;color:var(--muted);line-height:1.65;font-weight:400}
+  .notes b{color:var(--green-d);font-weight:600}
+  footer{text-align:center;margin-top:22px;font-size:11.5px;color:var(--muted)}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <header>
+    <div class="mark">GL</div>
+    <div>
+      <h1>GOLOD Transport</h1>
+      <p>ส่งของด่วนถึงหน้าบ้าน · 57 จังหวัด</p>
+    </div>
+  </header>
+
+  <p class="lead">เช็ค<b>ค่าส่ง</b>ก่อนส่งจริง</p>
+  <p class="sub">กรอกปลายทางกับขนาดของ รู้ราคาทันที แล้วแอดไลน์นัดรับได้เลย</p>
+
+  <div class="card">
+    <div class="field">
+      <label class="lbl">ส่งจากศูนย์ไหน</label>
+      <div class="seg" id="branch" role="group" aria-label="เลือกศูนย์ต้นทาง"></div>
+    </div>
+
+    <div class="field">
+      <label class="lbl" for="prov">จังหวัดปลายทาง</label>
+      <select id="prov"><option value="">— เลือกจังหวัด —</option></select>
+    </div>
+
+    <div class="field">
+      <label class="lbl" for="kg">น้ำหนัก <span class="hint">กิโลกรัม</span></label>
+      <input id="kg" type="number" inputmode="decimal" min="0" step="0.5" placeholder="เช่น 8">
+    </div>
+
+    <div class="field">
+      <label class="lbl">ขนาดกล่อง <span class="hint">กว้าง + ยาว + สูง (ซม.)</span></label>
+      <div class="dims">
+        <div class="d"><span>กว้าง</span><input class="dim" type="number" inputmode="numeric" min="0" placeholder="0"></div>
+        <div class="d"><span>ยาว</span><input class="dim" type="number" inputmode="numeric" min="0" placeholder="0"></div>
+        <div class="d"><span>สูง</span><input class="dim" type="number" inputmode="numeric" min="0" placeholder="0"></div>
+      </div>
+      <div class="sumline">ขนาดรวม <b id="sumcm">0</b> ซม.</div>
+    </div>
+
+    <button class="go" id="go">คำนวณค่าส่ง</button>
+  </div>
+
+  <!-- result -->
+  <div class="ticket" id="ticket" aria-live="polite"></div>
+
+  <p class="notes" id="notes"></p>
+
+  <footer>บริษัท โกโลด ทรานสปอร์ต จำกัด · ราคานี้เป็นราคาประเมินเบื้องต้น</footer>
+</div>
+
+<script src="golod-pricing.js"></script>
+<script>
+(function(){
+  var P = window.GolodPricing;
+  // ►►► แก้ลิงก์ไลน์/เบอร์โทรตรงนี้ให้เป็นของจริง ◄◄◄
+  var LINE_URL = "https://line.me/R/ti/p/@golod";  // เปลี่ยนเป็นลิงก์ lin.ee ของคุณได้
+  var TEL = "0984518141";
+
+  var state = { branch:"bkk" };
+
+  // ----- สร้างปุ่มเลือกศูนย์ -----
+  var segEl = document.getElementById("branch");
+  P.BRANCHES.forEach(function(b){
+    var btn = document.createElement("button");
+    btn.type = "button";
+    btn.innerHTML = b.label.replace("สาขา","") + '<span class="s">'+b.short+'</span>';
+    btn.setAttribute("aria-pressed", b.id===state.branch ? "true":"false");
+    btn.onclick = function(){
+      state.branch = b.id;
+      [].forEach.call(segEl.children, function(c){ c.setAttribute("aria-pressed","false"); });
+      btn.setAttribute("aria-pressed","true");
+    };
+    segEl.appendChild(btn);
+  });
+
+  // ----- เติมจังหวัด -----
+  var provEl = document.getElementById("prov");
+  P.ALL_PROVS.forEach(function(p){
+    var o = document.createElement("option"); o.value=p; o.textContent=p; provEl.appendChild(o);
+  });
+
+  // ----- รวมขนาด -----
+  var dims = document.querySelectorAll(".dim");
+  var sumEl = document.getElementById("sumcm");
+  function sumCm(){ var t=0; [].forEach.call(dims,function(d){ t+=parseFloat(d.value)||0; }); return t; }
+  function refreshSum(){ sumEl.textContent = sumCm(); }
+  [].forEach.call(dims, function(d){ d.addEventListener("input", refreshSum); });
+
+  // ----- ผลลัพธ์ -----
+  var ticket = document.getElementById("ticket");
+  var notes  = document.getElementById("notes");
+
+  function lineBtns(){
+    return '<div class="cta">'
+      + '<a class="line" href="'+LINE_URL+'" target="_blank" rel="noopener">'
+      +   '<svg width="20" height="20" viewBox="0 0 24 24" fill="#fff"><path d="M12 3C6.5 3 2 6.6 2 11c0 3.9 3.5 7.2 8.3 7.9.3.07.75.22.86.5.1.26.06.66.03.92l-.14.83c-.04.25-.2.98.86.53s5.7-3.36 7.78-5.75C21.1 14.9 22 13.05 22 11c0-4.4-4.5-8-10-8z"/></svg>'
+      +   'แอดไลน์ยืนยันราคา</a>'
+      + '<a class="call" href="tel:'+TEL+'">โทรเลย</a>'
+      + '</div>';
+  }
+
+  function render(){
+    var prov = provEl.value;
+    var kg = document.getElementById("kg").value;
+    var cm = sumCm();
+    if(!prov){ shake(provEl); return; }
+    if((parseFloat(kg)||0)<=0 && cm<=0){ shake(document.getElementById("kg")); return; }
+
+    var r = P.quote({ branch:state.branch, prov:prov, kg:kg, sumCm:cm });
+    var branchLabel = P.BRANCHES.filter(function(b){return b.id===state.branch;})[0].label.replace("สาขา","");
+
+    var html = '<div class="tk"><div class="tk-top">'
+      + '<span class="r">GOLOD · ประเมินค่าส่ง</span>'
+      + '<span class="zonepill">'+r.zoneLabel+'</span></div><div class="tk-body">'
+      + '<div class="route">'+branchLabel+'<span class="arw">→</span>'+prov+'</div>';
+
+    if(r.ok){
+      html += '<div class="sz">ขนาดพัสดุ '+r.size.label+' · น้ำหนัก '+(parseFloat(kg)||0)+' กก. · รวม '+cm+' ซม.</div>'
+        + '<div class="pricebox"><span class="num">'+r.price.toLocaleString()+'</span><span class="unit">บาท / ชิ้น</span></div>'
+        + '<div class="est">ราคาประเมินสำหรับส่งชิ้นเดียว · ส่งหลายชิ้นปลายทางเดียวกันมีส่วนลด</div>';
+    }else{
+      html += '<div class="err">'+r.error+'</div>';
+    }
+    html += lineBtns() + '</div></div>';
+    ticket.innerHTML = html;
+    ticket.classList.add("show");
+    notes.innerHTML = 'ℹ️ ราคานี้เป็น<b>ราคาประเมิน</b>สำหรับของทั่วไป · '
+      + 'สินค้ายาวพิเศษ (กระเบื้อง ไม้ ท่อ) น้ำมัน/น้ำยาถัง หรือของชิ้นใหญ่พิเศษ '
+      + '<b>แอดไลน์ให้เจ้าหน้าที่ตีราคา</b>ได้แม่นกว่า · บางพื้นที่ห่างไกลอาจมีค่าขั้นต่ำเพิ่ม';
+    ticket.scrollIntoView({behavior:"smooth", block:"nearest"});
+  }
+
+  function shake(el){ el.focus(); el.style.borderColor="#d9534f"; setTimeout(function(){ el.style.borderColor=""; },1200); }
+
+  document.getElementById("go").addEventListener("click", render);
+})();
+</script>
+</body>
+</html>
