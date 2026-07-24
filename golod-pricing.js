@@ -1,6 +1,6 @@
 /* ============================================================
    golod-pricing.js  —  เครื่องคิดราคากลาง GOLOD Transport
-   แกะจาก ThermalBill (build 2026-07-12) ให้ตรงเป๊ะ
+   แกะจาก ThermalBill (build 2026-07-12·b60) ให้ตรงเป๊ะ — รวมขั้นต่ำตามจังหวัดแล้ว
    ใช้ร่วมกันได้ทั้ง ThermalBill / Quote.html / หน้าเว็บสาธารณะ
    แก้ราคาที่ไฟล์นี้ที่เดียว = ใช้ตรงกันทุกที่
    ------------------------------------------------------------
@@ -111,6 +111,36 @@
   ];
 
   /* ---------- ฟังก์ชันคิดราคา (แกะจาก ThermalBill) ---------- */
+  /* ---------- ค่าส่งขั้นต่ำต่อรายการ (ตามจังหวัด) — ตรงกับ ThermalBill b60 ----------
+     หมายเหตุ: ขั้นต่ำ "พื้นที่พิเศษ" (300/500/800/1000/1500) ตั้งจาก DispatchApp
+     เก็บใน Firestore — หน้าเว็บสาธารณะดึงไม่ได้ จึงไม่รวมในนี้
+     ใช้ MIN_NOTE เตือนลูกค้าแทน                                                    */
+  var MIN_A = ["กรุงเทพมหานคร","ปทุมธานี","สมุทรปราการ","สมุทรสาคร","นนทบุรี"];
+  var MIN_B = ["พระนครศรีอยุธยา","นครปฐม","สมุทรสงคราม","เพชรบุรี","ราชบุรี","สุพรรณบุรี",
+    "สิงห์บุรี","อ่างทอง","ลพบุรี","สระบุรี","ปราจีนบุรี","นครนายก","ฉะเชิงเทรา","ชลบุรี","ระยอง"];
+  var MIN_C = ["กาญจนบุรี","สระแก้ว","จันทบุรี","ชัยนาท","ประจวบคีรีขันธ์","นครราชสีมา","บุรีรัมย์",
+    "มหาสารคาม","ชัยภูมิ","ร้อยเอ็ด","ยโสธร","อุบลราชธานี","ศรีสะเกษ","สุรินทร์"];
+  var MIN_D = ["สุโขทัย","พิษณุโลก","พิจิตร","กำแพงเพชร","ตาก","อุทัยธานี","เพชรบูรณ์",
+    "ชุมพร","มุกดาหาร","สกลนคร","หนองคาย","เลย","อุดรธานี","กาฬสินธุ์",
+    "ตราด","หนองบัวลำภู","อำนาจเจริญ","นครสวรรค์"];
+  var MIN_E = ["อุตรดิตถ์","นครพนม","บึงกาฬ"];
+
+  var MIN_NOTE = "บางอำเภอที่อยู่ห่างไกล/เข้าถึงยาก มีค่าส่งขั้นต่ำสูงกว่านี้ " +
+                 "รบกวนสอบถามยืนยันราคาที่ LINE @golod ครับ";
+
+  // ขั้นต่ำต่อรายการตามจังหวัด (ไม่รวมพื้นที่พิเศษจาก DispatchApp)
+  function getMinFreight(prov, amphoe) {
+    if (!prov) return 0;
+    var amp = amphoe || "";
+    var isMuang = amp.indexOf("เมือง") === 0;
+    if (MIN_A.indexOf(prov) >= 0) return 100;
+    if (MIN_B.indexOf(prov) >= 0) return 120;
+    if (MIN_C.indexOf(prov) >= 0) return isMuang ? 120 : 150;
+    if (MIN_D.indexOf(prov) >= 0) return isMuang ? 150 : 180;
+    if (MIN_E.indexOf(prov) >= 0) return isMuang ? 180 : 200;
+    return 0;
+  }
+
   function calcSize(kg, sumCm) {
     var kgN = parseFloat(kg) || 0, cmN = parseFloat(sumCm) || 0;
     if (kgN <= 0 && cmN <= 0) return SIZES[0];
@@ -158,10 +188,18 @@
     var zone = getZone(branch, opts.prov, opts.amphoe);
     var zoneLabel = zone === "near" ? "ใกล้" : zone === "far" ? "ไกล" : "พื้นที่พิเศษ";
 
+    var qty = parseInt(opts.qty) || 1; if (qty < 1) qty = 1;
+    var minFreight = getMinFreight(opts.prov, opts.amphoe);
+
     if (opts.goodsId) { // สินค้าคิดตามยาว+น้ำหนัก
       var r = dimGoodsPrice(opts.goodsId, opts.kg, opts.lengthCm, zone);
       if (r.err) return { ok:false, zone:zone, zoneLabel:zoneLabel, error:r.err };
-      return { ok:true, zone:zone, zoneLabel:zoneLabel, mode:"dim", label:r.label, price:r.price };
+      var rawD = r.price * qty;
+      var totD = Math.max(rawD, minFreight);
+      // price = ยอดที่ต้องจ่ายจริง (รวมขั้นต่ำแล้ว) — เข้ากันได้กับหน้าเว็บเดิมที่อ่าน .price
+      return { ok:true, zone:zone, zoneLabel:zoneLabel, mode:"dim", label:r.label,
+               price:totD, unitPrice:r.price, qty:qty, rawTotal:rawD, total:totD,
+               minFreight:minFreight, minApplied:(totD > rawD), note:MIN_NOTE };
     }
 
     var size = calcSize(opts.kg, opts.sumCm);
@@ -170,14 +208,21 @@
                error:"เกินเรทมาตรฐาน (น้ำหนัก/ขนาดใหญ่มาก) — ตีราคาพิเศษ สอบถามไลน์" };
     }
     var price = getSizePrice(size, zone);
-    return { ok:true, zone:zone, zoneLabel:zoneLabel, mode:"size", size:size, price:price };
+    var raw = price * qty;
+    var tot = Math.max(raw, minFreight);
+    // price = ยอดที่ต้องจ่ายจริง (รวมขั้นต่ำแล้ว) — เข้ากันได้กับหน้าเว็บเดิมที่อ่าน .price
+    return { ok:true, zone:zone, zoneLabel:zoneLabel, mode:"size", size:size,
+             price:tot, unitPrice:price, qty:qty, rawTotal:raw, total:tot,
+             minFreight:minFreight, minApplied:(tot > raw), note:MIN_NOTE };
   }
 
   var API = {
     BRANCHES: BRANCHES, SIZES: SIZES, ALL_PROVS: ALL_PROVS, DIM_GOODS: DIM_GOODS,
     SPECIAL_SURCHARGE: SPECIAL_SURCHARGE, BRANCH_ZONES: BRANCH_ZONES,
     KRT_NEAR_AMPHOE: KRT_NEAR_AMPHOE, KANCHAN_FAR_AMPHOE: KANCHAN_FAR_AMPHOE,
+    MIN_NOTE: MIN_NOTE,
     calcSize: calcSize, getZone: getZone, getSizePrice: getSizePrice,
+    getMinFreight: getMinFreight,
     dimGoodsPrice: dimGoodsPrice, dimGoodsMaxCm: dimGoodsMaxCm, quote: quote
   };
 
