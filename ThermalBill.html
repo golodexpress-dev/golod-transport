@@ -14,7 +14,7 @@
   <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
 </head><body>
 <div class="golod-bar no-print">
-  <h1>โกโลด ทรานสปอร์ต — ออกบิล Thermal 80mm <span style="font-size:11px;font-weight:400;opacity:.6">build 2026-07-12·b60</span></h1>
+  <h1>โกโลด ทรานสปอร์ต — ออกบิล Thermal 80mm <span style="font-size:11px;font-weight:400;opacity:.6">build 2026-07-12·b62</span></h1>
   <div id="golod-chip"></div>
   <a href="GolodApp.html" style="font-size:11px;color:#9FE1CB;background:rgba(255,255,255,.15);padding:3px 10px;border-radius:20px;text-decoration:none">← หน้าหลัก</a>
   <a href="DailyReport.html" style="font-size:11px;color:#FFE082;background:rgba(255,255,255,.15);padding:3px 10px;border-radius:20px;text-decoration:none">📊 รายงานสิ้นวัน</a>
@@ -447,7 +447,9 @@ function getMinFreight(prov, amphoe, tambon, receiverName, receiverAddr) {
   // 3) ขั้นต่ำตามจังหวัด (ฮาร์ดโค้ด)
   var provMin = 0;
   var amp = amphoe||"";
-  if(["กรุงเทพมหานคร","ปทุมธานี","สมุทรปราการ","สมุทรสาคร","นนทบุรี"].indexOf(prov)>=0) provMin = 100;
+  // กาญจนบุรี: อำเภอทั่วไปคิดเท่าเมือง (120) เฉพาะ 5 อำเภอไกลถึงคิด 150
+  if(prov==="กาญจนบุรี") provMin = (["สังขละบุรี","ทองผาภูมิ","ศรีสวัสดิ์","ไทรโยค","หนองปรือ"].indexOf(amp)>=0)?150:120;
+  else if(["กรุงเทพมหานคร","ปทุมธานี","สมุทรปราการ","สมุทรสาคร","นนทบุรี"].indexOf(prov)>=0) provMin = 100;
   else if(["พระนครศรีอยุธยา","นครปฐม","สมุทรสงคราม","เพชรบุรี","ราชบุรี","สุพรรณบุรี","สิงห์บุรี","อ่างทอง","ลพบุรี","สระบุรี","ปราจีนบุรี","นครนายก","ฉะเชิงเทรา","ชลบุรี","ระยอง"].indexOf(prov)>=0) provMin = 120;
   else if(["กาญจนบุรี","สระแก้ว","จันทบุรี","ชัยนาท","ประจวบคีรีขันธ์","นครราชสีมา","บุรีรัมย์","มหาสารคาม","ชัยภูมิ","ร้อยเอ็ด","ยโสธร","อุบลราชธานี","ศรีสะเกษ","สุรินทร์"].indexOf(prov)>=0) provMin = amp.startsWith("เมือง")?120:150;
   else if(["สุโขทัย","พิษณุโลก","พิจิตร","กำแพงเพชร","ตาก","อุทัยธานี","เพชรบูรณ์","ชุมพร","มุกดาหาร","สกลนคร","หนองคาย","เลย","อุดรธานี","กาฬสินธุ์","ตราด","หนองบัวลำภู","อำนาจเจริญ","นครสวรรค์"].indexOf(prov)>=0) provMin = amp.startsWith("เมือง")?150:180;
@@ -909,9 +911,9 @@ var SP_RATE = [
  {id:"chem_small",label:"น้ำยา 20 ลิตร", kind:"step",
    w:[{maxKg:23,near:150,far:180},{maxKg:25,near:180,far:220},{maxKg:30,near:220,far:240}]},
  {id:"oil_drum",  label:"น้ำมันเครื่อง/ไฮดรอลิก ถัง 200 ลิตร", kind:"drum",
-   maxKg:210, near:800, far:900, special:1000, special2:1200, overKg:200},
+   maxKg:210, near:700, far:800, special:1000, special2:1200, overKg:200},
  {id:"chem_drum", label:"น้ำยา ถัง 200 ลิตร", kind:"drum",
-   maxKg:230, near:900, far:1000, special:1200, special2:null, overKg:200}
+   maxKg:230, near:800, far:900, special:1200, special2:null, overKg:200}
 ];
 // คืน {price,label} หรือ {err} — ต้องส่ง kg เข้ามาด้วย
 function spRatePrice(id, zone, prov, amphoe, kg){

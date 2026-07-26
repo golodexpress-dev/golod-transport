@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8"/>
 <meta name="viewport" content="width=device-width,initial-scale=1"/>
-<!-- Quote build 2026-07-12b -->
+<!-- Quote build 2026-07-12e -->
 <title>โกโลด — เช็คราคาค่าขนส่ง</title>
 <script src="session.js"></script>
 <script src="firebase-app-compat.js"></script>
@@ -85,7 +85,8 @@ input:focus,select:focus{outline:none;border-color:#0F6E56;box-shadow:0 0 0 2px 
         <div class="g2">
           <div class="f">
             <label for="prov">จังหวัดปลายทาง</label>
-            <select id="prov"><option value="">— เลือก —</option></select>
+            <input id="prov" list="provList" placeholder="พิมพ์ชื่อจังหวัด เช่น อุบล, พิษณุ" autocomplete="off"/>
+            <datalist id="provList"></datalist>
           </div>
           <div class="f">
             <label for="amphoe">อำเภอปลายทาง</label>
@@ -163,9 +164,9 @@ var SPECIAL_ITEMS=[
  {id:"chem_small",label:"น้ำยา 20 ลิตร",kind:"step",
    w:[{maxKg:23,near:150,far:180},{maxKg:25,near:180,far:220},{maxKg:30,near:220,far:240}]},
  {id:"oil_drum",label:"น้ำมันเครื่อง/ไฮดรอลิก ถัง 200 ลิตร",kind:"drum",
-   maxKg:210,near:800,far:900,special:1000,special2:1200,overKg:200},
+   maxKg:210,near:700,far:800,special:1000,special2:1200,overKg:200},
  {id:"chem_drum",label:"น้ำยา ถัง 200 ลิตร",kind:"drum",
-   maxKg:230,near:900,far:1000,special:1200,special2:null,overKg:200},
+   maxKg:230,near:800,far:900,special:1200,special2:null,overKg:200},
  {id:"tile",label:"กระเบื้อง (คิดตามยาว+น้ำหนัก)",dim:"tile"},
  {id:"wood",label:"ไม้เทียม (คิดตามยาว+น้ำหนัก)",dim:"wood"}
 ];
@@ -313,6 +314,8 @@ function minFreight(prov,amphoe){
   var sp=specialAreaMin(prov,amphoe);
   if(sp>0) return sp;
   var isMuang=(amphoe||"").indexOf("เมือง")===0;
+  // กาญจนบุรี: อำเภอทั่วไปคิดเท่าเมือง (120) เฉพาะ 5 อำเภอไกลถึงคิด 150
+  if(prov==="กาญจนบุรี") return (KANCHAN_FAR.indexOf(amphoe||"")>=0)?150:120;
   if(MIN_100.indexOf(prov)>=0) return 100;
   if(MIN_120.indexOf(prov)>=0) return 120;
   if(MIN_150.indexOf(prov)>=0) return isMuang?120:150;
@@ -343,7 +346,7 @@ function stepRow(l,v,cls){
 }
 /* อำเภอที่เลือกได้ = "เมือง" + อำเภอพิเศษของจังหวัดนั้น (+ อำเภอพิเศษจาก Firestore) */
 function refreshAmphoeList(){
-  var prov=document.getElementById("prov").value;
+  var prov=(typeof resolveProvInput==="function")?resolveProvInput():document.getElementById("prov").value;
   var dl=document.getElementById("amphoeList");
   dl.innerHTML="";
   if(!prov) return;
@@ -363,7 +366,7 @@ function amphoeMismatch(prov,amp){
 
 function calc(){
   var origin=document.getElementById("origin").value;
-  var prov=document.getElementById("prov").value;
+  var prov=(typeof resolveProvInput==="function")?resolveProvInput():document.getElementById("prov").value;
   var amphoe=document.getElementById("amphoe").value.trim();
   var qty=Math.max(1,parseInt(document.getElementById("qty").value)||1);
   var disc=Math.max(0,parseInt(document.getElementById("disc").value)||0);
@@ -500,10 +503,32 @@ function toast(m){
   setTimeout(function(){t.classList.remove("on");},1600);
 }
 
+/* พิมพ์ชื่อย่อ/บางส่วน → เติมชื่อจังหวัดเต็มให้อัตโนมัติ (กันคิดราคาไม่ได้) */
+var PROV_ALIAS_Q={
+  "กรุงเทพ":"กรุงเทพมหานคร","กทม":"กรุงเทพมหานคร","บางกอก":"กรุงเทพมหานคร",
+  "อยุธยา":"พระนครศรีอยุธยา","กรุงเก่า":"พระนครศรีอยุธยา","โคราช":"นครราชสีมา",
+  "อุบล":"อุบลราชธานี","อุดร":"อุดรธานี","ปทุม":"ปทุมธานี","ประจวบ":"ประจวบคีรีขันธ์",
+  "สุพรรณ":"สุพรรณบุรี","ปากน้ำ":"สมุทรปราการ","ศรีสะเกด":"ศรีสะเกษ","สระเกษ":"ศรีสะเกษ"
+};
+function resolveProvInput(){
+  var el=document.getElementById("prov"); if(!el) return "";
+  var t=(el.value||"").trim(); if(!t) return "";
+  var all=SERVE_BKK.concat(SERVE_KRT,SERVE_SSK,[LAMPANG]);
+  if(all.indexOf(t)>=0) return t;                       // ตรงเป๊ะแล้ว
+  var clean=t.replace(/^จังหวัด|^จ\./,"").trim();
+  if(PROV_ALIAS_Q[clean]){ el.value=PROV_ALIAS_Q[clean]; return el.value; }
+  // ขึ้นต้นตรงกัน (พิมพ์บางส่วน เช่น "พิษณุ")
+  var hit=all.filter(function(p){return p.indexOf(clean)===0;});
+  if(hit.length===1){ el.value=hit[0]; return hit[0]; }
+  // มีคำนั้นอยู่ในชื่อ
+  hit=all.filter(function(p){return p.indexOf(clean)>=0;});
+  if(hit.length===1){ el.value=hit[0]; return hit[0]; }
+  return t;
+}
 function initSelects(){
   var provs=SERVE_BKK.concat(SERVE_KRT,SERVE_SSK,[LAMPANG]).sort(function(a,b){return a.localeCompare(b,"th");});
-  var sel=document.getElementById("prov");
-  provs.forEach(function(p){var o=document.createElement("option");o.value=p;o.textContent=p;sel.appendChild(o);});
+  var sel=document.getElementById("provList");
+  provs.forEach(function(p){var o=document.createElement("option");o.value=p;sel.appendChild(o);});
   var sp=document.getElementById("spItem");
   SPECIAL_ITEMS.forEach(function(it){var o=document.createElement("option");o.value=it.id;o.textContent=it.label;sp.appendChild(o);});
   document.getElementById("spItem").addEventListener("change",function(){
@@ -515,7 +540,8 @@ function initSelects(){
     var cmWrap = document.getElementById("spCm").parentNode;
     cmWrap.style.display = needCm ? "" : "none";
   });
-  document.getElementById("prov").addEventListener("change",refreshAmphoeList);
+  document.getElementById("prov").addEventListener("change",function(){ resolveProvInput(); refreshAmphoeList(); });
+  document.getElementById("prov").addEventListener("blur",function(){ resolveProvInput(); refreshAmphoeList(); });
   ["origin","prov","amphoe","kg","cm","spItem","spKg","spCm","qty","disc","cod"].forEach(function(id){
     var el=document.getElementById(id);
     el.addEventListener(el.tagName==="SELECT"?"change":"input",calc);
