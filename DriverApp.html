@@ -6,12 +6,12 @@
 <meta http-equiv="Cache-Control" content="no-cache,no-store,must-revalidate">
 <title>โกโลด — คนขับ</title>
 <!-- addr-sync 2026-06-30 · trip-match 2026-07-01 -->
-<script src="session.js"></script>
+<script src="session.js?v=20260726a"></script>
 <script src="firebase-app-compat.js"></script>
 <script src="firebase-firestore-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-storage-compat.js"></script>
 <script src="golod-firebase.js?v=1779235612"></script>
-<script src="golod-storage.js"></script>
+<script src="golod-storage.js?v=20260726a"></script>
 <script>try{GolodDB.init();}catch(e){}</script>
 <style>
 *{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
@@ -116,6 +116,13 @@ body{font-family:'Sarabun',Arial,sans-serif;background:#f0f4f0;min-height:100vh;
 .btn-fail{width:100%;padding:13px;background:#fff;color:#c0392b;border:2px solid #c0392b;border-radius:12px;font-size:14px;font-weight:700;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:8px;transition:background .15s}
 .btn-fail:active{background:#fff5f5}
 .btn-fail.expanded{background:#c0392b;color:#fff}
+/* ล็อกปุ่มเขียวตอนอยู่ในโหมด "ส่งไม่สำเร็จ" — กันกดพลาด ไม่ทำให้จอขยับ */
+.btn-success.locked{background:#c8d3ce!important;color:#8a9691!important;pointer-events:none;cursor:not-allowed}
+.btn-success.locked::after{content:" (ปิดอยู่)";font-size:12px;font-weight:400}
+.btn-success[disabled],.btn-fail[disabled]{opacity:.5;pointer-events:none}
+/* บิลส่งไม่สำเร็จต้องเด่น ไม่จางเหมือนบิลที่ส่งแล้ว */
+.bill-card.failed{opacity:1;border:1.5px solid #e8b4ae;background:#fffbfb}
+.build-tag{font-size:9px;opacity:.55;text-align:center;padding:6px 0 10px;color:#0F6E56}
 
 /* LOADING / UPLOADING */
 .uploading-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:200;align-items:center;justify-content:center;flex-direction:column;gap:12px;color:#fff}
@@ -159,6 +166,7 @@ body{font-family:'Sarabun',Arial,sans-serif;background:#f0f4f0;min-height:100vh;
   </div>
   <div class="container">
     <div id="bill-list"><div class="loading-state"><span class="spin-inline">⏳</span><br><br>กำลังโหลดงาน...</div></div>
+    <div class="build-tag" id="build-tag"></div>
   </div>
 </div>
 
@@ -221,21 +229,22 @@ body{font-family:'Sarabun',Arial,sans-serif;background:#f0f4f0;min-height:100vh;
       <div class="status-section">
         <div class="action-title">📋 ผลการส่ง</div>
 
-        <!-- ส่งไม่สำเร็จ reasons (toggle) -->
-        <div class="fail-reasons" id="fail-reasons" style="display:none">
-          <div class="fl">⚠️ เลือกสาเหตุที่ส่งไม่สำเร็จ</div>
-          <label class="fail-radio"><input type="radio" name="fail" value="ติดต่อไม่ได้" checked><span>ติดต่อไม่ได้</span></label>
-          <label class="fail-radio"><input type="radio" name="fail" value="ลูกค้าหยุด"><span>ลูกค้าหยุด</span></label>
-          <label class="fail-radio"><input type="radio" name="fail" value="ลูกค้าไม่รับของ"><span>ลูกค้าไม่รับของ</span></label>
-          <label class="fail-radio"><input type="radio" name="fail" value="ของชำรุด"><span>ของชำรุด</span></label>
-        </div>
-
         <button class="btn-success" id="btn-success" onclick="submitStatus('success')">
           ✅ ส่งสำเร็จ
         </button>
         <button class="btn-fail" id="btn-fail" onclick="toggleFail()">
           ❌ ส่งไม่สำเร็จ
         </button>
+
+        <!-- ส่งไม่สำเร็จ reasons — ย้ายมาไว้ "ใต้" ปุ่ม เพื่อไม่ให้จอกระโดดตอนกาง -->
+        <div class="fail-reasons" id="fail-reasons" style="display:none;margin-top:10px;margin-bottom:0">
+          <div class="fl">⚠️ เลือกสาเหตุที่ส่งไม่สำเร็จ</div>
+          <label class="fail-radio"><input type="radio" name="fail" value="ติดต่อไม่ได้"><span>ติดต่อไม่ได้</span></label>
+          <label class="fail-radio"><input type="radio" name="fail" value="ลูกค้าหยุด"><span>ลูกค้าหยุด</span></label>
+          <label class="fail-radio"><input type="radio" name="fail" value="ลูกค้าไม่รับของ"><span>ลูกค้าไม่รับของ</span></label>
+          <label class="fail-radio"><input type="radio" name="fail" value="ของชำรุด"><span>ของชำรุด</span></label>
+        </div>
+
         <div id="btn-fail-confirm-wrap" style="display:none;margin-top:8px">
           <button class="btn-fail" style="background:#c0392b;color:#fff;border-color:#c0392b;width:100%;padding:13px;border-radius:12px;font-size:14px;font-weight:700;cursor:pointer;border:none" onclick="submitStatus('fail')">
             ยืนยัน — ส่งไม่สำเร็จ
@@ -647,7 +656,7 @@ function renderBillListWithTrip(tripBillIds){
                     : isNew       ? '<span style="font-size:10px;padding:2px 8px;background:#fff3e0;color:#E67E22;border-radius:10px;font-weight:700">ส่งใหม่</span>'
                     : '';
 
-    html += '<div class="bill-card'+((isDelivered||isFailed)?" done":"")+'" onclick="openPanel(\''+b.billNo+'\')">'
+    html += '<div class="bill-card'+(isDelivered?" done":"")+(isFailed?" failed":"")+'" onclick="openPanel(\''+b.billNo+'\')">'
       +'<div class="bill-status-strip '+stripClass+'"></div>'
       +'<div class="bill-card-head">'
         +'<div style="flex:1">'
@@ -718,6 +727,9 @@ function openPanel(billNo){
   document.getElementById("btn-fail-confirm-wrap").style.display = "none";
   document.getElementById("btn-fail").classList.remove("expanded");
   document.getElementById("btn-fail").textContent = "❌ ส่งไม่สำเร็จ";
+  document.getElementById("btn-success").classList.remove("locked");
+  var _rs = document.getElementsByName("fail");
+  for(var _i=0;_i<_rs.length;_i++) _rs[_i].checked = false;
 
   // show panel
   document.getElementById("overlay").classList.add("show");
@@ -828,21 +840,41 @@ function toggleFail(){
   failExpanded = !failExpanded;
   document.getElementById("fail-reasons").style.display = failExpanded ? "block" : "none";
   document.getElementById("btn-fail-confirm-wrap").style.display = failExpanded ? "block" : "none";
-  var btn = document.getElementById("btn-fail");
+  var btn  = document.getElementById("btn-fail");
+  var btnS = document.getElementById("btn-success");
   if(failExpanded){
     btn.classList.add("expanded");
     btn.textContent = "▲ ยกเลิก";
+    // ล็อกปุ่มเขียว — ยังอยู่ที่เดิม (จอไม่ขยับ) แต่กดไม่ได้
+    if(btnS) btnS.classList.add("locked");
   } else {
     btn.classList.remove("expanded");
     btn.textContent = "❌ ส่งไม่สำเร็จ";
+    if(btnS) btnS.classList.remove("locked");
+    // ล้างสาเหตุที่เลือกไว้ เวลากลับเข้าโหมดใหม่จะได้ไม่ค้างค่าเดิม
+    var rs = document.getElementsByName("fail");
+    for(var i=0;i<rs.length;i++) rs[i].checked = false;
   }
 }
 
 // ===== SUBMIT =====
+var APP_BUILD = "d2026-07-26a";   // ← เปลี่ยนเลขนี้ทุกครั้งที่แก้ไฟล์ จะได้รู้ว่าเครื่องไหนใช้เวอร์ชันไหน
+var _submitting = false;
+
 function submitStatus(result){
   if(!currentBill) return;
 
+  // กันกดซ้ำระหว่างกำลังบันทึก
+  if(_submitting){ showToast("กำลังบันทึกอยู่ กรุณารอสักครู่","red"); return; }
+
+  // กันกดปุ่มเขียวพลาดขณะอยู่ในโหมด "ส่งไม่สำเร็จ"
+  if(result === "success" && failExpanded){
+    showToast("ตอนนี้อยู่ในโหมดส่งไม่สำเร็จ — กด ▲ ยกเลิก ก่อน","red");
+    return;
+  }
+
   var billNo = currentBill.billNo;
+  var _drv   = (currentBill.driver || currentBill.driverName || "");
 
   // gather fail reason
   var failReason = "";
@@ -854,6 +886,7 @@ function submitStatus(result){
     if(!failReason){ showToast("กรุณาเลือกสาเหตุ","red"); return; }
   }
 
+  _submitting = true;
   showUploading("กำลังอัปโหลดรูปภาพ...");
 
   // collect upload tasks
@@ -892,8 +925,13 @@ function submitStatus(result){
     var upd = {
       status: newStatus,
       deliveredAt: now,
-      updatedAt: now
+      updatedAt: now,
+      // ── audit: ไว้สืบย้อนหลังว่าใครกดปุ่มไหน จากเครื่องเวอร์ชันอะไร ──
+      pressedButton: result,          // "success" | "fail"
+      appBuild: APP_BUILD,
+      submittedBy: _drv
     };
+    if(result === "success") upd.failReason = "";   // ล้างค่าเก่า กันสถานะกับเหตุผลขัดกัน
     if(uploadedUrls.photo)     upd.photoUrl     = uploadedUrls.photo;
     if(uploadedUrls.slip)      upd.slipUrl      = uploadedUrls.slip;
     if(uploadedUrls.extra)     upd.extraUrl     = uploadedUrls.extra;
@@ -902,18 +940,20 @@ function submitStatus(result){
 
     return GolodDB.updateBill(billNo, upd);
   }).then(function(){
+    _submitting = false;
     hideUploading();
     closePanel();
     // อัปเดตสถานะบิลในตัว (ไม่ลบออกจากเที่ยว) — บิลยังแสดงอยู่ แค่เปลี่ยนสถานะตามที่ส่ง
     var _newStatus = result === "success" ? "ส่งสำเร็จ" : "ส่งไม่สำเร็จ";
     BILLS.forEach(function(b){ if(b.billNo === billNo){ b.status = _newStatus; if(failReason) b.failReason = failReason; } });
     renderBillList();
-    var msg = result === "success" ? "✅ บันทึกส่งสำเร็จแล้ว!" : "❌ บันทึกส่งไม่สำเร็จแล้ว";
+    var msg = result === "success" ? "บันทึกแล้ว → สถานะ: ส่งสำเร็จ" : "บันทึกแล้ว → สถานะ: ส่งไม่สำเร็จ (เข้าคิวจัดส่งใหม่)";
     var clr = result === "success" ? "green" : "red";
     showToast(msg, clr);
   }).catch(function(e){
+    _submitting = false;
     hideUploading();
-    showToast("เกิดข้อผิดพลาด: "+e.message, "red");
+    showToast("บันทึกไม่สำเร็จ: "+e.message+" — กรุณากดใหม่", "red");
   });
 }
 
@@ -942,6 +982,10 @@ function showToast(msg, type){
 
 // ===== INIT =====
 function startApp(){
+  try{
+    var _bt = document.getElementById("build-tag");
+    if(_bt) _bt.textContent = "เวอร์ชัน " + APP_BUILD;
+  }catch(e){}
   if(typeof GolodDB !== "undefined" && typeof GolodDB.ready === "function"){
     try{ GolodDB.init(); }catch(e){}
     GolodDB.ready(initApp);
