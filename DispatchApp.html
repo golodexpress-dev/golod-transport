@@ -362,11 +362,11 @@ tr:hover td{background:#f8fffe}
       </div>
       <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">
         <div>
-          <div style="font-size:10px;color:#888;margin-bottom:3px">งานรับ-รับสดต้นทาง (฿)</div>
+          <div style="font-size:10px;color:#888;margin-bottom:3px">งานรับ-รับสดต้นทาง (฿) <span style="color:#c0392b;font-weight:700">เข้ายอดค้าง</span></div>
           <input id="ct-pickup-cash" type="number" style="width:100%;padding:7px 10px;border:1px solid #ddd;border-radius:7px;font-size:12px" placeholder="0" oninput="calcClearTrip()">
         </div>
         <div>
-          <div style="font-size:10px;color:#888;margin-bottom:3px">งานรับ-เก็บปลายทาง (฿)</div>
+          <div style="font-size:10px;color:#888;margin-bottom:3px">งานรับ-เก็บปลายทาง (฿) <span style="color:#E67E22;font-weight:700">ไม่เข้ายอดค้าง</span></div>
           <input id="ct-pickup-dest" type="number" style="width:100%;padding:7px 10px;border:1px solid #ddd;border-radius:7px;font-size:12px" placeholder="0" oninput="calcClearTrip()">
         </div>
       </div>
@@ -1650,7 +1650,7 @@ function renderTripTab(){
   app.innerHTML = '<div class="card"><div class="loading">⏳ กำลังโหลด...</div></div>';
   Promise.all([
     GolodDB.getUsers ? GolodDB.getUsers() : Promise.resolve([]),
-    GolodDB.getTrips ? GolodDB.getTrips({limitN:500}) : Promise.resolve([])
+    GolodDB.getTrips ? GolodDB.getTrips({limitN:5000}) : Promise.resolve([])   // 500→5000 ให้ตรงกับสรุปสิ้นเดือน — ที่ 500 เที่ยวบางอันหลุดขอบเขต หายจากจัดการเที่ยวแบบไม่ต่อเนื่อง
   ]).then(function(results){
     _tripState.drivers = (results[0]||[]).filter(function(u){ return u.role==="driver"; });
     _tripState.openTrips = results[1]||[];
@@ -3953,7 +3953,7 @@ function renderClearingTab(){
   var app=document.getElementById("app");
   app.innerHTML='<div class="card"><div class="loading">⏳ กำลังโหลดเที่ยว...</div></div>';
   Promise.all([
-    GolodDB.getTrips?GolodDB.getTrips({limitN:500}):Promise.resolve(_tripState.openTrips||[]),
+    GolodDB.getTrips?GolodDB.getTrips({limitN:5000}):Promise.resolve(_tripState.openTrips||[]),   // 500→5000
     GolodDB.getUsers?GolodDB.getUsers():Promise.resolve(_tripState.drivers||[])
   ]).then(function(res){
     _clearState.allTrips=res[0]||[];
@@ -5460,7 +5460,7 @@ function _fillDriverDatalist(){
   render();
   try{
     if(typeof GolodDB!=="undefined" && GolodDB.getUsers){ GolodDB.getUsers().then(function(us){ (us||[]).forEach(function(u){ if(u&&u.role==="driver"){ add(u.name); add(u.driverName); } }); render(); }).catch(function(){}); }
-    if(typeof GolodDB!=="undefined" && GolodDB.getTrips){ GolodDB.getTrips({limitN:500}).then(function(ts){ (ts||[]).forEach(function(t){ add(t.driverName); add(t.lineDriver); }); render(); }).catch(function(){}); }
+    if(typeof GolodDB!=="undefined" && GolodDB.getTrips){ GolodDB.getTrips({limitN:5000}).then(function(ts){ (ts||[]).forEach(function(t){ add(t.driverName); add(t.lineDriver); }); render(); }).catch(function(){}); }
   }catch(e){}
 }
 function openDispatch(mode){
@@ -5613,7 +5613,7 @@ function _fillBtDriverSelect(cur){
   render();
   try{
     if(typeof GolodDB!=="undefined" && GolodDB.getUsers){ GolodDB.getUsers().then(function(us){ (us||[]).forEach(function(u){ if(u&&u.role==="driver"){ add(u.name); add(u.driverName); } }); render(); }).catch(function(){}); }
-    if(typeof GolodDB!=="undefined" && GolodDB.getTrips){ GolodDB.getTrips({limitN:500}).then(function(ts){ (ts||[]).forEach(function(t){ add(t.driverName); add(t.lineDriver); }); render(); }).catch(function(){}); }
+    if(typeof GolodDB!=="undefined" && GolodDB.getTrips){ GolodDB.getTrips({limitN:5000}).then(function(ts){ (ts||[]).forEach(function(t){ add(t.driverName); add(t.lineDriver); }); render(); }).catch(function(){}); }
   }catch(e){}
 }
 function closeBtDriverModal(){ var m=document.getElementById("modal-bt-driver"); if(m) m.classList.remove("show"); }
@@ -7176,7 +7176,9 @@ function calcClearTrip(){
   // ===== สูตรเงินที่พนักงานต้องนำมาคืน =====
   // พขร.ต้องคืน = COD(เงินสด) + เก็บปลายทาง + รับของจ่ายต้นทาง + เบิกน้ำมันล่วงหน้า
   //              − ค่าน้ำมันที่คำนวณ − (ทางด่วน + โรงแรม + จิปาถะ + w/t)
-  var mustReturn = (codAmt + destAmt + pkDest + pkCash + fuelAdv + otherAdv + drawFee)
+  // pkDest (งานรับ-เก็บปลายทาง) = คนรถยังไม่ได้เก็บเงิน → ไม่เข้ายอดค้าง
+  // ตรงกับกติกาเดิมของระบบ: "เก็บปลายทาง (ไม่เข้ายอด)" และตรงกับคอมเมนต์สูตรด้านบน
+  var mustReturn = (codAmt + destAmt + pkCash + fuelAdv + otherAdv + drawFee)
                  - fuelReal - (tollway + hotel + misc + wht);
   // + รายการปรับยอดที่อนุมัติแล้ว
   var adjApproved = remarksApprovedSum();
@@ -7260,7 +7262,8 @@ function saveClearTrip(){
   var miscNote= (document.getElementById("ct-misc-note")||{}).value||"";
   var wht     = parseFloat((document.getElementById("ct-wht")||{}).value||0);
 
-  var mustReturn = (codAmt + destAmt + pkDest + pkCash + parseFloat(trip.fuelAdvance||0) + otherAdv + drawFee)
+  // pkDest ไม่เข้ายอดค้าง (คนรถยังไม่ได้เก็บ) — เก็บไว้เป็นบันทึกใน clearData.pickupDest เฉยๆ
+  var mustReturn = (codAmt + destAmt + pkCash + parseFloat(trip.fuelAdvance||0) + otherAdv + drawFee)
                  - fuelReal - (tollway + hotel + misc + wht) + remarksApprovedSum() - destTransferSum();
   var paid = clrCash + clrTrans;
   var netPay = mustReturn - paid; // + = พขร.ค้างบริษัท, − = บริษัทต้องจ่าย พขร
