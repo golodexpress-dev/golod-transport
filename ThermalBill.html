@@ -1023,6 +1023,12 @@ function nowStr() {
   const d = new Date();
   return `${String(d.getHours()).padStart(2, "0")}:${String(d.getMinutes()).padStart(2, "0")}`;
 }
+// ขนาดตัวอักษร "ชื่อสินค้ารายการแรก" บนบิลความร้อน (รายการที่ 2 เป็นต้นไปใช้ 10)
+// ชื่อผู้รับบนบิลใช้ 14 — ตั้ง 14 ถ้าอยากให้ใหญ่เท่ากันพอดี
+var FIRST_ITEM_FS = 12;
+// รายการแรก: ชื่อยาวเกินกี่บรรทัดให้ตัดด้วย … (0 = ไม่ตัด)
+var FIRST_ITEM_MAX_LINES = 3;
+
 // ===== GoodsInput: autocomplete รายการสินค้าจากประวัติ =====
 function saveGoodsHistory(desc, goodsType) {
   if (!desc || desc.length < 2) return;
@@ -1452,6 +1458,7 @@ function ThermalBill({
           ? parseFloat(item.price)
           : upCalc)));
     const lt = form._hideUnitFreight ? 0 : up * (parseInt(item.qty) || 1);
+    const _itemLabel = (i + 1) + ". " + (item.desc || "(ไม่ระบุ)");
     return /*#__PURE__*/React.createElement(React.Fragment, {
       key: item.id
     }, /*#__PURE__*/React.createElement("tr", {
@@ -1461,14 +1468,26 @@ function ThermalBill({
     }, /*#__PURE__*/React.createElement("td", {
       style: {
         padding: "2px 2px",
-        fontSize: 10,
+        // รายการแรก = ตัวใหญ่ขึ้น 2 จุด (ชื่อผู้รับใช้ 14 — อยากให้เท่ากันเป๊ะ เปลี่ยน FIRST_ITEM_FS เป็น 14)
+        fontSize: (i === 0 ? FIRST_ITEM_FS : 10),
         fontWeight: 700,
+        lineHeight: (i === 0 ? 1.15 : undefined),
         maxWidth: 90,
         borderRight: "0.5px solid #ccc",
         wordBreak: "break-word",
         whiteSpace: "normal"
       }
-    }, i + 1, ". ", item.desc || "(ไม่ระบุ)"), /*#__PURE__*/React.createElement("td", {
+    }, (i === 0 && FIRST_ITEM_MAX_LINES > 0
+      ? /*#__PURE__*/React.createElement("div", {
+          title: _itemLabel,
+          style: {
+            display: "-webkit-box",
+            WebkitBoxOrient: "vertical",
+            WebkitLineClamp: FIRST_ITEM_MAX_LINES,
+            overflow: "hidden"
+          }
+        }, _itemLabel)
+      : _itemLabel)), /*#__PURE__*/React.createElement("td", {
       style: {
         textAlign: "center",
         padding: "2px 2px",
