@@ -1458,7 +1458,7 @@ function ThermalBill({
           ? parseFloat(item.price)
           : upCalc)));
     const lt = form._hideUnitFreight ? 0 : up * (parseInt(item.qty) || 1);
-    const _itemLabel = (i + 1) + ". " + (item.desc || "(ไม่ระบุ)");
+    const _itemDesc = String(item.desc || "(ไม่ระบุ)").replace(/\s+/g, " ").trim();
     return /*#__PURE__*/React.createElement(React.Fragment, {
       key: item.id
     }, /*#__PURE__*/React.createElement("tr", {
@@ -1477,17 +1477,27 @@ function ThermalBill({
         wordBreak: "break-word",
         whiteSpace: "normal"
       }
-    }, (i === 0 && FIRST_ITEM_MAX_LINES > 0
-      ? /*#__PURE__*/React.createElement("div", {
-          title: _itemLabel,
-          style: {
-            display: "-webkit-box",
-            WebkitBoxOrient: "vertical",
-            WebkitLineClamp: FIRST_ITEM_MAX_LINES,
-            overflow: "hidden"
-          }
-        }, _itemLabel)
-      : _itemLabel)), /*#__PURE__*/React.createElement("td", {
+    }, /*#__PURE__*/React.createElement("div", {
+      title: _itemDesc,
+      style: { display: "flex", alignItems: "flex-start", gap: 2 }
+    },
+      /*#__PURE__*/React.createElement("span", {
+        style: { flex: "0 0 auto" }
+      }, (i + 1) + "."),
+      /*#__PURE__*/React.createElement("span", {
+        style: Object.assign({
+          flex: "1 1 auto",
+          minWidth: 0,
+          overflowWrap: "anywhere",
+          wordBreak: "break-word"
+        }, (i === 0 && FIRST_ITEM_MAX_LINES > 0) ? {
+          display: "-webkit-box",
+          WebkitBoxOrient: "vertical",
+          WebkitLineClamp: FIRST_ITEM_MAX_LINES,
+          overflow: "hidden"
+        } : {})
+      }, _itemDesc)
+    )), /*#__PURE__*/React.createElement("td", {
       style: {
         textAlign: "center",
         padding: "2px 2px",
