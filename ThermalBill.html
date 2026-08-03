@@ -1028,6 +1028,9 @@ function nowStr() {
 var FIRST_ITEM_FS = 12;
 // รายการแรก: ชื่อยาวเกินกี่บรรทัดให้ตัดด้วย … (0 = ไม่ตัด)
 var FIRST_ITEM_MAX_LINES = 3;
+// ความสูงบรรทัดของรายการแรก — ต้องเผื่อสระบน/วรรณยุกต์ที่ซ้อนกัน 2 ชั้น (เช่น ที่ ก๋ ผู้)
+// ต่ำกว่า 1.4 หัวสระจะโดนตัดหาย เพราะกล่องตัด 3 บรรทัดใช้ overflow:hidden
+var FIRST_ITEM_LH = 1.45;
 
 // ===== GoodsInput: autocomplete รายการสินค้าจากประวัติ =====
 function saveGoodsHistory(desc, goodsType) {
@@ -1471,7 +1474,6 @@ function ThermalBill({
         // รายการแรก = ตัวใหญ่ขึ้น 2 จุด (ชื่อผู้รับใช้ 14 — อยากให้เท่ากันเป๊ะ เปลี่ยน FIRST_ITEM_FS เป็น 14)
         fontSize: (i === 0 ? FIRST_ITEM_FS : 10),
         fontWeight: 700,
-        lineHeight: (i === 0 ? 1.15 : undefined),
         maxWidth: 90,
         borderRight: "0.5px solid #ccc",
         wordBreak: "break-word",
@@ -1494,7 +1496,9 @@ function ThermalBill({
           display: "-webkit-box",
           WebkitBoxOrient: "vertical",
           WebkitLineClamp: FIRST_ITEM_MAX_LINES,
-          overflow: "hidden"
+          overflow: "hidden",
+          lineHeight: FIRST_ITEM_LH,
+          paddingTop: 1
         } : {})
       }, _itemDesc)
     )), /*#__PURE__*/React.createElement("td", {
