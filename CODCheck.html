@@ -203,7 +203,10 @@ td.r,th.r{text-align:right}
 /* ---------- ตั้งค่า (ปรับได้) ---------- */
 var COD_FEE_RATE   = 0.03;                 // ค่าธรรมเนียม COD 3% ของ (COD + ค่าส่งปลายทาง)
 var COD_FEE_MIN    = 15;                   // ค่าธรรมเนียม COD ขั้นต่ำต่อบิล (คิดได้ต่ำกว่านี้ให้ปัดขึ้นเป็น 15)
-var BILLS_LIMIT    = 15000;                // จำนวนบิลที่ดึงมา (3,000 = ย้อนหลังได้แค่ ~3 สัปดาห์) — เพิ่มถ้าอยากดูย้อนหลังนานขึ้น
+var FS_MAX_LIMIT   = 10000;                // เพดานแข็งของ Firestore: limit ต่อ query ห้ามเกิน 10,000
+var RANGE_MODE     = true;                 // true = โหลดตามช่วงวันที่ (ย้อนได้ไม่จำกัด)
+var LOADED_FROM = "", LOADED_TO = "";
+var BILLS_LIMIT    = 10000;                // จำนวนบิลที่ดึงมา (เดิม 3,000 = ย้อนได้ ~3 สัปดาห์) — ตั้งเกิน 10,000 ไม่ได้
 var TRIPS_LIMIT    = 5000;                 // จำนวนเที่ยวที่ดึงมา — ใช้จับคู่ชื่อคนรถกับบิล ต้องคลุมช่วงเดียวกับบิล
 var COD_FEE_EXEMPT = ["โกวิท บุญชม"];      // ลูกค้าที่ได้ COD เต็ม ไม่หักค่าธรรมเนียม (ไม่โดนขั้นต่ำด้วย)
 var DEST_PAY       = ["dest","dest_cash","dest_transfer","cod"]; // วิธีชำระที่ถือว่าเก็บค่าส่งปลายทาง
@@ -487,6 +490,68 @@ function tripBills(trip){
 /* ============================================================
    LOAD
    ============================================================ */
+
+/* ---- โหลดตามช่วงวันที่ (แทนการดึงบิลล่าสุด N ใบ) ----
+   เดิมดึงบิลล่าสุด 10,000 ใบ ซึ่งชนเพดาน Firestore และย้อนได้แค่ ~2 เดือน
+   ตอนนี้ยิง query เฉพาะช่วงวันที่ที่เลือก จึงย้อนได้ไม่จำกัด และเร็วกว่าเดิม
+
+   หมายเหตุ: query ใช้ createdAt ส่วนวันที่ที่โชว์ใช้ b.date ซึ่งอาจไม่ตรงกัน
+   จึงเผื่อหัวท้ายไว้ RANGE_PAD_DAYS วัน แล้วให้ inRange() กรองละเอียดอีกที      */
+var RANGE_PAD_DAYS = 5;     // เผื่อบิลที่วันที่บิล ≠ วันที่สร้าง
+var TRIP_PAD_DAYS  = 45;    // เที่ยวมักสร้างก่อน/หลังบิล เผื่อกว้างกว่า
+var BILLS_COL = "", TRIPS_COL = "";
+
+function _shiftISO(iso, days){
+  var d = new Date(iso+"T00:00:00");
+  if(isNaN(d.getTime())) return "";
+  d.setDate(d.getDate()+days);
+  var m=("0"+(d.getMonth()+1)).slice(-2), dd=("0"+d.getDate()).slice(-2);
+  return d.getFullYear()+"-"+m+"-"+dd;
+}
+// หาชื่อ collection อัตโนมัติ (โครงสร้างฐานข้อมูลอาจตั้งชื่อไม่เหมือนกัน)
+function _detectCol(cands, cacheSetter){
+  var db; try{ db=firebase.firestore(); }catch(e){ return Promise.resolve(""); }
+  var i=0;
+  function next(){
+    if(i>=cands.length) return Promise.resolve("");
+    var c=cands[i++];
+    return db.collection(c).limit(1).get().then(function(qs){
+      if(!qs.empty){ cacheSetter(c); return c; }
+      return next();
+    }).catch(function(){ return next(); });
+  }
+  return next();
+}
+function _queryByCreatedAt(col, fromISO, toISO_){
+  var db=firebase.firestore();
+  return db.collection(col)
+    .where("createdAt", ">=", fromISO+"T00:00:00")
+    .where("createdAt", "<=", toISO_+"T23:59:59.999")
+    .orderBy("createdAt","desc")
+    .limit(FS_MAX_LIMIT).get()
+    .then(function(qs){
+      var out=[]; qs.forEach(function(d){ var o=d.data()||{}; if(!o.id) o.id=d.id; out.push(o); });
+      return out;
+    });
+}
+// คืน null ถ้าใช้วิธีนี้ไม่ได้ → ให้ผู้เรียก fallback ไปวิธีเดิม
+function loadBillsByRange(fromISO, toISO_){
+  if(!fromISO || !toISO_) return Promise.resolve(null);
+  return (BILLS_COL ? Promise.resolve(BILLS_COL) : _detectCol(["bills","Bills","bill"], function(c){BILLS_COL=c;}))
+    .then(function(col){
+      if(!col) return null;
+      return _queryByCreatedAt(col, _shiftISO(fromISO,-RANGE_PAD_DAYS), _shiftISO(toISO_, RANGE_PAD_DAYS));
+    }).catch(function(e){ console.warn("loadBillsByRange:",e); return null; });
+}
+function loadTripsByRange(fromISO, toISO_){
+  if(!fromISO || !toISO_) return Promise.resolve(null);
+  return (TRIPS_COL ? Promise.resolve(TRIPS_COL) : _detectCol(["trips","Trips","trip"], function(c){TRIPS_COL=c;}))
+    .then(function(col){
+      if(!col) return null;
+      return _queryByCreatedAt(col, _shiftISO(fromISO,-TRIP_PAD_DAYS), _shiftISO(toISO_, TRIP_PAD_DAYS));
+    }).catch(function(e){ console.warn("loadTripsByRange:",e); return null; });
+}
+
 function reload(){ loadData(); }
 
 function loadData(){
@@ -497,10 +562,25 @@ function loadData(){
   }
   setStatus("⏳ กำลังโหลดบิล + เที่ยว…","");
   var run = function(){
-    var pBills = (GolodDB.getBillsNew ? GolodDB.getBillsNew(BILLS_LIMIT)
-                : GolodDB.getAllBills ? GolodDB.getAllBills(BILLS_LIMIT)
-                : GolodDB.getBills("",true));
-    var pTrips = (GolodDB.getTrips ? GolodDB.getTrips({limitN:TRIPS_LIMIT}) : Promise.resolve([]));
+    // กันพลาด: ถ้าตั้งค่าเกินเพดาน Firestore จะฟ้อง "Limit value ... over the maximum value of 10000"
+    var _bLim = Math.min(BILLS_LIMIT, FS_MAX_LIMIT);
+    var _tLim = Math.min(TRIPS_LIMIT, FS_MAX_LIMIT);
+    var _from = (document.getElementById("f-from")||{}).value || "";
+    var _to   = (document.getElementById("f-to")||{}).value   || "";
+    LOADED_FROM = _from; LOADED_TO = _to;
+
+    // 1) ลองยิงตามช่วงวันที่ก่อน  2) ถ้าไม่ได้ค่อย fallback เป็นวิธีเดิม (ล่าสุด N ใบ)
+    var pBills = loadBillsByRange(_from, _to).then(function(r){
+      if(r) return r;
+      RANGE_MODE = false;
+      return (GolodDB.getBillsNew ? GolodDB.getBillsNew(_bLim)
+            : GolodDB.getAllBills ? GolodDB.getAllBills(_bLim)
+            : GolodDB.getBills("",true));
+    });
+    var pTrips = loadTripsByRange(_from, _to).then(function(r){
+      if(r) return r;
+      return (GolodDB.getTrips ? GolodDB.getTrips({limitN:_tLim}) : Promise.resolve([]));
+    });
     Promise.all([pBills, pTrips]).then(function(res){
       ALL_BILLS = res[0]||[];
       ALL_TRIPS = res[1]||[];
@@ -518,7 +598,9 @@ function loadData(){
         if(real) BILL_DRIVER[b.billNo] = real;
       });
       var codN = ALL_BILLS.filter(function(b){return getCOD(b)>0;}).length;
-      setStatus("✓ โหลดแล้ว "+ALL_BILLS.length+" บิล ("+codN+" บิลมี COD) · "+ALL_TRIPS.length+" เที่ยว","");
+      setStatus("✓ โหลดแล้ว "+ALL_BILLS.length+" บิล ("+codN+" บิลมี COD) · "+ALL_TRIPS.length+" เที่ยว"
+        + (RANGE_MODE ? (" · ช่วง "+LOADED_FROM+" ถึง "+LOADED_TO)
+                      : (" · โหมดเดิม: ล่าสุด "+_bLim+" ใบ (ย้อนไกลกว่านี้ไม่ได้)")),"");
       fillDriverFilter();
       Accounts.load().then(renderAll);
     }).catch(function(e){
@@ -539,7 +621,13 @@ function fillDriverFilter(){
   sel.value=cur;
 }
 
-function applyFilter(){ renderAll(); }
+function applyFilter(){
+  var f=(document.getElementById("f-from")||{}).value||"";
+  var t=(document.getElementById("f-to")||{}).value||"";
+  // ช่วงวันที่เปลี่ยน → ต้องดึงข้อมูลใหม่ ไม่ใช่แค่กรองของเดิม
+  if(RANGE_MODE && (f!==LOADED_FROM || t!==LOADED_TO)){ RANGE_MODE=true; loadData(); return; }
+  renderAll();
+}
 
 /* ============================================================
    RENDER
