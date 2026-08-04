@@ -202,7 +202,10 @@ td.r,th.r{text-align:right}
 
 /* ---------- ตั้งค่า (ปรับได้) ---------- */
 var COD_FEE_RATE   = 0.03;                 // ค่าธรรมเนียม COD 3% ของ (COD + ค่าส่งปลายทาง)
-var COD_FEE_EXEMPT = ["โกวิท บุญชม"];      // ลูกค้าที่ได้ COD เต็ม ไม่หักค่าธรรมเนียม
+var COD_FEE_MIN    = 15;                   // ค่าธรรมเนียม COD ขั้นต่ำต่อบิล (คิดได้ต่ำกว่านี้ให้ปัดขึ้นเป็น 15)
+var BILLS_LIMIT    = 15000;                // จำนวนบิลที่ดึงมา (3,000 = ย้อนหลังได้แค่ ~3 สัปดาห์) — เพิ่มถ้าอยากดูย้อนหลังนานขึ้น
+var TRIPS_LIMIT    = 5000;                 // จำนวนเที่ยวที่ดึงมา — ใช้จับคู่ชื่อคนรถกับบิล ต้องคลุมช่วงเดียวกับบิล
+var COD_FEE_EXEMPT = ["โกวิท บุญชม"];      // ลูกค้าที่ได้ COD เต็ม ไม่หักค่าธรรมเนียม (ไม่โดนขั้นต่ำด้วย)
 var DEST_PAY       = ["dest","dest_cash","dest_transfer","cod"]; // วิธีชำระที่ถือว่าเก็บค่าส่งปลายทาง
 /* -------------------------------------- */
 
@@ -395,11 +398,28 @@ function destFreight(b){ return DEST_PAY.indexOf(getPay(b)) >= 0 ? getFreightNet
 function codFee(b){
   var cod = getCOD(b);
   if(cod <= 0) return 0;
-  if(isExempt(getSender(b))) return 0;
-  return Math.round((cod + destFreight(b)) * COD_FEE_RATE * 100)/100;
+  if(isExempt(getSender(b))) return 0;   // ยกเว้น = ไม่หักเลย และไม่โดนขั้นต่ำ
+  var fee = Math.round((cod + destFreight(b)) * COD_FEE_RATE * 100)/100;
+  return fee < COD_FEE_MIN ? COD_FEE_MIN : fee;   // ต่ำกว่าขั้นต่ำ → คิด COD_FEE_MIN
 }
 // ยอดสุทธิที่ต้องโอนคืนต้นทาง = COD − ค่าธรรมเนียม
 function codNet(b){ return Math.round((getCOD(b) - codFee(b))*100)/100; }
+
+/* ---- ยอดที่ "แสดง" บนหน้าจอ ----
+   บิลที่กดโอนคืนแล้ว → ใช้ยอดที่บันทึกไว้ตอนกดโอน (codRemit.net)
+   เพื่อให้ประวัติตรงกับเงินที่โอนจริง แม้จะปรับสูตร/เรตค่าธรรมเนียมทีหลัง
+   บิลที่ยังค้าง → คำนวณสดตามสูตรปัจจุบัน                                  */
+function _remitNet(b){
+  if(!b || !b.codRemit || !b.codRemit.remitted) return null;
+  var n = parseFloat(b.codRemit.net);
+  return isNaN(n) ? null : n;
+}
+function codNetShown(b){ var n=_remitNet(b); return n===null ? codNet(b) : n; }
+function codFeeShown(b){
+  var n=_remitNet(b);
+  if(n===null) return codFee(b);
+  return Math.round((getCOD(b) - n)*100)/100;   // ธรรมเนียมย้อนกลับจากยอดที่โอนจริง
+}
 
 function parseDate(v){
   if(!v) return null;
@@ -477,10 +497,10 @@ function loadData(){
   }
   setStatus("⏳ กำลังโหลดบิล + เที่ยว…","");
   var run = function(){
-    var pBills = (GolodDB.getBillsNew ? GolodDB.getBillsNew(3000)
-                : GolodDB.getAllBills ? GolodDB.getAllBills(3000)
+    var pBills = (GolodDB.getBillsNew ? GolodDB.getBillsNew(BILLS_LIMIT)
+                : GolodDB.getAllBills ? GolodDB.getAllBills(BILLS_LIMIT)
                 : GolodDB.getBills("",true));
-    var pTrips = (GolodDB.getTrips ? GolodDB.getTrips({limitN:400}) : Promise.resolve([]));
+    var pTrips = (GolodDB.getTrips ? GolodDB.getTrips({limitN:TRIPS_LIMIT}) : Promise.resolve([]));
     Promise.all([pBills, pTrips]).then(function(res){
       ALL_BILLS = res[0]||[];
       ALL_TRIPS = res[1]||[];
@@ -591,7 +611,7 @@ function renderPills(){
   var bills=codBillsFiltered();
   var totalCOD=bills.reduce(function(s,b){return s+getCOD(b);},0);
   var pendingNet=bills.filter(function(b){return !(b.codRemit&&b.codRemit.remitted);})
-                      .reduce(function(s,b){return s+codNet(b);},0);
+                      .reduce(function(s,b){return s+codNetShown(b);},0);
   document.getElementById("hdr-pills").innerHTML=
     '<span class="hdr-pill">COD รวม '+fmt(totalCOD)+' ฿</span>'+
     (pendingNet>0?'<span class="hdr-pill amber">ค้างโอนคืน '+fmt(pendingNet)+' ฿</span>':'<span class="hdr-pill green">โอนคืนครบ</span>');
@@ -609,8 +629,8 @@ function renderDash(){
   var sum={cod:0,fee:0,net:0}, buckets={ok:{n:0,cod:0},short:{n:0,cod:0},open:{n:0,cod:0},notrip:{n:0,cod:0}};
   var remitted=0, pending=0;
   bills.forEach(function(b){
-    var cod=getCOD(b); sum.cod+=cod; sum.fee+=codFee(b); sum.net+=codNet(b);
-    if(b.codRemit&&b.codRemit.remitted) remitted+=codNet(b); else pending+=codNet(b);
+    var cod=getCOD(b); sum.cod+=cod; sum.fee+=codFeeShown(b); sum.net+=codNetShown(b);
+    if(b.codRemit&&b.codRemit.remitted) remitted+=codNetShown(b); else pending+=codNetShown(b);
     var tc=billTrip[b.billNo];
     if(!tc){ buckets.notrip.n++; buckets.notrip.cod+=cod; }
     else if(!tc.cleared){ buckets.open.n++; buckets.open.cod+=cod; }
@@ -621,7 +641,7 @@ function renderDash(){
   var html=''+
    '<div class="cards">'+
      card("บิล COD ทั้งหมด", bills.length+" ใบ", "COD รวม "+fmt(sum.cod)+" ฿","")+
-     card("ค่าธรรมเนียม 3%", money(sum.fee)+" ฿", "ยกเว้น: "+COD_FEE_EXEMPT.join(", "),"")+
+     card("ค่าธรรมเนียม 3%", money(sum.fee)+" ฿", "ขั้นต่ำ "+COD_FEE_MIN+" ฿/บิล · ยกเว้น: "+COD_FEE_EXEMPT.join(", "),"")+
      card("ต้องโอนคืนต้นทาง (สุทธิ)", money(sum.net)+" ฿", "COD − ค่าธรรมเนียม","")+
      card("ค้างโอนคืน", money(pending)+" ฿", "โอนแล้ว "+money(remitted)+" ฿", pending>0?"amber":"")+
    '</div>'+
@@ -673,7 +693,7 @@ function renderTrips(){
       return '<tr class="sub-bills"><td>'+(b.billNo||"")+'</td>'+
         '<td>ต้นทาง: '+(getSender(b)||"—")+(isExempt(getSender(b))?'<span class="tag-exempt">ยกเว้น 3%</span>':'')+
           '<div style="font-size:10px;color:#aaa">ปลายทาง: '+(getReceiver(b)||"—")+' · '+getDestProv(b)+'</div></td>'+
-        '<td class="r" colspan="2">COD '+fmt(getCOD(b))+' ฿<div style="font-size:10px;color:#999">โอนคืน '+money(codNet(b))+' ฿ (หัก '+money(codFee(b))+')</div></td>'+
+        '<td class="r" colspan="2">COD '+fmt(getCOD(b))+' ฿<div style="font-size:10px;color:#999">โอนคืน '+money(codNetShown(b))+' ฿ (หัก '+money(codFeeShown(b))+')</div></td>'+
         '<td>'+(rm?'<span class="badge b-green">โอนคืนแล้ว</span>':'<span class="badge b-gray">รอโอนคืน</span>')+'</td><td></td></tr>';
     }).join("");
     return head+'<tbody id="trip-sub-'+i+'" class="hidden">'+sub+'</tbody>';
@@ -694,8 +714,8 @@ function _remitGroups(){
     var s=getSender(b)||"(ไม่ระบุชื่อต้นทาง)";
     if(!groups[s]) groups[s]={name:s,bills:[],cod:0,fee:0,net:0,pendNet:0,exempt:isExempt(s)};
     var g=groups[s];
-    g.bills.push(b); g.cod+=getCOD(b); g.fee+=codFee(b); g.net+=codNet(b);
-    if(!(b.codRemit&&b.codRemit.remitted)) g.pendNet+=codNet(b);
+    g.bills.push(b); g.cod+=getCOD(b); g.fee+=codFeeShown(b); g.net+=codNetShown(b);
+    if(!(b.codRemit&&b.codRemit.remitted)) g.pendNet+=codNetShown(b);
   });
   return Object.keys(groups).map(function(k){return groups[k];}).sort(function(a,b){return b.pendNet-a.pendNet;});
 }
@@ -723,8 +743,8 @@ function renderRemit(){
     var sub=g.bills.map(function(b){
       var rm=b.codRemit&&b.codRemit.remitted;
       return '<tr class="sub-bills"><td>'+(b.billNo||"")+' · '+billDate(b)+'</td>'+
-        '<td class="r" colspan="3">COD '+fmt(getCOD(b))+' − '+money(codFee(b))+'</td>'+
-        '<td class="r">'+money(codNet(b))+'</td>'+
+        '<td class="r" colspan="3">COD '+fmt(getCOD(b))+' − '+money(codFeeShown(b))+'</td>'+
+        '<td class="r">'+money(codNetShown(b))+'</td>'+
         '<td>'+(rm?'<span class="badge b-green">โอนแล้ว</span>':'<span class="badge b-gray">รอ</span>')+'</td>'+
         '<td><button class="btn btn-ghost btn-sm" onclick="toggleBill(\''+(b.billNo||"")+'\')">'+(rm?'ยกเลิก':'ทำเครื่องหมาย')+'</button></td></tr>';
     }).join("");
@@ -737,7 +757,7 @@ function renderRemit(){
       (REMIT_BATCH_SHOW?'<button class="btn btn-ghost" onclick="remitPrintBatch()">🖨️ พิมพ์ใบสรุป</button>':'')+
     '</div>'+
     (REMIT_BATCH_SHOW?remitBatchDoc():'')+
-    '<div class="mini-note">สูตร: โอนคืน = COD − (COD + ค่าส่งปลายทาง) × '+(COD_FEE_RATE*100)+'% — ถ้ามีเก็บค่าส่งปลายทาง จะคิด 3% รวมค่าส่งด้วย · ลูกค้ายกเว้น ('+COD_FEE_EXEMPT.join(", ")+') ได้ COD เต็ม · แตะแถวเพื่อดูรายบิล</div>'+
+    '<div class="mini-note">สูตร: โอนคืน = COD − (COD + ค่าส่งปลายทาง) × '+(COD_FEE_RATE*100)+'% (ขั้นต่ำ '+COD_FEE_MIN+' ฿/บิล) — บิลที่โอนคืนแล้วแสดงยอดที่โอนจริงตอนนั้น ไม่คิดใหม่ · ถ้ามีเก็บค่าส่งปลายทาง จะคิด 3% รวมค่าส่งด้วย · ลูกค้ายกเว้น ('+COD_FEE_EXEMPT.join(", ")+') ได้ COD เต็ม · แตะแถวเพื่อดูรายบิล</div>'+
     '<table><thead><tr><th>ลูกค้าต้นทาง</th><th class="r">บิล</th><th class="r">COD</th><th class="r">ค่าธรรมเนียม</th><th class="r">โอนคืนสุทธิ</th><th>สถานะ</th><th></th></tr></thead>'+
     '<tbody>'+rows+'</tbody></table>';
 }
@@ -808,7 +828,7 @@ function vcAutoGroups(){
     var s=getSender(b)||"(ไม่ระบุชื่อต้นทาง)";
     if(!map[s]) map[s]={sender:s, bills:[], sumCOD:0, sumFee:0, sumNet:0};
     map[s].bills.push({b:b, reason:r});
-    map[s].sumCOD+=getCOD(b); map[s].sumFee+=codFee(b); map[s].sumNet+=codNet(b);
+    map[s].sumCOD+=getCOD(b); map[s].sumFee+=codFeeShown(b); map[s].sumNet+=codNetShown(b);
   });
   return Object.keys(map).map(function(k){ map[k].bills.sort(function(x,y){return billDate(x.b)<billDate(y.b)?-1:1;}); return map[k]; })
               .sort(function(a,b){ return b.sumNet-a.sumNet; });
@@ -831,7 +851,7 @@ function vcAutoSection(){
     var rows=g.bills.map(function(it){ var b=it.b;
       return '<tr><td>'+billDate(b)+'</td><td>'+(b.billNo||"")+'</td><td>'+(BILL_DRIVER[b.billNo]||"—")+'</td>'
         +'<td><span class="badge '+(it.reason==="ส่งสำเร็จ"?"b-green":"b-amber")+'">'+it.reason+'</span></td>'
-        +'<td class="r">'+fmt(getCOD(b))+'</td><td class="r"><b>'+money(codNet(b))+'</b></td></tr>';
+        +'<td class="r">'+fmt(getCOD(b))+'</td><td class="r"><b>'+money(codNetShown(b))+'</b></td></tr>';
     }).join("");
     var c=Accounts.code(g.sender);
     return '<div style="background:#fff;border:0.5px solid #eee;border-radius:10px;padding:10px;margin-bottom:10px">'
@@ -874,7 +894,7 @@ function renderVoucher(){
         '<td>'+billDate(b)+'</td><td>'+(b.billNo||"")+'</td><td>'+(BILL_DRIVER[b.billNo]||"—")+'</td>'+
         '<td>'+(deliveredDate(b)||"—")+'</td>'+
         '<td>'+(fmtClear(BILL_CLEAR[b.billNo])||"—")+'</td>'+
-        '<td class="r">'+fmt(getCOD(b))+'</td><td class="r">'+money(codFee(b))+'</td><td class="r"><b>'+money(codNet(b))+'</b></td>'+
+        '<td class="r">'+fmt(getCOD(b))+'</td><td class="r">'+money(codFeeShown(b))+'</td><td class="r"><b>'+money(codNetShown(b))+'</b></td>'+
         '<td>'+(rm?'<span class="badge b-green">จ่ายแล้ว</span>':'<span class="badge b-gray">ยังไม่จ่าย</span>')+'</td></tr>';
     }).join("")+'</tbody></table>'+
     '<div style="padding:10px;display:flex;gap:8px;flex-wrap:wrap"><button class="btn btn-green" onclick="vcRender()">🧾 ออกใบจ่าย</button>'+
@@ -899,7 +919,7 @@ function vcDoc(){
   var today=new Date(); var dd=("0"+today.getDate()).slice(-2),mm=("0"+(today.getMonth()+1)).slice(-2),yy=(today.getFullYear()+543).toString().slice(-2);
   var sumCOD=0,sumFee=0,sumNet=0,sumDest=0;
   var rows=bills.map(function(b){
-    var cod=getCOD(b),fee=codFee(b),net=codNet(b),_df=destFreight(b); sumCOD+=cod;sumFee+=fee;sumNet+=net;sumDest+=_df;
+    var cod=getCOD(b),fee=codFeeShown(b),net=codNetShown(b),_df=destFreight(b); sumCOD+=cod;sumFee+=fee;sumNet+=net;sumDest+=_df;
     return '<tr><td class="c">'+billDate(b)+'</td><td class="c">'+(b.billNo||"")+'</td>'+
       '<td class="r">'+fmt(_df)+'</td><td class="c">'+(BILL_DRIVER[b.billNo]||"")+'</td>'+
       '<td class="c">'+(deliveredDate(b)||"")+'</td>'+
@@ -940,7 +960,7 @@ function vcBuildRecord(bills){
   var ac=Accounts.get(VC_SENDER)||{};
   var sumCOD=0,sumFee=0,sumNet=0,sumDest=0;
   var rows=bills.map(function(b){
-    var cod=getCOD(b),fee=codFee(b),net=codNet(b),df=destFreight(b);
+    var cod=getCOD(b),fee=codFeeShown(b),net=codNetShown(b),df=destFreight(b);
     sumCOD+=cod;sumFee+=fee;sumNet+=net;sumDest+=df;
     return {billNo:b.billNo||"", date:billDate(b)||"", cod:cod, fee:fee, net:net, destFreight:df,
       driver:(BILL_DRIVER[b.billNo]||""), delivered:(deliveredDate(b)||""), clear:(fmtClear(BILL_CLEAR[b.billNo])||"")};
@@ -1019,7 +1039,7 @@ function _codReportData(){
   var bills=codBillsFiltered().slice().sort(function(a,b){ return billDate(a)<billDate(b)?-1:1; });
   var s={cnt:bills.length,cod:0,fee:0,net:0,remit:0,pend:0,byDay:{}};
   bills.forEach(function(b){
-    var cod=getCOD(b),fee=codFee(b),net=codNet(b);
+    var cod=getCOD(b),fee=codFeeShown(b),net=codNetShown(b);
     s.cod+=cod; s.fee+=fee; s.net+=net;
     if(b.codRemit&&b.codRemit.remitted) s.remit+=net; else s.pend+=net;
     var k=billDate(b)||"-";
@@ -1057,8 +1077,8 @@ function renderReport(){
       +'<td>'+(getSender(b)||"—")+'</td><td>'+(getReceiver(b)||"—")+'</td>'
       +'<td>'+(BILL_DRIVER[b.billNo]||"—")+'</td>'
       +'<td class="r">'+fmt(getCOD(b))+'</td>'
-      +'<td class="r" style="color:#B07400">'+money(codFee(b))+'</td>'
-      +'<td class="r"><b>'+money(codNet(b))+'</b></td>'
+      +'<td class="r" style="color:#B07400">'+money(codFeeShown(b))+'</td>'
+      +'<td class="r"><b>'+money(codNetShown(b))+'</b></td>'
       +'<td>'+(rm?'<span style="color:#0F6E56">✓ โอนแล้ว</span>':'<span style="color:#C0392B">ค้าง</span>')+'</td></tr>';
   }).join("");
   var perbill='<h3 class="rp-h">🧾 รายบิล</h3><table class="rp-t"><thead><tr><th>เลขบิล</th><th>วันที่</th><th>ผู้ส่ง</th><th>ผู้รับ</th><th>คนรถ</th><th class="r">COD</th><th class="r">ค่าธรรมเนียม</th><th class="r">สุทธิ</th><th>โอน</th></tr></thead><tbody>'+billRows+'</tbody></table>';
@@ -1079,7 +1099,7 @@ function printCodReport(){
     return '<tr><td>'+k+'</td><td class="r">'+fmt(d.n)+'</td><td class="r">'+money(d.cod)+'</td><td class="r">'+money(d.fee)+'</td><td class="r">'+money(d.net)+'</td></tr>';
   }).join("");
   var billRows=s.bills.map(function(b){ var rm=b.codRemit&&b.codRemit.remitted;
-    return '<tr><td>'+(b.billNo||"")+'</td><td>'+billDate(b)+'</td><td>'+(getSender(b)||"—")+'</td><td>'+(getReceiver(b)||"—")+'</td><td>'+(BILL_DRIVER[b.billNo]||"—")+'</td><td class="r">'+fmt(getCOD(b))+'</td><td class="r">'+money(codFee(b))+'</td><td class="r">'+money(codNet(b))+'</td><td>'+(rm?"โอนแล้ว":"ค้าง")+'</td></tr>';
+    return '<tr><td>'+(b.billNo||"")+'</td><td>'+billDate(b)+'</td><td>'+(getSender(b)||"—")+'</td><td>'+(getReceiver(b)||"—")+'</td><td>'+(BILL_DRIVER[b.billNo]||"—")+'</td><td class="r">'+fmt(getCOD(b))+'</td><td class="r">'+money(codFeeShown(b))+'</td><td class="r">'+money(codNetShown(b))+'</td><td>'+(rm?"โอนแล้ว":"ค้าง")+'</td></tr>';
   }).join("");
   var html='<html><head><meta charset="utf-8"><title>รายงาน COD</title><style>'
     +'body{font-family:Arial,sans-serif;padding:16px;color:#222}h1{font-size:18px;margin:0 0 2px}h2{font-size:14px;margin:16px 0 6px}'
@@ -1111,8 +1131,8 @@ function renderBills(){
       '<td>'+(PAY_TH[getPay(b)]||getPay(b)||"—")+'</td>'+
       '<td class="r">'+fmt(destFreight(b))+'</td>'+
       '<td class="r">'+fmt(getCOD(b))+'</td>'+
-      '<td class="r" style="color:#B07400">'+money(codFee(b))+'</td>'+
-      '<td class="r"><b>'+money(codNet(b))+'</b></td>'+
+      '<td class="r" style="color:#B07400">'+money(codFeeShown(b))+'</td>'+
+      '<td class="r"><b>'+money(codNetShown(b))+'</b></td>'+
       '<td>'+(ST_TH[b.status]||b.status||"—")+'</td>'+
       '<td>'+(rm?'<span class="badge b-green">โอนแล้ว</span>':((CU&&CU.role==="admin")?'<button class="btn btn-ghost btn-sm" onclick="toggleBill(\''+(b.billNo||"")+'\')">โอนคืน</button>':'<span class="badge" style="background:#eee;color:#888">ยังไม่จ่าย</span>'))+'</td></tr>';
   }).join("");
