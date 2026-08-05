@@ -601,6 +601,54 @@ function getDays(from, to){
 
 var allBills=[];
 
+/* ================= ส่งออก CSV (เปิดใน Excel ได้เลย) =================
+   ใช้ชุดข้อมูลชุดเดียวกับที่แสดงอยู่บนหน้าจอ — เลือกวันนี้/รายเดือน/ช่วงวันที่ได้ตามตัวกรองด้านบน */
+var _expBills=[], _expDays=[], _expLabel="";
+function _setExportSet(bills, days, label){ _expBills=bills||[]; _expDays=days||[]; _expLabel=label||"export"; }
+function _isoOf(d){ return d.getFullYear()+"-"+("0"+(d.getMonth()+1)).slice(-2)+"-"+("0"+d.getDate()).slice(-2); }
+function _csvCell(v){
+  if(v===null||v===undefined) v="";
+  v=String(v);
+  return (v.indexOf('"')>=0||v.indexOf(",")>=0||v.indexOf("\n")>=0) ? '"'+v.replace(/"/g,'""')+'"' : v;
+}
+function _csvDownload(rows, filename){
+  var body=rows.map(function(r){ return r.map(_csvCell).join(","); }).join("\r\n");
+  var blob=new Blob(["\ufeff"+body],{type:"text/csv;charset=utf-8;"});
+  var url=URL.createObjectURL(blob);
+  var a=document.createElement("a");
+  a.href=url; a.download=filename; document.body.appendChild(a); a.click();
+  setTimeout(function(){ document.body.removeChild(a); URL.revokeObjectURL(url); },500);
+}
+var _PAY_TH={origin:"ต้นทาง",dest:"ปลายทาง",transfer:"โอน",credit:"เครดิต"};
+function exportSalesCSV(mode){
+  if(!_expBills.length){ alert("ยังไม่มีข้อมูลให้ส่งออก — กด 🔍 แสดง ก่อน"); return; }
+  var rows=[];
+  if(mode==="daily"){
+    rows.push(["วันที่","จำนวนบิล","ต้นทาง","ปลายทาง","โอน","เครดิต","COD","รวม"]);
+    _expDays.forEach(function(d){
+      var ds=new Date(d.getFullYear(),d.getMonth(),d.getDate());
+      var dayBills=filterByDate(_expBills,ds,ds);
+      var s=calcSummary(dayBills);
+      rows.push([fmtDate(d), dayBills.length, s.byPay.origin, s.byPay.dest,
+                 s.byPay.transfer, s.byPay.credit, s.byPay.cod, s.total]);
+    });
+  } else {
+    rows.push(["วันที่","เลขบิล","สาขา","Zone","จังหวัด","อำเภอ","ประเภทชำระ","ค่าขนส่ง","COD","ผู้ส่ง","ผู้รับ"]);
+    _expBills.slice().sort(function(a,b){
+      var da=parseBillDate(a), db=parseBillDate(b);
+      return (da?da.getTime():0)-(db?db.getTime():0);
+    }).forEach(function(b){
+      var f=b.form&&typeof b.form==="object"?b.form:{};
+      var prov=getBillProv(b), amp=getBillAmphoe(b), pay=getBillPay(b);
+      rows.push([fmtBillDate(b), b.billNo||f.billNo||"", BRANCH_MAP[getBranch(b)]||getBranch(b),
+                 getZone(prov,amp), prov, amp, _PAY_TH[pay]||pay,
+                 parseFloat(b.freightNet||0), parseFloat(b.codTotal||0),
+                 b.senderName||f.senderName||"", b.receiverName||f.receiverName||""]);
+    });
+  }
+  _csvDownload(rows, "ยอดขาย_"+(mode==="daily"?"รายวัน":"รายบิล")+"_"+_expLabel+".csv");
+}
+
 function render(){
   var mode=document.getElementById("mode-sel").value;
   var wrap=document.getElementById("report-wrap");
@@ -617,6 +665,7 @@ function render(){
 
   if(mode==="today"){
     var todayBills=filterByDate(allBills,todayStart,todayEnd);
+    _setExportSet(todayBills, [today], "วันนี้_"+fmtDate(today).replace(/\//g,"-"));
     html=renderSummary(todayBills,"📅 ยอดขายวันนี้ ("+fmtDate(today)+")");
 
   } else if(mode==="month"){
@@ -627,6 +676,7 @@ function render(){
     var mEnd=new Date(thYr,mn,0);
     var mBills=filterByDate(allBills,mStart,mEnd);
     var MONTH_TH=["","มกราคม","กุมภาพันธ์","มีนาคม","เมษายน","พฤษภาคม","มิถุนายน","กรกฎาคม","สิงหาคม","กันยายน","ตุลาคม","พฤศจิกายน","ธันวาคม"];
+    _setExportSet(mBills, getDays(mStart,mEnd), "เดือน_"+MONTH_TH[mn]+"_"+yr);
     html=renderSummary(mBills,"📆 ยอดขาย "+MONTH_TH[mn]+" "+yr);
     html+=renderDailyTable(mBills, getDays(mStart,mEnd));
 
@@ -641,6 +691,7 @@ function render(){
       wrap.innerHTML='<div class="loading">กรุณาเลือกวันที่</div>'; return;
     }
     var rBills=filterByDate(allBills,f,t);
+    _setExportSet(rBills, getDays(f,t), "ช่วง_"+_isoOf(f)+"_ถึง_"+_isoOf(t));
     html=renderSummary(rBills,"📋 ยอดขาย "+fmtDate(f)+" — "+fmtDate(t));
     html+=renderDailyTable(rBills,getDays(f,t));
   }
@@ -671,6 +722,8 @@ function buildUI(){
     +'<input type="date" id="from-d"> — <input type="date" id="to-d"></span>'
     +'<button onclick="render()">🔍 แสดง</button>'
     +'<button class="sec" onclick="loadData()">🔄 โหลดใหม่</button>'
+    +'<button class="sec" onclick="exportSalesCSV(\'bills\')" title="ทุกบิลในช่วงที่แสดง 1 บรรทัด/บิล">⬇ CSV รายบิล</button>'
+    +'<button class="sec" onclick="exportSalesCSV(\'daily\')" title="สรุปยอด 1 บรรทัด/วัน">⬇ CSV รายวัน</button>'
     +'<span id="bill-count" style="font-size:11px;color:#888"></span>'
     +'</div>';
 

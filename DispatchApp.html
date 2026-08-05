@@ -1929,6 +1929,17 @@ function openCreateTrip(){
 }
 
 var _tvpTripId=null, _tvpPhotos=[];
+/* รายชื่อคนรถสำหรับช่อง autocomplete — ดึงครั้งเดียวต่อ session แล้วแคชไว้
+   เดิมยิง getTrips 5,000 เที่ยวใหม่ทุกครั้งที่เปิดฟอร์ม ทำให้หน้าแก้ไข/เคลียร์เที่ยวช้ามาก */
+var _drvNamePool = null;
+function _loadDrvNamePool(){
+  if(_drvNamePool) return _drvNamePool;
+  _drvNamePool = (typeof GolodDB!=="undefined" && GolodDB.getTrips)
+    ? GolodDB.getTrips({limitN:1200}).catch(function(){ return []; })
+    : Promise.resolve([]);
+  return _drvNamePool;
+}
+
 function openTripVehiclePhoto(tripId){
   _tvpTripId=tripId; _tvpPhotos=[];
   var t = _tripState.openTrips.find(function(x){return x.id===tripId;});
@@ -3803,10 +3814,47 @@ function _renderRunSheet(bills, meta, trip){
         '<table class="t"><thead><tr><th>#</th><th>เลขบิล</th><th>ผู้รับ</th><th>ปลายทาง</th><th class="c">วันที่จะส่ง</th><th>ชำระ</th><th class="r">ค่าขนส่ง</th><th class="r">COD</th><th class="c">ส่ง</th></tr></thead><tbody>'+brows+pkMainRows+'</tbody></table>')
     +'<div class="noprint" style="text-align:center;margin-top:16px"><button onclick="window.print()" style="padding:10px 30px;font-size:15px;background:#0F6E56;color:#fff;border:none;border-radius:8px">🖨 พิมพ์</button></div>'
     +'</body></html>';
-  var w=window.open("","_blank"); if(!w){ alert("เปิดหน้าต่างพิมพ์ไม่ได้ (ป๊อปอัปถูกบล็อก)"); return; }
+  var w=_openDocWin("ใบสรุปเที่ยว");
   w.document.write(html); w.document.close();
 }
 // ======= END RUN SHEET =======
+
+/* ===== ป๊อปอัพเอกสาร (แทนการเปิดแท็บใหม่) =====
+   เปิดเป็นหน้าต่างซ้อนในหน้าเดิม → แคปหน้าจอส่งไลน์ได้ทันที ไม่โดน popup blocker
+   คืนอ็อบเจกต์ที่มี document.write / document.close / focus / print เหมือน window.open
+   ของเดิม โค้ดพิมพ์ทุกจุดจึงใช้ต่อได้โดยไม่ต้องแก้                                */
+function _openDocWin(title){
+  var old=document.getElementById("doc-modal"); if(old && old.parentNode) old.parentNode.removeChild(old);
+  var ov=document.createElement("div");
+  ov.id="doc-modal";
+  ov.style.cssText="position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,.6);z-index:99999;display:flex;flex-direction:column;padding:8px";
+  var btn="padding:6px 12px;font-size:12px;border-radius:6px;border:none;cursor:pointer;white-space:nowrap";
+  ov.innerHTML =
+      '<div style="display:flex;gap:6px;align-items:center;margin-bottom:6px;flex-wrap:wrap">'
+    +   '<span style="color:#fff;font-weight:700;font-size:13px">'+(title||"เอกสาร")+'</span>'
+    +   '<span style="color:#b9e3d3;font-size:11px">📸 แคปหน้าจอส่งไลน์ได้เลย</span>'
+    +   '<span style="flex:1"></span>'
+    +   '<button id="doc-modal-print" style="'+btn+';background:#0F6E56;color:#fff">🖨 พิมพ์ / PDF</button>'
+    +   '<button id="doc-modal-close" style="'+btn+';background:#fff;color:#333">✕ ปิด</button>'
+    + '</div>'
+    + '<iframe id="doc-modal-frame" style="flex:1;width:100%;border:0;border-radius:10px;background:#fff"></iframe>';
+  document.body.appendChild(ov);
+  var f=document.getElementById("doc-modal-frame");
+  document.getElementById("doc-modal-close").onclick=function(){ if(ov.parentNode) ov.parentNode.removeChild(ov); };
+  document.getElementById("doc-modal-print").onclick=function(){
+    try{ f.contentWindow.focus(); f.contentWindow.print(); }catch(e){ window.print(); }
+  };
+  var buf=[];
+  return {
+    document:{
+      write:function(h){ buf.push(h); },
+      close:function(){ f.setAttribute("srcdoc", buf.join("")); }
+    },
+    focus:function(){ try{ f.contentWindow.focus(); }catch(e){} },
+    print:function(){ try{ f.contentWindow.print(); }catch(e){} },
+    closed:false
+  };
+}
 
 function printTripSummary(tripId){
   var trip = (_tripState.openTrips||[]).find(function(t){ return t.id===tripId; });
@@ -3941,8 +3989,7 @@ function printTripSummary(tripId){
     +'<div style="text-align:center"><div style="border-top:1px solid #555;padding-top:4px;margin-top:30px">ลายเซ็นคนขับ</div></div>'
     +'</div></div>';
 
-  var w = window.open("","_blank","width=820,height=920");
-  if(!w){ alert("เปิดหน้าต่างพิมพ์ไม่ได้ — กรุณาอนุญาต popup สำหรับเว็บนี้ก่อน"); return; }
+  var w = _openDocWin("ใบสรุปเที่ยว");
   w.document.write('<html><head><meta charset="utf-8"><title>ใบสรุปเที่ยว '+(trip.driverName||"")+' '+(trip.departDate||"")+'</title>'
     +'<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Sarabun:wght@400;700;800;900&display=swap">'
     +'<style>@page{size:A4;margin:10mm}body{margin:0;font-family:Sarabun,Arial,sans-serif;-webkit-print-color-adjust:exact;print-color-adjust:exact}</style></head><body>'
@@ -4239,8 +4286,7 @@ function _clrPrint(){
     +'<div style="text-align:center"><div style="border-top:1px solid #555;padding-top:4px;margin-top:30px">ลายเซ็นเสมียน</div></div>'
     +'<div style="text-align:center"><div style="border-top:1px solid #555;padding-top:4px;margin-top:30px">ลายเซ็นคนขับ</div></div>'
     +'</div></div>';
-  var w=window.open("","_blank","width=620,height=820");
-  if(!w){ alert("เปิดหน้าต่างพิมพ์ไม่ได้ — อนุญาต popup ก่อน"); return; }
+  var w=_openDocWin("ใบเคลียร์เงิน");
   w.document.write('<html><head><meta charset="utf-8"><title>ใบเคลียร์เงิน '+(t.driverName||"")+'</title>'
     +'<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Sarabun:wght@400;700;800&display=swap">'
     +'<style>@page{size:A4;margin:12mm}body{margin:0;font-family:Sarabun,Arial,sans-serif;-webkit-print-color-adjust:exact;print-color-adjust:exact}</style></head><body>'
@@ -4545,7 +4591,9 @@ function renderMonthlyView(drivers, allTrips, selMonth, selDriver, dateFrom, dat
       }) : dTrips;
       var _tripInsDeduct = insurTrips.reduce(function(a,t){ return a+parseFloat(t.insurDeduct||0); },0);   // หักเข้ากองทุนที่กรอกรายเที่ยวในรอบ
       var insDeduct= parseFloat(insRec.deduct||0) + _tripInsDeduct;   // กล่องตั้งค่า(ถ้ามี) + หักรายเที่ยว
-      var insDraw  = insurTrips.reduce(function(a,t){ return a+parseFloat(t.insurDraw||0); },0);
+      var insDrawTrip  = insurTrips.reduce(function(a,t){ return a+parseFloat(t.insurDraw||0); },0);   // เบิกที่กรอกรายเที่ยว
+      var insDrawExtra = parseFloat(insRec.drawExtra||0);                                                // เบิกจากกองทุนระดับเดือน (แอดมินกรอก)
+      var insDraw      = insDrawTrip + insDrawExtra;                                                     // รวมที่ใช้คิดยอดยกไป
       var insurDistTotal = insurTrips.reduce(function(a,t){ return a+parseFloat((t.clearData&&t.clearData.distReal)||0); },0);   // ระยะทางรวมในรอบ 29-28
       var _firstCarryTrip = insurTrips.find(function(t){ return parseFloat(t.insurCarry||0)>0; });   // หาเที่ยวไหนก็ได้ในรอบที่กรอกไว้ (ไม่จำกัดว่าต้องเป็นเที่ยวแรก — เพราะปกติกรอกตอนปิดรอบที่เที่ยวท้ายๆ)
       // ยอดยกมา ลำดับความสำคัญ: (1) กรอกที่ฟอร์มเที่ยว → (2) เดือนนี้เคยกดบันทึกแล้ว → (3) ยกมาอัตโนมัติจากเดือนก่อน
@@ -4603,10 +4651,12 @@ function renderMonthlyView(drivers, allTrips, selMonth, selDriver, dateFrom, dat
         +'<div><div style="font-size:9px;color:#888">ยอดยกมา'+(_firstCarryTrip?' (จากเที่ยว '+(_firstCarryTrip.departDate||"").slice(5)+')':(_autoCarry?' <span style="color:#0F6E56">(ยกมาอัตโนมัติจาก '+_autoCarry.fromMonth+')</span>':''))+'</div><input id="ins-carry-'+uname+'" type="number" value="'+(insCarry||"")+'" placeholder="0" '+(_firstCarryTrip?'readonly title="ดึงจากเที่ยวอัตโนมัติ — แก้ที่ฟอร์มเที่ยว" style="width:90px;padding:5px 8px;border:1px solid #ddd;border-radius:6px;font-size:12px;background:#f5f5f5"':'style="width:90px;padding:5px 8px;border:1px solid #ddd;border-radius:6px;font-size:12px"')+'</div>'
         +'<div><div style="font-size:9px;color:#888">เพดาน (2หมื่น/3หมื่น)</div><input id="ins-cap-'+uname+'" type="number" value="'+(insRec.cap!=null?insRec.cap:"")+'" placeholder="20000" style="width:90px;padding:5px 8px;border:1px solid #ddd;border-radius:6px;font-size:12px"></div>'
         +'<div><div style="font-size:9px;color:#888">+ หักเข้ากองทุน'+(_tripInsDeduct?' <span style="color:#0F6E56">(+รายเที่ยว '+fmt(_tripInsDeduct)+')</span>':'')+'</div><input id="ins-deduct-'+uname+'" type="number" value="'+(insRec.deduct!=null?insRec.deduct:"")+'" placeholder="0" style="width:90px;padding:5px 8px;border:1px solid '+(capReached?"#e0a0a0":"#0F6E56")+';border-radius:6px;font-size:12px"></div>'
-        +'<div><div style="font-size:9px;color:#888">− เบิกประกัน(รายเที่ยว)</div><div style="font-weight:700;color:#c0392b;padding:5px 0">'+fmt(insDraw)+'</div></div>'
+        +'<div><div style="font-size:9px;color:#888">− เบิกประกัน(รายเที่ยว)</div><div style="font-weight:700;color:#c0392b;padding:5px 0">'+fmt(insDrawTrip)+'</div></div>'
+        +'<div><div style="font-size:9px;color:#888">− เบิกจากกองทุน (เพิ่มเติม) <span style="color:#c0392b" title="ห้ามลงซ้ำกับช่องเบิกจากประกันในฟอร์มเที่ยว">⚠</span></div><input id="ins-draw-'+uname+'" type="number" value="'+(insRec.drawExtra!=null?insRec.drawExtra:"")+'" placeholder="0" style="width:90px;padding:5px 8px;border:1px solid #c0392b;border-radius:6px;font-size:12px"></div>'
         +'<div><div style="font-size:9px;color:#888">= ยกไป</div><div style="font-weight:800;color:#0F6E56;padding:5px 0">'+fmt(insCarryOut)+'</div></div>'
-        +'<button class="btn btn-green" onclick="saveInsuranceMonthly(\''+uname+'\',\''+_keyMonth+'\','+insDraw+','+_tripInsDeduct+')" style="font-size:11px">💾 บันทึกประกัน</button>'
+        +'<button class="btn btn-green" onclick="saveInsuranceMonthly(\''+uname+'\',\''+_keyMonth+'\','+insDrawTrip+','+_tripInsDeduct+')" style="font-size:11px">💾 บันทึกประกัน</button>'
         +'</div>'
+        +'<div style="font-size:10px;color:#c0392b;margin-top:4px">⚠️ ช่อง "เบิกจากกองทุน (เพิ่มเติม)" ใช้เฉพาะการเบิกที่<b>ไม่ได้</b>กรอกไว้ในฟอร์มเที่ยว — ถ้ากรอกทั้งสองที่จะถูกหักซ้ำ</div>'
         +(capReached?'<div style="font-size:10px;color:#c0392b;margin-top:4px">⚠️ ยอดยกมาถึงเพดาน '+fmt(insCap)+' แล้ว — ปกติไม่ต้องหักเข้ากองทุนอีก</div>':'')
         +'</div>';
 
@@ -4693,6 +4743,8 @@ function renderMonthlyView(drivers, allTrips, selMonth, selDriver, dateFrom, dat
     +'onchange="reloadMonthlyRange()">'
     +'<option value="">-- ทุกคน --</option>'+driverOpts+'</select>'
     +'<button class="btn btn-gray" onclick="renderMonthlyTab()">🔄</button>'
+    +'<button class="btn btn-gray" onclick="exportMonthlyCSV(\'summary\')" title="สรุปรายคน 1 บรรทัด/คน">⬇ CSV รายคน</button>'
+    +'<button class="btn btn-gray" onclick="exportMonthlyCSV(\'trips\')" title="ทุกเที่ยว 1 บรรทัด/เที่ยว">⬇ CSV รายเที่ยว</button>'
     +(isAdmin?'<span style="font-size:10px;color:#aaa;margin-left:auto">💡 คลิกแถวเที่ยวเพื่อแก้ไข/เคลียร์</span>':'')
     +'</div></div>'
     +tables;
@@ -4776,7 +4828,9 @@ function saveInsuranceMonthly(uname, month, insDraw, tripDeduct){
   var deductBox = parseFloat((document.getElementById("ins-deduct-"+uname)||{}).value||0);
   var deductTrip = parseFloat(tripDeduct||0);          // หักเข้ากองทุนที่กรอกรายเที่ยว — เดิมตกหล่นตอนบันทึก
   var deductAll  = deductBox + deductTrip;             // ต้องตรงกับ "ยกไป" ที่แสดงบนหน้าจอ
-  var drawSum    = parseFloat(insDraw||0);
+  var drawTrip   = parseFloat(insDraw||0);                                                     // เบิกรายเที่ยว (ส่งมาจากปุ่ม)
+  var drawExtra  = parseFloat((document.getElementById("ins-draw-"+uname)||{}).value||0);      // เบิกจากกองทุนระดับเดือน
+  var drawSum    = drawTrip + drawExtra;
   var carryOut   = carryIn + deductAll - drawSum;
   if(cap>0 && carryIn>=cap && deductAll>0){
     if(!confirm("ยอดยกมา ("+carryIn.toLocaleString()+") ถึงเพดาน ("+cap.toLocaleString()+") แล้ว\nยังจะหักเข้ากองทุนอีก "+deductAll.toLocaleString()+" หรือไม่?")) return;
@@ -4786,7 +4840,7 @@ function saveInsuranceMonthly(uname, month, insDraw, tripDeduct){
   // deduct = เก็บเฉพาะค่าในกล่อง (เพราะตอนโหลดกลับมาจะบวกรายเที่ยวให้ใหม่ ไม่งั้นนับซ้ำ)
   window._insurData[key] = {carryIn:carryIn, cap:cap, deduct:deductBox,
     deductTrips:deductTrip, deductTotal:deductAll,
-    drawSum:drawSum, carryOut:carryOut,
+    drawTrips:drawTrip, drawExtra:drawExtra, drawSum:drawSum, carryOut:carryOut,
     savedAt:new Date().toISOString(), savedBy:CU?CU.username:""};
   if(!GolodDB.saveSetting){ alert("golod-firebase.js ยังไม่อัปเดต"); return; }
   GolodDB.saveSetting("insuranceMonthly", window._insurData).then(function(){
@@ -4818,6 +4872,52 @@ function reloadMonthlyRange(){
 }
 
 // เปิดเคลียร์เที่ยวจากหน้าสรุปสิ้นเดือน (admin คลิกแถว)
+/* ===== ส่งออกสรุปสิ้นเดือนเป็น CSV (เปิดใน Excel ได้เลย) =====
+   ใส่ BOM ข้างหน้าเพื่อให้ Excel อ่านภาษาไทยไม่เป็นตัวยึกยือ */
+function _csvCell(v){
+  if(v===null||v===undefined) v="";
+  v=String(v);
+  return (v.indexOf('"')>=0||v.indexOf(",")>=0||v.indexOf("\n")>=0) ? '"'+v.replace(/"/g,'""')+'"' : v;
+}
+function _csvDownload(rows, filename){
+  var body = rows.map(function(r){ return r.map(_csvCell).join(","); }).join("\r\n");
+  var blob = new Blob(["\ufeff"+body], {type:"text/csv;charset=utf-8;"});
+  var url  = URL.createObjectURL(blob);
+  var a    = document.createElement("a");
+  a.href=url; a.download=filename; document.body.appendChild(a); a.click();
+  setTimeout(function(){ document.body.removeChild(a); URL.revokeObjectURL(url); }, 500);
+}
+function exportMonthlyCSV(mode){
+  var cache = window._monthlyPrintCache || {};
+  var names = Object.keys(cache);
+  if(!names.length){ alert("ยังไม่มีข้อมูลให้ส่งออก — เลือกเดือนแล้วรอโหลดให้เสร็จก่อน"); return; }
+  var period = "";
+  names.some(function(u){ var c=cache[u]; period = c.dateFrom? (c.dateFrom+"_ถึง_"+c.dateTo) : (c.month||""); return !!period; });
+  var rows=[];
+  if(mode==="trips"){
+    rows.push(["คนรถ","วันที่","เส้นทาง","จำนวนบิล","ระยะทาง(กม.)","ค่าเที่ยว","เบิกน้ำมัน","น้ำมันจริง",
+               "ที่พัก","ค่าแรงพิเศษ","COD","เก็บปลายทาง","ต้องคืน","เคลียร์สด","เคลียร์โอน","ส่วนต่าง","ค่าปรับ"]);
+    names.forEach(function(u){
+      var c=cache[u];
+      (c.trips||[]).forEach(function(t){
+        rows.push([c.name, t.departDate, t.route, t.billCount, t.distReal, t.fare, t.fuelAdv, t.fuelReal,
+                   t.hotel, t.labor, t.cod, t.dest, t.mustP, t.clrCash, t.clrTrans, t.diff, t.fine]);
+      });
+    });
+  } else {
+    rows.push(["คนรถ","จำนวนเที่ยว","จำนวนบิล","ระยะทางรวม","ค่าเที่ยวรวม","เบี้ยขยัน","ค่าส่งงาน","ค่ารับงาน",
+               "พขร.ค้าง/บ.จ่าย","ค่าเบิกเกิน","หักเข้ากองทุนประกัน","เบิกประกัน","เบิกน้ำมัน","เบิกหน้าร้าน",
+               "รายได้สุทธิ","ประกันยกมา","ประกันยกไป"]);
+    names.forEach(function(u){
+      var c=cache[u];
+      rows.push([c.name, c.tripCount, c.billSum, c.distTotal, c.fareTotal, c.bonus, c.workFee, c.pkComm,
+                 c.diff, c.fine, c.insDeduct, c.insDraw, c.fuelAdvSum, c.storeAdvSum,
+                 c.netIncome, c.insCarry, c.insCarryOut]);
+    });
+  }
+  _csvDownload(rows, "สรุปสิ้นเดือน_"+(mode==="trips"?"รายเที่ยว":"รายคน")+"_"+(period||"export")+".csv");
+}
+
 function openClearTripFromMonthly(tripId){
   if(!canClearTrip()){ return; }
   var ctx=window._monthlyCtx; if(!ctx) return;
@@ -5504,7 +5604,7 @@ function _fillDriverDatalist(){
   render();
   try{
     if(typeof GolodDB!=="undefined" && GolodDB.getUsers){ GolodDB.getUsers().then(function(us){ (us||[]).forEach(function(u){ if(u&&u.role==="driver"){ add(u.name); add(u.driverName); } }); render(); }).catch(function(){}); }
-    if(typeof GolodDB!=="undefined" && GolodDB.getTrips){ GolodDB.getTrips({limitN:5000}).then(function(ts){ (ts||[]).forEach(function(t){ add(t.driverName); add(t.lineDriver); }); render(); }).catch(function(){}); }
+    _loadDrvNamePool().then(function(ts){ (ts||[]).forEach(function(t){ add(t.driverName); add(t.lineDriver); }); render(); });
   }catch(e){}
 }
 function openDispatch(mode){
@@ -5657,7 +5757,7 @@ function _fillBtDriverSelect(cur){
   render();
   try{
     if(typeof GolodDB!=="undefined" && GolodDB.getUsers){ GolodDB.getUsers().then(function(us){ (us||[]).forEach(function(u){ if(u&&u.role==="driver"){ add(u.name); add(u.driverName); } }); render(); }).catch(function(){}); }
-    if(typeof GolodDB!=="undefined" && GolodDB.getTrips){ GolodDB.getTrips({limitN:5000}).then(function(ts){ (ts||[]).forEach(function(t){ add(t.driverName); add(t.lineDriver); }); render(); }).catch(function(){}); }
+    _loadDrvNamePool().then(function(ts){ (ts||[]).forEach(function(t){ add(t.driverName); add(t.lineDriver); }); render(); });
   }catch(e){}
 }
 function closeBtDriverModal(){ var m=document.getElementById("modal-bt-driver"); if(m) m.classList.remove("show"); }
@@ -6559,8 +6659,7 @@ function saveSettlement(approve){
 }
 
 function _printDoc(title, innerHtml){
-  var w=window.open("","_blank");
-  if(!w){ alert("เบราว์เซอร์บล็อก popup — อนุญาต popup ของเว็บนี้ก่อน แล้วลองใหม่"); return; }
+  var w=_openDocWin(title);
   var doc='<html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">'
     +'<title>'+title+'</title>'
     +'<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Sarabun:wght@400;700;800;900&display=swap">'
@@ -6725,7 +6824,7 @@ function printMonthlySummary(uname){
   var manualLines =
       '<div class="sl"><span class="sl-lbl">ค่าใช้จ่ายอื่นๆ</span><input type="text" id="pm-otherDesc" placeholder="ระบุประเภท" class="sl-desc"><input type="number" id="pm-otherAmt" value="0" oninput="pmRecalc()"><span class="sl-suf">฿</span></div>'
     + '<div class="sl" style="color:#888;font-size:11px;margin-top:2px"><span class="sl-lbl"></span><span>ค่าเบิกเกินรวมอยู่ในยอดด้านบนแล้ว (อัตโนมัติ + เพิ่มเติมจากแอดมิน) ไม่ต้องกรอกซ้ำ</span></div>';
-  var w = window.open("", "_blank");
+  var w = _openDocWin("สรุปเดือน "+d.name);
   w.document.write(
     '<html><head><meta charset="utf-8"><title>สรุปเดือน '+d.name+'</title><style>'
     +'body{font-family:"Sarabun",Tahoma,sans-serif;padding:20px;color:#222}'
@@ -7511,8 +7610,7 @@ function printSpecialAreas(){
     +'<table><thead><tr><th>จังหวัด</th><th>อำเภอ</th><th>ตำบล</th><th style="text-align:right">ขั้นต่ำ (฿)</th></tr></thead><tbody>'+rows+'</tbody></table>'
     +'</div></div>'
     +'</body></html>';
-  var w=window.open("","_blank");
-  if(!w){ alert("เปิดหน้าต่างพิมพ์ไม่ได้ — อนุญาต popup ก่อนครับ"); return; }
+  var w=_openDocWin("ใบสรุป");
   w.document.write(html); w.document.close();
 }
 
@@ -8346,8 +8444,7 @@ function closeSummary(){
 function printSummary(){
   var pa = document.getElementById("print-area");
   if(!pa) return;
-  var w = window.open("","_blank","width=820,height=920");
-  if(!w){ alert("เปิดหน้าต่างพิมพ์ไม่ได้ — กรุณาอนุญาต popup สำหรับเว็บนี้ก่อน"); return; }
+  var w = _openDocWin("ใบสรุป");
   w.document.write('<html><head><meta charset="utf-8"><title>พิมพ์ใบสรุป</title>'
     +'<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Sarabun:wght@400;700;800;900&display=swap">'
     +'<style>@page{size:A4;margin:10mm}body{margin:0;font-family:Sarabun,Arial,sans-serif;-webkit-print-color-adjust:exact;print-color-adjust:exact}</style></head><body>'
