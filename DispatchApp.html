@@ -4543,7 +4543,8 @@ function renderMonthlyView(drivers, allTrips, selMonth, selDriver, dateFrom, dat
         if(_cycEnd && dp>_cycEnd) return false;
         return true;
       }) : dTrips;
-      var insDeduct= parseFloat(insRec.deduct||0) + insurTrips.reduce(function(a,t){ return a+parseFloat(t.insurDeduct||0); },0);   // รวมกล่องตั้งค่า(ถ้ามี) + หักเพิ่มรายเที่ยวในรอบ 29-28
+      var _tripInsDeduct = insurTrips.reduce(function(a,t){ return a+parseFloat(t.insurDeduct||0); },0);   // หักเข้ากองทุนที่กรอกรายเที่ยวในรอบ
+      var insDeduct= parseFloat(insRec.deduct||0) + _tripInsDeduct;   // กล่องตั้งค่า(ถ้ามี) + หักรายเที่ยว
       var insDraw  = insurTrips.reduce(function(a,t){ return a+parseFloat(t.insurDraw||0); },0);
       var insurDistTotal = insurTrips.reduce(function(a,t){ return a+parseFloat((t.clearData&&t.clearData.distReal)||0); },0);   // ระยะทางรวมในรอบ 29-28
       var _firstCarryTrip = insurTrips.find(function(t){ return parseFloat(t.insurCarry||0)>0; });   // หาเที่ยวไหนก็ได้ในรอบที่กรอกไว้ (ไม่จำกัดว่าต้องเป็นเที่ยวแรก — เพราะปกติกรอกตอนปิดรอบที่เที่ยวท้ายๆ)
@@ -4601,10 +4602,10 @@ function renderMonthlyView(drivers, allTrips, selMonth, selDriver, dateFrom, dat
         +'<div style="display:flex;gap:8px;flex-wrap:wrap;align-items:flex-end">'
         +'<div><div style="font-size:9px;color:#888">ยอดยกมา'+(_firstCarryTrip?' (จากเที่ยว '+(_firstCarryTrip.departDate||"").slice(5)+')':(_autoCarry?' <span style="color:#0F6E56">(ยกมาอัตโนมัติจาก '+_autoCarry.fromMonth+')</span>':''))+'</div><input id="ins-carry-'+uname+'" type="number" value="'+(insCarry||"")+'" placeholder="0" '+(_firstCarryTrip?'readonly title="ดึงจากเที่ยวอัตโนมัติ — แก้ที่ฟอร์มเที่ยว" style="width:90px;padding:5px 8px;border:1px solid #ddd;border-radius:6px;font-size:12px;background:#f5f5f5"':'style="width:90px;padding:5px 8px;border:1px solid #ddd;border-radius:6px;font-size:12px"')+'</div>'
         +'<div><div style="font-size:9px;color:#888">เพดาน (2หมื่น/3หมื่น)</div><input id="ins-cap-'+uname+'" type="number" value="'+(insRec.cap!=null?insRec.cap:"")+'" placeholder="20000" style="width:90px;padding:5px 8px;border:1px solid #ddd;border-radius:6px;font-size:12px"></div>'
-        +'<div><div style="font-size:9px;color:#888">+ หักเข้ากองทุน</div><input id="ins-deduct-'+uname+'" type="number" value="'+(insRec.deduct!=null?insRec.deduct:"")+'" placeholder="0" style="width:90px;padding:5px 8px;border:1px solid '+(capReached?"#e0a0a0":"#0F6E56")+';border-radius:6px;font-size:12px"></div>'
+        +'<div><div style="font-size:9px;color:#888">+ หักเข้ากองทุน'+(_tripInsDeduct?' <span style="color:#0F6E56">(+รายเที่ยว '+fmt(_tripInsDeduct)+')</span>':'')+'</div><input id="ins-deduct-'+uname+'" type="number" value="'+(insRec.deduct!=null?insRec.deduct:"")+'" placeholder="0" style="width:90px;padding:5px 8px;border:1px solid '+(capReached?"#e0a0a0":"#0F6E56")+';border-radius:6px;font-size:12px"></div>'
         +'<div><div style="font-size:9px;color:#888">− เบิกประกัน(รายเที่ยว)</div><div style="font-weight:700;color:#c0392b;padding:5px 0">'+fmt(insDraw)+'</div></div>'
         +'<div><div style="font-size:9px;color:#888">= ยกไป</div><div style="font-weight:800;color:#0F6E56;padding:5px 0">'+fmt(insCarryOut)+'</div></div>'
-        +'<button class="btn btn-green" onclick="saveInsuranceMonthly(\''+uname+'\',\''+_keyMonth+'\','+insDraw+')" style="font-size:11px">💾 บันทึกประกัน</button>'
+        +'<button class="btn btn-green" onclick="saveInsuranceMonthly(\''+uname+'\',\''+_keyMonth+'\','+insDraw+','+_tripInsDeduct+')" style="font-size:11px">💾 บันทึกประกัน</button>'
         +'</div>'
         +(capReached?'<div style="font-size:10px;color:#c0392b;margin-top:4px">⚠️ ยอดยกมาถึงเพดาน '+fmt(insCap)+' แล้ว — ปกติไม่ต้องหักเข้ากองทุนอีก</div>':'')
         +'</div>';
@@ -4768,22 +4769,28 @@ function _autoInsCarry(uname, month){
   return null;
 }
 
-function saveInsuranceMonthly(uname, month, insDraw){
+function saveInsuranceMonthly(uname, month, insDraw, tripDeduct){
   if(!month){ alert("เลือกเดือนก่อนบันทึกประกัน"); return; }
   var carryIn = parseFloat((document.getElementById("ins-carry-"+uname)||{}).value||0);
   var cap     = parseFloat((document.getElementById("ins-cap-"+uname)||{}).value||0);
-  var deduct  = parseFloat((document.getElementById("ins-deduct-"+uname)||{}).value||0);
-  if(cap>0 && carryIn>=cap && deduct>0){
-    if(!confirm("ยอดยกมา ("+carryIn.toLocaleString()+") ถึงเพดาน ("+cap.toLocaleString()+") แล้ว\nยังจะหักเข้ากองทุนอีก "+deduct.toLocaleString()+" หรือไม่?")) return;
+  var deductBox = parseFloat((document.getElementById("ins-deduct-"+uname)||{}).value||0);
+  var deductTrip = parseFloat(tripDeduct||0);          // หักเข้ากองทุนที่กรอกรายเที่ยว — เดิมตกหล่นตอนบันทึก
+  var deductAll  = deductBox + deductTrip;             // ต้องตรงกับ "ยกไป" ที่แสดงบนหน้าจอ
+  var drawSum    = parseFloat(insDraw||0);
+  var carryOut   = carryIn + deductAll - drawSum;
+  if(cap>0 && carryIn>=cap && deductAll>0){
+    if(!confirm("ยอดยกมา ("+carryIn.toLocaleString()+") ถึงเพดาน ("+cap.toLocaleString()+") แล้ว\nยังจะหักเข้ากองทุนอีก "+deductAll.toLocaleString()+" หรือไม่?")) return;
   }
   window._insurData = window._insurData||{};
   var key = uname+"_"+month;
-  window._insurData[key] = {carryIn:carryIn, cap:cap, deduct:deduct,
-    drawSum:parseFloat(insDraw||0), carryOut:carryIn+deduct-parseFloat(insDraw||0),
+  // deduct = เก็บเฉพาะค่าในกล่อง (เพราะตอนโหลดกลับมาจะบวกรายเที่ยวให้ใหม่ ไม่งั้นนับซ้ำ)
+  window._insurData[key] = {carryIn:carryIn, cap:cap, deduct:deductBox,
+    deductTrips:deductTrip, deductTotal:deductAll,
+    drawSum:drawSum, carryOut:carryOut,
     savedAt:new Date().toISOString(), savedBy:CU?CU.username:""};
   if(!GolodDB.saveSetting){ alert("golod-firebase.js ยังไม่อัปเดต"); return; }
   GolodDB.saveSetting("insuranceMonthly", window._insurData).then(function(){
-    alert("✅ บันทึกเงินประกันของ "+uname+" เดือน "+month+" แล้ว\nยอดยกไป = "+(carryIn+deduct-parseFloat(insDraw||0)).toLocaleString());
+    alert("✅ บันทึกเงินประกันของ "+uname+" เดือน "+month+" แล้ว\nยอดยกไป = "+carryOut.toLocaleString());
     reloadMonthlyRange();
   }).catch(function(e){ alert("❌ "+e.message); });
 }
