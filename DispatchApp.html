@@ -765,7 +765,7 @@ tr:hover td{background:#f8fffe}
 <div class="topbar">
   <span class="title">🚛 จัดการขนส่ง</span>
   <span id="session-info" style="font-size:11px;opacity:.8"></span>
-  <span style="font-size:10px;opacity:.65;margin-left:auto">build 2026-08-06a · popup</span>
+  <span style="font-size:10px;opacity:.65;margin-left:auto">build 2026-08-06b · popup</span>
   <a href="GolodApp.html" style="margin-left:10px">← หน้าหลัก</a>
 </div>
 <div class="container">
@@ -3856,7 +3856,19 @@ function _openDocWin(title, shareText){
     return (title?title+"\n":"")+t;
   }
   document.getElementById("doc-modal-line").onclick=function(){
-    window.open("https://line.me/R/msg/text/?"+encodeURIComponent(_docText()), "_blank");
+    var txt=_docText();
+    var isMobile=/Android|iPhone|iPad|iPod/i.test(navigator.userAgent||"");
+    if(isMobile){
+      // มือถือ: เปิดแอป LINE แล้ววางข้อความให้เลย
+      window.location.href = "https://line.me/R/msg/text/?"+encodeURIComponent(txt);
+      return;
+    }
+    // คอมพิวเตอร์: line.me จะเด้งไปหน้า LINE Login แล้วกลายเป็นแชร์ "ลิงก์" ไม่ใช่ข้อความ
+    // จึงคัดลอกให้แทน แล้วให้ไปวางใน LINE บนเครื่อง (Ctrl+V) ตรงกว่าและไม่ต้องล็อกอินเว็บ
+    var b=document.getElementById("doc-modal-line");
+    function ok(){ b.textContent="✓ คัดลอกแล้ว — วางใน LINE (Ctrl+V)"; setTimeout(function(){ b.textContent="📲 ส่งไลน์"; },2600); }
+    if(navigator.clipboard&&navigator.clipboard.writeText){ navigator.clipboard.writeText(txt).then(ok).catch(function(){ prompt("คัดลอกข้อความนี้ไปวางใน LINE:", txt); }); }
+    else { prompt("คัดลอกข้อความนี้ไปวางใน LINE:", txt); }
   };
   document.getElementById("doc-modal-copy").onclick=function(){
     var txt=_docText(), b=document.getElementById("doc-modal-copy");
