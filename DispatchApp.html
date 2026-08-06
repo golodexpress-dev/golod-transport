@@ -3823,7 +3823,7 @@ function _renderRunSheet(bills, meta, trip){
    เปิดเป็นหน้าต่างซ้อนในหน้าเดิม → แคปหน้าจอส่งไลน์ได้ทันที ไม่โดน popup blocker
    คืนอ็อบเจกต์ที่มี document.write / document.close / focus / print เหมือน window.open
    ของเดิม โค้ดพิมพ์ทุกจุดจึงใช้ต่อได้โดยไม่ต้องแก้                                */
-function _openDocWin(title){
+function _openDocWin(title, shareText){
   var old=document.getElementById("doc-modal"); if(old && old.parentNode) old.parentNode.removeChild(old);
   var ov=document.createElement("div");
   ov.id="doc-modal";
@@ -3834,6 +3834,8 @@ function _openDocWin(title){
     +   '<span style="color:#fff;font-weight:700;font-size:13px">'+(title||"เอกสาร")+'</span>'
     +   '<span style="color:#b9e3d3;font-size:11px">📸 แคปหน้าจอส่งไลน์ได้เลย</span>'
     +   '<span style="flex:1"></span>'
+    +   '<button id="doc-modal-line" style="'+btn+';background:#06C755;color:#fff">📲 ส่งไลน์</button>'
+    +   '<button id="doc-modal-copy" style="'+btn+';background:#fff;color:#0F6E56">📋 คัดลอก</button>'
     +   '<button id="doc-modal-print" style="'+btn+';background:#0F6E56;color:#fff">🖨 พิมพ์ / PDF</button>'
     +   '<button id="doc-modal-close" style="'+btn+';background:#fff;color:#333">✕ ปิด</button>'
     + '</div>'
@@ -3843,6 +3845,24 @@ function _openDocWin(title){
   document.getElementById("doc-modal-close").onclick=function(){ if(ov.parentNode) ov.parentNode.removeChild(ov); };
   document.getElementById("doc-modal-print").onclick=function(){
     try{ f.contentWindow.focus(); f.contentWindow.print(); }catch(e){ window.print(); }
+  };
+  // ข้อความสำหรับส่ง/คัดลอก — ใช้ที่ส่งเข้ามา ถ้าไม่มีก็ดึงข้อความจากเอกสารในกรอบ
+  function _docText(){
+    if(shareText) return shareText;
+    var t="";
+    try{ t=(f.contentDocument&&f.contentDocument.body?f.contentDocument.body.innerText:"")||""; }catch(e){}
+    t=t.replace(/\n{3,}/g,"\n\n").trim();
+    if(t.length>900) t=t.slice(0,900)+"\n…(ดูฉบับเต็มในรูปที่แคปไว้)";
+    return (title?title+"\n":"")+t;
+  }
+  document.getElementById("doc-modal-line").onclick=function(){
+    window.open("https://line.me/R/msg/text/?"+encodeURIComponent(_docText()), "_blank");
+  };
+  document.getElementById("doc-modal-copy").onclick=function(){
+    var txt=_docText(), b=document.getElementById("doc-modal-copy");
+    function done(){ b.textContent="✓ คัดลอกแล้ว"; setTimeout(function(){ b.textContent="📋 คัดลอก"; },1800); }
+    if(navigator.clipboard&&navigator.clipboard.writeText){ navigator.clipboard.writeText(txt).then(done).catch(function(){ alert(txt); }); }
+    else { alert(txt); }
   };
   var buf=[];
   return {
@@ -4634,7 +4654,7 @@ function renderMonthlyView(drivers, allTrips, selMonth, selDriver, dateFrom, dat
           var _billCount=(s.billCount!=null?s.billCount:(t.billIds?t.billIds.length:0));
           var _dest=parseFloat(s.destTotal||0), _cod=parseFloat(s.codTotal||0);
           var _mustP=parseFloat(cd.mustPay!=null?cd.mustPay:(_dest+_cod));
-          return { route:(t.route||"—"), departDate:(t.departDate||"").slice(5),
+          return { route:(t.route||"—"), departDate:(t.departDate||"").slice(5), departFull:(t.departDate||""),
             distReal:parseFloat(cd.distReal||0), fuelAdv:parseFloat(t.fuelAdvance||0), fuelReal:parseFloat(cd.fuelReal||t.fuelEst||0),
             hotel:parseFloat(t.hotelFare||0), labor:_labor,
             billCount:_billCount, cod:_cod, dest:_dest, mustP:_mustP,
@@ -4900,7 +4920,7 @@ function exportMonthlyCSV(mode){
     names.forEach(function(u){
       var c=cache[u];
       (c.trips||[]).forEach(function(t){
-        rows.push([c.name, t.departDate, t.route, t.billCount, t.distReal, t.fare, t.fuelAdv, t.fuelReal,
+        rows.push([c.name, (t.departFull||t.departDate), t.route, t.billCount, t.distReal, t.fare, t.fuelAdv, t.fuelReal,
                    t.hotel, t.labor, t.cod, t.dest, t.mustP, t.clrCash, t.clrTrans, t.diff, t.fine]);
       });
     });
@@ -6824,7 +6844,15 @@ function printMonthlySummary(uname){
   var manualLines =
       '<div class="sl"><span class="sl-lbl">ค่าใช้จ่ายอื่นๆ</span><input type="text" id="pm-otherDesc" placeholder="ระบุประเภท" class="sl-desc"><input type="number" id="pm-otherAmt" value="0" oninput="pmRecalc()"><span class="sl-suf">฿</span></div>'
     + '<div class="sl" style="color:#888;font-size:11px;margin-top:2px"><span class="sl-lbl"></span><span>ค่าเบิกเกินรวมอยู่ในยอดด้านบนแล้ว (อัตโนมัติ + เพิ่มเติมจากแอดมิน) ไม่ต้องกรอกซ้ำ</span></div>';
-  var w = _openDocWin("สรุปเดือน "+d.name);
+  var _lineTxt = "📄 สรุปรายได้คนขับ — "+d.name+"\n"
+    + "งวด "+periodTxt+" · "+d.tripCount+" เที่ยว\n"
+    + "ค่าเที่ยวรวม "+fmt(d.fareTotal)+" ฿\n"
+    + "เบี้ยขยัน "+fmt(d.bonus)+" ฿\n"
+    + "พขร.ค้าง(+)/บ.จ่าย(−) "+fmt(d.diff)+" ฿\n"
+    + "หักเข้ากองทุนประกัน "+fmt(d.insDeduct)+" ฿\n"
+    + "ประกันยกไป "+fmt(d.insCarryOut)+" ฿\n"
+    + "รายได้สุทธิ "+fmt(d.netIncome)+" ฿";
+  var w = _openDocWin("สรุปเดือน "+d.name, _lineTxt);
   w.document.write(
     '<html><head><meta charset="utf-8"><title>สรุปเดือน '+d.name+'</title><style>'
     +'body{font-family:"Sarabun",Tahoma,sans-serif;padding:20px;color:#222}'

@@ -605,6 +605,9 @@ var allBills=[];
    ใช้ชุดข้อมูลชุดเดียวกับที่แสดงอยู่บนหน้าจอ — เลือกวันนี้/รายเดือน/ช่วงวันที่ได้ตามตัวกรองด้านบน */
 var _expBills=[], _expDays=[], _expLabel="";
 function _setExportSet(bills, days, label){ _expBills=bills||[]; _expDays=days||[]; _expLabel=label||"export"; }
+// วันที่สำหรับ CSV — ใช้ ค.ศ. รูปแบบ YYYY-MM-DD เพื่อให้ Excel อ่านเป็นวันที่จริง
+// (เดิมส่ง 1/7/2569 หรือ 07-01 ออกไป Excel เดาผิดกลายเป็น 7 ม.ค.)
+function _csvDate(d){ return (d && !isNaN(d.getTime())) ? _isoOf(d) : ""; }
 function _isoOf(d){ return d.getFullYear()+"-"+("0"+(d.getMonth()+1)).slice(-2)+"-"+("0"+d.getDate()).slice(-2); }
 function _csvCell(v){
   if(v===null||v===undefined) v="";
@@ -629,7 +632,7 @@ function exportSalesCSV(mode){
       var ds=new Date(d.getFullYear(),d.getMonth(),d.getDate());
       var dayBills=filterByDate(_expBills,ds,ds);
       var s=calcSummary(dayBills);
-      rows.push([fmtDate(d), dayBills.length, s.byPay.origin, s.byPay.dest,
+      rows.push([_csvDate(d), dayBills.length, s.byPay.origin, s.byPay.dest,
                  s.byPay.transfer, s.byPay.credit, s.byPay.cod, s.total]);
     });
   } else {
@@ -640,7 +643,7 @@ function exportSalesCSV(mode){
     }).forEach(function(b){
       var f=b.form&&typeof b.form==="object"?b.form:{};
       var prov=getBillProv(b), amp=getBillAmphoe(b), pay=getBillPay(b);
-      rows.push([fmtBillDate(b), b.billNo||f.billNo||"", BRANCH_MAP[getBranch(b)]||getBranch(b),
+      rows.push([_csvDate(parseBillDate(b)), b.billNo||f.billNo||"", BRANCH_MAP[getBranch(b)]||getBranch(b),
                  getZone(prov,amp), prov, amp, _PAY_TH[pay]||pay,
                  parseFloat(b.freightNet||0), parseFloat(b.codTotal||0),
                  b.senderName||f.senderName||"", b.receiverName||f.receiverName||""]);
