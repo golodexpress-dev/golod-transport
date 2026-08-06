@@ -765,7 +765,7 @@ tr:hover td{background:#f8fffe}
 <div class="topbar">
   <span class="title">🚛 จัดการขนส่ง</span>
   <span id="session-info" style="font-size:11px;opacity:.8"></span>
-  <span style="font-size:10px;opacity:.65;margin-left:auto">build 2026-08-06b · popup</span>
+  <span style="font-size:10px;opacity:.65;margin-left:auto">build 2026-08-06d · popup</span>
   <a href="GolodApp.html" style="margin-left:10px">← หน้าหลัก</a>
 </div>
 <div class="container">
@@ -6856,8 +6856,18 @@ function printMonthlySummary(uname){
   var manualLines =
       '<div class="sl"><span class="sl-lbl">ค่าใช้จ่ายอื่นๆ</span><input type="text" id="pm-otherDesc" placeholder="ระบุประเภท" class="sl-desc"><input type="number" id="pm-otherAmt" value="0" oninput="pmRecalc()"><span class="sl-suf">฿</span></div>'
     + '<div class="sl" style="color:#888;font-size:11px;margin-top:2px"><span class="sl-lbl"></span><span>ค่าเบิกเกินรวมอยู่ในยอดด้านบนแล้ว (อัตโนมัติ + เพิ่มเติมจากแอดมิน) ไม่ต้องกรอกซ้ำ</span></div>';
+  var _tripLines = (d.trips||[]).map(function(t){
+    var _dt = String(t.departFull||t.departDate||"");
+    if(_dt.length>=10) _dt = _dt.slice(8,10)+"/"+_dt.slice(5,7);     // 2026-07-01 → 01/07
+    return "• "+_dt+" "+(t.route||"—")
+         + " · "+(t.billCount||0)+" บิล"
+         + " · ค่าเที่ยว "+fmt(t.fare)
+         + (parseFloat(t.fine||0)>0 ? " · ปรับ "+fmt(t.fine) : "");
+  }).join("\n");
   var _lineTxt = "📄 สรุปรายได้คนขับ — "+d.name+"\n"
     + "งวด "+periodTxt+" · "+d.tripCount+" เที่ยว\n"
+    + (_tripLines ? "\n── รายเที่ยว ──\n"+_tripLines+"\n" : "")
+    + "\n── สรุป ──\n"
     + "ค่าเที่ยวรวม "+fmt(d.fareTotal)+" ฿\n"
     + "เบี้ยขยัน "+fmt(d.bonus)+" ฿\n"
     + "พขร.ค้าง(+)/บ.จ่าย(−) "+fmt(d.diff)+" ฿\n"
@@ -6867,12 +6877,13 @@ function printMonthlySummary(uname){
   var w = _openDocWin("สรุปเดือน "+d.name, _lineTxt);
   w.document.write(
     '<html><head><meta charset="utf-8"><title>สรุปเดือน '+d.name+'</title><style>'
-    +'body{font-family:"Sarabun",Tahoma,sans-serif;padding:20px;color:#222}'
+    +'body{font-family:"Sarabun",Tahoma,sans-serif;padding:20px;color:#222;-webkit-print-color-adjust:exact;print-color-adjust:exact}'
     +'h2{margin:0 0 2px}.sub{color:#888;font-size:13px;margin-bottom:16px}'
     +'table{width:100%;border-collapse:collapse;font-size:13px;margin-bottom:16px}'
     +'th,td{border-bottom:1px solid #eee;padding:6px 8px;text-align:left}'
     +'.c{text-align:center}.r{text-align:right}'
-    +'th{background:#0F6E56;color:#fff}'
+    +'th{background:#1c1c1c;color:#fff;font-weight:700;border-bottom:1px solid #1c1c1c;-webkit-print-color-adjust:exact;print-color-adjust:exact}'
+    +'tfoot td,tr.total td{border-top:1.5px solid #1c1c1c;font-weight:700}'
     +'.sum{background:#f4f4f4;border-radius:8px;padding:14px;font-size:14px}'
     +'.sl{display:flex;align-items:baseline;padding:2px 0}'
     +'.sl-lbl{display:inline-block;min-width:20ch;flex:0 0 auto}'
@@ -6881,7 +6892,7 @@ function printMonthlySummary(uname){
     +'.sl-desc{width:150px;margin-right:8px;border:1px solid #ccc;border-radius:4px;padding:3px 6px;font-size:13px;font-family:inherit}'
     +'.sl-suf{margin-left:4px}'
     +'.manual{border-top:1px dashed #ccc;margin-top:8px;padding-top:8px}'
-    +'.net{background:#0F6E56;color:#fff;border-radius:8px;padding:14px;margin-top:10px;font-size:18px;font-weight:800;display:flex;justify-content:space-between}'
+    +'.net{-webkit-print-color-adjust:exact;print-color-adjust:exact;background:#0F6E56;color:#fff;border-radius:8px;padding:14px;margin-top:10px;font-size:18px;font-weight:800;display:flex;justify-content:space-between}'
     +'@media print{button{display:none} .sl input{border:none;background:none;padding:0} .sl-desc{border:none;background:none}}'
     +'</style></head><body>'
     +'<h2>บริษัท โกโลด ทรานสปอร์ต จำกัด</h2>'
