@@ -492,10 +492,10 @@ tr:hover td{background:#f8fffe}
     <!-- สลิปโอน (ต่อจากช่องเคลียร์โอน) -->
     <div style="margin-bottom:10px;padding:8px 10px;border:1px dashed #b7d4c9;border-radius:8px;background:#f7fbf9">
       <div style="font-size:10px;color:#888;margin-bottom:4px">สลิปโอน (แนบรูป)</div>
-      <input type="hidden" id="ct-clr-slip-url" value="">
-      <input type="file" id="ct-clr-slip-file" accept="image/*" style="display:none" onchange="uploadClearTransSlip(this)">
-      <button type="button" class="btn btn-gray" style="font-size:11px;padding:5px 12px" onclick="document.getElementById('ct-clr-slip-file').click()">📷 แนบสลิปโอน</button>
-      <span id="ct-clr-slip-status" style="font-size:11px;margin-left:8px;color:#888">— ยังไม่แนบสลิป</span>
+      <input type="file" id="ct-clr-slip-file" accept="image/*" multiple style="display:none" onchange="uploadClearTransSlip(this)">
+      <button type="button" id="ct-clr-slip-btn" class="btn btn-gray" style="font-size:11px;padding:5px 12px" onclick="document.getElementById('ct-clr-slip-file').click()">📷 แนบสลิปโอน</button>
+      <span id="ct-clr-slip-status" style="font-size:11px;margin-left:8px;color:#888">— ยังไม่แนบสลิป (ได้สูงสุด 3 รูป)</span>
+      <div id="ct-clr-slip-list" style="display:flex;gap:6px;flex-wrap:wrap;margin-top:6px"></div>
     </div>
 
     <div id="ct-diff-row" style="display:none"></div>
@@ -765,7 +765,7 @@ tr:hover td{background:#f8fffe}
 <div class="topbar">
   <span class="title">🚛 จัดการขนส่ง</span>
   <span id="session-info" style="font-size:11px;opacity:.8"></span>
-  <span style="font-size:10px;opacity:.65;margin-left:auto">build 2026-08-06d · popup</span>
+  <span style="font-size:10px;opacity:.65;margin-left:auto">build 2026-08-09a · popup</span>
   <a href="GolodApp.html" style="margin-left:10px">← หน้าหลัก</a>
 </div>
 <div class="container">
@@ -7075,21 +7075,71 @@ function _renderClearEtaPlan(trip, bills){
   h+='</div>';
   el.innerHTML=h;
 }
-function _setClearTransSlip(url){
-  var h=document.getElementById("ct-clr-slip-url"); if(h) h.value=url||"";
-  var st=document.getElementById("ct-clr-slip-status"); if(!st) return;
-  st.innerHTML = url ? ('\u2713 แนบแล้ว — <a href="'+url+'" target="_blank" style="color:#0F6E56;font-weight:700">ดูสลิป</a>') : '\u2014 ยังไม่แนบสลิป';
-  st.style.color = url ? "#0F6E56" : "#888";
+var CLR_SLIP_MAX = 3;                 // แนบสลิปโอนได้สูงสุดกี่รูป
+var _clearTransSlips = [];            // เก็บ URL สลิปที่แนบไว้ของเที่ยวที่กำลังเคลียร์
+
+function _setClearTransSlips(arr){
+  _clearTransSlips = (arr||[]).filter(function(u){ return !!u; }).slice(0, CLR_SLIP_MAX);
+  var st  = document.getElementById("ct-clr-slip-status");
+  var box = document.getElementById("ct-clr-slip-list");
+  var btn = document.getElementById("ct-clr-slip-btn");
+  if(st){
+    if(_clearTransSlips.length){
+      st.textContent = "\u2713 แนบแล้ว "+_clearTransSlips.length+"/"+CLR_SLIP_MAX+" รูป";
+      st.style.color = "#0F6E56";
+    } else {
+      st.textContent = "\u2014 ยังไม่แนบสลิป (ได้สูงสุด "+CLR_SLIP_MAX+" รูป)";
+      st.style.color = "#888";
+    }
+  }
+  if(btn){
+    var full = _clearTransSlips.length >= CLR_SLIP_MAX;
+    btn.disabled = full;
+    btn.style.opacity = full ? ".5" : "1";
+    btn.textContent  = full ? "📷 ครบ "+CLR_SLIP_MAX+" รูปแล้ว" : "📷 แนบสลิปโอน";
+  }
+  if(box){
+    box.innerHTML = _clearTransSlips.map(function(u,i){
+      return '<span style="display:inline-flex;align-items:center;gap:4px;border:1px solid #b7d4c9;border-radius:6px;padding:3px 6px;background:#fff">'
+           +   '<a href="'+u+'" target="_blank" style="font-size:11px;color:#0F6E56;font-weight:700">สลิป '+(i+1)+'</a>'
+           +   '<button type="button" title="ลบรูปนี้" onclick="removeClearTransSlip('+i+')" style="border:none;background:none;color:#c0392b;font-size:12px;cursor:pointer;padding:0 2px">\u2715</button>'
+           + '</span>';
+    }).join("");
+  }
+}
+function removeClearTransSlip(i){
+  var a=_clearTransSlips.slice();
+  a.splice(i,1);
+  _setClearTransSlips(a);
 }
 function uploadClearTransSlip(inp){
-  var f=inp&&inp.files&&inp.files[0]; if(!f) return;
-  var st=document.getElementById("ct-clr-slip-status");
-  if(typeof GolodStorage==="undefined" || !GolodStorage.uploadFile){ if(st){st.textContent="\u274c อัปโหลดไม่ได้ (ไม่พบ Storage)"; st.style.color="#c0392b";} return; }
-  if(st){ st.textContent="\u23f3 กำลังอัปโหลด..."; st.style.color="#E67E22"; }
-  GolodStorage.uploadFile("clear-trans-slip/"+(_clearTripId||"t")+"_"+Date.now(), f)
-    .then(function(url){ _setClearTransSlip(url); })
-    .catch(function(e){ if(st){ st.textContent="\u274c อัปโหลดไม่สำเร็จ: "+((e&&e.message)||e); st.style.color="#c0392b"; } });
-  inp.value="";
+  var files = inp && inp.files ? Array.prototype.slice.call(inp.files) : [];
+  inp.value = "";
+  if(!files.length) return;
+  var st = document.getElementById("ct-clr-slip-status");
+  if(typeof GolodStorage==="undefined" || !GolodStorage.uploadFile){
+    if(st){ st.textContent="\u274c อัปโหลดไม่ได้ (ไม่พบ Storage)"; st.style.color="#c0392b"; }
+    return;
+  }
+  var room = CLR_SLIP_MAX - _clearTransSlips.length;
+  if(room <= 0){ alert("แนบได้สูงสุด "+CLR_SLIP_MAX+" รูป — ลบรูปเดิมก่อนถ้าต้องการเปลี่ยน"); return; }
+  if(files.length > room){
+    alert("เหลือที่ว่างอีก "+room+" รูป — จะอัปโหลดให้ "+room+" รูปแรก");
+    files = files.slice(0, room);
+  }
+  if(st){ st.textContent="\u23f3 กำลังอัปโหลด "+files.length+" รูป..."; st.style.color="#E67E22"; }
+  var done=0, failed=0;
+  files.forEach(function(f, k){
+    GolodStorage.uploadFile("clear-trans-slip/"+(_clearTripId||"t")+"_"+Date.now()+"_"+k, f)
+      .then(function(url){ _setClearTransSlips(_clearTransSlips.concat([url])); })
+      .catch(function(e){ failed++; console.warn("slip upload:", e); })
+      .then(function(){
+        if(++done === files.length){
+          _setClearTransSlips(_clearTransSlips);
+          if(failed && st){ st.textContent="\u274c อัปโหลดไม่สำเร็จ "+failed+" รูป — ลองใหม่"; st.style.color="#c0392b"; }
+        }
+      });
+  });
 }
 function _setClearBillEta(bn,v){ _clearBillEta[bn]=v; }
 function _applyClearEtaAll(){ var v=((document.getElementById("ct-eta-all")||{}).value||""); if(!v){ alert("เลือกวันก่อนครับ"); return; } (_clearEtaBills||[]).forEach(function(b){ _clearBillEta[b.billNo]=v; }); _renderClearEtaPlan(_clearTripData, _clearEtaBills); }
@@ -7254,7 +7304,8 @@ function openClearTrip(tripId){
   g("ct-wht", trip.clearData&&trip.clearData.wht!=null?trip.clearData.wht:"");
   g("ct-clr-cash", trip.clearData&&trip.clearData.clrCash||"");
   g("ct-clr-trans", trip.clearData&&trip.clearData.clrTrans||"");
-  _setClearTransSlip((trip.clearData&&trip.clearData.clrSlipUrl)||"");
+  var _cd = trip.clearData || {};
+  _setClearTransSlips(_cd.clrSlipUrls || (_cd.clrSlipUrl ? [_cd.clrSlipUrl] : []));
 
   // ดึงยอดบิล: local ก่อน (เร็ว) แล้ว sync จาก Firestore (ครบ)
   computeFromBills(getTripBills(trip));
@@ -7519,7 +7570,8 @@ function saveClearTrip(){
     workFee: (trip._delivered!=null? parseFloat(trip.ratePerBill||0)*trip._delivered : null),
     otherAdvance: otherAdv, drawRate: drawRate*100, drawFee: drawFee,
     mustPay: mustReturn, clrCash: clrCash, clrTrans: clrTrans,
-    clrSlipUrl: ((document.getElementById("ct-clr-slip-url")||{}).value||""),
+    clrSlipUrls: _clearTransSlips.slice(),
+    clrSlipUrl: (_clearTransSlips[0]||""),   // คงไว้ให้โค้ด/ข้อมูลเก่าที่อ่านฟิลด์เดี่ยวยังใช้ได้
     destXfer: destTransferSum(), xferVer: 2,
     diff: netPay, clearedAt: new Date().toISOString(),
     clearedBy: CU ? CU.username : ""
