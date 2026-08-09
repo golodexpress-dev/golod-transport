@@ -765,7 +765,7 @@ tr:hover td{background:#f8fffe}
 <div class="topbar">
   <span class="title">🚛 จัดการขนส่ง</span>
   <span id="session-info" style="font-size:11px;opacity:.8"></span>
-  <span style="font-size:10px;opacity:.65;margin-left:auto">build 2026-08-09d · reqs</span>
+  <span style="font-size:10px;opacity:.65;margin-left:auto">build 2026-08-09e · reqs</span>
   <a href="GolodApp.html" style="margin-left:10px">← หน้าหลัก</a>
 </div>
 <div class="container">
@@ -5067,6 +5067,26 @@ function _clerkReqBanner(){
        + '</div>';
 }
 
+// พาไปยังจุดที่อนุมัติได้จริง — แยกออกมาเป็นฟังก์ชัน
+// (เดิมยัด JS หลายคำสั่งไว้ใน onclick แล้วเครื่องหมาย " ไปปิด attribute ปุ่มเลยกดไม่ติด)
+function gotoRequest(tripId, kind){
+  var t=((_tripState&&_tripState.openTrips)||[]).find(function(x){ return x.id===tripId; });
+  if(!t){ alert("ไม่พบเที่ยวนี้แล้ว — อาจถูกปิดหรือลบไปก่อนหน้านี้"); return; }
+  if(kind==="remark"){
+    if(typeof openClearTrip!=="function"){ alert("เปิดหน้าเคลียร์เที่ยวไม่ได้"); return; }
+    try{ openClearTrip(tripId); }
+    catch(e){ alert("เปิดหน้าเคลียร์เที่ยวไม่สำเร็จ: "+((e&&e.message)||e)); }
+    return;
+  }
+  currentTab="trip";
+  try{ renderApp(); }catch(e){}
+  setTimeout(function(){
+    if(typeof editTrip!=="function"){ alert("เปิดหน้าแก้ไขเที่ยวไม่ได้"); return; }
+    try{ editTrip(tripId); }
+    catch(e){ alert("เปิดหน้าแก้ไขเที่ยวไม่สำเร็จ: "+((e&&e.message)||e)); }
+  }, 120);
+}
+
 function renderRequestsTab(){
   var app=document.getElementById("app");
   if(!_isAdminUser()){ app.innerHTML='<div class="card">เฉพาะแอดมินเท่านั้น</div>'; return; }
@@ -5088,9 +5108,7 @@ function renderRequestsTab(){
       var clr = r.kind==="add" ? "#0F6E56" : (r.kind==="del" ? "#c0392b" : "#5b3fb5");
       var amt = (r.amount!==null && !isNaN(r.amount) && r.amount!==0)
         ? '<div style="font-weight:700;color:'+(r.amount>0?"#0F6E56":"#c0392b")+'">'+(r.amount>0?"+":"")+_fmtB(r.amount)+' ฿</div>' : '';
-      var go = r.kind==="remark"
-        ? 'openClearTrip(\''+r.tripId+'\')'
-        : 'currentTab="trip"; renderApp(); setTimeout(function(){ editTrip(\''+r.tripId+'\'); },50)';
+      var go = "gotoRequest('"+r.tripId+"','"+r.kind+"')";
       return '<tr>'
         +'<td style="white-space:nowrap"><span style="color:'+clr+';font-weight:700;font-size:11px">'+r.label+'</span></td>'
         +'<td><div style="font-weight:700;font-size:12px">'+r.detail+'</div>'
