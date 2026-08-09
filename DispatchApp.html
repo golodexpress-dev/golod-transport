@@ -765,7 +765,7 @@ tr:hover td{background:#f8fffe}
 <div class="topbar">
   <span class="title">🚛 จัดการขนส่ง</span>
   <span id="session-info" style="font-size:11px;opacity:.8"></span>
-  <span style="font-size:10px;opacity:.65;margin-left:auto">build 2026-08-09a · popup</span>
+  <span style="font-size:10px;opacity:.65;margin-left:auto">build 2026-08-09b · reqs</span>
   <a href="GolodApp.html" style="margin-left:10px">← หน้าหลัก</a>
 </div>
 <div class="container">
@@ -1377,6 +1377,7 @@ function renderApp(){
     {k:"trip",     l:"🚛 จัดการเที่ยว"},
     ...(canViewMonthly()?[{k:"monthly",l:"📅 สรุปสิ้นเดือน"}]:[]),
     {k:"history",  l:"📋 ประวัติจ่ายงาน"},
+    ...((CU&&CU.role==="admin")?[{k:"reqs",    l:"🔔 คำขอจากเสมียน"}]:[]),
     ...((CU&&CU.role==="admin")?[{k:"billlog", l:"📜 ประวัติแก้/ลบบิล"}]:[])
   ];
 
@@ -1392,6 +1393,9 @@ function renderApp(){
     } else if(t.k==="trip"){
       var _rc=((_tripState&&_tripState.openTrips)||[]).filter(function(x){ var sp=(x.status==="proposed"||((x.settlement&&x.settlement.status)==="proposed")); var ready=sp && x.readyForApproval && x.readyForApproval.at; var pa=(x.billAdditionRequests||[]).some(function(r){return r.status==="pending";}); var pr=(x.billRemovalRequests||[]).some(function(r){return r.status==="pending";}); return ready||pa||pr; }).length;
       cnt = _rc>0?_rc:"";
+    } else if(t.k==="reqs"){
+      var _pc = _collectClerkRequests().length;
+      cnt = _pc>0 ? _pc : "";
     } else if(t.k==="history" || t.k==="monthly" || t.k==="clearing"){
       cnt = "";
     } else if(t.k==="all"){
@@ -1585,6 +1589,10 @@ function renderApp(){
   }
   if(currentTab === "history"){
     renderHistoryTab();
+    return;
+  }
+  if(currentTab === "reqs"){
+    renderRequestsTab();
     return;
   }
   if(currentTab === "billlog"){
@@ -4985,6 +4993,108 @@ function _etaFmt(s){ if(!s) return ""; var hasTime=String(s).indexOf("T")>=0 && 
 
 var billLogFilter="all";
 function _blShort(v){ if(v===undefined||v===null) return "—"; var s=(typeof v==="object")?JSON.stringify(v):String(v); return s.length>40?(s.slice(0,40)+"…"):s; }
+/* ============================================================
+   แท็บ "คำขอจากเสมียน" (แอดมินเท่านั้น)
+   รวมทุกอย่างที่รอแอดมินตัดสินใจไว้ที่เดียว:
+     • ขอเพิ่มบิลเข้าเที่ยว   (trip.billAdditionRequests)
+     • ขอเอาบิลออกจากเที่ยว  (trip.billRemovalRequests)
+     • หมายเหตุ/รายการปรับยอด (trip.clearRemarks | clearData.remarks)
+   ============================================================ */
+function _reqTimeTxt(iso){
+  if(!iso) return "—";
+  var d=new Date(iso); if(isNaN(d.getTime())) return String(iso);
+  var p=function(n){ return ("0"+n).slice(-2); };
+  return p(d.getDate())+"/"+p(d.getMonth()+1)+"/"+d.getFullYear()+" "+p(d.getHours())+":"+p(d.getMinutes());
+}
+function _reqAgoTxt(iso){
+  var d=new Date(iso||""); if(isNaN(d.getTime())) return "";
+  var mins=Math.floor((Date.now()-d.getTime())/60000);
+  if(mins<1) return "เมื่อสักครู่";
+  if(mins<60) return mins+" นาทีที่แล้ว";
+  var h=Math.floor(mins/60); if(h<24) return h+" ชม.ที่แล้ว";
+  return Math.floor(h/24)+" วันที่แล้ว";
+}
+function _collectClerkRequests(){
+  var trips=(_tripState&&_tripState.openTrips)||[];
+  var out=[];
+  trips.forEach(function(t){
+    var base={ tripId:t.id, driver:(t.driverName||t.lineDriver||"—"),
+               route:(t.route||"—"), departDate:(t.departDate||"") };
+    (t.billAdditionRequests||[]).forEach(function(r){
+      if(r.status!=="pending") return;
+      out.push(Object.assign({}, base, {kind:"add", label:"➕ ขอเพิ่มบิล",
+        detail:(r.billNo||"—"), note:(r.reason||""), amount:null,
+        by:(r.byName||r.by||"—"), at:(r.at||"")}));
+    });
+    (t.billRemovalRequests||[]).forEach(function(r){
+      if(r.status!=="pending") return;
+      out.push(Object.assign({}, base, {kind:"del", label:"➖ ขอเอาบิลออก",
+        detail:(r.billNo||"—"), note:(r.reason||""), amount:null,
+        by:(r.byName||r.by||"—"), at:(r.at||"")}));
+    });
+    var rmks=t.clearRemarks || (t.clearData&&t.clearData.remarks) || [];
+    rmks.forEach(function(r){
+      if(r.status!=="pending") return;
+      out.push(Object.assign({}, base, {kind:"remark", label:"📝 หมายเหตุ/ปรับยอด",
+        detail:(r.type||"หมายเหตุ")+(r.billNo?" · "+r.billNo:""),
+        note:(r.detail||r.note||""), amount:parseFloat(r.amount||0),
+        by:(r.byName||r.by||"—"), at:(r.at||"")}));
+    });
+  });
+  out.sort(function(a,b){ return String(b.at||"").localeCompare(String(a.at||"")); });
+  return out;
+}
+function renderRequestsTab(){
+  var app=document.getElementById("app");
+  if(!(CU&&CU.role==="admin")){ app.innerHTML='<div class="card">เฉพาะแอดมินเท่านั้น</div>'; return; }
+
+  function paint(){
+    var list=_collectClerkRequests();
+    var head='<div class="card"><div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:10px">'
+      +'<div class="card-title" style="margin:0">🔔 คำขอจากเสมียน</div>'
+      +'<span style="font-size:11px;color:#888">รออนุมัติ '+list.length+' รายการ</span>'
+      +'<span style="flex:1"></span>'
+      +'<button class="btn btn-gray" onclick="renderRequestsTab()">🔄 รีเฟรช</button>'
+      +'</div>';
+    if(!list.length){
+      app.innerHTML=head+'<div style="padding:24px;text-align:center;color:#999;font-size:13px">✅ ไม่มีคำขอค้างอยู่</div></div>';
+      return;
+    }
+    var rows=list.map(function(r){
+      var clr = r.kind==="add" ? "#0F6E56" : (r.kind==="del" ? "#c0392b" : "#5b3fb5");
+      var amt = (r.amount!==null && !isNaN(r.amount) && r.amount!==0)
+        ? '<div style="font-weight:700;color:'+(r.amount>0?"#0F6E56":"#c0392b")+'">'+(r.amount>0?"+":"")+fmt(r.amount)+' ฿</div>' : '';
+      var go = r.kind==="remark"
+        ? 'openClearTrip(\''+r.tripId+'\')'
+        : 'currentTab="trip"; renderApp(); setTimeout(function(){ editTrip(\''+r.tripId+'\'); },50)';
+      return '<tr>'
+        +'<td style="white-space:nowrap"><span style="color:'+clr+';font-weight:700;font-size:11px">'+r.label+'</span></td>'
+        +'<td><div style="font-weight:700;font-size:12px">'+r.detail+'</div>'
+          +(r.note?'<div style="font-size:11px;color:#888">'+r.note+'</div>':'')+amt+'</td>'
+        +'<td style="white-space:nowrap;font-size:12px">'+r.driver+'</td>'
+        +'<td style="white-space:nowrap;font-size:11px;color:#666">'+(r.departDate||"—")+'<div style="color:#aaa">'+r.route+'</div></td>'
+        +'<td style="white-space:nowrap;font-size:12px">'+r.by+'</td>'
+        +'<td style="white-space:nowrap;font-size:11px;color:#666">'+_reqTimeTxt(r.at)+'<div style="color:#E67E22">'+_reqAgoTxt(r.at)+'</div></td>'
+        +'<td><button class="btn btn-gray" style="font-size:11px;padding:4px 10px;white-space:nowrap" onclick="'+go+'">ไปจัดการ</button></td>'
+        +'</tr>';
+    }).join("");
+    app.innerHTML = head
+      +'<div style="overflow-x:auto"><table>'
+      +'<tr><th>ประเภท</th><th>รายละเอียด</th><th>คนรถ</th><th>วันที่วิ่ง</th><th>ผู้ขอ</th><th>ขอเมื่อ</th><th></th></tr>'
+      +rows+'</table></div></div>';
+  }
+
+  // เที่ยวยังไม่ได้โหลด → โหลดก่อนแล้วค่อยวาด
+  if(!(_tripState&&_tripState.openTrips&&_tripState.openTrips.length) && typeof GolodDB!=="undefined" && GolodDB.getTrips){
+    app.innerHTML='<div class="card"><div class="loading">⏳ กำลังโหลดคำขอ...</div></div>';
+    GolodDB.getTrips({limitN:5000}).then(function(ts){
+      _tripState=_tripState||{}; _tripState.openTrips=ts||[]; paint();
+    }).catch(function(){ paint(); });
+    return;
+  }
+  paint();
+}
+
 function renderBillLogTab(){
   var app=document.getElementById("app");
   app.innerHTML='<div class="card"><div class="card-title">📜 ประวัติแก้ไข / ลบบิล</div>'
