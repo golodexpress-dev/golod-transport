@@ -765,7 +765,7 @@ tr:hover td{background:#f8fffe}
 <div class="topbar">
   <span class="title">🚛 จัดการขนส่ง</span>
   <span id="session-info" style="font-size:11px;opacity:.8"></span>
-  <span style="font-size:10px;opacity:.65;margin-left:auto">build 2026-08-11b</span>
+  <span style="font-size:10px;opacity:.65;margin-left:auto">build 2026-08-11c</span>
   <a href="GolodApp.html" style="margin-left:10px">← หน้าหลัก</a>
 </div>
 <div class="container">
@@ -7055,7 +7055,9 @@ function printMonthlySummary(uname){
     +'.c{text-align:center}.r{text-align:right}'
     +'th{background:#1c1c1c;color:#fff;font-weight:700;border-bottom:1px solid #1c1c1c;-webkit-print-color-adjust:exact;print-color-adjust:exact}'
     +'tfoot td,tr.total td{border-top:1.5px solid #1c1c1c;font-weight:700}'
-    +'.sum{background:#f4f4f4;border-radius:8px;padding:14px;font-size:14px}'
+    +'.sum{background:#f4f4f4;border-radius:8px;padding:14px;font-size:14px;display:flex;align-items:flex-start;justify-content:space-between;gap:20px}'
+    +'.sum-left{flex:1 1 auto;min-width:0}'
+    +'.sum-right{flex:0 0 auto;align-self:center}'
     +'.sl{display:flex;align-items:baseline;padding:2px 0}'
     +'.sl-lbl{display:inline-block;min-width:20ch;flex:0 0 auto}'
     +'.sl b{display:inline-block;min-width:110px;text-align:right;font-variant-numeric:tabular-nums}'
@@ -7063,16 +7065,19 @@ function printMonthlySummary(uname){
     +'.sl-desc{width:150px;margin-right:8px;border:1px solid #ccc;border-radius:4px;padding:3px 6px;font-size:13px;font-family:inherit}'
     +'.sl-suf{margin-left:4px}'
     +'.manual{border-top:1px dashed #ccc;margin-top:8px;padding-top:8px}'
-    +'.net-wrap{display:flex;justify-content:flex-end;margin-top:10px}'
-    +'.net{-webkit-print-color-adjust:exact;print-color-adjust:exact;background:#0F6E56;color:#fff;border-radius:8px;padding:10px 16px;font-size:18px;font-weight:800;display:inline-flex;align-items:center;gap:18px}'
+    +'.net-wrap{display:flex;justify-content:flex-end}'
+    +'.net{-webkit-print-color-adjust:exact;print-color-adjust:exact;background:#0F6E56;color:#fff;border-radius:10px;padding:14px 20px;font-size:22px;font-weight:800;display:flex;flex-direction:column;align-items:flex-end;gap:2px;white-space:nowrap}'
     +'.net .lbl{font-size:13px;font-weight:700;opacity:.9}'
     +'@media print{button{display:none} .sl input{border:none;background:none;padding:0} .sl-desc{border:none;background:none}}'
     +'</style></head><body>'
     +'<h2>บริษัท โกโลด ทรานสปอร์ต จำกัด</h2>'
     +'<div class="sub">สรุปรายได้คนขับ &mdash; '+d.name+' &nbsp;&middot;&nbsp; งวด '+periodTxt+' &nbsp;&middot;&nbsp; '+d.tripCount+' เที่ยว</div>'
     +'<table style="font-size:11px"><thead><tr><th>#</th><th>วันที่</th><th>เส้นทาง</th><th class="r">ระยะทาง(กม.)</th><th class="r">เบิกน้ำมัน</th><th class="r">ค่าน้ำมัน</th><th class="r">ค่าเที่ยว</th><th class="r">ค่าโรงแรม</th><th class="r">แรงแบกตร.</th><th class="c">บิล</th><th class="r">COD</th><th class="r">ค่าส่งปลายทาง</th><th class="r">ต้องเคลียร์</th><th class="r">เคลียร์สด</th><th class="r">เคลียร์โอน</th><th class="r">ค้าง(+)/จ่าย(&minus;)</th><th class="r">เบิกเกิน</th></tr></thead><tbody>'+rows+totalRow+'</tbody></table>'
-    +'<div class="sum">'+sumLines+'<div class="manual">'+manualLines+'</div></div>'
-    +'<div class="net-wrap"><div class="net"><span class="lbl">รายได้สุทธิ</span><span id="pm-net-value">'+fmt(d.netIncome)+' ฿</span></div></div>'
+    +'<div class="sum">'
+      +  '<div class="sum-left">'+sumLines+'<div class="manual">'+manualLines+'</div></div>'
+      +  '<div class="sum-right"><div class="net"><span class="lbl">รายได้สุทธิ</span>'
+      +     '<span id="pm-net-value">'+fmt(d.netIncome)+' ฿</span></div></div>'
+      +'</div>'
     +'<div style="margin-top:16px;text-align:center"><button onclick="window.print()" style="padding:8px 20px;font-size:14px;border-radius:6px;border:1px solid #0F6E56;background:#0F6E56;color:#fff">🖨 พิมพ์ / บันทึกเป็น PDF</button></div>'
     +'<script>'
     +'var pmBase='+JSON.stringify(d.netIncome)+';'
