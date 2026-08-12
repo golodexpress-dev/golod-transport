@@ -765,7 +765,7 @@ tr:hover td{background:#f8fffe}
 <div class="topbar">
   <span class="title">🚛 จัดการขนส่ง</span>
   <span id="session-info" style="font-size:11px;opacity:.8"></span>
-  <span style="font-size:10px;opacity:.65;margin-left:auto">build 2026-08-11c</span>
+  <span style="font-size:10px;opacity:.65;margin-left:auto">build 2026-08-11d · billlog</span>
   <a href="GolodApp.html" style="margin-left:10px">← หน้าหลัก</a>
 </div>
 <div class="container">
@@ -5001,7 +5001,7 @@ function _logBranch(l){
 }
 function _etaFmt(s){ if(!s) return ""; var hasTime=String(s).indexOf("T")>=0 && String(s).length>10; var d=new Date(hasTime?s:(s+"T00:00")); if(isNaN(d.getTime())) return s; var mm=["ม.ค.","ก.พ.","มี.ค.","เม.ย.","พ.ค.","มิ.ย.","ก.ค.","ส.ค.","ก.ย.","ต.ค.","พ.ย.","ธ.ค."][d.getMonth()]; return d.getDate()+" "+mm+(hasTime?(" "+String(d.getHours()).padStart(2,"0")+":"+String(d.getMinutes()).padStart(2,"0")+" น."):""); }
 
-var billLogFilter="all";
+var billLogFilter = "delete";
 function _blShort(v){ if(v===undefined||v===null) return "—"; var s=(typeof v==="object")?JSON.stringify(v):String(v); return s.length>40?(s.slice(0,40)+"…"):s; }
 /* ============================================================
    แท็บ "คำขอจากเสมียน" (แอดมินเท่านั้น)
@@ -5156,44 +5156,103 @@ function renderRequestsTab(){
   safePaint();
 }
 
+var _blLogs = null;                 // เก็บ log ที่ดึงมาแล้ว — สลับแท็บไม่ต้องยิงใหม่
+var BILLLOG_LIMIT = 800;            // ย้อนหลังกี่รายการ (เดิม 400)
+
+// "แก้จากต้นทาง เป็น โอน/ปลายทาง" — ดูที่ช่องประเภทการชำระ freightPay
+function _blIsPayChange(L){
+  if(L.action==="delete") return false;
+  return (L.changes||[]).some(function(c){
+    if(String(c.field||"")!=="freightPay") return false;
+    var f=String(c.from||"").toLowerCase(), t=String(c.to||"").toLowerCase();
+    return f.indexOf("origin")>=0 && (t.indexOf("dest")>=0 || t.indexOf("transfer")>=0);
+  });
+}
+function _blGroup(L){
+  if(L.action==="delete") return "delete";
+  if(_blIsPayChange(L))   return "paychange";
+  return "other";
+}
+function setBillLogTab(v){ billLogFilter=v; renderBillLogBody(); }
+
 function renderBillLogTab(){
   var app=document.getElementById("app");
+  if(["delete","paychange","other"].indexOf(billLogFilter)<0) billLogFilter="delete";
   app.innerHTML='<div class="card"><div class="card-title">📜 ประวัติแก้ไข / ลบบิล</div>'
+    +'<div id="billlog-tabs" style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:10px"></div>'
     +'<div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:12px;align-items:center">'
-    +'<select onchange="billLogFilter=this.value;loadBillLogs()"><option value="all">ทั้งหมด</option><option value="edit">เฉพาะแก้ไข</option><option value="delete">เฉพาะลบ</option></select>'
-    +'<input id="bl-search" placeholder="ค้นเลขบิล/ชื่อ/คน" oninput="loadBillLogs()" style="flex:1;min-width:120px;padding:6px 10px;border:1px solid #ddd;border-radius:8px">'
-    +'<button class="btn btn-gray" onclick="loadBillLogs()">🔄 โหลด</button>'
+    +'<input id="bl-search" placeholder="ค้นเลขบิล/ชื่อ/คน" oninput="renderBillLogBody()" style="flex:1;min-width:120px;padding:6px 10px;border:1px solid #ddd;border-radius:8px">'
+    +'<button class="btn btn-gray" onclick="loadBillLogs()">🔄 โหลดใหม่</button>'
     +'<button class="btn" onclick="repairDeliveredStatus()" style="background:#c0392b;color:#fff">🔧 ซ่อมสถานะส่งสำเร็จที่หาย</button>'
     +'</div><div id="billlog-body"><div class="loading">⏳ กำลังโหลด...</div></div></div>';
   loadBillLogs();
 }
+
 function loadBillLogs(){
   var el=document.getElementById("billlog-body"); if(!el) return;
   if(!GolodDB.getEditLogs){ el.innerHTML='<div style="color:#c0392b;padding:12px">golod-firebase.js ยังไม่อัปเดต — กรุณา deploy ใหม่</div>'; return; }
   el.innerHTML='<div class="loading">⏳ กำลังดึงข้อมูล...</div>';
-  GolodDB.getEditLogs({limitN:400}).then(function(logs){
-    var q=((document.getElementById("bl-search")||{}).value||"").trim().toLowerCase();
-    var rows=(logs||[]).filter(function(L){
-      var isDel=(L.action==="delete");
-      if(billLogFilter==="edit"&&isDel) return false;
-      if(billLogFilter==="delete"&&!isDel) return false;
-      if(q){ var hay=((L.billNo||"")+" "+(L.editedBy||"")+" "+JSON.stringify(L.deletedBill||L.changes||"")).toLowerCase(); if(hay.indexOf(q)<0) return false; }
-      return true;
-    });
-    if(!rows.length){ el.innerHTML='<div style="color:#888;padding:12px">— ไม่มีรายการ —</div>'; return; }
-    el.innerHTML=rows.map(function(L){
-      var isDel=(L.action==="delete");
-      var dt=L.editedAt?new Date(L.editedAt):null;
-      var when=dt?(dt.toLocaleDateString("th-TH")+" "+dt.toLocaleTimeString("th-TH",{hour:"2-digit",minute:"2-digit"})):"";
-      var head='<div style="display:flex;justify-content:space-between;gap:8px"><b style="color:'+(isDel?"#c0392b":"#0F6E56")+'">'+(isDel?"🗑️ ลบ ":"✏️ แก้ไข ")+(L.billNo||"")+'</b><span style="color:#aaa;font-size:11px;white-space:nowrap">'+when+'</span></div>';
-      var who='<div style="font-size:11px;color:#888">โดย '+(L.editedBy||"-")+(L.editorCode?(" ("+L.editorCode+")"):"")+'</div>';
-      var body="";
-      if(isDel){ var d=L.deletedBill||{}; var parts=[]; if(d.receiverName)parts.push("ผู้รับ: "+d.receiverName); if(d.freightNet)parts.push("ค่าส่ง "+d.freightNet); if(d.codTotal)parts.push("COD "+d.codTotal); if(d.status)parts.push(d.status); body='<div style="font-size:12px;color:#555;margin-top:4px">'+(parts.join(" · ")||"(ลบบิล)")+'</div>'; }
-      else { var ch=(L.changes||[]); body='<div style="font-size:12px;color:#555;margin-top:4px">'+(ch.length?ch.map(function(c){return '<div>• <b>'+c.field+'</b>: '+_blShort(c.from)+' → '+_blShort(c.to)+'</div>';}).join(""):"(ไม่มีรายละเอียด)")+'</div>'; }
-      return '<div style="border:1px solid #eee;border-radius:10px;padding:10px;margin-bottom:8px;background:'+(isDel?"#fff6f5":"#f8fffe")+'">'+head+who+body+'</div>';
-    }).join("");
-  }).catch(function(e){ el.innerHTML='<div style="color:#c0392b;padding:12px">โหลดไม่สำเร็จ: '+((e&&e.message)||e)+'</div>'; });
+  GolodDB.getEditLogs({limitN:BILLLOG_LIMIT}).then(function(logs){
+    _blLogs = logs||[];
+    renderBillLogBody();
+  }).catch(function(e){
+    el.innerHTML='<div style="color:#c0392b;padding:12px">โหลดไม่สำเร็จ: '+((e&&e.message)||e)+'</div>';
+  });
 }
+
+function renderBillLogBody(){
+  var el=document.getElementById("billlog-body"); if(!el) return;
+  var logs=_blLogs||[];
+
+  // แถบแท็บย่อย + จำนวนในแต่ละกลุ่ม
+  var defs=[{k:"delete",l:"🗑️ บิลที่ถูกลบ"},{k:"paychange",l:"🔁 ต้นทาง → โอน/ปลายทาง"},{k:"other",l:"✏️ กรณีอื่นๆ"}];
+  var counts={delete:0,paychange:0,other:0};
+  logs.forEach(function(L){ counts[_blGroup(L)]++; });
+  var tabsEl=document.getElementById("billlog-tabs");
+  if(tabsEl){
+    tabsEl.innerHTML=defs.map(function(t){
+      var on=(billLogFilter===t.k);
+      return '<button onclick="setBillLogTab(\''+t.k+'\')" style="padding:6px 12px;border-radius:8px;font-size:12px;cursor:pointer;'
+        +'border:1px solid '+(on?"#0F6E56":"#ddd")+';background:'+(on?"#0F6E56":"#fff")+';color:'+(on?"#fff":"#555")+';font-weight:'+(on?"700":"400")+'">'
+        +t.l+' ('+counts[t.k]+')</button>';
+    }).join("");
+  }
+
+  var q=((document.getElementById("bl-search")||{}).value||"").trim().toLowerCase();
+  var rows=logs.filter(function(L){
+    if(_blGroup(L)!==billLogFilter) return false;
+    if(q){ var hay=((L.billNo||"")+" "+(L.editedBy||"")+" "+JSON.stringify(L.deletedBill||L.changes||"")).toLowerCase(); if(hay.indexOf(q)<0) return false; }
+    return true;
+  });
+  if(!rows.length){ el.innerHTML='<div style="color:#888;padding:12px">— ไม่มีรายการในแท็บนี้ —</div>'; return; }
+
+  el.innerHTML=rows.map(function(L){
+    var isDel=(L.action==="delete");
+    var isPay=_blIsPayChange(L);
+    var dt=L.editedAt?new Date(L.editedAt):null;
+    var when=dt?(dt.toLocaleDateString("th-TH")+" "+dt.toLocaleTimeString("th-TH",{hour:"2-digit",minute:"2-digit"})):"";
+    var tone=isDel?"#c0392b":(isPay?"#E67E22":"#0F6E56");
+    var icon=isDel?"🗑️ ลบ ":(isPay?"🔁 เปลี่ยนการชำระ ":"✏️ แก้ไข ");
+    var head='<div style="display:flex;justify-content:space-between;gap:8px"><b style="color:'+tone+'">'+icon+(L.billNo||"")+'</b><span style="color:#999;font-size:11px">'+when+'</span></div>';
+    var who='<div style="font-size:11px;color:#888">โดย '+(L.editedBy||"-")+(L.editorCode?(" ("+L.editorCode+")"):"")+'</div>';
+    var body="";
+    if(isDel){
+      var d=L.deletedBill||{}; var parts=[];
+      if(d.receiverName)parts.push("ผู้รับ: "+d.receiverName);
+      if(d.freightNet)parts.push("ค่าส่ง "+d.freightNet);
+      if(d.codTotal)parts.push("COD "+d.codTotal);
+      body='<div style="font-size:12px;color:#555;margin-top:4px">'+(parts.join(" · ")||"—")+'</div>';
+    } else {
+      var ch=(L.changes||[]);
+      body='<div style="font-size:12px;color:#555;margin-top:4px">'
+        +(ch.length?ch.map(function(c){ return '<div>• <b>'+c.field+'</b>: '+_blShort(c.from)+' → '+_blShort(c.to)+'</div>'; }).join(""):"—")
+        +'</div>';
+    }
+    var bg=isDel?"#fff6f5":(isPay?"#fffaf3":"#f8fffe");
+    return '<div style="border:1px solid #eee;border-radius:10px;padding:10px;margin-bottom:8px;background:'+bg+'">'+head+who+body+'</div>';
+  }).join("");
+}
+
 function renderHistoryTab(){
   var app = document.getElementById("app");
   app.innerHTML = '<div class="card"><div class="card-title">📋 ประวัติการจ่ายงาน</div>'
