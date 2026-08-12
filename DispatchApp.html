@@ -765,7 +765,7 @@ tr:hover td{background:#f8fffe}
 <div class="topbar">
   <span class="title">🚛 จัดการขนส่ง</span>
   <span id="session-info" style="font-size:11px;opacity:.8"></span>
-  <span style="font-size:10px;opacity:.65;margin-left:auto">build 2026-08-12a · billcount</span>
+  <span style="font-size:10px;opacity:.65;margin-left:auto">build 2026-08-13a · auto5min</span>
   <a href="GolodApp.html" style="margin-left:10px">← หน้าหลัก</a>
 </div>
 <div class="container">
@@ -1697,7 +1697,7 @@ function renderTripTab(){
         }
       }
     }catch(e){ console.warn("[DA] merge trip bills:", e); }
-    if(!window._autoScanTimer) window._autoScanTimer=setInterval(_autoScanTick, 120000);  // สแกนทุก 2 นาที (หน้าต่าง 20 นาที — ถี่กว่านี้เปลืองโควตาอ่าน)
+    if(!window._autoScanTimer) window._autoScanTimer=setInterval(_autoScanTick, 60000);   // สแกนทุก 1 นาที ให้ทันหน้าต่าง 5 นาที
     runAutoDispatchScan();
     if(_tripState.mode === "create" || _tripState.mode === "edit"){
       renderTripForm();
@@ -2153,7 +2153,7 @@ function _dispatchTripBills(t, knownBills){
   return Promise.all(ups).then(function(res){ return {fail:(res||[]).filter(function(r){ return r && !r.ok; })}; });
 }
 
-var AUTO_DISPATCH_MIN = 20;        // นาที หลังกด "ขึ้นของเสร็จ" → ออโต้อนุมัติ+ส่งงาน
+var AUTO_DISPATCH_MIN = 5;         // นาที หลังกด "ขึ้นของเสร็จ" → ออโต้อนุมัติ+ส่งงาน
                                    // = ช่วงที่เสมียนยังเพิ่ม/ลดบิลเองได้ ก่อนเข้าโหมดขออนุมัติ
 var AUTO_DISPATCH_ENABLED = true; // ✅ เปิดใช้งาน — guard กันทับสถานะ + ดึงสถานะจริงจาก Firestore ก่อน (ปลอดภัยแล้ว)
 function _autoEligible(t){
