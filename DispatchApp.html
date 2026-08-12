@@ -765,7 +765,7 @@ tr:hover td{background:#f8fffe}
 <div class="topbar">
   <span class="title">🚛 จัดการขนส่ง</span>
   <span id="session-info" style="font-size:11px;opacity:.8"></span>
-  <span style="font-size:10px;opacity:.65;margin-left:auto">build 2026-08-11d · billlog</span>
+  <span style="font-size:10px;opacity:.65;margin-left:auto">build 2026-08-12a · billcount</span>
   <a href="GolodApp.html" style="margin-left:10px">← หน้าหลัก</a>
 </div>
 <div class="container">
@@ -1811,7 +1811,7 @@ function renderTripList(){
             ):'')
         +'</div>'+'</div>'
       +'<div class="trip-stats">'
-        +'<div class="trip-stat gray"><div class="tsl">บิลทั้งหมด</div><div class="tsv">'+(s.billCount||0)+'</div></div>'
+        +'<div class="trip-stat gray"><div class="tsl">บิลทั้งหมด</div><div class="tsv">'+_tripBillCount(t,s)+_tripCountWarn(t,s)+'</div></div>'
         +'<div class="trip-stat orange"><div class="tsl">ปลายทาง (฿)'+(destFix?' <span title="อัปเดตจากบิลล่าสุด (เดิมเก็บ '+fmt(s.destTotal||0)+')" style="cursor:help">↻</span>':'')+'</div><div class="tsv">'+fmt(destShow)+'</div></div>'
         +'<div class="trip-stat red"><div class="tsl">COD (฿)'+(codFix?' <span title="อัปเดตจากบิลล่าสุด (เดิมเก็บ '+fmt(s.codTotal||0)+')" style="cursor:help">↻</span>':'')+'</div><div class="tsv">'+fmt(codShow)+'</div></div>'
         +'<div class="trip-stat"><div class="tsl">รับงาน</div><div class="tsv">'+(s.pickupCount||0)+'</div></div>'
@@ -3592,7 +3592,10 @@ function _rsPayL(pay){ pay=String(pay||"origin"); if(pay.indexOf("dest")===0) pa
 function printRunSheet(tripId){
   var trip=(_tripState.openTrips||[]).find(function(t){ return t.id===tripId; });
   if(!trip){ alert("ไม่พบเที่ยว"); return; }
-  var bills=BILLS.filter(function(b){ return trip.billIds && trip.billIds.indexOf(b.billNo)>=0; });
+  // เดิมกรองจาก BILLS อย่างเดียว — บิลที่ส่งจบแล้วถูกย้ายออกจาก BILLS จึงนับขาด
+  // ใช้ pool เดียวกับที่อื่น (BILLS + DONE_BILLS_CACHE) แล้วเตือนถ้ายังหาไม่ครบ
+  var bills=getTripBills(trip);
+  _rsWarnMissing(trip, bills);
   _renderRunSheet(bills, {type:"driver", driver:trip.driverName||"-", departDate:trip.departDate||"", returnDate:(trip.clearData&&trip.clearData.clearedAt)||trip.returnDate||""}, trip);
 }
 var _btFuelTid="";
@@ -3675,6 +3678,18 @@ function printBranchRunSheet(i){
     try{ if(typeof GolodDB!=="undefined"&&GolodDB.getSetting){ GolodDB.getSetting("btfuel_"+tid).then(go).catch(function(){ try{go(JSON.parse(localStorage.getItem("btfuel_"+tid)||"null"));}catch(e){go(null);} }); } else { try{go(JSON.parse(localStorage.getItem("btfuel_"+tid)||"null"));}catch(e){go(null);} } }catch(e){ go(null); }
   } else { go(null); }
 }
+// บิลที่ระบบหาไม่เจอในหน่วยความจำ → เอกสารจะนับขาดเงียบๆ ให้เตือนแทน
+function _rsWarnMissing(trip, bills){
+  var want=((trip&&trip.billIds)||[]).length, got=(bills||[]).length;
+  if(want && got<want){
+    var have={}; (bills||[]).forEach(function(b){ have[b.billNo]=1; });
+    var miss=(trip.billIds||[]).filter(function(id){ return !have[id]; });
+    alert("⚠️ เอกสารนี้จะแสดงบิลไม่ครบ\n\nเที่ยวมี "+want+" บิล แต่โหลดได้ "+got+" บิล\n"
+      +"ขาด: "+miss.slice(0,12).join(", ")+(miss.length>12?" …":"")
+      +"\n\nกด 🔄 โหลดใหม่ที่หน้าจัดการเที่ยวก่อน แล้วสั่งพิมพ์อีกครั้ง");
+  }
+}
+
 function _renderRunSheet(bills, meta, trip){
   if(!bills || !bills.length){ alert("ไม่มีบิลในเที่ยวนี้"); return; }
   var isDriver=(meta.type==="driver");
@@ -6403,6 +6418,19 @@ function onFuelAddonChange(){
   var ci=document.getElementById("ct-fuel-addon-custom");
   if(ci) ci.style.display = (sel==="custom") ? "block" : "none";
   calcClearTrip();
+}
+
+/* จำนวนบิลของเที่ยว — ใช้ billIds (ค่าปัจจุบันจริง) แทน summary.billCount
+   ที่ถูกแช่ไว้ตอนจ่ายงาน และไม่ถูกอัปเดตเมื่อเพิ่ม/ลดบิลภายหลัง */
+function _tripBillCount(t, s){
+  if(t && Array.isArray(t.billIds)) return t.billIds.length;
+  return (s && s.billCount) || 0;
+}
+function _tripCountWarn(t, s){
+  if(!t || !Array.isArray(t.billIds) || !s || s.billCount==null) return "";
+  if(t.billIds.length === s.billCount) return "";
+  return '<span title="ยอดที่บันทึกตอนจ่ายงานคือ '+s.billCount+' บิล — กด อัปเดตยอดให้ตรงบิล"'
+       + ' style="font-size:11px;color:#E67E22;margin-left:3px">⚠</span>';
 }
 
 function getTripBills(trip){
