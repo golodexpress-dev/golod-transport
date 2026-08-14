@@ -765,7 +765,7 @@ tr:hover td{background:#f8fffe}
 <div class="topbar">
   <span class="title">🚛 จัดการขนส่ง</span>
   <span id="session-info" style="font-size:11px;opacity:.8"></span>
-  <span style="font-size:10px;opacity:.65;margin-left:auto">build 2026-08-13a · auto5min</span>
+  <span style="font-size:10px;opacity:.65;margin-left:auto">build 2026-08-14b · emptytrip</span>
   <a href="GolodApp.html" style="margin-left:10px">← หน้าหลัก</a>
 </div>
 <div class="container">
@@ -2087,7 +2087,8 @@ function pushTripToDriver(tripId){
   var t = (_tripState.openTrips||[]).find(function(x){ return x.id===tripId; });
   if(!t){ alert("ไม่พบเที่ยว ลองรีเฟรช"); return; }
   if(!t.driverUsername && !t.driverName){ alert("เที่ยวนี้ยังไม่มีคนขับ — กดแก้ไขเพื่อใส่ชื่อคนขับก่อน"); return; }
-  if(!t.billIds || !t.billIds.length){ alert("เที่ยวนี้ไม่มีบิล"); return; }
+  var _noBillPush = !t.billIds || !t.billIds.length;
+  if(_noBillPush && !confirm("เที่ยวนี้ไม่มีบิล — จะส่งให้คนรถเป็นเที่ยวเปล่า (ไปรับของ/รับงาน) ใช่ไหม?")) return;
   if(!confirm("ส่ง/ซิงค์เที่ยวให้ "+(t.driverName||t.driverUsername)+" ?\n\n• ส่งบิลในเที่ยว ("+t.billIds.length+") ให้คนรถ (บิลที่เพิ่งเพิ่มจะเข้าด้วย)\n• ถ้าเปลี่ยนคนรถ บิลจะย้ายไปคนใหม่ (ออกจากคนเก่าให้)\n• บิลที่เอาออกจากเที่ยว จะคืนกองรอจ่าย")) return;
   var curIds=(t.billIds||[]), now=new Date().toISOString();
   (GolodDB.getBillsByTripId?GolodDB.getBillsByTripId(t.id):Promise.resolve([])).then(function(claim){
@@ -2161,7 +2162,7 @@ function _autoEligible(t){
   if(t.autoDispatched) return false;
   if(t.settlement && t.settlement.status==="confirmed") return false;
   if(!(t.driverName||t.driverUsername)) return false;
-  if(!(t.billIds && t.billIds.length)) return false;
+  // เที่ยวไม่มีบิล (ไปรับของ/รับงาน) ก็ออโต้ส่งงานได้ ถ้าเสมียนกดขึ้นของเสร็จแล้ว
   if(!(t.readyForApproval && t.readyForApproval.at)) return false;
   return true;
 }
@@ -2183,16 +2184,18 @@ function _autoWhyNot(t){
   var why="";
   if(t.settlement && t.settlement.status==="confirmed") why="ยืนยันเที่ยวแล้ว";
   else if(!(t.driverName||t.driverUsername)) why="ยังไม่ใส่ชื่อคนรถ";
-  else if(!(t.billIds && t.billIds.length)) why="ไม่มีบิลในเที่ยว";
   else if(!(t.readyForApproval && t.readyForApproval.at)) why="เสมียนยังไม่กด \u201cขึ้นของเสร็จ\u201d";
   if(!why) return "";
   return ' <span style="background:#9e9e9e;color:#fff;font-size:10px;padding:2px 7px;border-radius:10px;font-weight:700">\u23f8 ออโต้รอ: '+why+'</span>';
 }
 function _autoDispatchTrip(t){
   if(!_autoEligible(t)) return Promise.resolve(false);
+  var _wantBills=((t.billIds||[]).length>0);
   return fetchTripBillsFromDB(t).then(function(tb){
     tb=tb||[];
-    if(!tb.length) return false;
+    // มี billIds แต่ดึงบิลไม่ได้ = ข้อมูลยังไม่พร้อม → รอรอบหน้า
+    // ไม่มี billIds เลย = เที่ยวเปล่าโดยตั้งใจ → ส่งงานต่อได้
+    if(_wantBills && !tb.length) return false;
     var perBill=(t.settlement&&t.settlement.perBill)||{};
     var getRun = t.runNo ? Promise.resolve(t.runNo) : (GolodDB.nextSeq ? GolodDB.nextSeq("trip").then(function(n){return "R"+String(n).padStart(4,"0");}) : Promise.resolve(""));
     return getRun.then(function(runNo){
@@ -3691,7 +3694,13 @@ function _rsWarnMissing(trip, bills){
 }
 
 function _renderRunSheet(bills, meta, trip){
-  if(!bills || !bills.length){ alert("ไม่มีบิลในเที่ยวนี้"); return; }
+  bills = bills || [];
+  // เที่ยวเปล่า (ไปรับของ/รับงาน) ยังต้องมีเอกสารไว้เคลียร์ค่าน้ำมัน/งานรับ
+  if(!bills.length){
+    var _hasPk = trip && Array.isArray(trip.pickups) && trip.pickups.length>0;
+    var _hasFuel = trip && (parseFloat(trip.fuelAdvance||0)>0 || parseFloat(trip.odomStart||0)>0);
+    if(!_hasPk && !_hasFuel && !confirm("เที่ยวนี้ไม่มีบิล ไม่มีงานรับ และยังไม่มีข้อมูลน้ำมัน\n\nพิมพ์เป็นใบเปล่าต่อไหม?")) return;
+  }
   var isDriver=(meta.type==="driver");
   // ---- breakdown by pay type ----
   var bk={origin:0,dest:0,transfer:0,credit:0,cod:0,codCount:0};
@@ -3727,13 +3736,14 @@ function _renderRunSheet(bills, meta, trip){
   var pkComm=cd?parseFloat(cd.pickupComm||0):0;
   pickups.forEach(function(p){ pkComm+=(parseFloat(p.commission)||0); });
   // ---- bill rows ----
+  var _emptyRow='<tr><td colspan="9" style="text-align:center;color:#888;padding:10px">— เที่ยวนี้ไม่มีบิลส่ง (เที่ยวไปรับของ/รับงาน) —</td></tr>';
   var brows=bills.map(function(b,i){
     var prov=(b.destProv||(b.form&&b.form.destProv)||""); var amp=(b.destAmphoe||(b.form&&b.form.destAmphoe)||"");
     var net=parseFloat(b.freightNet||0), cod=parseFloat(b.codTotal||0);
     var ok=["ส่งสำเร็จ","delivered","success"].indexOf(b.status)>=0;
     var _eta=String(b.etaDeliver||""); var _em=_eta.match(/(\d{4})-(\d{2})-(\d{2})/); var _etaTxt=_em?((+_em[3])+"/"+(+_em[2])+"/"+((+_em[1])+543)):"-";
     return '<tr><td class="c">'+(i+1)+'</td><td>'+(b.billNo||"")+'</td><td>'+(b.receiverName||(b.form&&b.form.receiverName)||"-")+'</td><td>'+(amp?amp+" ":"")+(prov||"-")+'</td><td class="c" style="white-space:nowrap;color:#5b3fb5;font-weight:700">'+_etaTxt+'</td><td class="c">'+_rsPayL(b.freightPay||(b.form&&b.form.freightPay))+'</td><td class="r">'+_rsFmt(net)+'</td><td class="r">'+(cod>0?_rsFmt(cod):"-")+'</td><td class="c" style="color:'+(ok?"#0F6E56":"#c0392b")+'">'+(ok?"✓":(b.status||"-"))+'</td></tr>';
-  }).join("");
+  }).join("") || _emptyRow;
   // ---- province rows ----
   var prows=porder.map(function(p){ return '<tr><td>'+p+'</td><td class="c">'+provs[p].c+'</td><td class="r">'+_rsFmt(provs[p].f)+'</td></tr>'; }).join("");
   // ---- pickup rows ----
@@ -6895,7 +6905,9 @@ function saveSettlement(approve){
     var drvSel=document.getElementById("settle-driver");
     var du=drvSel?drvSel.value:"";
     if(!du){ alert("เลือกคนรถก่อนอนุมัติ"); return; }
-    if(!_settle.trip.billIds || !_settle.trip.billIds.length){ alert("เที่ยวนี้ไม่มีบิล"); return; }
+    // เที่ยวไม่มีบิล = วิ่งไปรับของที่ศูนย์ / ไปรับงานอย่างเดียว — อนุมัติได้ แต่ยืนยันกันพลาด
+    var _noBill = !_settle.trip.billIds || !_settle.trip.billIds.length;
+    if(_noBill && !confirm("เที่ยวนี้ไม่มีบิลสักใบ\n\nถ้าเป็นเที่ยววิ่งไปรับของ/รับงานอย่างเดียว กดตกลงเพื่ออนุมัติต่อ\nถ้าลืมใส่บิล กดยกเลิกแล้วใส่บิลก่อน")) return;
     var drv=(_tripState.drivers||[]).find(function(d){return d.username===du;});
     var dn=drv?(drv.name||du):du;
     if(!confirm("อนุมัติใบเสนอ + กำหนดคนรถเป็น \""+dn+"\" ?\n\n(ยังไม่ส่งเข้าแอปคนรถ — รอกด \"🔒 ยืนยันสุดท้าย\" หลังขึ้นของเสร็จ)")) return;
@@ -6983,7 +6995,7 @@ function printBranchSummary(tripId){
   if(!t){ alert("ไม่พบเที่ยว"); return; }
   fetchTripBillsFromDB(t).then(function(tb){
     tb=tb||[];
-    if(!tb.length){ alert("เที่ยวนี้ยังไม่มีบิล"); return; }
+    if(!tb.length){ alert("ใบสรุปสาขาต้องมีบิล — เที่ยวเปล่า (ไปรับของ/รับงาน) ให้ใช้ปุ่ม \"พิมพ์ใบวิ่งงานจริง\" แทน"); return; }
     var prov={};
     tb.forEach(function(b){
       var p=b.destProv||(b.form&&b.form.destProv)||"-";
@@ -7449,7 +7461,7 @@ function openEtaPlanOnly(tripId){
   if(!trip){ alert("ไม่พบข้อมูลเที่ยว"); return; }
   _clearTripId = tripId; _clearTripData = trip; _clearBillEta = {}; _etaPlanForceShow=false;
   var tb = BILLS.filter(function(b){ return trip.billIds && trip.billIds.indexOf(b.billNo)>=0; });
-  if(!tb.length){ alert("เที่ยวนี้ยังไม่มีบิล (หรือบิลยังไม่ซิงค์) — ใส่บิลเข้าเที่ยวก่อนครับ"); return; }
+  if(!tb.length){ alert("ยังไม่มีบิลให้กำหนดวันถึงผู้รับ\n(เที่ยวไปรับของ/รับงานไม่ต้องใช้เมนูนี้ — ไปที่ 💰 เคลียร์เที่ยว ได้เลย)"); return; }
   var old=document.getElementById("eta-plan-modal"); if(old) old.remove();
   var bg=document.createElement("div");
   bg.id="eta-plan-modal";
