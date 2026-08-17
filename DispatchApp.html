@@ -765,7 +765,7 @@ tr:hover td{background:#f8fffe}
 <div class="topbar">
   <span class="title">🚛 จัดการขนส่ง</span>
   <span id="session-info" style="font-size:11px;opacity:.8"></span>
-  <span style="font-size:10px;opacity:.65;margin-left:auto">build 2026-08-14b · emptytrip</span>
+  <span style="font-size:10px;opacity:.65;margin-left:auto">build 2026-08-16a · billlog</span>
   <a href="GolodApp.html" style="margin-left:10px">← หน้าหลัก</a>
 </div>
 <div class="container">
@@ -5185,8 +5185,12 @@ var _blLogs = null;                 // เก็บ log ที่ดึงมา
 var BILLLOG_LIMIT = 800;            // ย้อนหลังกี่รายการ (เดิม 400)
 
 // "แก้จากต้นทาง เป็น โอน/ปลายทาง" — ดูที่ช่องประเภทการชำระ freightPay
+// delete log เขียนผ่าน saveDeleteLog ซึ่งไม่มีฟิลด์ action → ต้องดูจาก deletedBill ด้วย
+function _blIsDelete(L){
+  return L.action==="delete" || L.type==="delete" || !!L.deletedBill;
+}
 function _blIsPayChange(L){
-  if(L.action==="delete") return false;
+  if(_blIsDelete(L)) return false;
   return (L.changes||[]).some(function(c){
     if(String(c.field||"")!=="freightPay") return false;
     var f=String(c.from||"").toLowerCase(), t=String(c.to||"").toLowerCase();
@@ -5194,7 +5198,7 @@ function _blIsPayChange(L){
   });
 }
 function _blGroup(L){
-  if(L.action==="delete") return "delete";
+  if(_blIsDelete(L)) return "delete";
   if(_blIsPayChange(L))   return "paychange";
   return "other";
 }
@@ -5217,12 +5221,36 @@ function loadBillLogs(){
   var el=document.getElementById("billlog-body"); if(!el) return;
   if(!GolodDB.getEditLogs){ el.innerHTML='<div style="color:#c0392b;padding:12px">golod-firebase.js ยังไม่อัปเดต — กรุณา deploy ใหม่</div>'; return; }
   el.innerHTML='<div class="loading">⏳ กำลังดึงข้อมูล...</div>';
-  GolodDB.getEditLogs({limitN:BILLLOG_LIMIT}).then(function(logs){
-    _blLogs = logs||[];
+  var pDel = GolodDB.getDeleteLogs ? GolodDB.getDeleteLogs({limitN:BILLLOG_LIMIT}).catch(function(){return [];})
+                                   : Promise.resolve([]);
+  Promise.all([GolodDB.getEditLogs({limitN:BILLLOG_LIMIT}), pDel]).then(function(r){
+    var seen={};
+    _blLogs = ((r[0]||[]).concat(r[1]||[])).filter(function(L){
+      var k=(L.billNo||"")+"|"+(L.editedAt||"")+"|"+(_blIsDelete(L)?"d":"e");
+      if(seen[k]) return false; seen[k]=1; return true;
+    }).sort(function(a,b){ return String(b.editedAt||"").localeCompare(String(a.editedAt||"")); });
     renderBillLogBody();
   }).catch(function(e){
     el.innerHTML='<div style="color:#c0392b;padding:12px">โหลดไม่สำเร็จ: '+((e&&e.message)||e)+'</div>';
   });
+}
+
+// ค้นว่าบิลนี้ยังมีอยู่จริงไหม และผูกกับเที่ยวไหน — ใช้ตอนหาในประวัติไม่เจอ
+function blLookupBill(){
+  var no=((document.getElementById("bl-search")||{}).value||"").trim();
+  if(!no){ alert("พิมพ์เลขบิลในช่องค้นหาก่อนครับ"); return; }
+  if(!GolodDB.findBillDocs || !GolodDB.findTripsWithBill){ alert("ต้องอัปเดต golod-firebase.js ก่อน"); return; }
+  Promise.all([GolodDB.findBillDocs(no), GolodDB.findTripsWithBill(no)]).then(function(r){
+    var docs=r[0]||[], trips=r[1]||[];
+    var msg="🔍 "+no+"\n\n";
+    if(!docs.length) msg += "• ไม่พบบิลนี้ในฐานข้อมูล (ถูกลบถาวร หรือไม่เคยมี)\n";
+    else docs.forEach(function(d){
+      msg += "• พบบิล — สถานะ: "+(d.status||"—")+" · ค่าส่ง "+(d.freightNet||0)+" · COD "+(d.codTotal||0)+"\n";
+    });
+    msg += trips.length ? ("\n• อยู่ในเที่ยว: "+trips.map(function(t){ return (t.driverName||"—")+" "+(t.departDate||""); }).join(", "))
+                        : "\n• ไม่ได้ผูกกับเที่ยวไหน";
+    alert(msg);
+  }).catch(function(e){ alert("ค้นไม่สำเร็จ: "+((e&&e.message)||e)); });
 }
 
 function renderBillLogBody(){
@@ -5244,15 +5272,24 @@ function renderBillLogBody(){
   }
 
   var q=((document.getElementById("bl-search")||{}).value||"").trim().toLowerCase();
+  // มีคำค้น = ค้นข้ามทุกแท็บ (เดิมค้นเฉพาะแท็บที่เปิดอยู่ ทำให้หาบิลไม่เจอทั้งที่มีอยู่)
   var rows=logs.filter(function(L){
-    if(_blGroup(L)!==billLogFilter) return false;
-    if(q){ var hay=((L.billNo||"")+" "+(L.editedBy||"")+" "+JSON.stringify(L.deletedBill||L.changes||"")).toLowerCase(); if(hay.indexOf(q)<0) return false; }
-    return true;
+    if(!q) return _blGroup(L)===billLogFilter;
+    var hay=((L.billNo||"")+" "+(L.editedBy||"")+" "+JSON.stringify(L.deletedBill||L.changes||"")).toLowerCase();
+    return hay.indexOf(q)>=0;
   });
-  if(!rows.length){ el.innerHTML='<div style="color:#888;padding:12px">— ไม่มีรายการในแท็บนี้ —</div>'; return; }
+  var note = q ? '<div style="font-size:11px;color:#0F6E56;background:#f1f9f6;border-radius:6px;padding:6px 10px;margin-bottom:8px">🔎 ค้นข้ามทุกแท็บ — พบ '+rows.length+' รายการ</div>' : '';
+  if(!rows.length){
+    el.innerHTML = note + '<div style="color:#888;padding:12px">'
+      + (q ? '— ไม่พบ "'+q+'" ในประวัติ '+logs.length+' รายการล่าสุด —<br><span style="font-size:11px">บิลนี้อาจไม่เคยถูกแก้/ลบ หรือเก่ากว่าช่วงที่ดึงมา ('+BILLLOG_LIMIT+' รายการ)</span>'
+      + '<div style="margin-top:10px"><button class="btn btn-gray" onclick="blLookupBill()">🔍 ค้นบิลนี้ในฐานข้อมูลจริง</button></div>'
+      : '— ไม่มีรายการในแท็บนี้ —')
+      + '</div>';
+    return;
+  }
 
-  el.innerHTML=rows.map(function(L){
-    var isDel=(L.action==="delete");
+  el.innerHTML=note+rows.map(function(L){
+    var isDel=_blIsDelete(L);
     var isPay=_blIsPayChange(L);
     var dt=L.editedAt?new Date(L.editedAt):null;
     var when=dt?(dt.toLocaleDateString("th-TH")+" "+dt.toLocaleTimeString("th-TH",{hour:"2-digit",minute:"2-digit"})):"";
