@@ -8,7 +8,7 @@
 <style>*{box-sizing:border-box;margin:0;padding:0}body{font-family:Arial,sans-serif;background:#f5f5f2;min-height:100vh}@media print{.no-print{display:none!important}body{background:#fff;padding:0}}input{font-family:Arial,sans-serif}</style>
 </head><body>
 <div class="no-print" style="background:#0F6E56;padding:0 14px;display:flex;align-items:center;gap:10px;height:44px;position:sticky;top:0;z-index:200">
-  <span style="color:#fff;font-size:14px;font-weight:700;flex:1">📊 รายงานรับ-จ่ายสิ้นวัน <span style="font-size:9px;opacity:.55;font-weight:400">b0622d</span></span>
+  <span style="color:#fff;font-size:14px;font-weight:700;flex:1">📊 รายงานรับ-จ่ายสิ้นวัน <span style="font-size:9px;opacity:.55;font-weight:400">b0622g·book</span></span>
   <a href="ThermalBill.html" style="font-size:11px;color:#9FE1CB;background:rgba(255,255,255,.15);padding:3px 10px;border-radius:20px;text-decoration:none">← ออกบิล</a>
   <a href="GolodApp.html" style="font-size:11px;color:#9FE1CB;background:rgba(255,255,255,.15);padding:3px 10px;border-radius:20px;text-decoration:none">🏠 หน้าหลัก</a>
 </div>
@@ -315,6 +315,9 @@ function loadLS2(k, fb) {
 function DailyReport() {
   const today = new Date().toISOString().slice(0, 10);
   const [date, setDate] = useState(today);
+  const [clerkFilter, setClerkFilter] = useState("__init__");   // ตัวกรอง "เสมียนผู้ออกบิล"
+  const [extraIn, setExtraIn] = useState([]);      // รายรับเพิ่มเติม (ผจก.โอนให้ / เบิกจากเสมียนอีกคน ฯลฯ)
+  const [bookState, setBookState] = useState("");  // ข้อความสถานะบันทึก
   const [expenses, setExpenses] = useState([{
     desc: "น้ำมัน",
     amt: ""
@@ -405,7 +408,7 @@ function DailyReport() {
   const _clearCashView = _clearTripsView.reduce((s, t) => s + clrCashOf(t), 0);
   const _clearTransView = _clearTripsView.reduce((s, t) => s + clrTransOf(t), 0);
   // allBills มาจาก Firestore (useState/useEffect ด้านบน)
-  const dayBills = allBills.filter(b => {
+  const _branchBills = allBills.filter(b => {
     // แปลง date เป็น YYYY-MM-DD
     const bd = b.date || (typeof b.createdAt === "string" ? b.createdAt.slice(0, 10) : "");
     let bdate = bd;
@@ -425,6 +428,67 @@ function DailyReport() {
     return true;
   }).sort((a, b) => (a.billNo || "").localeCompare(b.billNo || ""));
 
+  // ===== แยกสมุดตาม "เสมียนผู้ออกบิล" =====
+  // เดิมกรองแค่ระดับสาขา เสมียนทุกคนในสาขาเดียวกันจึงเห็นยอดปนกันหมด
+  const _clerkOf = b => (b.clerkCode || b.staff || "").trim();
+  const _clerkList = Array.from(new Set(_branchBills.map(_clerkOf).filter(Boolean))).sort();
+  // ค่าเริ่มต้น: แอดมิน = ทุกคน · เสมียน = ตัวเอง (ถ้าวันนั้นมีบิลของตัวเอง)
+  // เสมียนเห็นได้เฉพาะสมุดของตัวเอง — เฉพาะแอดมินเท่านั้นที่เลือกดูของคนอื่นได้
+  const _lockClerk = !_isAdminClear && !!clerkCode;
+  const _effClerk = _lockClerk ? clerkCode
+                  : (clerkFilter !== "__init__" ? clerkFilter : "all");
+  const dayBills = _effClerk === "all" ? _branchBills : _branchBills.filter(b => _clerkOf(b) === _effClerk);
+  const _clerkNameOf = code => {
+    if (code === "all") return "ทุกเสมียน";
+    try {
+      const us = JSON.parse(localStorage.getItem("golod_users_v1") || "[]");
+      const u = us.find(x => (x.clerkCode || "") === code);
+      if (u) return (u.name || code) + " (" + code + ")";
+    } catch (e) {}
+    return code;
+  };
+  const _clerkLabel = _clerkNameOf(_effClerk);
+
+  // ===== บันทึกสมุด (รายจ่าย + รายรับเพิ่มเติม) ลง Firestore =====
+  // คีย์แยกตาม วันที่ + เสมียน → สมุดของแต่ละคนไม่ปนกัน
+  const _bookKey = (d, c) => "dailyBook_" + d + "_" + (c || "all");
+  const _saveBook = function(){
+    const key = _bookKey(date, _effClerk);
+    const payload = {
+      date: date, clerk: _effClerk,
+      expenses: expenses.filter(e => e.desc || e.amt),
+      extraIn: extraIn.filter(e => e.desc || e.amt),
+      savedAt: new Date().toISOString(),
+      savedBy: clerkName || clerkCode || ""
+    };
+    try { localStorage.setItem(key, JSON.stringify(payload)); } catch (e) {}
+    if (typeof GolodDB === "undefined" || !GolodDB.saveSetting) {
+      setBookState("💾 บันทึกในเครื่องแล้ว (ยังไม่ขึ้นเซิร์ฟเวอร์)");
+      return;
+    }
+    setBookState("⏳ กำลังบันทึก...");
+    GolodDB.saveSetting(key, payload)
+      .then(function(){ setBookState("✓ บันทึกแล้ว " + new Date().toLocaleTimeString("th-TH", {hour:"2-digit",minute:"2-digit"})); })
+      .catch(function(err){ setBookState("❌ บันทึกไม่สำเร็จ: " + ((err && err.message) || err)); });
+  };
+  // เปลี่ยนวันที่หรือเปลี่ยนเสมียน → ดึงสมุดของชุดนั้นมาแสดง
+  useEffect(function(){
+    if (_effClerk === "__init__") return;
+    const key = _bookKey(date, _effClerk);
+    const apply = function(d){
+      setExpenses((d && d.expenses && d.expenses.length) ? d.expenses
+        : [{desc:"น้ำมัน",amt:""},{desc:"ค่าทางด่วน",amt:""},{desc:"",amt:""},{desc:"",amt:""}]);
+      setExtraIn((d && d.extraIn) ? d.extraIn : []);
+      setBookState(d && d.savedAt ? ("โหลดสมุดที่บันทึกไว้ " + new Date(d.savedAt).toLocaleString("th-TH")) : "");
+    };
+    let local = null;
+    try { const v = localStorage.getItem(key); if (v) local = JSON.parse(v); } catch (e) {}
+    if (typeof GolodDB !== "undefined" && GolodDB.getSetting) {
+      GolodDB.getSetting(key).then(function(d){ apply(d || local); }).catch(function(){ apply(local); });
+    } else apply(local);
+  }, [date, _effClerk]);
+
+
   // แยกประเภท
   const getBillGroup = b => {
     const p = b.freightPay || "";
@@ -441,13 +505,18 @@ function DailyReport() {
   };
   const sumCol = grp => dayBills.filter(b => getBillGroup(b) === grp).reduce((s, b) => s + (b.freightNet || 0), 0);
   const sumCOD = dayBills.reduce((s, b) => s + (b.codTotal || 0), 0);
-  const totalIncome = ["origin", "dest", "transfer", "credit", "dest_driver", "other"].reduce((s, g) => s + sumCol(g), 0);
+  const billIncome  = ["origin", "dest", "transfer", "credit", "dest_driver", "other"].reduce((s, g) => s + sumCol(g), 0);
+  const extraIncome = extraIn.reduce((s, e) => s + (parseFloat(e.amt) || 0), 0);
+  const totalIncome = billIncome + extraIncome;
   const totalExpense = expenses.reduce((s, e) => s + (parseFloat(e.amt) || 0), 0);
   const cashOrigin = sumCol("origin");
   const cashDest = sumCol("dest");
   const destTransfer = sumCol("transfer");
   const creditIncome = sumCol("credit");
   const balance = totalIncome - totalExpense;
+  const addIn  = () => setExtraIn(p => [...p, { desc: "", amt: "" }]);
+  const updIn  = (i, k, v) => setExtraIn(p => p.map((e, idx) => idx === i ? { ...e, [k]: v } : e));
+  const delIn  = i => setExtraIn(p => p.filter((e, idx) => idx !== i));
   const addExp = () => setExpenses(p => [...p, {
     desc: "",
     amt: ""
@@ -539,6 +608,23 @@ function DailyReport() {
     onClick: function(){ _drReload(); },
     style: { marginLeft: 6, padding: "7px 16px", background: "#0F6E56", color: "#fff", border: 0, borderRadius: 6, fontSize: 13, fontWeight: 600, cursor: "pointer" }
   }, "ดูรายงาน")), /*#__PURE__*/React.createElement("div", {
+    className: "no-print"
+  }, /*#__PURE__*/React.createElement("div", {
+    style: { fontSize: 11, color: "#888", marginBottom: 3 }
+  }, "เสมียนผู้ออกบิล"), _lockClerk
+    ? /*#__PURE__*/React.createElement("div", {
+        style: { ...INP, width: 190, background: "#f4f4f4", color: "#555", lineHeight: "18px" },
+        title: "เสมียนดูได้เฉพาะสมุดของตัวเอง"
+      }, "🔒 ", _clerkNameOf(clerkCode))
+    : /*#__PURE__*/React.createElement("select", {
+        value: _effClerk,
+        onChange: e => setClerkFilter(e.target.value),
+        style: { ...INP, width: 190 }
+      }, /*#__PURE__*/React.createElement("option", { value: "all" },
+          "ทุกเสมียน (" + _branchBills.length + " ใบ)"),
+        _clerkList.map(c => /*#__PURE__*/React.createElement("option", { key: c, value: c },
+          _clerkNameOf(c) + " — " + _branchBills.filter(b => _clerkOf(b) === c).length + " ใบ")))),
+  /*#__PURE__*/React.createElement("div", {
     style: {
       fontSize: 13,
       color: "#555"
@@ -547,12 +633,13 @@ function DailyReport() {
     style: {
       color: "#0F6E56"
     }
-  }, dayBills.length, " \u0E43\u0E1A"), clerkCode && /*#__PURE__*/React.createElement("span", {
+  }, dayBills.length, " \u0E43\u0E1A"), /*#__PURE__*/React.createElement("span", {
     style: {
       marginLeft: 8,
-      color: "#888"
+      color: _effClerk === "all" ? "#E67E22" : "#888",
+      fontWeight: _effClerk === "all" ? 700 : 400
     }
-  }, "(", clerkName, ")")), /*#__PURE__*/React.createElement("div", {
+  }, "(", _clerkLabel, ")")), /*#__PURE__*/React.createElement("div", {
     style: {
       flex: 1
     }
@@ -590,7 +677,7 @@ function DailyReport() {
     style: {
       fontSize: 13
     }
-  }, "\u0E2A\u0E23\u0E38\u0E1B\u0E23\u0E32\u0E22\u0E23\u0E31\u0E1A\u0E23\u0E32\u0E22\u0E08\u0E48\u0E32\u0E22 \u0E1B\u0E23\u0E30\u0E08\u0E33\u0E27\u0E31\u0E19\u0E17\u0E35\u0E48 ", /*#__PURE__*/React.createElement("b", null, toThaiDate(date)), clerkCode && /*#__PURE__*/React.createElement("span", null, " \u2014 \u0E40\u0E2A\u0E21\u0E35\u0E22\u0E19 ", /*#__PURE__*/React.createElement("b", null, clerkName), " (", clerkCode, ")"))), /*#__PURE__*/React.createElement("table", {
+  }, "\u0E2A\u0E23\u0E38\u0E1B\u0E23\u0E32\u0E22\u0E23\u0E31\u0E1A\u0E23\u0E32\u0E22\u0E08\u0E48\u0E32\u0E22 \u0E1B\u0E23\u0E30\u0E08\u0E33\u0E27\u0E31\u0E19\u0E17\u0E35\u0E48 ", /*#__PURE__*/React.createElement("b", null, toThaiDate(date)), /*#__PURE__*/React.createElement("span", null, " \u2014 \u0E40\u0E2A\u0E21\u0E35\u0E22\u0E19 ", /*#__PURE__*/React.createElement("b", null, _clerkLabel)))), /*#__PURE__*/React.createElement("table", {
     style: {
       width: "100%",
       borderCollapse: "collapse",
@@ -974,7 +1061,16 @@ function DailyReport() {
       fontWeight: 600,
       color: r.c
     }
-  }, fmtN0(r.v), " \u0E3F"))), /*#__PURE__*/React.createElement("div", {
+  }, fmtN0(r.v), " \u0E3F"))),
+  extraIn.filter(e => e.desc || e.amt).map((e, i) => /*#__PURE__*/React.createElement("div", {
+    key: "xi" + i,
+    style: { display: "flex", justifyContent: "space-between", fontSize: 12, paddingBottom: 3 }
+  }, /*#__PURE__*/React.createElement("span", {
+    style: { color: "#0F6E56" }
+  }, "+ ", e.desc || ("รายรับเพิ่มเติม " + (i + 1))), /*#__PURE__*/React.createElement("span", {
+    style: { fontWeight: 600, color: "#0F6E56" }
+  }, fmtN0(parseFloat(e.amt) || 0), " \u0E3F"))),
+  /*#__PURE__*/React.createElement("div", {
     style: {
       display: "flex",
       justifyContent: "space-between",
@@ -1111,7 +1207,57 @@ function DailyReport() {
       fontSize: 10,
       color: "#888"
     }
-  }, "(", clerkName, ")")))))), /*#__PURE__*/React.createElement("button", {
+  }, "(", _clerkLabel, ")")))))),
+  /*#__PURE__*/React.createElement("div", {
+    className: "no-print",
+    style: { marginTop: 14, border: "1px solid #cfe8dd", borderRadius: 8, padding: 12, background: "#f7fdfa" }
+  },
+    /*#__PURE__*/React.createElement("div", {
+      style: { fontSize: 13, fontWeight: 700, color: "#0F6E56", marginBottom: 2 }
+    }, "➕ รายรับเพิ่มเติม (นอกเหนือจากบิล)"),
+    /*#__PURE__*/React.createElement("div", {
+      style: { fontSize: 11, color: "#888", marginBottom: 8 }
+    }, "เช่น ผจก.โอนเงินให้ใช้ · เบิกจากเสมียนอีกคน · เงินทอนยกมา"),
+    extraIn.map((e, i) => /*#__PURE__*/React.createElement("div", {
+      key: i,
+      style: { display: "flex", gap: 6, marginBottom: 6, alignItems: "center" }
+    },
+      /*#__PURE__*/React.createElement("input", {
+        value: e.desc,
+        placeholder: "รายละเอียด เช่น ผจก.โอนให้",
+        onChange: ev => updIn(i, "desc", ev.target.value),
+        style: { ...INP, flex: 1 }
+      }),
+      /*#__PURE__*/React.createElement("input", {
+        type: "number", value: e.amt, placeholder: "0",
+        onChange: ev => updIn(i, "amt", ev.target.value),
+        style: { ...INP, width: 110, textAlign: "right" }
+      }),
+      /*#__PURE__*/React.createElement("button", {
+        onClick: () => delIn(i),
+        style: { border: 0, background: "none", color: "#c00", cursor: "pointer", fontSize: 15, padding: "0 4px" }
+      }, "✕"))),
+    /*#__PURE__*/React.createElement("div", {
+      style: { display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap", marginTop: 4 }
+    },
+      /*#__PURE__*/React.createElement("button", {
+        onClick: addIn,
+        style: { fontSize: 12, color: "#0F6E56", background: "#eaf6f1", border: "0.5px solid #a9d6c5",
+                 borderRadius: 6, padding: "5px 14px", cursor: "pointer" }
+      }, "+ เพิ่มรายรับ"),
+      /*#__PURE__*/React.createElement("div", {
+        style: { fontSize: 12, color: "#0F6E56", fontWeight: 700 }
+      }, "รวมรายรับเพิ่มเติม ", fmtN(extraIncome), " ฿"),
+      /*#__PURE__*/React.createElement("div", { style: { flex: 1 } }),
+      /*#__PURE__*/React.createElement("button", {
+        onClick: _saveBook,
+        style: { fontSize: 13, fontWeight: 700, color: "#fff", background: "#0F6E56", border: 0,
+                 borderRadius: 6, padding: "7px 18px", cursor: "pointer" }
+      }, "💾 บันทึกสมุด"),
+      /*#__PURE__*/React.createElement("span", {
+        style: { fontSize: 11, color: bookState.indexOf("❌") >= 0 ? "#c00" : "#666" }
+      }, bookState))),
+  /*#__PURE__*/React.createElement("button", {
     onClick: addExp,
     className: "no-print",
     style: {
