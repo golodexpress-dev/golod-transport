@@ -765,7 +765,7 @@ tr:hover td{background:#f8fffe}
 <div class="topbar">
   <span class="title">🚛 จัดการขนส่ง</span>
   <span id="session-info" style="font-size:11px;opacity:.8"></span>
-  <span style="font-size:10px;opacity:.65;margin-left:auto">build 2026-08-16a · billlog</span>
+  <span style="font-size:10px;opacity:.65;margin-left:auto">build 2026-08-23a · cache</span>
   <a href="GolodApp.html" style="margin-left:10px">← หน้าหลัก</a>
 </div>
 <div class="container">
@@ -1663,13 +1663,51 @@ function inspectBill(){
   }).catch(function(e){ alert("ดึงข้อมูลไม่ได้: "+(e&&e.message||e)); });
 }
 
+/* ============================================================
+   แคชกลางของ getTrips — ลดค่า Firestore
+   เดิมทุกหน้า/ทุกรอบสแกน ยิง getTrips 5,000 เอกสารใหม่ทุกครั้ง
+   ทั้งค่าอ่าน (Read Ops) และค่าส่งข้อมูลออก (Data Transfer) จึงพุ่ง
+   ตอนนี้ดึงครั้งเดียวแล้วใช้ซ้ำภายใน TTL และล้างแคชทันทีเมื่อมีการเขียน
+   ============================================================ */
+var TRIPS_TTL = 90000;   // อายุแคช (มิลลิวินาที) — 90 วิ
+var _tripsCache = { data:null, at:0, limit:0, inflight:null };
+function getTripsCached(limitN, opt){
+  opt = opt || {};
+  limitN = limitN || 5000;
+  if(typeof GolodDB==="undefined" || !GolodDB.getTrips) return Promise.resolve([]);
+  var ttl = (opt.ttl != null) ? opt.ttl : TRIPS_TTL;
+  var fresh = _tripsCache.data && _tripsCache.limit >= limitN && (Date.now()-_tripsCache.at) < ttl;
+  if(!opt.force && fresh) return Promise.resolve(_tripsCache.data);
+  if(!opt.force && _tripsCache.inflight) return _tripsCache.inflight;   // รวมคำขอที่ซ้อนกันเป็นครั้งเดียว
+  var p = GolodDB.getTrips({limitN:limitN}).then(function(ts){
+    _tripsCache = { data: ts||[], at: Date.now(), limit: limitN, inflight: null };
+    return _tripsCache.data;
+  }).catch(function(e){ _tripsCache.inflight = null; throw e; });
+  _tripsCache.inflight = p;
+  return p;
+}
+function invalidateTripsCache(){ _tripsCache = { data:null, at:0, limit:0, inflight:null }; }
+// ห่อฟังก์ชันเขียนเที่ยว ให้ล้างแคชอัตโนมัติทุกครั้ง — ไม่ต้องไล่แก้ทีละจุดเรียก
+(function(){
+  if(typeof GolodDB==="undefined" || GolodDB.__tripCacheHooked) return;
+  ["saveTrip","updateTrip","assignBillsToTrip","removeBillFromTrip"].forEach(function(fn){
+    var orig = GolodDB[fn];
+    if(typeof orig !== "function") return;
+    GolodDB[fn] = function(){
+      invalidateTripsCache();
+      return orig.apply(GolodDB, arguments);
+    };
+  });
+  GolodDB.__tripCacheHooked = true;
+})();
+
 function renderTripTab(){
   var app = document.getElementById("app");
   // โหลด drivers และ trips พร้อมกัน
   app.innerHTML = '<div class="card"><div class="loading">⏳ กำลังโหลด...</div></div>';
   Promise.all([
     GolodDB.getUsers ? GolodDB.getUsers() : Promise.resolve([]),
-    GolodDB.getTrips ? GolodDB.getTrips({limitN:5000}) : Promise.resolve([])   // 500→5000 ให้ตรงกับสรุปสิ้นเดือน — ที่ 500 เที่ยวบางอันหลุดขอบเขต หายจากจัดการเที่ยวแบบไม่ต่อเนื่อง
+    getTripsCached(5000)
   ]).then(function(results){
     _tripState.drivers = (results[0]||[]).filter(function(u){ return u.role==="driver"; });
     _tripState.openTrips = results[1]||[];
@@ -1916,7 +1954,7 @@ function renderTripList(){
     +(isOffice?'<button class="btn btn-gray" onclick="openSpecialSenders()" title="ค่าพิเศษต้นทาง">🏷️ต้นทางพิเศษ</button>':'')
     +(isOffice?'<button class="btn btn-gray" onclick="openCustomerPrices()" title="ราคาลูกค้าพิเศษ">💰ราคาลูกค้าพิเศษ</button>':'')
     +(isAdmin?'<button class="btn btn-gray" onclick="openRoutes()" title="ตั้งเส้นทางจัดส่ง">🛣️เส้นทาง</button>':'')
-    +'<button class="btn btn-gray" onclick="renderTripTab()">🔄 รีเฟรช</button>'
+    +'<button class="btn btn-gray" onclick="invalidateTripsCache(); renderTripTab()">🔄 รีเฟรช</button>'
     +(isAdmin?'<button class="btn btn-gray" onclick="openAutoTrip()" title="จัดบิลเข้าเที่ยวอัตโนมัติตามเส้นทาง">🤖 ออโต้จัดเที่ยว</button>':'')
     +(isAdmin?'<button class="btn btn-gray" onclick="openDupBills()" title="ตรวจบิลซ้ำ">🔁 บิลซ้ำ</button>':'')
     +(isAdmin&&_hiddenDupTrips.length?'<button class="btn" style="background:#c0392b;color:#fff" onclick="openHiddenDupTrips()" title="เที่ยวที่ถูกซ่อนเพราะบิลซ้ำกับเที่ยวอื่น">⚠️ เที่ยวซ้ำที่ซ่อนไว้ ('+_hiddenDupTrips.length+')</button>':'')
@@ -1945,7 +1983,7 @@ var _drvNamePool = null;
 function _loadDrvNamePool(){
   if(_drvNamePool) return _drvNamePool;
   _drvNamePool = (typeof GolodDB!=="undefined" && GolodDB.getTrips)
-    ? GolodDB.getTrips({limitN:1200}).catch(function(){ return []; })
+    ? getTripsCached(5000).catch(function(){ return []; })
     : Promise.resolve([]);
   return _drvNamePool;
 }
@@ -2241,8 +2279,19 @@ function runAutoDispatchScan(){
 function _autoScanTick(){
   if(!AUTO_DISPATCH_ENABLED) return;
   if(_tripState.mode==="create" || _tripState.mode==="edit") return;
-  if(currentTab==="trip"){ if(typeof renderTripTab==="function") renderTripTab(); return; }
-  if(typeof GolodDB!=="undefined" && GolodDB.getTrips){ GolodDB.getTrips({limitN:300}).then(function(tr){ _tripState.openTrips=tr||_tripState.openTrips; runAutoDispatchScan(); }).catch(function(){}); }
+  // เดิม: อยู่แท็บจัดการเที่ยว → renderTripTab() ทุกนาที = ดึง 5,000 เที่ยวใหม่ทุกนาที ต่อเสมียน 1 คน
+  // ตอนนี้: ใช้แคช และวาดจอใหม่เฉพาะตอนที่มีเที่ยวถูกออโต้ส่งงานจริง
+  getTripsCached(5000, {ttl:55000}).then(function(tr){
+    if(tr && tr.length) _tripState.openTrips = tr;
+    var before = (_tripState.openTrips||[]).filter(function(t){ return t.autoDispatched; }).length;
+    runAutoDispatchScan();
+    setTimeout(function(){
+      var after = (_tripState.openTrips||[]).filter(function(t){ return t.autoDispatched; }).length;
+      if(after !== before && currentTab==="trip" && typeof renderTripTab==="function"){
+        invalidateTripsCache(); renderTripTab();
+      }
+    }, 3000);
+  }).catch(function(){});
 }
 function _settleDayDate(iso){
   if(!iso) return "";
@@ -4085,7 +4134,7 @@ function renderClearingTab(){
   var app=document.getElementById("app");
   app.innerHTML='<div class="card"><div class="loading">⏳ กำลังโหลดเที่ยว...</div></div>';
   Promise.all([
-    GolodDB.getTrips?GolodDB.getTrips({limitN:5000}):Promise.resolve(_tripState.openTrips||[]),   // 500→5000
+    getTripsCached(5000),
     GolodDB.getUsers?GolodDB.getUsers():Promise.resolve(_tripState.drivers||[])
   ]).then(function(res){
     _clearState.allTrips=res[0]||[];
@@ -4382,7 +4431,7 @@ function renderMonthlyTab(){
   // โหลด drivers + trips + ข้อมูลประกันรายเดือน
   Promise.all([
     GolodDB.getUsers ? GolodDB.getUsers() : Promise.resolve([]),
-    GolodDB.getTrips ? GolodDB.getTrips({limitN:5000}) : Promise.resolve([]),   // เพิ่มจาก 500 — ปริมาณเที่ยวสูง เที่ยวเก่าเคยหลุดจากขอบเขต ทำให้ยอดสรุปเดือนผันผวน
+    getTripsCached(5000),
     (GolodDB.getSetting ? GolodDB.getSetting("insuranceMonthly") : Promise.resolve(null)),
     (GolodDB.getSetting ? GolodDB.getSetting("btfuel_index") : Promise.resolve([])),
     (GolodDB.getSetting ? GolodDB.getSetting("bonusMonthly") : Promise.resolve(null)),
@@ -4817,7 +4866,7 @@ function renderMonthlyView(drivers, allTrips, selMonth, selDriver, dateFrom, dat
     +'<select id="monthly-driver" style="padding:6px 10px;border:1px solid #ddd;border-radius:7px;font-size:12px" '
     +'onchange="reloadMonthlyRange()">'
     +'<option value="">-- ทุกคน --</option>'+driverOpts+'</select>'
-    +'<button class="btn btn-gray" onclick="renderMonthlyTab()">🔄</button>'
+    +'<button class="btn btn-gray" onclick="invalidateTripsCache(); renderMonthlyTab()">🔄</button>'
     +'<button class="btn btn-gray" onclick="exportMonthlyCSV(\'summary\')" title="สรุปรายคน 1 บรรทัด/คน">⬇ CSV รายคน</button>'
     +'<button class="btn btn-gray" onclick="exportMonthlyCSV(\'trips\')" title="ทุกเที่ยว 1 บรรทัด/เที่ยว">⬇ CSV รายเที่ยว</button>'
     +(isAdmin?'<span style="font-size:10px;color:#aaa;margin-left:auto">💡 คลิกแถวเที่ยวเพื่อแก้ไข/เคลียร์</span>':'')
@@ -4833,7 +4882,7 @@ function reloadMonthly(month, driver, from, to){
   if(!window._monthlyCtx || !GolodDB.getTrips){ renderMonthlyTab(); return; }
   var drivers = window._monthlyCtx.drivers;
   Promise.all([
-    GolodDB.getTrips({limitN:5000}),
+    getTripsCached(5000, {ttl:15000}),
     (GolodDB.getSetting ? GolodDB.getSetting("insuranceMonthly") : Promise.resolve(null)),
     (GolodDB.getSetting ? GolodDB.getSetting("bonusMonthly") : Promise.resolve(null)),
     (GolodDB.getSetting ? GolodDB.getSetting("fineAdjMonthly") : Promise.resolve(null))
@@ -4932,7 +4981,7 @@ function reloadMonthlyRange(){
   if(!window._monthlyCtx || !GolodDB.getTrips){ return; }
   var drivers = window._monthlyCtx.drivers;
   Promise.all([
-    GolodDB.getTrips({limitN:5000}),
+    getTripsCached(5000, {ttl:15000}),
     (GolodDB.getSetting ? GolodDB.getSetting("insuranceMonthly") : Promise.resolve(null)),
     (GolodDB.getSetting ? GolodDB.getSetting("bonusMonthly") : Promise.resolve(null)),
     (GolodDB.getSetting ? GolodDB.getSetting("fineAdjMonthly") : Promise.resolve(null))
@@ -5124,7 +5173,7 @@ function renderRequestsTab(){
       +'<div class="card-title" style="margin:0">🔔 คำขอจากเสมียน</div>'
       +'<span style="font-size:11px;color:#888">รออนุมัติ '+list.length+' รายการ</span>'
       +'<span style="flex:1"></span>'
-      +'<button class="btn btn-gray" onclick="renderRequestsTab()">🔄 รีเฟรช</button>'
+      +'<button class="btn btn-gray" onclick="invalidateTripsCache(); renderRequestsTab()">🔄 รีเฟรช</button>'
       +'</div>';
     if(!list.length){
       app.innerHTML=head+'<div style="padding:24px;text-align:center;color:#999;font-size:13px">✅ ไม่มีคำขอค้างอยู่</div></div>';
@@ -5157,7 +5206,7 @@ function renderRequestsTab(){
     catch(e){
       app.innerHTML='<div class="card"><div class="card-title">🔔 คำขอจากเสมียน</div>'
         +'<div style="color:#c0392b;font-size:12px;margin:10px 0">แสดงรายการไม่สำเร็จ: '+((e&&e.message)||e)+'</div>'
-        +'<button class="btn btn-gray" onclick="renderRequestsTab()">ลองใหม่</button></div>';
+        +'<button class="btn btn-gray" onclick="invalidateTripsCache(); renderRequestsTab()">ลองใหม่</button></div>';
     }
   }
   // เที่ยวยังไม่ได้โหลด → โหลดก่อนแล้วค่อยวาด (จำกัดเวลา ไม่ปล่อยให้หมุนค้าง)
@@ -5168,9 +5217,9 @@ function renderRequestsTab(){
       if(_done) return; _done=true;
       app.innerHTML='<div class="card"><div class="card-title">🔔 คำขอจากเสมียน</div>'
         +'<div style="color:#E67E22;font-size:12px;margin:10px 0">โหลดนานผิดปกติ — เน็ตช้าหรือข้อมูลเยอะ</div>'
-        +'<button class="btn btn-gray" onclick="renderRequestsTab()">ลองใหม่</button></div>';
+        +'<button class="btn btn-gray" onclick="invalidateTripsCache(); renderRequestsTab()">ลองใหม่</button></div>';
     }, 20000);
-    GolodDB.getTrips({limitN:800}).then(function(ts){
+    getTripsCached(5000).then(function(ts){
       if(_done) return; _done=true; clearTimeout(_to);
       _tripState=_tripState||{}; _tripState.openTrips=ts||[]; safePaint();
     }).catch(function(){
