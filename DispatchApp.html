@@ -489,6 +489,16 @@ tr:hover td{background:#f8fffe}
         <input id="ct-clr-trans" type="number" style="width:100%;padding:8px 10px;border:2px solid #0F6E56;border-radius:7px;font-size:13px;font-weight:600" placeholder="0" oninput="calcClearTrip()">
       </div>
     </div>
+    <!-- วันที่คนรถเอาเงินมาส่งจริง — ใช้จัดวันในรายงานรับ-จ่ายสิ้นวัน -->
+    <div style="margin-bottom:10px">
+      <div style="font-size:10px;color:#888;margin-bottom:3px">
+        วันที่รับเงินจริง <span style="color:#E67E22;font-weight:700">(วันที่คนรถเอาเงินมาส่ง)</span>
+      </div>
+      <input id="ct-clr-recvdate" type="date" style="width:100%;padding:8px 10px;border:1px solid #E67E22;border-radius:7px;font-size:13px">
+      <div style="font-size:10px;color:#999;margin-top:3px">
+        เว้นว่าง = ใช้วันที่กดบันทึกเคลียร์ · กรอกให้ตรงวันที่รับเงิน ยอดในรายงานสิ้นวันจะตรงกับสมุดเสมียน
+      </div>
+    </div>
     <!-- สลิปโอน (ต่อจากช่องเคลียร์โอน) -->
     <div style="margin-bottom:10px;padding:8px 10px;border:1px dashed #b7d4c9;border-radius:8px;background:#f7fbf9">
       <div style="font-size:10px;color:#888;margin-bottom:4px">สลิปโอน (แนบรูป)</div>
@@ -765,7 +775,7 @@ tr:hover td{background:#f8fffe}
 <div class="topbar">
   <span class="title">🚛 จัดการขนส่ง</span>
   <span id="session-info" style="font-size:11px;opacity:.8"></span>
-  <span style="font-size:10px;opacity:.65;margin-left:auto">build 2026-08-23a · cache</span>
+  <span style="font-size:10px;opacity:.65;margin-left:auto">build 2026-08-24a · recvdate</span>
   <a href="GolodApp.html" style="margin-left:10px">← หน้าหลัก</a>
 </div>
 <div class="container">
@@ -4367,6 +4377,7 @@ function _clrSave(){
     clrCash:cash, clrTrans:trans, mustPay:mustPay, diff:(submitted+tax)-mustPay,
     destExpected:c.dest, codExpected:c.cod, originTotal:c.origin, transferTotal:c.transfer, billCount:c.count, codCount:c.codCount,
     fare:fare, toll:toll, otherExpense:other, advance:adv, tax:tax, companyPay:companyPay, net:net,
+    cashReceivedDate: ((document.getElementById("ct-clr-recvdate")||{}).value||""),
     status:"cleared", clerkConfirmed:true, clearedBy:(CU?(CU.name||CU.username):""), clearedAt:new Date().toISOString()
   });
   t.clearData=clearData;
@@ -7668,6 +7679,12 @@ function openClearTrip(tripId){
   g("ct-clr-cash", trip.clearData&&trip.clearData.clrCash||"");
   g("ct-clr-trans", trip.clearData&&trip.clearData.clrTrans||"");
   var _cd = trip.clearData || {};
+  (function(){
+    var el=document.getElementById("ct-clr-recvdate"); if(!el) return;
+    if(_cd.cashReceivedDate){ el.value=_cd.cashReceivedDate; return; }
+    var d=new Date(), p=function(n){ return ("0"+n).slice(-2); };
+    el.value = d.getFullYear()+"-"+p(d.getMonth()+1)+"-"+p(d.getDate());   // ค่าเริ่มต้น = วันนี้ แก้ย้อนหลังได้
+  })();
   _setClearTransSlips(_cd.clrSlipUrls || (_cd.clrSlipUrl ? [_cd.clrSlipUrl] : []));
 
   // ดึงยอดบิล: local ก่อน (เร็ว) แล้ว sync จาก Firestore (ครบ)

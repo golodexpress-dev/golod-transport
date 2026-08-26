@@ -8,7 +8,7 @@
 <style>*{box-sizing:border-box;margin:0;padding:0}body{font-family:Arial,sans-serif;background:#f5f5f2;min-height:100vh}@media print{.no-print{display:none!important}body{background:#fff;padding:0}}input{font-family:Arial,sans-serif}</style>
 </head><body>
 <div class="no-print" style="background:#0F6E56;padding:0 14px;display:flex;align-items:center;gap:10px;height:44px;position:sticky;top:0;z-index:200">
-  <span style="color:#fff;font-size:14px;font-weight:700;flex:1">📊 รายงานรับ-จ่ายสิ้นวัน <span style="font-size:9px;opacity:.55;font-weight:400">b0622h·cache</span></span>
+  <span style="color:#fff;font-size:14px;font-weight:700;flex:1">📊 รายงานรับ-จ่ายสิ้นวัน <span style="font-size:9px;opacity:.55;font-weight:400">b0622l·clearwho</span></span>
   <a href="ThermalBill.html" style="font-size:11px;color:#9FE1CB;background:rgba(255,255,255,.15);padding:3px 10px;border-radius:20px;text-decoration:none">← ออกบิล</a>
   <a href="GolodApp.html" style="font-size:11px;color:#9FE1CB;background:rgba(255,255,255,.15);padding:3px 10px;border-radius:20px;text-decoration:none">🏠 หน้าหลัก</a>
 </div>
@@ -386,7 +386,16 @@ function DailyReport() {
   const clrTime = function(iso){ if (!iso) return ""; var d = new Date(iso); var pad = n => String(n).padStart(2, "0"); return pad(d.getHours()) + ":" + pad(d.getMinutes()); };
   const clrCashOf = t => parseFloat(t.clrCash) || (t.clearData && parseFloat(t.clearData.clrCash)) || 0;
   const clrTransOf = t => parseFloat(t.clrTrans) || (t.clearData && parseFloat(t.clearData.clrTrans)) || 0;
-  const clearTrips = allTrips.filter(function(t){ var ca = (t.clearData && t.clearData.clearedAt) || ""; return ca && effClearDate(ca) === date; });
+  // วันที่ใช้จัดกลุ่ม: ถ้าเสมียนกรอก "วันที่รับเงินจริง" (cashReceivedDate) ให้ใช้อันนั้น
+  // ไม่งั้น fallback เป็น clearedAt = เวลาที่กดปุ่มเคลียร์ ซึ่งมักช้ากว่าวันรับเงินจริงราว 1 วัน
+  const _recvDateOf = t => (t.clearData && t.clearData.cashReceivedDate) || "";
+  const _clearDayOf = function(t){
+    const rd = _recvDateOf(t);
+    if (rd) return rd;
+    const ca = (t.clearData && t.clearData.clearedAt) || "";
+    return ca ? effClearDate(ca) : "";
+  };
+  const clearTrips = allTrips.filter(t => _clearDayOf(t) === date);
   const clearCash = clearTrips.reduce((s, t) => s + clrCashOf(t), 0);
   const clearTrans = clearTrips.reduce((s, t) => s + clrTransOf(t), 0);
   const session = loadLS2("golod_session", {});
@@ -425,7 +434,10 @@ function DailyReport() {
   };
   const _myBranchDR = _isAdminClear ? "all" : _brOf(session.branch || clerkCode || "");
   const _cashierClerk = { bkk: "clerk1" }; // เสมียนที่มีสิทธิ์ดูเงินเคลียร์ของสาขานั้น (สาขาที่ไม่กำหนด = เสมียนสาขานั้นเห็นได้ทุกคน)
-  const _canSeeClear = _isAdminClear || !_cashierClerk[_myBranchDR] || session.username === _cashierClerk[_myBranchDR];
+  // เงินรับเคลียร์จากคนรถ = แอดมินเท่านั้น
+  // เหตุผล: เสมียนที่รับเงินลงสมุดตอนคนรถเอาเงินมาส่ง แต่ระบบเพิ่งขึ้นตอนกดเคลียร์ในใบงาน
+  // (ช้ากว่ากันราว 1 วัน) โชว์ให้เสมียนเห็นจึงทำให้ยอดดูไม่ตรงและสับสน
+  const _canSeeClear = _isAdminClear;
   const _clearTripsView = _isAdminClear ? clearTrips : clearTrips.filter(t => { const db = _driverBranchDR(t); return db && db === _myBranchDR; });
   const _clearCashView = _clearTripsView.reduce((s, t) => s + clrCashOf(t), 0);
   const _clearTransView = _clearTripsView.reduce((s, t) => s + clrTransOf(t), 0);
@@ -453,9 +465,25 @@ function DailyReport() {
   // ===== แยกสมุดตาม "เสมียนผู้ออกบิล" =====
   // เดิมกรองแค่ระดับสาขา เสมียนทุกคนในสาขาเดียวกันจึงเห็นยอดปนกันหมด
   const _clerkOf = b => (b.clerkCode || b.staff || "").trim();
-  const _clerkList = Array.from(new Set(_branchBills.map(_clerkOf).filter(Boolean))).sort();
+  // รายชื่อเสมียน = ทะเบียนผู้ใช้ + คนที่มีบิลวันนั้น
+  // เดิมสร้างจากบิลของวันนั้นอย่างเดียว → เสมียนที่รับเคลียร์ (ไม่ได้ออกบิล) จะหายจากดรอปดาวน์
+  const _clerkFromBills = Array.from(new Set(_branchBills.map(_clerkOf).filter(Boolean)));
+  const _clerkFromUsers = (function(){
+    try {
+      const us = JSON.parse(localStorage.getItem("golod_users_v1") || "[]");
+      return us.filter(u => {
+        const c = (u.clerkCode || "").trim();
+        if (!c) return false;
+        if (u.active === false) return false;
+        if (_isAdminClear || _myBranchDR === "all") return true;
+        return _brOf(c) === _myBranchDR;
+      }).map(u => (u.clerkCode || "").trim());
+    } catch (e) { return []; }
+  })();
+  const _clerkList = Array.from(new Set(_clerkFromBills.concat(_clerkFromUsers))).filter(Boolean).sort();
   // ค่าเริ่มต้น: แอดมิน = ทุกคน · เสมียน = ตัวเอง (ถ้าวันนั้นมีบิลของตัวเอง)
   // เสมียนเห็นได้เฉพาะสมุดของตัวเอง — เฉพาะแอดมินเท่านั้นที่เลือกดูของคนอื่นได้
+  if (clerkCode && _clerkList.indexOf(clerkCode) < 0) _clerkList.push(clerkCode);
   const _lockClerk = !_isAdminClear && !!clerkCode;
   const _effClerk = _lockClerk ? clerkCode
                   : (clerkFilter !== "__init__" ? clerkFilter : "all");
@@ -475,6 +503,10 @@ function DailyReport() {
   // คีย์แยกตาม วันที่ + เสมียน → สมุดของแต่ละคนไม่ปนกัน
   const _bookKey = (d, c) => "dailyBook_" + d + "_" + (c || "all");
   const _saveBook = function(){
+    if (_effClerk === "all") {
+      setBookState("❌ โหมด \"ทุกเสมียน\" เป็นมุมมองรวม แก้ไม่ได้ — เลือกชื่อเสมียนก่อนบันทึก");
+      return;
+    }
     const key = _bookKey(date, _effClerk);
     const payload = {
       date: date, clerk: _effClerk,
@@ -503,12 +535,41 @@ function DailyReport() {
       setExtraIn((d && d.extraIn) ? d.extraIn : []);
       setBookState(d && d.savedAt ? ("โหลดสมุดที่บันทึกไว้ " + new Date(d.savedAt).toLocaleString("th-TH")) : "");
     };
+    // โหมด "ทุกเสมียน" (แอดมิน) → รวมสมุดของเสมียนทุกคนในวันนั้นมาแสดง
+    // เดิมอ่านคีย์ dailyBook_<วันที่>_all ซึ่งไม่มีใครเขียน แอดมินจึงเห็นว่างเปล่าตลอด
+    if (_effClerk === "all") {
+      const codes = _clerkList.slice();
+      if (!codes.length || typeof GolodDB === "undefined" || !GolodDB.getSetting) { apply(null); return; }
+      Promise.all(codes.map(function(c){
+        return GolodDB.getSetting(_bookKey(date, c)).catch(function(){ return null; });
+      })).then(function(list){
+        const exp = [], inc = [];
+        let last = "";
+        list.forEach(function(d, i){
+          if (!d) return;
+          const who = _clerkNameOf(codes[i]);
+          (d.expenses || []).forEach(function(e){
+            if (e.desc || e.amt) exp.push({ desc: "[" + who + "] " + (e.desc || ""), amt: e.amt });
+          });
+          (d.extraIn || []).forEach(function(e){
+            if (e.desc || e.amt) inc.push({ desc: "[" + who + "] " + (e.desc || ""), amt: e.amt });
+          });
+          if (d.savedAt && d.savedAt > last) last = d.savedAt;
+        });
+        setExpenses(exp.length ? exp : [{desc:"",amt:""}]);
+        setExtraIn(inc);
+        setBookState(exp.length || inc.length
+          ? ("👀 มุมมองรวมของเสมียนทุกคน (อ่านอย่างเดียว) · อัปเดตล่าสุด " + (last ? new Date(last).toLocaleString("th-TH") : "-"))
+          : "— ยังไม่มีเสมียนคนไหนบันทึกสมุดของวันนี้ —");
+      }).catch(function(){ apply(null); });
+      return;
+    }
     let local = null;
     try { const v = localStorage.getItem(key); if (v) local = JSON.parse(v); } catch (e) {}
     if (typeof GolodDB !== "undefined" && GolodDB.getSetting) {
       GolodDB.getSetting(key).then(function(d){ apply(d || local); }).catch(function(){ apply(local); });
     } else apply(local);
-  }, [date, _effClerk]);
+  }, [date, _effClerk, _clerkList.join(",")]);
 
 
   // แยกประเภท
@@ -1200,7 +1261,12 @@ function DailyReport() {
       React.createElement("span",null,"  เครดิต"),
       React.createElement("span",null,fmtN0(creditIncome)," ฿")
     )
-  ), _canSeeClear && _clearTripsView.length > 0 && /*#__PURE__*/React.createElement("div", { style: { marginTop: 14, fontSize: 11, border: "0.5px solid #B3D4E8", borderRadius: 6, padding: "8px 10px", background: "#F4FBFF" } }, /*#__PURE__*/React.createElement("div", { style: { fontWeight: 700, color: "#1565C0", marginBottom: 4, display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: 6 } }, /*#__PURE__*/React.createElement("span", null, "💰 เงินรับเคลียร์จากคนรถ"), /*#__PURE__*/React.createElement("span", { className: "no-print", style: { fontWeight: 400, fontSize: 10, color: "#888" } }, "ตัดรอบ ", /*#__PURE__*/React.createElement("input", { type: "time", value: clearCutoff, onChange: e => setClearCutoff(e.target.value), style: { fontSize: 10, padding: "1px 3px", border: "0.5px solid #ccc", borderRadius: 4 } }), " เคลียร์หลังเวลานี้ → ลงวันถัดไป")), _clearTripsView.map(t => { var cash = clrCashOf(t), trans = clrTransOf(t); var ca = (t.clearData && t.clearData.clearedAt) || ""; var ownDate = ca ? ca.slice(0, 10) : ""; var rolled = ownDate && ownDate !== date; var tm = clrTime(ca); return /*#__PURE__*/React.createElement("div", { key: t.id, style: { display: "flex", justifyContent: "space-between", borderBottom: "0.5px dashed #ddd", padding: "2px 0" } }, /*#__PURE__*/React.createElement("span", null, "🚛 " + (t.driverName || t.driverUsername || "-") + (t.runNo ? (" [" + t.runNo + "]") : "") + (tm ? (" · " + tm + " น.") : "") + (rolled ? " ↻ยกจากเมื่อวาน" : "")), /*#__PURE__*/React.createElement("span", null, "สด " + fmtN0(cash) + " · โอน " + fmtN0(trans) + " = ", /*#__PURE__*/React.createElement("b", null, fmtN0(cash + trans) + " ฿"))); }), /*#__PURE__*/React.createElement("div", { style: { display: "flex", justifyContent: "space-between", marginTop: 4, fontWeight: 700, color: "#0F6E56" } }, /*#__PURE__*/React.createElement("span", null, "รวมรับเคลียร์ " + _clearTripsView.length + " เที่ยว"), /*#__PURE__*/React.createElement("span", null, fmtN0(_clearCashView + _clearTransView) + " ฿"))), /*#__PURE__*/React.createElement("div", {
+  ), _canSeeClear && _clearTripsView.length > 0 && /*#__PURE__*/React.createElement("div", { style: { marginTop: 14, fontSize: 11, border: "0.5px solid #B3D4E8", borderRadius: 6, padding: "8px 10px", background: "#F4FBFF" } }, /*#__PURE__*/React.createElement("div", { style: { fontWeight: 700, color: "#1565C0", marginBottom: 4, display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: 6 } }, /*#__PURE__*/React.createElement("span", null, "💰 เงินรับเคลียร์จากคนรถ"), /*#__PURE__*/React.createElement("span", { className: "no-print", style: { fontWeight: 400, fontSize: 10, color: "#888" } }, "ตัดรอบ ", /*#__PURE__*/React.createElement("input", { type: "time", value: clearCutoff, onChange: e => setClearCutoff(e.target.value), style: { fontSize: 10, padding: "1px 3px", border: "0.5px solid #ccc", borderRadius: 4 } }), " เคลียร์หลังเวลานี้ → ลงวันถัดไป")), _clearTripsView.map(t => { var cash = clrCashOf(t), trans = clrTransOf(t); var ca = (t.clearData && t.clearData.clearedAt) || ""; var ownDate = ca ? ca.slice(0, 10) : ""; var rolled = ownDate && ownDate !== date; var tm = clrTime(ca); var _rd = _recvDateOf(t); var _src = _rd || ownDate; var dmy = _src ? (_src.slice(8,10) + "/" + _src.slice(5,7)) : ""; var _tag = _rd ? "รับเงิน " : "เคลียร์ ";
+    var _BRTH = { bkk: "กทม.", ptm: "ปทุม", krt: "โคราช", ssk: "ศรีสะเกษ" };
+    var _brc = _driverBranchDR(t); var _brTxt = _BRTH[_brc] || _brc || "";
+    var _byTxt = (t.clearData && t.clearData.clearedBy) || ""; return /*#__PURE__*/React.createElement("div", { key: t.id, style: { display: "flex", justifyContent: "space-between", borderBottom: "0.5px dashed #ddd", padding: "2px 0" } }, /*#__PURE__*/React.createElement("span", null, "🚛 " + (t.driverName || t.driverUsername || "-") + (t.runNo ? (" [" + t.runNo + "]") : "") + (dmy ? (" · " + _tag + dmy + (tm && !_rd ? (" " + tm + " น.") : "")) : "") + (rolled ? " ↻ยกจากเมื่อวาน" : "")
+      + (_brTxt ? ("  ·  สาขา " + _brTxt) : "")
+      + (_byTxt ? ("  ·  ผู้กดเคลียร์ " + _byTxt) : "")), /*#__PURE__*/React.createElement("span", null, "สด " + fmtN0(cash) + " · โอน " + fmtN0(trans) + " = ", /*#__PURE__*/React.createElement("b", null, fmtN0(cash + trans) + " ฿"))); }), /*#__PURE__*/React.createElement("div", { style: { display: "flex", justifyContent: "space-between", marginTop: 4, fontWeight: 700, color: "#0F6E56" } }, /*#__PURE__*/React.createElement("span", null, "รวมรับเคลียร์ " + _clearTripsView.length + " เที่ยว"), /*#__PURE__*/React.createElement("span", null, fmtN0(_clearCashView + _clearTransView) + " ฿"))), /*#__PURE__*/React.createElement("div", {
     style: {
       display: "grid",
       gridTemplateColumns: "1fr 1fr",
