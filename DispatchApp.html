@@ -775,7 +775,7 @@ tr:hover td{background:#f8fffe}
 <div class="topbar">
   <span class="title">🚛 จัดการขนส่ง</span>
   <span id="session-info" style="font-size:11px;opacity:.8"></span>
-  <span style="font-size:10px;opacity:.65;margin-left:auto">build 2026-08-27a · destxfer</span>
+  <span style="font-size:10px;opacity:.65;margin-left:auto">build 2026-08-27b · reqhist</span>
   <a href="GolodApp.html" style="margin-left:10px">← หน้าหลัก</a>
 </div>
 <div class="container">
@@ -1405,7 +1405,7 @@ function renderApp(){
       cnt = _rc>0?_rc:"";
     } else if(t.k==="reqs"){
       var _pc = 0;
-      try{ _pc = _collectClerkRequests().length; }catch(e){}
+      try{ _pc = _collectClerkRequests().filter(function(r){ return !r.auto; }).length; }catch(e){}
       cnt = _pc>0 ? _pc : "";
     } else if(t.k==="history" || t.k==="monthly" || t.k==="clearing"){
       cnt = "";
@@ -3934,8 +3934,8 @@ function _renderRunSheet(bills, meta, trip){
     var det=[];
     failB.forEach(function(b){ det.push("• ส่งไม่สำเร็จ "+b.billNo+" — "+((b.receiverName||(b.form&&b.form.receiverName))||"-")+" · "+_rsFmt(parseFloat(b.freightNet||0))+" ฿"+(b.failReason?(" ("+b.failReason+")"):"")); });
     xfer.forEach(function(r){ det.push("• เปลี่ยนเป็นโอน "+(r.billNo||"-")+" · "+_rsFmt(_xf(r))+" ฿"+(r.slipUrl?" (มีสลิป)":" ⚠ ไม่มีสลิป")); });
-    addR.forEach(function(r){ det.push("• เพิ่มบิล "+(r.billNo||"-")+" — "+String(r.note||"").replace(/^เสมียนเพิ่มบิล · /,"")); });
-    delR.forEach(function(r){ det.push("• ถอดบิล "+(r.billNo||"-")+" — "+String(r.note||"").replace(/^เสมียนเอาบิลออก · /,"")); });
+    addR.forEach(function(r){ det.push("• ["+_rmkWhen(r.at)+"] เพิ่มบิล "+(r.billNo||"-")+" — "+String(r.note||"").replace(/^เสมียนเพิ่มบิล · /,"")); });
+    delR.forEach(function(r){ det.push("• ["+_rmkWhen(r.at)+"] ถอดบิล "+(r.billNo||"-")+" — "+String(r.note||"").replace(/^เสมียนเอาบิลออก · /,"")); });
     if(det.length) detail='<div style="font-size:10px;color:#555;line-height:1.5;margin-top:5px;border-top:1px dashed #ccc;padding-top:4px">'+det.join("<br>")+'</div>';
 
     behaveBox = box("📋 บันทึกการทำงานเที่ยวนี้", lines+detail);
@@ -5249,15 +5249,19 @@ function _collectClerkRequests(){
     var base={ tripId:t.id, driver:(t.driverName||t.lineDriver||"—"),
                route:(t.route||"—"), departDate:(t.departDate||"") };
     (t.billAdditionRequests||[]).forEach(function(r){
-      if(r.status!=="pending") return;
-      out.push(Object.assign({}, base, {kind:"add", label:"➕ ขอเพิ่มบิล",
-        detail:(r.billNo||"—"), note:(r.reason||""), amount:null,
+      if(r.status!=="pending" && r.status!=="auto") return;
+      var _a=(r.status==="auto");
+      out.push(Object.assign({}, base, {kind:_a?"addAuto":"add",
+        label:_a?"➕ เพิ่มบิล (อัตโนมัติ)":"➕ ขอเพิ่มบิล",
+        detail:(r.billNo||"—"), note:(r.reason||""), amount:null, auto:_a,
         by:(r.byName||r.by||"—"), at:(r.at||"")}));
     });
     (t.billRemovalRequests||[]).forEach(function(r){
-      if(r.status!=="pending") return;
-      out.push(Object.assign({}, base, {kind:"del", label:"➖ ขอเอาบิลออก",
-        detail:(r.billNo||"—"), note:(r.reason||""), amount:null,
+      if(r.status!=="pending" && r.status!=="auto") return;
+      var _a=(r.status==="auto");
+      out.push(Object.assign({}, base, {kind:_a?"delAuto":"del",
+        label:_a?"➖ ถอดบิล (อัตโนมัติ)":"➖ ขอเอาบิลออก",
+        detail:(r.billNo||"—"), note:(r.reason||""), amount:null, auto:_a,
         by:(r.byName||r.by||"—"), at:(r.at||"")}));
     });
     var rmks=t.clearRemarks || (t.clearData&&t.clearData.remarks) || [];
@@ -5275,7 +5279,7 @@ function _collectClerkRequests(){
 // แถบเตือนคำขอค้าง แสดงเหนือแท็บทุกหน้า (แอดมินเท่านั้น)
 function _clerkReqBanner(){
   if(!_isAdminUser()) return "";
-  var n=0; try{ n=_collectClerkRequests().length; }catch(e){ return ""; }
+  var n=0; try{ n=_collectClerkRequests().filter(function(r){ return !r.auto; }).length; }catch(e){ return ""; }
   if(!n) return "";
   return '<div onclick="currentTab=\'reqs\'; renderApp();" style="cursor:pointer;background:#fff4e5;border:1px solid #f0c99a;'
        + 'border-left:5px solid #E67E22;border-radius:8px;padding:8px 12px;margin-bottom:8px;display:flex;align-items:center;gap:8px;flex-wrap:wrap">'
@@ -5306,28 +5310,48 @@ function gotoRequest(tripId, kind){
   }, 120);
 }
 
+var _reqSubTab="pend";   // pend = รออนุมัติ (ดูวันต่อวัน) · hist = ประวัติที่อนุมัติอัตโนมัติ
+var _reqSearch="";
+function setReqSubTab(k){ _reqSubTab=k; renderRequestsTab(); }
 function renderRequestsTab(){
   var app=document.getElementById("app");
   if(!_isAdminUser()){ app.innerHTML='<div class="card">เฉพาะแอดมินเท่านั้น</div>'; return; }
 
   var _fmtB = function(n){ return (Math.round(n)||0).toLocaleString("th-TH"); };
   function paint(){
-    var list=_collectClerkRequests();
+    var all=_collectClerkRequests();
+    var pend=all.filter(function(r){ return !r.auto; });    // ยังต้องให้แอดมินตัดสินใจ
+    var hist=all.filter(function(r){ return r.auto; });     // อนุมัติอัตโนมัติไปแล้ว = ประวัติ
+    var list=(_reqSubTab==="hist") ? hist : pend;
+    var tabBtn=function(k,l,n){
+      var on=((_reqSubTab||"pend")===k);
+      return '<button onclick="setReqSubTab(\''+k+'\')" style="padding:5px 12px;border-radius:8px;font-size:12px;cursor:pointer;'
+        +'border:1px solid '+(on?"#0F6E56":"#ddd")+';background:'+(on?"#0F6E56":"#fff")+';color:'+(on?"#fff":"#555")+';font-weight:'+(on?"700":"400")+'">'
+        +l+' ('+n+')</button>';
+    };
     var head='<div class="card"><div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:10px">'
       +'<div class="card-title" style="margin:0">🔔 คำขอจากเสมียน</div>'
-      +'<span style="font-size:11px;color:#888">รออนุมัติ '+list.length+' รายการ</span>'
       +'<span style="flex:1"></span>'
       +'<button class="btn btn-gray" onclick="invalidateTripsCache(); renderRequestsTab()">🔄 รีเฟรช</button>'
-      +'</div>';
+      +'</div>'
+      +'<div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:10px">'
+      + tabBtn("pend","⏳ รออนุมัติ",pend.length) + tabBtn("hist","📜 ประวัติเพิ่ม/ถอดบิล",hist.length)
+      +'</div>'
+      +'<input id="req-search" value="'+(_reqSearch||"")+'" oninput="_reqSearch=this.value; renderRequestsTab()" placeholder="ค้นเลขบิล / คนรถ / ผู้ทำ" style="width:100%;padding:6px 10px;border:1px solid #ddd;border-radius:8px;margin-bottom:10px">';
+    var q=(_reqSearch||"").trim().toLowerCase();
+    if(q) list=list.filter(function(r){
+      return ((r.detail||"")+" "+(r.driver||"")+" "+(r.by||"")+" "+(r.note||"")+" "+(r.route||"")).toLowerCase().indexOf(q)>=0;
+    });
     if(!list.length){
-      app.innerHTML=head+'<div style="padding:24px;text-align:center;color:#999;font-size:13px">✅ ไม่มีคำขอค้างอยู่</div></div>';
+      app.innerHTML=head+'<div style="padding:24px;text-align:center;color:#999;font-size:13px">'
+        +(_reqSubTab==="hist" ? "— ยังไม่มีประวัติเพิ่ม/ถอดบิล —" : "✅ ไม่มีคำขอค้างอยู่")+'</div></div>';
       return;
     }
     var rows=list.map(function(r){
-      var clr = r.kind==="add" ? "#0F6E56" : (r.kind==="del" ? "#c0392b" : "#5b3fb5");
+      var clr = (r.kind==="add"||r.kind==="addAuto") ? "#0F6E56" : ((r.kind==="del"||r.kind==="delAuto") ? "#c0392b" : "#5b3fb5");
       var amt = (r.amount!==null && !isNaN(r.amount) && r.amount!==0)
         ? '<div style="font-weight:700;color:'+(r.amount>0?"#0F6E56":"#c0392b")+'">'+(r.amount>0?"+":"")+_fmtB(r.amount)+' ฿</div>' : '';
-      var go = "gotoRequest('"+r.tripId+"','"+r.kind+"')";
+      var go = "gotoRequest('"+r.tripId+"','"+(r.kind.indexOf("del")===0?"del":(r.kind.indexOf("add")===0?"add":"remark"))+"')";
       return '<tr>'
         +'<td style="white-space:nowrap"><span style="color:'+clr+';font-weight:700;font-size:11px">'+r.label+'</span></td>'
         +'<td><div style="font-weight:700;font-size:12px">'+r.detail+'</div>'
@@ -6721,6 +6745,13 @@ function fetchTripBillsFromDB(trip){
 // ===== หมายเหตุ/รายการปรับยอด (ต้องอนุมัติ) =====
 var _clearRemarks = [];
 
+// วันเวลาแบบอ่านง่าย สำหรับหมายเหตุ (ข้อมูลมีอยู่ในฟิลด์ at อยู่แล้ว แต่เดิมไม่ได้แสดง)
+function _rmkWhen(iso){
+  if(!iso) return "—";
+  var d=new Date(iso); if(isNaN(d.getTime())) return String(iso);
+  var p=function(n){ return ("0"+n).slice(-2); };
+  return p(d.getDate())+"/"+p(d.getMonth()+1)+" "+p(d.getHours())+":"+p(d.getMinutes());
+}
 function renderClearRemarks(){
   var el = document.getElementById("ct-remarks-list");
   if(!el) return;
@@ -6751,7 +6782,7 @@ function renderClearRemarks(){
       +'<div style="white-space:nowrap"><b style="color:'+amtClr+amtStyle+'">'+(_dispEff>=0?"+":"")+Math.round(_dispEff).toLocaleString("th-TH")+' ฿</b> '+stBadge+adminBtns+convBtn+delBtn+'</div>'
       +'</div>'
       +(_isDup ? '<div style="font-size:10px;color:#c0392b;font-weight:700;margin-top:3px">🚫 ไม่นับยอดนี้ — บิล '+r.billNo+' เข้าระบบแล้ว (นับจากบิลจริงไปแล้ว) · ลบรายการนี้ทิ้งได้</div>' : '')
-      +'<div style="font-size:9px;color:#aaa;margin-top:2px">โดย '+(r.byName||r.by||"-")+(r.approvedByName?' · อนุมัติโดย '+r.approvedByName:'')+'</div>'
+      +'<div style="font-size:9px;color:#aaa;margin-top:2px">'+_rmkWhen(r.at)+' · โดย '+(r.byName||r.by||"-")+(r.approvedByName?' · อนุมัติโดย '+r.approvedByName:'')+'</div>'
       +(r.type==="รับงานนอกระบบ" ? ('<div style="font-size:9px;color:#6a3fb5;margin-top:2px">'+_pickupRmkDesc(r)+'</div>') : '')
       +(r.type==="ปท.→โอน" ? ('<div style="margin-top:3px">'+(r._uploading?'<span style="color:#E67E22;font-size:10px">⏳ กำลังอัปโหลดสลิป...</span>':((r.slipUrl?'<a href="'+r.slipUrl+'" target="_blank" style="color:#0F6E56;font-size:10px;font-weight:700">📎 ดูสลิป</a>':'<span style="color:#c0392b;font-size:10px;font-weight:700">⚠ ยังไม่แนบสลิป</span>')+' <button onclick="uploadRemarkSlip(\''+r.id+'\')" style="background:#eef;border:1px solid #ccd;border-radius:5px;padding:2px 7px;font-size:10px;cursor:pointer">📷 '+(r.slipUrl?'เปลี่ยน':'แนบสลิป')+'</button>'))+'</div>') : '')
       +'</div>';
