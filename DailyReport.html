@@ -8,7 +8,7 @@
 <style>*{box-sizing:border-box;margin:0;padding:0}body{font-family:Arial,sans-serif;background:#f5f5f2;min-height:100vh}@media print{.no-print{display:none!important}body{background:#fff;padding:0}}input{font-family:Arial,sans-serif}</style>
 </head><body>
 <div class="no-print" style="background:#0F6E56;padding:0 14px;display:flex;align-items:center;gap:10px;height:44px;position:sticky;top:0;z-index:200">
-  <span style="color:#fff;font-size:14px;font-weight:700;flex:1">📊 รายงานรับ-จ่ายสิ้นวัน <span style="font-size:9px;opacity:.55;font-weight:400">b0622p·kinds</span></span>
+  <span style="color:#fff;font-size:14px;font-weight:700;flex:1">📊 รายงานรับ-จ่ายสิ้นวัน <span style="font-size:9px;opacity:.55;font-weight:400">b0622t·xcheck</span></span>
   <a href="ThermalBill.html" style="font-size:11px;color:#9FE1CB;background:rgba(255,255,255,.15);padding:3px 10px;border-radius:20px;text-decoration:none">← ออกบิล</a>
   <a href="GolodApp.html" style="font-size:11px;color:#9FE1CB;background:rgba(255,255,255,.15);padding:3px 10px;border-radius:20px;text-decoration:none">🏠 หน้าหลัก</a>
 </div>
@@ -1345,7 +1345,15 @@ function DailyReport() {
      (_effClerk !== "all" && internalIn) ? (" + เบิกจากเสมียน " + fmtN0(internalIn)) : "",
      " − ค่าใช้จ่าย ", fmtN0(expenseExt),
      (_effClerk !== "all" && internalOut) ? (" − ส่งให้เสมียน " + fmtN0(internalOut)) : "",
-     (_effClerk === "all" && (internalIn || internalOut)) ? "  (ตัดเงินโอนระหว่างเสมียนออกแล้ว)" : "")), /*#__PURE__*/React.createElement("div", {
+     (_effClerk === "all" && (internalIn || internalOut)) ? "  (ตัดเงินโอนระหว่างเสมียนออกแล้ว)" : ""),
+   (_effClerk === "all" && Math.round(internalIn - internalOut) !== 0)
+     ? /*#__PURE__*/React.createElement("div", {
+         style: { fontSize: 11, color: "#c00", fontWeight: 700, marginTop: 4 }
+       }, "⚠ เงินโอนระหว่างเสมียนไม่ตรงกัน — ฝั่งรับ ", fmtN0(internalIn),
+          " ฿ · ฝั่งส่ง ", fmtN0(internalOut),
+          " ฿ · ต่างกัน ", fmtN0(Math.abs(internalIn - internalOut)),
+          " ฿ (มีคนยังไม่ได้ติ๊ก 🔁 หรือยังไม่ได้ลงรายการ)")
+     : null), /*#__PURE__*/React.createElement("div", {
     style: { marginTop:8, fontSize:11, color:"#666", borderTop:"0.5px solid #ccc", paddingTop:6 }
   },
     React.createElement("div",{style:{display:"flex",justifyContent:"space-between"}},
@@ -1368,7 +1376,11 @@ function DailyReport() {
       React.createElement("span",null,"  เครดิต"),
       React.createElement("span",null,fmtN0(creditIncome)," ฿")
     )
-  ), _canSeeClear && _clearTripsView.length > 0 && /*#__PURE__*/React.createElement("div", { style: { marginTop: 14, fontSize: 11, border: "0.5px solid #B3D4E8", borderRadius: 6, padding: "8px 10px", background: "#F4FBFF" } }, /*#__PURE__*/React.createElement("div", { style: { fontWeight: 700, color: "#1565C0", marginBottom: 4, display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: 6 } }, /*#__PURE__*/React.createElement("span", null, "💰 เงินรับเคลียร์จากคนรถ"), /*#__PURE__*/React.createElement("span", { className: "no-print", style: { fontWeight: 400, fontSize: 10, color: "#888" } }, "ตัดรอบ ", /*#__PURE__*/React.createElement("input", { type: "time", value: clearCutoff, onChange: e => setClearCutoff(e.target.value), style: { fontSize: 10, padding: "1px 3px", border: "0.5px solid #ccc", borderRadius: 4 } }), " เคลียร์หลังเวลานี้ → ลงวันถัดไป")), _clearTripsView.map(t => { var cash = clrCashOf(t), trans = clrTransOf(t); var ca = (t.clearData && t.clearData.clearedAt) || ""; var ownDate = ca ? ca.slice(0, 10) : ""; var rolled = ownDate && ownDate !== date; var tm = clrTime(ca); var _rd = _recvDateOf(t); var _src = _rd || ownDate; var dmy = _src ? (_src.slice(8,10) + "/" + _src.slice(5,7)) : ""; var _tag = _rd ? "รับเงิน " : "เคลียร์ ";
+  ), _canSeeClear && _clearTripsView.length > 0 && /*#__PURE__*/React.createElement("div", {
+    // พิมพ์ใบของเสมียนรายคน → ซ่อนกล่องเงินเคลียร์ (ไม่เกี่ยวกับสมุดคนนั้น)
+    // พิมพ์แบบ "ทุกเสมียน" → แสดงตามปกติ
+    className: (_effClerk === "all" ? "" : "no-print"),
+    style: { marginTop: 14, fontSize: 11, border: "0.5px solid #B3D4E8", borderRadius: 6, padding: "8px 10px", background: "#F4FBFF" } }, /*#__PURE__*/React.createElement("div", { style: { fontWeight: 700, color: "#1565C0", marginBottom: 4, display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: 6 } }, /*#__PURE__*/React.createElement("span", null, "💰 เงินรับเคลียร์จากคนรถ"), /*#__PURE__*/React.createElement("span", { className: "no-print", style: { fontWeight: 400, fontSize: 10, color: "#888" } }, "ตัดรอบ ", /*#__PURE__*/React.createElement("input", { type: "time", value: clearCutoff, onChange: e => setClearCutoff(e.target.value), style: { fontSize: 10, padding: "1px 3px", border: "0.5px solid #ccc", borderRadius: 4 } }), " เคลียร์หลังเวลานี้ → ลงวันถัดไป")), _clearTripsView.map(t => { var cash = clrCashOf(t), trans = clrTransOf(t); var ca = (t.clearData && t.clearData.clearedAt) || ""; var ownDate = ca ? ca.slice(0, 10) : ""; var rolled = ownDate && ownDate !== date; var tm = clrTime(ca); var _rd = _recvDateOf(t); var _src = _rd || ownDate; var dmy = _src ? (_src.slice(8,10) + "/" + _src.slice(5,7)) : ""; var _tag = _rd ? "รับเงิน " : "เคลียร์ ";
     var _BRTH = { bkk: "กทม.", ptm: "ปทุม", krt: "โคราช", ssk: "ศรีสะเกษ" };
     var _brc = _driverBranchDR(t); var _brTxt = _BRTH[_brc] || _brc || "";
     var _byTxt = (t.clearData && t.clearData.clearedBy) || ""; return /*#__PURE__*/React.createElement("div", { key: t.id, style: { display: "flex", justifyContent: "space-between", borderBottom: "0.5px dashed #ddd", padding: "2px 0" } }, /*#__PURE__*/React.createElement("span", null, "🚛 " + (t.driverName || t.driverUsername || "-") + (t.runNo ? (" [" + t.runNo + "]") : "") + (dmy ? (" · " + _tag + dmy + (tm && !_rd ? (" " + tm + " น.") : "")) : "") + (rolled ? " ↻ยกจากเมื่อวาน" : "")
