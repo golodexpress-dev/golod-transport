@@ -775,7 +775,7 @@ tr:hover td{background:#f8fffe}
 <div class="topbar">
   <span class="title">🚛 จัดการขนส่ง</span>
   <span id="session-info" style="font-size:11px;opacity:.8"></span>
-  <span style="font-size:10px;opacity:.65;margin-left:auto">build 2026-08-26c · behave-month</span>
+  <span style="font-size:10px;opacity:.65;margin-left:auto">build 2026-08-27a · destxfer</span>
   <a href="GolodApp.html" style="margin-left:10px">← หน้าหลัก</a>
 </div>
 <div class="container">
@@ -4633,6 +4633,20 @@ function renderMonthlyView(drivers, allTrips, selMonth, selDriver, dateFrom, dat
       var cd = t.clearData||{};
       var rev = cd.rev || {origin:s.revOrigin,transfer:s.revTransfer,credit:s.revCredit,destTransfer:s.revDestTransfer};
       var rOrigin=parseFloat(rev.origin||0), rTransfer=parseFloat(rev.transfer||0), rCredit=parseFloat(rev.credit||0), rDestTransfer=parseFloat(rev.destTransfer||0);
+      // "ปลายทางโอน" ของเที่ยวเก่าจะว่าง เพราะ trip._rev ถูกคำนวณตอนเปิดหน้าเคลียร์เท่านั้น
+      // ถ้า rev ไม่มีค่า ให้ใช้ยอด ปท.→โอน ที่บันทึกไว้ตอนเคลียร์ (destXfer) หรือรวมจากหมายเหตุโดยตรง
+      if(!rDestTransfer){
+        rDestTransfer = parseFloat(cd.destXfer||0) || 0;
+        if(!rDestTransfer){
+          var _rm=(t.clearRemarks || cd.remarks || []);
+          rDestTransfer = _rm.filter(function(r){ return r.type==="ปท.→โอน" && r.status==="approved"; })
+            .reduce(function(a,r){
+              var v=Math.abs(parseFloat(r.amount)||0);
+              if(!v){ var m=String(r.note||"").match(/\u0E3F\s*([\d,]+)/); v=m?(parseFloat(m[1].replace(/,/g,""))||0):0; }
+              return a+v;
+            },0);
+        }
+      }
       var fare = parseFloat(t.baseFare||0)+parseFloat(t.extraFare||0);
       // ถ้ายังไม่ตั้งค่าเที่ยว (baseFare ว่าง) ลองดึงจาก summary ที่เคยบันทึกไว้
       if(fare===0 && s.baseFare!=null) fare = parseFloat(s.baseFare||0)+parseFloat(s.extraFare||0);
