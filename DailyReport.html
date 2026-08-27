@@ -8,7 +8,7 @@
 <style>*{box-sizing:border-box;margin:0;padding:0}body{font-family:Arial,sans-serif;background:#f5f5f2;min-height:100vh}@media print{.no-print{display:none!important}body{background:#fff;padding:0}}input{font-family:Arial,sans-serif}</style>
 </head><body>
 <div class="no-print" style="background:#0F6E56;padding:0 14px;display:flex;align-items:center;gap:10px;height:44px;position:sticky;top:0;z-index:200">
-  <span style="color:#fff;font-size:14px;font-weight:700;flex:1">📊 รายงานรับ-จ่ายสิ้นวัน <span style="font-size:9px;opacity:.55;font-weight:400">b0622m·balance</span></span>
+  <span style="color:#fff;font-size:14px;font-weight:700;flex:1">📊 รายงานรับ-จ่ายสิ้นวัน <span style="font-size:9px;opacity:.55;font-weight:400">b0622o·internal2</span></span>
   <a href="ThermalBill.html" style="font-size:11px;color:#9FE1CB;background:rgba(255,255,255,.15);padding:3px 10px;border-radius:20px;text-decoration:none">← ออกบิล</a>
   <a href="GolodApp.html" style="font-size:11px;color:#9FE1CB;background:rgba(255,255,255,.15);padding:3px 10px;border-radius:20px;text-decoration:none">🏠 หน้าหลัก</a>
 </div>
@@ -589,8 +589,15 @@ function DailyReport() {
   const sumCol = grp => dayBills.filter(b => getBillGroup(b) === grp).reduce((s, b) => s + (b.freightNet || 0), 0);
   const sumCOD = dayBills.reduce((s, b) => s + (b.codTotal || 0), 0);
   const billIncome  = ["origin", "dest", "transfer", "credit", "dest_driver", "other"].reduce((s, g) => s + sumCol(g), 0);
-  const extraIncome = extraIn.reduce((s, e) => s + (parseFloat(e.amt) || 0), 0);
-  const totalIncome = billIncome + extraIncome;
+  // รายรับเพิ่มเติมมี 2 ชนิด:
+  //   ext = เงินเข้าจากนอกวง (ผจก./เจ้าของโอนให้) → เป็นรายรับจริงของบริษัท
+  //   int = เบิกจากเสมียนอีกคน → เงินย้ายมือกันเอง ไม่ใช่รายรับ (ระดับบริษัทหักล้างกัน)
+  const _isInt = e => (e.kind || "ext") === "int";
+  const extraIncome  = extraIn.filter(e => !_isInt(e)).reduce((s, e) => s + (parseFloat(e.amt) || 0), 0);
+  const internalIn   = extraIn.filter(_isInt).reduce((s, e) => s + (parseFloat(e.amt) || 0), 0);
+  const internalOut  = expenses.filter(_isInt).reduce((s, e) => s + (parseFloat(e.amt) || 0), 0);
+  const expenseExt   = expenses.filter(e => !_isInt(e)).reduce((s, e) => s + (parseFloat(e.amt) || 0), 0);
+  const totalIncome  = billIncome + extraIncome;
   const totalExpense = expenses.reduce((s, e) => s + (parseFloat(e.amt) || 0), 0);
   const cashOrigin = sumCol("origin");
   const cashDest = sumCol("dest");
@@ -599,8 +606,14 @@ function DailyReport() {
   // ยอดคงเหลือ = เงินสดที่เสมียน "ถืออยู่จริง" เท่านั้น
   // = เก็บต้นทาง + รายรับเพิ่มเติม (ผจก.โอนให้ / เบิกจากเสมียนอื่น) − รายจ่าย (รวมเงินที่ให้เสมียนคนอื่นไป)
   // ไม่รวมปลายทาง/โอน/เครดิต เพราะเงินก้อนนั้นไม่ได้อยู่ในมือเสมียน
-  const balance = cashOrigin + extraIncome - totalExpense;
-  const addIn  = () => setExtraIn(p => [...p, { desc: "", amt: "" }]);
+  // มุมมองรายคน: เงินโอนระหว่างเสมียนกระทบเงินในมือจริง → ต้องนับ
+  // มุมมองรวมทุกคน: หักล้างกันเอง → ไม่นับทั้งสองขา
+  // เงินส่งให้เสมียนด้วยกัน = ย้ายมือกันเอง ไม่ใช่รายจ่ายของบริษัท
+  // แต่กระทบเงินในมือคนจ่าย → มุมมองรายคนยังต้องหักออก / มุมมองรวมทุกคนหักล้างกันเอง
+  const balance = (_effClerk === "all")
+    ? (cashOrigin + extraIncome - expenseExt)
+    : (cashOrigin + extraIncome + internalIn - expenseExt - internalOut);
+  const addIn  = () => setExtraIn(p => [...p, { desc: "", amt: "", kind: "ext" }]);
   const updIn  = (i, k, v) => setExtraIn(p => p.map((e, idx) => idx === i ? { ...e, [k]: v } : e));
   const delIn  = i => setExtraIn(p => p.filter((e, idx) => idx !== i));
   const addExp = () => setExpenses(p => [...p, {
@@ -992,7 +1005,19 @@ function DailyReport() {
         border: "0.5px solid #ddd",
         padding: "1px 4px"
       }
-    }, exp !== undefined && /*#__PURE__*/React.createElement("input", {
+    }, exp !== undefined && /*#__PURE__*/React.createElement("div", {
+      style: { display: "flex", alignItems: "center", gap: 2 }
+    }, /*#__PURE__*/React.createElement("button", {
+      className: "no-print",
+      onClick: () => updExp(i, "kind", _isInt(exp) ? "ext" : "int"),
+      title: _isInt(exp) ? "คืน/ส่งเงินให้เสมียนด้วยกัน — ไม่นับเป็นรายจ่าย (กดเพื่อเปลี่ยน)"
+                         : "รายจ่ายจริง (กดเพื่อเปลี่ยนเป็น เงินส่งให้เสมียนด้วยกัน)",
+      style: {
+        border: "none", background: "transparent", cursor: "pointer",
+        fontSize: 11, padding: 0, lineHeight: 1,
+        color: _isInt(exp) ? "#E67E22" : "#ccc"
+      }
+    }, _isInt(exp) ? "🔁" : "•"), /*#__PURE__*/React.createElement("input", {
       value: exp.desc,
       onChange: e => updExp(i, "desc", e.target.value),
       placeholder: "",
@@ -1002,9 +1027,10 @@ function DailyReport() {
         width: "100%",
         fontSize: 11,
         outline: "none",
-        background: "transparent"
+        background: "transparent",
+        color: _isInt(exp) ? "#E67E22" : "inherit"
       }
-    })), /*#__PURE__*/React.createElement("td", {
+    }))), /*#__PURE__*/React.createElement("td", {
       style: {
         border: "0.5px solid #ddd",
         padding: "1px 4px",
@@ -1241,7 +1267,12 @@ function DailyReport() {
       color: "#888",
       marginTop: 4
     }
-  }, "เงินสดต้นทาง ", fmtN0(cashOrigin), extraIncome ? (" + รับเพิ่ม " + fmtN0(extraIncome)) : "", " − ค่าใช้จ่าย ", fmtN0(totalExpense))), /*#__PURE__*/React.createElement("div", {
+  }, "เงินสดต้นทาง ", fmtN0(cashOrigin),
+     extraIncome ? (" + รับจาก ผจก. " + fmtN0(extraIncome)) : "",
+     (_effClerk !== "all" && internalIn) ? (" + เบิกจากเสมียน " + fmtN0(internalIn)) : "",
+     " − ค่าใช้จ่าย ", fmtN0(expenseExt),
+     (_effClerk !== "all" && internalOut) ? (" − ส่งให้เสมียน " + fmtN0(internalOut)) : "",
+     (_effClerk === "all" && (internalIn || internalOut)) ? "  (ตัดเงินโอนระหว่างเสมียนออกแล้ว)" : "")), /*#__PURE__*/React.createElement("div", {
     style: { marginTop:8, fontSize:11, color:"#666", borderTop:"0.5px solid #ccc", paddingTop:6 }
   },
     React.createElement("div",{style:{display:"flex",justifyContent:"space-between"}},
@@ -1319,6 +1350,14 @@ function DailyReport() {
         onChange: ev => updIn(i, "desc", ev.target.value),
         style: { ...INP, flex: 1 }
       }),
+      /*#__PURE__*/React.createElement("select", {
+        value: e.kind || "ext",
+        onChange: ev => updIn(i, "kind", ev.target.value),
+        title: "เบิกจากเสมียนอีกคน = เงินย้ายมือกันเอง ไม่นับเป็นรายรับของบริษัท",
+        style: { ...INP, width: 132, fontSize: 11 }
+      },
+        /*#__PURE__*/React.createElement("option", { value: "ext" }, "💵 รับจาก ผจก."),
+        /*#__PURE__*/React.createElement("option", { value: "int" }, "🔁 เบิกจากเสมียน")),
       /*#__PURE__*/React.createElement("input", {
         type: "number", value: e.amt, placeholder: "0",
         onChange: ev => updIn(i, "amt", ev.target.value),
@@ -1339,6 +1378,12 @@ function DailyReport() {
       /*#__PURE__*/React.createElement("div", {
         style: { fontSize: 12, color: "#0F6E56", fontWeight: 700 }
       }, "รวมรายรับเพิ่มเติม ", fmtN(extraIncome), " ฿"),
+      internalIn ? /*#__PURE__*/React.createElement("div", {
+        style: { fontSize: 12, color: "#E67E22", fontWeight: 700 }
+      }, "🔁 เบิกจากเสมียน ", fmtN(internalIn), " ฿ (ไม่นับเป็นรายรับ)") : null,
+      internalOut ? /*#__PURE__*/React.createElement("div", {
+        style: { fontSize: 12, color: "#E67E22", fontWeight: 700 }
+      }, "🔁 ส่งให้เสมียน ", fmtN(internalOut), " ฿ (ไม่นับเป็นรายจ่าย)") : null,
       /*#__PURE__*/React.createElement("div", { style: { flex: 1 } }),
       /*#__PURE__*/React.createElement("button", {
         onClick: _saveBook,
