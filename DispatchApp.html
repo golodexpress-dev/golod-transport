@@ -775,7 +775,7 @@ tr:hover td{background:#f8fffe}
 <div class="topbar">
   <span class="title">🚛 จัดการขนส่ง</span>
   <span id="session-info" style="font-size:11px;opacity:.8"></span>
-  <span style="font-size:10px;opacity:.65;margin-left:auto">build 2026-08-27b · reqhist</span>
+  <span style="font-size:10px;opacity:.65;margin-left:auto">build 2026-08-28a · cashrecv</span>
   <a href="GolodApp.html" style="margin-left:10px">← หน้าหลัก</a>
 </div>
 <div class="container">
@@ -1842,6 +1842,7 @@ function renderTripList(){
           +'<button class="btn btn-gray" data-tid="'+t.id+'" onclick="editTrip(this.dataset.tid)">✏️ แก้ไข</button>'
           +((_isProp||_isAppr)?'':'<button class="btn" data-tid="'+t.id+'" onclick="pushTripToDriver(this.dataset.tid)" style="background:#0F6E56;color:#fff">🚚 ส่งให้คนรถ</button>')
           +'<button class="btn" data-tid="'+t.id+'" onclick="openTripVehiclePhoto(this.dataset.tid)" style="background:#34495e;color:#fff">📷 รูปรถ ('+((t.vehiclePhotos||[]).length)+')</button>'
+          +(canClearTrip()?'<button class="btn" style="background:#1565C0;color:#fff" data-tid="'+t.id+'" onclick="openCashRecv(this.dataset.tid)">💵 รับเงินจากคนรถ'+_cashRecvBadge(t)+'</button>':'')
           +(canClearTrip()?'<button class="btn btn-orange" data-tid="'+t.id+'" onclick="openClearTrip(this.dataset.tid)">💰 เคลียร์เที่ยว</button>':'')
           +(canClearTrip()?'<button class="btn btn-green" data-tid="'+t.id+'" onclick="closeTrip(this.dataset.tid)">✅ ปิดเที่ยว</button>':'')
           +(_isAdminU?_delBtnHtml(t):'')
@@ -3280,6 +3281,104 @@ function loadClearAllowedUsers(){
   GolodDB.getSetting("tripClearUsers").then(function(val){
     if(val && Array.isArray(val)) CLEAR_ALLOWED_USERS = val;
   }).catch(function(){});
+}
+
+/* ============================================================
+   รับเงินจากคนรถ (แยกจากการเคลียร์เที่ยวเต็มใบ)
+   เดิมเสมียนต้องรอเคลียร์ทั้งใบก่อนถึงจะลงเงินได้ ทำให้เวลาเหลื่อมกัน
+   ราว 1 วัน แล้วต้องไปพิมพ์ซ้ำในสมุดรับ-จ่าย  ตอนนี้ลงที่นี่ครั้งเดียวจบ
+   เก็บลงช่องเดิม: clearData.clrCash / clrTrans / cashReceivedDate / clrSlipUrls
+   ============================================================ */
+function _cashRecvBadge(t){
+  var cd=(t&&t.clearData)||{};
+  var got=(parseFloat(cd.clrCash||0)||0)+(parseFloat(cd.clrTrans||0)||0);
+  if(cd.status==="cleared") return ' <span style="background:#0F6E56;color:#fff;font-size:9px;padding:1px 5px;border-radius:8px">เคลียร์แล้ว</span>';
+  if(cd.cashReceivedDate || got>0) return ' <span style="background:#fff;color:#1565C0;font-size:9px;padding:1px 5px;border-radius:8px">✓ '+(Math.round(got)||0).toLocaleString("th-TH")+'</span>';
+  return "";
+}
+var _cashRecvTripId=null, _cashRecvSlips=[];
+function openCashRecv(tripId){
+  var t=(_tripState.openTrips||[]).find(function(x){ return x.id===tripId; });
+  if(!t){ alert("ไม่พบเที่ยวนี้"); return; }
+  _cashRecvTripId=tripId;
+  var cd=t.clearData||{};
+  _cashRecvSlips=(cd.clrSlipUrls||(cd.clrSlipUrl?[cd.clrSlipUrl]:[])).slice();
+  var d=new Date(), p2=function(n){ return ("0"+n).slice(-2); };
+  var today=d.getFullYear()+"-"+p2(d.getMonth()+1)+"-"+p2(d.getDate());
+  var inp='width:100%;padding:9px 10px;border:2px solid #1565C0;border-radius:7px;font-size:14px;font-weight:600';
+  var html='<div id="cash-recv-bg" style="position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:99998;display:flex;align-items:center;justify-content:center;padding:12px" onclick="if(event.target===this)closeCashRecv()">'
+    +'<div style="background:#fff;border-radius:12px;max-width:420px;width:100%;padding:16px;max-height:92vh;overflow:auto" onclick="event.stopPropagation()">'
+    +  '<div style="font-size:16px;font-weight:800;color:#1565C0;margin-bottom:2px">💵 รับเงินจากคนรถ</div>'
+    +  '<div style="font-size:12px;color:#666;margin-bottom:12px">'+(t.driverName||t.lineDriver||"—")+(t.runNo?(" · "+t.runNo):"")+' · '+(t.route||"—")+' · ออก '+(t.departDate||"—")+'</div>'
+    +  '<div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:10px">'
+    +    '<div><div style="font-size:11px;color:#888;margin-bottom:3px">เงินสด (฿)</div><input id="cr-cash" type="number" style="'+inp+'" placeholder="0" value="'+(cd.clrCash!=null?cd.clrCash:"")+'"></div>'
+    +    '<div><div style="font-size:11px;color:#888;margin-bottom:3px">เงินโอน (฿)</div><input id="cr-trans" type="number" style="'+inp+'" placeholder="0" value="'+(cd.clrTrans!=null?cd.clrTrans:"")+'"></div>'
+    +  '</div>'
+    +  '<div style="margin-bottom:10px"><div style="font-size:11px;color:#888;margin-bottom:3px">วันที่รับเงินจริง <span style="color:#E67E22;font-weight:700">(วันที่คนรถเอาเงินมาส่ง)</span></div>'
+    +    '<input id="cr-date" type="date" style="'+inp.replace("#1565C0","#E67E22")+'" value="'+(cd.cashReceivedDate||today)+'"></div>'
+    +  '<div style="border:1px dashed #b7d4c9;border-radius:8px;padding:8px 10px;background:#f7fbf9;margin-bottom:12px">'
+    +    '<div style="font-size:11px;color:#888;margin-bottom:4px">สลิปโอน (สูงสุด 3 รูป)</div>'
+    +    '<input type="file" id="cr-file" accept="image/*" multiple style="display:none" onchange="uploadCashRecvSlip(this)">'
+    +    '<button type="button" id="cr-btn" class="btn btn-gray" style="font-size:11px;padding:5px 12px" onclick="document.getElementById(\'cr-file\').click()">📷 แนบสลิปโอน</button>'
+    +    '<span id="cr-status" style="font-size:11px;margin-left:8px;color:#888"></span>'
+    +    '<div id="cr-list" style="display:flex;gap:6px;flex-wrap:wrap;margin-top:6px"></div>'
+    +  '</div>'
+    +  '<div style="font-size:11px;color:#888;margin-bottom:10px">💡 ลงที่นี่ครั้งเดียวพอ — ไม่ต้องไปพิมพ์ซ้ำในสมุดรับ-จ่ายสิ้นวันอีก</div>'
+    +  '<div style="display:flex;gap:8px;justify-content:flex-end">'
+    +    '<button class="btn btn-gray" onclick="closeCashRecv()">ยกเลิก</button>'
+    +    '<button class="btn" style="background:#1565C0;color:#fff" onclick="saveCashRecv()">💾 บันทึกรับเงิน</button>'
+    +  '</div></div></div>';
+  var el=document.createElement("div"); el.innerHTML=html; document.body.appendChild(el.firstChild);
+  _renderCashRecvSlips();
+}
+function closeCashRecv(){ var e=document.getElementById("cash-recv-bg"); if(e&&e.parentNode) e.parentNode.removeChild(e); _cashRecvTripId=null; }
+function _renderCashRecvSlips(){
+  var st=document.getElementById("cr-status"), box=document.getElementById("cr-list"), btn=document.getElementById("cr-btn");
+  if(st){ st.textContent=_cashRecvSlips.length? ("\u2713 แนบแล้ว "+_cashRecvSlips.length+"/3 รูป") : "\u2014 ยังไม่แนบสลิป"; st.style.color=_cashRecvSlips.length?"#0F6E56":"#888"; }
+  if(btn){ var full=_cashRecvSlips.length>=3; btn.disabled=full; btn.style.opacity=full?".5":"1"; }
+  if(box) box.innerHTML=_cashRecvSlips.map(function(u,i){
+    return '<span style="display:inline-flex;align-items:center;gap:4px;border:1px solid #b7d4c9;border-radius:6px;padding:3px 6px;background:#fff">'
+      +'<a href="'+u+'" target="_blank" style="font-size:11px;color:#0F6E56;font-weight:700">สลิป '+(i+1)+'</a>'
+      +'<button type="button" onclick="_cashRecvSlips.splice('+i+',1);_renderCashRecvSlips()" style="border:none;background:none;color:#c0392b;cursor:pointer;padding:0 2px">\u2715</button></span>';
+  }).join("");
+}
+function uploadCashRecvSlip(inp){
+  var files=inp&&inp.files?Array.prototype.slice.call(inp.files):[]; inp.value="";
+  if(!files.length) return;
+  var st=document.getElementById("cr-status");
+  if(typeof GolodStorage==="undefined"||!GolodStorage.uploadFile){ if(st){st.textContent="\u274c อัปโหลดไม่ได้"; st.style.color="#c0392b";} return; }
+  var room=3-_cashRecvSlips.length; if(room<=0){ alert("แนบได้สูงสุด 3 รูป"); return; }
+  files=files.slice(0,room);
+  if(st){ st.textContent="\u23f3 กำลังอัปโหลด..."; st.style.color="#E67E22"; }
+  var done=0;
+  files.forEach(function(f,k){
+    GolodStorage.uploadFile("clear-trans-slip/"+(_cashRecvTripId||"t")+"_"+Date.now()+"_"+k, f)
+      .then(function(url){ _cashRecvSlips.push(url); })
+      .catch(function(e){ console.warn(e); })
+      .then(function(){ if(++done===files.length) _renderCashRecvSlips(); });
+  });
+}
+function saveCashRecv(){
+  var tripId=_cashRecvTripId;
+  var t=(_tripState.openTrips||[]).find(function(x){ return x.id===tripId; });
+  if(!t){ alert("ไม่พบเที่ยว"); return; }
+  var cash=parseFloat((document.getElementById("cr-cash")||{}).value||0)||0;
+  var trans=parseFloat((document.getElementById("cr-trans")||{}).value||0)||0;
+  var rdate=((document.getElementById("cr-date")||{}).value||"");
+  if(!rdate){ alert("กรุณาระบุวันที่รับเงินจริง"); return; }
+  if(cash===0 && trans===0 && !confirm("ยังไม่ได้ใส่จำนวนเงิน — บันทึกเป็น 0 ใช่ไหม?")) return;
+  var cd=Object.assign({}, t.clearData||{});
+  cd.clrCash=cash; cd.clrTrans=trans; cd.cashReceivedDate=rdate;
+  cd.clrSlipUrls=_cashRecvSlips.slice(); cd.clrSlipUrl=(_cashRecvSlips[0]||"");
+  cd.cashRecvBy=CU?(CU.name||CU.username):""; cd.cashRecvAt=new Date().toISOString();
+  t.clearData=cd;
+  if(!GolodDB.updateTrip){ alert("golod-firebase.js ยังไม่อัปเดต"); return; }
+  GolodDB.updateTrip(tripId, {clearData: cd}).then(function(){
+    invalidateTripsCache();
+    closeCashRecv();
+    alert("✅ บันทึกรับเงินจากคนรถแล้ว\nสด "+cash.toLocaleString()+" · โอน "+trans.toLocaleString()+" = "+(cash+trans).toLocaleString()+" ฿");
+    if(typeof renderTripTab==="function" && currentTab==="trip") renderTripTab();
+  }).catch(function(e){ alert("บันทึกไม่สำเร็จ: "+((e&&e.message)||e)); });
 }
 
 function canClearTrip(){

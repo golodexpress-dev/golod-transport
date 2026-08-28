@@ -8,7 +8,7 @@
 <style>*{box-sizing:border-box;margin:0;padding:0}body{font-family:Arial,sans-serif;background:#f5f5f2;min-height:100vh}@media print{.no-print{display:none!important}body{background:#fff;padding:0}}input{font-family:Arial,sans-serif}</style>
 </head><body>
 <div class="no-print" style="background:#0F6E56;padding:0 14px;display:flex;align-items:center;gap:10px;height:44px;position:sticky;top:0;z-index:200">
-  <span style="color:#fff;font-size:14px;font-weight:700;flex:1">📊 รายงานรับ-จ่ายสิ้นวัน <span style="font-size:9px;opacity:.55;font-weight:400">b0622u·guide</span></span>
+  <span style="color:#fff;font-size:14px;font-weight:700;flex:1">📊 รายงานรับ-จ่ายสิ้นวัน <span style="font-size:9px;opacity:.55;font-weight:400">b0622v·cashrecv</span></span>
   <a href="ThermalBill.html" style="font-size:11px;color:#9FE1CB;background:rgba(255,255,255,.15);padding:3px 10px;border-radius:20px;text-decoration:none">← ออกบิล</a>
   <a href="GolodApp.html" style="font-size:11px;color:#9FE1CB;background:rgba(255,255,255,.15);padding:3px 10px;border-radius:20px;text-decoration:none">🏠 หน้าหลัก</a>
 </div>
@@ -620,9 +620,13 @@ function DailyReport() {
   // มุมมองรวมทุกคน: หักล้างกันเอง → ไม่นับทั้งสองขา
   // เงินส่งให้เสมียนด้วยกัน = ย้ายมือกันเอง ไม่ใช่รายจ่ายของบริษัท
   // แต่กระทบเงินในมือคนจ่าย → มุมมองรายคนยังต้องหักออก / มุมมองรวมทุกคนหักล้างกันเอง
+  // เงินที่คนรถเอามาส่ง = เงินสดอยู่ในมือเสมียนจริง → ต้องเข้ายอดคงเหลือ
+  // (เดิมโชว์แค่ในกล่องแยก ไม่เข้าสูตร เสมียนจึงต้องพิมพ์ซ้ำในรายรับเพิ่มเติม)
+  // นับเฉพาะ "เงินสด" ส่วนที่โอนเข้าบัญชีบริษัทไม่ได้อยู่ในมือเสมียน
+  const clearCashIn = _clearTripsView.reduce((s, t) => s + clrCashOf(t), 0);
   const balance = (_effClerk === "all")
-    ? (cashOrigin + extraIncome - expenseExt)
-    : (cashOrigin + extraIncome + internalIn - expenseExt - internalOut);
+    ? (cashOrigin + extraIncome + clearCashIn - expenseExt)
+    : (cashOrigin + extraIncome + internalIn + clearCashIn - expenseExt - internalOut);
   const _touch = () => setBookDirty(true);
   const addIn  = () => { _touch(); setExtraIn(p => [...p, { desc: "", amt: "", kind: "ext" }]); };
   const updIn  = (i, k, v) => { _touch(); setExtraIn(p => p.map((e, idx) => idx === i ? { ...e, [k]: v } : e)); };
@@ -1351,7 +1355,8 @@ function DailyReport() {
       marginTop: 4
     }
   }, "เงินสดต้นทาง ", fmtN0(cashOrigin),
-     extraIncome ? (" + รับจาก ผจก. " + fmtN0(extraIncome)) : "",
+     extraIncome ? (" + รับเพิ่ม " + fmtN0(extraIncome)) : "",
+     clearCashIn ? (" + รับจากคนรถ " + fmtN0(clearCashIn)) : "",
      (_effClerk !== "all" && internalIn) ? (" + เบิกจากเสมียน " + fmtN0(internalIn)) : "",
      " − ค่าใช้จ่าย ", fmtN0(expenseExt),
      (_effClerk !== "all" && internalOut) ? (" − ส่งให้เสมียน " + fmtN0(internalOut)) : "",
