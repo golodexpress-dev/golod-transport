@@ -775,7 +775,7 @@ tr:hover td{background:#f8fffe}
 <div class="topbar">
   <span class="title">🚛 จัดการขนส่ง</span>
   <span id="session-info" style="font-size:11px;opacity:.8"></span>
-  <span style="font-size:10px;opacity:.65;margin-left:auto">build 2026-08-28a · cashrecv</span>
+  <span style="font-size:10px;opacity:.65;margin-left:auto">build 2026-08-28b · cashrecv</span>
   <a href="GolodApp.html" style="margin-left:10px">← หน้าหลัก</a>
 </div>
 <div class="container">
@@ -3371,6 +3371,7 @@ function saveCashRecv(){
   cd.clrCash=cash; cd.clrTrans=trans; cd.cashReceivedDate=rdate;
   cd.clrSlipUrls=_cashRecvSlips.slice(); cd.clrSlipUrl=(_cashRecvSlips[0]||"");
   cd.cashRecvBy=CU?(CU.name||CU.username):""; cd.cashRecvAt=new Date().toISOString();
+  cd.cashRecvClerk=(CU&&(CU.clerkCode||CU.code))||"";   // รหัสเสมียนผู้รับเงิน — ใช้แยกว่าเงินเข้ามือใคร
   t.clearData=cd;
   if(!GolodDB.updateTrip){ alert("golod-firebase.js ยังไม่อัปเดต"); return; }
   GolodDB.updateTrip(tripId, {clearData: cd}).then(function(){
