@@ -10,7 +10,7 @@
 <style>*{box-sizing:border-box;margin:0;padding:0}body{font-family:Arial,sans-serif;background:#f5f5f2;min-height:100vh}@media print{.no-print{display:none!important}body{background:#fff;padding:0}}input{font-family:Arial,sans-serif}</style>
 </head><body>
 <div class="no-print" style="background:#0F6E56;padding:0 14px;display:flex;align-items:center;gap:10px;height:44px;position:sticky;top:0;z-index:200">
-  <span style="color:#fff;font-size:14px;font-weight:700;flex:1">📊 รายงานรับ-จ่ายสิ้นวัน <span style="font-size:9px;opacity:.55;font-weight:400">b0622z·fix</span></span>
+  <span style="color:#fff;font-size:14px;font-weight:700;flex:1">📊 รายงานรับ-จ่ายสิ้นวัน <span style="font-size:9px;opacity:.55;font-weight:400">b0623b·csvcol</span></span>
   <a href="ThermalBill.html" style="font-size:11px;color:#9FE1CB;background:rgba(255,255,255,.15);padding:3px 10px;border-radius:20px;text-decoration:none">← ออกบิล</a>
   <a href="GolodApp.html" style="font-size:11px;color:#9FE1CB;background:rgba(255,255,255,.15);padding:3px 10px;border-radius:20px;text-decoration:none">🏠 หน้าหลัก</a>
 </div>
@@ -352,11 +352,23 @@ function DailyReport() {
   const _fetchBills = function(forDate, force){
     if (typeof GolodDB === "undefined") return Promise.resolve([]);
     if (!force && _billCache.current[forDate]) return Promise.resolve(_billCache.current[forDate]);
-    const p = GolodDB.getBillsDispatch
-      ? GolodDB.getBillsDispatch({ days: _daysBack(forDate) })
-      : (GolodDB.getBillsNew ? GolodDB.getBillsNew(4000) : Promise.resolve([]));
-    return p.then(function(bs){
-      bs = bs || [];
+    // ดึง 2 ทางแล้วรวมกัน กันบิลตกหล่น
+    //  - getBillsDispatch: จำกัดตามช่วงวัน ประหยัด แต่บางสถานะอาจไม่ถูกส่งกลับมา
+    //  - getBillsNew: บิลล่าสุดทุกสถานะ ใช้เป็นตาข่ายรองรับ
+    const _pDisp = GolodDB.getBillsDispatch
+      ? GolodDB.getBillsDispatch({ days: _daysBack(forDate) }).catch(function(){ return []; })
+      : Promise.resolve([]);
+    const _pNew = GolodDB.getBillsNew
+      ? GolodDB.getBillsNew(2000).catch(function(){ return []; })
+      : Promise.resolve([]);
+    return Promise.all([_pDisp, _pNew]).then(function(r){
+      const seen = {};
+      const bs = [];
+      (r[0] || []).concat(r[1] || []).forEach(function(b){
+        const k = b && (b.billNo || b.id);
+        if (!k || seen[k]) return;
+        seen[k] = 1; bs.push(b);
+      });
       _billCache.current[forDate] = bs;
       return bs;
     });
@@ -735,15 +747,45 @@ function DailyReport() {
     rows.push(["รายงานรับ-จ่ายสิ้นวัน", date, "เสมียน", who]);
     rows.push([]);
     rows.push(["== รายการบิล =="]);
-    rows.push(["เลขบิล","ผู้รับ","ปลายทาง","ประเภทชำระ","ค่าขนส่ง","COD","ลิงก์สลิปโอน"]);
-    dayBills.forEach(b => {
-      const f = (b.form && typeof b.form === "object") ? b.form : {};
-      rows.push([ b.billNo || f.billNo || "",
-        b.receiverName || f.receiverName || "",
-        (b.destAmphoe || f.destAmphoe || "") + " / " + (b.destProv || f.destProv || ""),
-        _PAY_TH[getBillGroup(b)] || getBillGroup(b),
-        parseFloat(b.freightNet || 0), parseFloat(b.codTotal || 0), (b.slip1 || f.slip1 || "") ]);
-    });
+    rows.push(["ลำดับ","เลขบิล","ผู้รับ/ของ","ชิ้น","อำเภอ","จังหวัด",
+               "ต้นทาง","ปลายทาง","โอน","เครดิต","COD","รวมค่าขนส่ง","รายจ่าย(รายการ)","รายจ่าย(บาท)","ลิงก์สลิปโอน"]);
+    const _expList = expenses.filter(e => e.desc || e.amt);
+    const _rowCount = Math.max(dayBills.length, _expList.length);
+    for (let i = 0; i < _rowCount; i++) {
+      const b = dayBills[i];
+      const ex = _expList[i];
+      let cells;
+      if (b) {
+        const f = (b.form && typeof b.form === "object") ? b.form : {};
+        const g = getBillGroup(b);
+        const net = parseFloat(b.freightNet || 0);
+        const pcs = (b.items && b.items.length)
+          ? b.items.reduce((s, it) => s + (parseInt(it.qty) || 1), 0) : "";
+        cells = [ i + 1, b.billNo || f.billNo || "",
+          b.receiverName || f.receiverName || "",
+          pcs,
+          b.destAmphoe || f.destAmphoe || "",
+          b.destProv || f.destProv || "",
+          g === "origin" ? net : "",
+          (g === "dest" || g === "dest_driver") ? net : "",
+          g === "transfer" ? net : "",
+          g === "credit" ? net : "",
+          parseFloat(b.codTotal || 0) || "",
+          net,
+          "", "", (b.slip1 || f.slip1 || "") ];
+      } else {
+        cells = ["","","","","","","","","","","","","","",""];
+      }
+      if (ex) {
+        cells[12] = (_isInt(ex) ? "[ไม่นับ] " : "") + (ex.desc || "");
+        cells[13] = parseFloat(ex.amt || 0);
+      }
+      rows.push(cells);
+    }
+    // แถวรวมท้ายตาราง — เหมือนใบพิมพ์
+    rows.push(["","","","","","รวม",
+      cashOrigin, sumCol("dest") + sumCol("dest_driver"), sumCol("transfer"), sumCol("credit"),
+      sumCOD, billIncome, "รวมจ่าย", totalExpense, ""]);
     rows.push([]);
     rows.push(["== รายรับเพิ่มเติม =="]);
     rows.push(["ประเภท","รายละเอียด","จำนวนเงิน","นับเป็นรายรับ","ลิงก์สลิป"]);
