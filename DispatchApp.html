@@ -775,7 +775,7 @@ tr:hover td{background:#f8fffe}
 <div class="topbar">
   <span class="title">🚛 จัดการขนส่ง</span>
   <span id="session-info" style="font-size:11px;opacity:.8"></span>
-  <span style="font-size:10px;opacity:.65;margin-left:auto">build 2026-08-28b · cashrecv</span>
+  <span style="font-size:10px;opacity:.65;margin-left:auto">build 2026-08-29a · cleardate</span>
   <a href="GolodApp.html" style="margin-left:10px">← หน้าหลัก</a>
 </div>
 <div class="container">
@@ -3315,7 +3315,7 @@ function openCashRecv(tripId){
     +    '<div><div style="font-size:11px;color:#888;margin-bottom:3px">เงินโอน (฿)</div><input id="cr-trans" type="number" style="'+inp+'" placeholder="0" value="'+(cd.clrTrans!=null?cd.clrTrans:"")+'"></div>'
     +  '</div>'
     +  '<div style="margin-bottom:10px"><div style="font-size:11px;color:#888;margin-bottom:3px">วันที่รับเงินจริง <span style="color:#E67E22;font-weight:700">(วันที่คนรถเอาเงินมาส่ง)</span></div>'
-    +    '<input id="cr-date" type="date" style="'+inp.replace("#1565C0","#E67E22")+'" value="'+(cd.cashReceivedDate||today)+'"></div>'
+    +    '<input id="cr-date" type="date" style="'+inp.replace("#1565C0","#E67E22")+'" value="'+(cd.cashReceivedDate||(cd.clearedAt?String(cd.clearedAt).slice(0,10):today))+'"></div>'
     +  '<div style="border:1px dashed #b7d4c9;border-radius:8px;padding:8px 10px;background:#f7fbf9;margin-bottom:12px">'
     +    '<div style="font-size:11px;color:#888;margin-bottom:4px">สลิปโอน (สูงสุด 3 รูป)</div>'
     +    '<input type="file" id="cr-file" accept="image/*" multiple style="display:none" onchange="uploadCashRecvSlip(this)">'
@@ -7966,8 +7966,11 @@ function openClearTrip(tripId){
   (function(){
     var el=document.getElementById("ct-clr-recvdate"); if(!el) return;
     if(_cd.cashReceivedDate){ el.value=_cd.cashReceivedDate; return; }
+    // เที่ยวที่เคยเคลียร์ไว้แล้ว → ใช้วันที่เคลียร์เดิม (ไม่ใช่วันนี้)
+    // เที่ยวใหม่ที่ยังไม่เคยเคลียร์ → ค่าเริ่มต้นเป็นวันนี้
+    if(_cd.clearedAt){ el.value=String(_cd.clearedAt).slice(0,10); return; }
     var d=new Date(), p=function(n){ return ("0"+n).slice(-2); };
-    el.value = d.getFullYear()+"-"+p(d.getMonth()+1)+"-"+p(d.getDate());   // ค่าเริ่มต้น = วันนี้ แก้ย้อนหลังได้
+    el.value = d.getFullYear()+"-"+p(d.getMonth()+1)+"-"+p(d.getDate());
   })();
   _setClearTransSlips(_cd.clrSlipUrls || (_cd.clrSlipUrl ? [_cd.clrSlipUrl] : []));
 
@@ -8237,7 +8240,12 @@ function saveClearTrip(){
     clrSlipUrls: _clearTransSlips.slice(),
     clrSlipUrl: (_clearTransSlips[0]||""),   // คงไว้ให้โค้ด/ข้อมูลเก่าที่อ่านฟิลด์เดี่ยวยังใช้ได้
     destXfer: destTransferSum(), xferVer: 2,
-    diff: netPay, clearedAt: new Date().toISOString(),
+    // clearedAt = เวลาเคลียร์ "ครั้งแรก" เท่านั้น — เดิมเขียนทับทุกครั้งที่กดบันทึก
+    // ทำให้เที่ยวเก่าที่แอดมินเปิดมาตรวจ ถูกดันไปนับเป็นเงินรับของวันที่แก้
+    diff: netPay,
+    clearedAt: ((trip.clearData && trip.clearData.clearedAt) || new Date().toISOString()),
+    lastEditedAt: new Date().toISOString(),
+    lastEditedBy: (CU ? CU.username : ""),
     clearedBy: CU ? CU.username : ""
   };
 
