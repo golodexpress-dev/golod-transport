@@ -344,6 +344,8 @@ tr:hover td{background:#f8fffe}
           <input id="ct-fuel-real" readonly style="width:100%;padding:7px 10px;border:1px solid #ffe082;border-radius:7px;font-size:12px;background:#fff8e1;font-weight:700;color:#b7950b">
         </div>
       </div>
+      <!-- เทียบน้ำมันตามบิล กับ ที่ควรใช้ตามระยะทาง — ดูอย่างเดียว ไม่กระทบเงินเกิน/ขาด -->
+      <div id="ct-fuel-audit" style="display:none;margin-top:8px;border-radius:7px;padding:7px 10px;font-size:11px;line-height:1.6"></div>
     </div>
 
     <!-- เงินรับ -->
@@ -775,7 +777,7 @@ tr:hover td{background:#f8fffe}
 <div class="topbar">
   <span class="title">🚛 จัดการขนส่ง</span>
   <span id="session-info" style="font-size:11px;opacity:.8"></span>
-  <span style="font-size:10px;opacity:.65;margin-left:auto">build 2026-08-29a · cleardate</span>
+  <span style="font-size:10px;opacity:.65;margin-left:auto">build 2026-08-29d · fuelnote-opt</span>
   <a href="GolodApp.html" style="margin-left:10px">← หน้าหลัก</a>
 </div>
 <div class="container">
@@ -4960,6 +4962,25 @@ function renderMonthlyView(drivers, allTrips, selMonth, selDriver, dateFrom, dat
         fuelAdvSum: fuelAdvSum, storeAdvSum: storeAdvSum, netIncome: netIncome,
         insCarry: insCarry, insCarryOut: insCarryOut,
         distTotal: distTotal, fuelAdvOwn: fuelAdvOwn, fuelRealSum: tot.fuel,
+        fuelAudit: (function(){
+          // เทียบน้ำมันตามบิล vs ที่ควรใช้ตามระยะทาง — เฉพาะรถบริษัทที่มีข้อมูลครบ
+          var a={dist:0, bill:0, calc:0, n:0, worst:null};
+          dTrips.forEach(function(t){
+            var cd=t.clearData||{};
+            var isCo = (!!t.vehicleType && t.vehicleType.indexOf("ร่วม")===-1);
+            var dist = parseFloat(cd.distReal||0)||0;
+            var rate = parseFloat(cd.fuelRate||t.fuelRate||0)||0;
+            var eff  = (parseFloat(cd.fuelPrice||t.fuelPrice||0)||0)+(parseFloat(t.fuelPriceAddon||0)||0);
+            var bill = parseFloat(cd.fuelReal||0)||0;
+            if(!isCo || !dist || !rate || !eff || !bill) return;
+            var calc = Math.round((dist/rate)*eff);
+            a.dist+=dist; a.bill+=bill; a.calc+=calc; a.n++;
+            var d=bill-calc;
+            if(!a.worst || Math.abs(d)>Math.abs(a.worst.diff))
+              a.worst={date:(t.departDate||"").slice(5), route:(t.route||"—"), diff:d, calc:calc, bill:bill};
+          });
+          return a;
+        })(),
         fareSum: tot.fare, hotelSum: tot.hotel, laborSum: tot.labor, codSum: tot.cod, destSum: tot.dest,
         mustPSum: tot.mustPay, clrCashSum: tot.clrCash, clrTransSum: tot.clrTrans, billSum: (tot.billCount||0),
         behav: (function(){
@@ -5079,7 +5100,8 @@ function renderMonthlyView(drivers, allTrips, selMonth, selDriver, dateFrom, dat
       +((dData.variants&&dData.variants.length)
         ? '<div style="font-size:10px;color:#999;margin-top:2px">รวมชื่อ: '+dData.variants.join(" · ")+'</div>' : '')
       +'</div>'
-      +'<div style="display:flex;align-items:center;gap:8px">'+'<div style="font-size:11px;color:#888">'+dTrips.length+' เที่ยว</div>'+(isAdmin?('<button class="btn btn-gray" data-u="'+String(dData.uname||"").replace(/"/g,"&quot;")+'" style="padding:4px 10px;font-size:11px" onclick="printMonthlySummary(this.dataset.u)">🖨 พิมพ์สรุป</button>'):'')+'</div>'
+      +'<div style="display:flex;align-items:center;gap:8px">'+'<div style="font-size:11px;color:#888">'+dTrips.length+' เที่ยว</div>'+(isAdmin?('<button class="btn btn-gray" data-u="'+String(dData.uname||"").replace(/"/g,"&quot;")+'" style="padding:4px 10px;font-size:11px" onclick="printMonthlySummary(this.dataset.u)">🖨 พิมพ์สรุป</button>'
+        +'<button class="btn btn-gray" data-u="'+String(dData.uname||"").replace(/"/g,"&quot;")+'" style="padding:4px 10px;font-size:11px" title="แนบหมายเหตุการใช้น้ำมันไปในใบด้วย — ใช้เมื่อต้องการแจ้งคนรถ" onclick="printMonthlySummary(this.dataset.u, true)">🖨 + หมายเหตุน้ำมัน</button>'):'')+'</div>'
       +'</div>'
       +'<div style="overflow-x:auto"><table style="width:100%;border-collapse:collapse;font-size:11px">'
       +'<tr style="background:#0F6E56;color:#fff">'+hCols+'</tr>'
@@ -7444,7 +7466,8 @@ function printBranchHandover(bills, branchLabel){
   body+='<div style="text-align:right;margin-top:10px;font-size:14px;border-top:2px solid #0F6E56;padding-top:6px"><b>รวมทั้งหมด '+grand+' บิล &middot; ค่าส่งรวม '+_settleFmt(gf)+' บาท</b></div>';
   _printDoc("ใบส่งของถึงสาขา "+(branchLabel||"")+" "+dstr, body);
 }
-function printMonthlySummary(uname){
+function printMonthlySummary(uname, showFuelNote){
+  var _showFuelNote = !!showFuelNote;
   var d = (window._monthlyPrintCache||{})[uname];
   if(!d){ alert("ไม่พบข้อมูลสรุป — กรุณาเปิดหน้าสรุปเดือนก่อน"); return; }
   var fmt = function(n){ return (Math.round(n)||0).toLocaleString("th-TH"); };
@@ -7487,6 +7510,25 @@ function printMonthlySummary(uname){
     +'<td class="c"'+((d.behav&&d.behav.failN)?' style="color:#c0392b;font-weight:700"':'')+'>'+((d.behav&&d.behav.failN)?(d.behav.failN+(d.behav.failAmt?(" · "+fmt(d.behav.failAmt)):"")):"-")+'</td>'
     +'<td class="c"'+((d.behav&&d.behav.xferNoSlip)?' style="color:#c0392b;font-weight:700"':'')+'>'+((d.behav&&d.behav.xferN)?(d.behav.xferN+(d.behav.xferAmt?(" · "+fmt(d.behav.xferAmt)):"")+(d.behav.xferNoSlip?(" ⚠"+d.behav.xferNoSlip):"")):"-")+'</td>'
     +'<td class="c">'+((d.behav&&(d.behav.addN||d.behav.delN))?((d.behav.addN||0)+"/"+(d.behav.delN||0)):"-")+'</td></tr>';
+  /* หมายเหตุท้ายใบ: สรุปการใช้น้ำมันของเดือนนี้ — ไว้ให้แอดมินดูพฤติกรรม ไม่กระทบเงิน */
+  function _fuelNote(d, show){
+    var a = d && d.fuelAudit;
+    if(!a || !a.n || !a.calc) return "";
+    if(!show) return "";
+    var diff = a.bill - a.calc;
+    var pct  = Math.round(diff*1000/a.calc)/10;
+    var tone = Math.abs(pct)<=10 ? "#0F6E56" : (diff>0 ? "#c0392b" : "#E67E22");
+    var word = Math.abs(pct)<=10 ? "อยู่ในเกณฑ์" : (diff>0 ? "เติมเกินเกณฑ์" : "เติมต่ำกว่าเกณฑ์");
+    var w = a.worst;
+    return '<div style="margin-top:10px;border-top:1px dashed #ccc;padding-top:7px;font-size:10.5px;line-height:1.65;color:#555">'
+      + '<b style="color:#333">หมายเหตุ — การใช้น้ำมัน (รถบริษัท '+a.n+' เที่ยว)</b><br>'
+      + 'ระยะทางรวม '+fmt(a.dist)+' กม. · ตามเกณฑ์ควรใช้ '+fmt(a.calc)+' ฿ · เติมจริงตามบิล '+fmt(a.bill)+' ฿<br>'
+      + '<b style="color:'+tone+'">ส่วนต่าง '+(diff>0?"+":"")+fmt(diff)+' ฿ ('+(pct>0?"+":"")+pct+'%) — '+word+'</b>'
+      + (w ? '<br>เที่ยวที่ต่างมากสุด: '+w.date+' '+w.route+' — เกณฑ์ '+fmt(w.calc)+' ฿ / เติม '+fmt(w.bill)+' ฿ ('+(w.diff>0?"+":"")+fmt(w.diff)+' ฿)' : '')
+      + '<br><span style="opacity:.7">* ตัวเลขนี้ใช้ดูพฤติกรรมการใช้น้ำมันเท่านั้น ไม่ถูกนำไปคิดเงินเกิน/ขาดของคนขับ</span>'
+      + '</div>';
+  }
+
   // แถวสรุปแบบจัดคอลัมน์: หัวข้อ (กว้างคงที่ ~20 ตัวอักษร) + ตัวเลข (ชิดขวา ตำแหน่งตรงกันทุกบรรทัด)
   var sl = function(label, value, neg){
     return '<div class="sl"><span class="sl-lbl">'+label+'</span><b>'+(neg?"−":"")+fmt(value)+' ฿</b></div>';
@@ -7554,7 +7596,7 @@ function printMonthlySummary(uname){
     +'<div class="sub">สรุปรายได้คนขับ &mdash; '+d.name+' &nbsp;&middot;&nbsp; งวด '+periodTxt+' &nbsp;&middot;&nbsp; '+d.tripCount+' เที่ยว</div>'
     +'<table style="font-size:11px"><thead><tr><th>#</th><th>วันที่</th><th>เส้นทาง</th><th class="r">ระยะทาง(กม.)</th><th class="r">เบิกน้ำมัน</th><th class="r">ค่าน้ำมัน</th><th class="r">ค่าเที่ยว</th><th class="r">ค่าโรงแรม</th><th class="r">แรงแบกตร.</th><th class="c">บิล</th><th class="r">COD</th><th class="r">ค่าส่งปลายทาง</th><th class="r">ต้องเคลียร์</th><th class="r">เคลียร์สด</th><th class="r">เคลียร์โอน</th><th class="r">ค้าง(+)/จ่าย(&minus;)</th><th class="r">เบิกเกิน</th><th class="c">ส่งไม่ได้</th><th class="c">→โอน</th><th class="c">เพิ่ม/ถอด</th></tr></thead><tbody>'+rows+totalRow+'</tbody></table>'
     +'<div class="sum">'
-      +  '<div class="sum-left">'+sumLines+'<div class="manual">'+manualLines+'</div></div>'
+      +  '<div class="sum-left">'+sumLines+'<div class="manual">'+manualLines+'</div>'+_fuelNote(d, _showFuelNote)+'</div>'
       +  '<div class="sum-right"><div class="net"><span class="lbl">รายได้สุทธิ</span>'
       +     '<span id="pm-net-value">'+fmt(d.netIncome)+' ฿</span></div></div>'
       +'</div>'
@@ -8104,6 +8146,33 @@ function calcClearTrip(){
       fe.value = fuelReal > 0 ? fuelReal.toLocaleString("th-TH")+" ฿" : "—";
     }
   }
+
+  /* ===== เทียบการใช้น้ำมัน (ไว้ให้แอดมินตรวจพฤติกรรม — ไม่เข้าสูตรเงิน) =====
+     ตามระยะทาง = (ไมล์จบ − ไมล์เริ่ม) ÷ เรท × ราคารวม   |   ตามบิล = ยอดที่เสมียนกรอก
+     ส่วนต่างแสดงให้ดูอย่างเดียว ไม่ถูกนำไปคิดเงินเกิน/ขาดของคนขับ            */
+  (function(){
+    var box = document.getElementById("ct-fuel-audit"); if(!box) return;
+    var calc = fuelRate > 0 ? Math.round((distReal/fuelRate)*fuelEff) : 0;
+    var bill = fuelReal;
+    if(!isCompanyTruck || !calc || !distReal){ box.style.display="none"; return; }
+    var diff = bill - calc;
+    var pct  = calc ? Math.round(diff*1000/calc)/10 : 0;
+    var litCalc = fuelEff>0 ? Math.round(calc/fuelEff*10)/10 : 0;
+    var litBill = fuelEff>0 ? Math.round(bill/fuelEff*10)/10 : 0;
+    var kmpl    = litBill>0 ? Math.round(distReal/litBill*10)/10 : 0;
+    var tone,bg,bd,txt;
+    if(Math.abs(pct) <= 10){ tone="#0F6E56"; bg="#eaf6f1"; bd="#a9d6c5"; txt="อยู่ในเกณฑ์ปกติ"; }
+    else if(diff > 0){       tone="#c0392b"; bg="#fdecea"; bd="#f5b7b1"; txt="เติมมากกว่าที่ควรใช้"; }
+    else {                   tone="#E67E22"; bg="#fff8ee"; bd="#f3ddb8"; txt="เติมน้อยกว่าที่ควรใช้"; }
+    box.style.display="block";
+    box.style.background=bg; box.style.border="1px solid "+bd; box.style.color=tone;
+    box.innerHTML =
+        '<b>🔍 เทียบการใช้น้ำมัน</b> <span style="opacity:.7;font-weight:400">(ดูอย่างเดียว ไม่คิดเป็นเงินเกิน/ขาด)</span><br>'
+      + 'ตามระยะทาง '+_clrFmt(distReal)+' กม. ÷ '+fuelRate+' กม./ล. × '+fuelEff+' ฿ = <b>'+_clrFmt(calc)+' ฿</b> ('+litCalc+' ล.)<br>'
+      + 'ตามบิลที่เติม = <b>'+_clrFmt(bill)+' ฿</b>'+(litBill?' ('+litBill+' ล.)':'')+'<br>'
+      + '<b>ส่วนต่าง '+(diff>0?"+":"")+_clrFmt(diff)+' ฿ ('+(pct>0?"+":"")+pct+'%) — '+txt+'</b>'
+      + (kmpl? '<br>สิ้นเปลืองจริงที่ทำได้ '+kmpl+' กม./ลิตร (เกณฑ์ '+fuelRate+')' : '');
+  })();
 
   // ===== สูตรตามใบจ่ายงานจริง =====
   var destAmt   = parseFloat(trip._liveDest!=null?trip._liveDest:(s.destTotal||0));
