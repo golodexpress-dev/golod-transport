@@ -777,7 +777,7 @@ tr:hover td{background:#f8fffe}
 <div class="topbar">
   <span class="title">🚛 จัดการขนส่ง</span>
   <span id="session-info" style="font-size:11px;opacity:.8"></span>
-  <span style="font-size:10px;opacity:.65;margin-left:auto">build 2026-08-29d · fuelnote-opt</span>
+  <span style="font-size:10px;opacity:.65;margin-left:auto">build 2026-08-29e · editaudit</span>
   <a href="GolodApp.html" style="margin-left:10px">← หน้าหลัก</a>
 </div>
 <div class="container">
@@ -5545,7 +5545,7 @@ function setBillLogTab(v){ billLogFilter=v; renderBillLogBody(); }
 
 function renderBillLogTab(){
   var app=document.getElementById("app");
-  if(["delete","paychange","other"].indexOf(billLogFilter)<0) billLogFilter="delete";
+  if(["delete","paychange","other","mismatch"].indexOf(billLogFilter)<0) billLogFilter="delete";
   app.innerHTML='<div class="card"><div class="card-title">📜 ประวัติแก้ไข / ลบบิล</div>'
     +'<div id="billlog-tabs" style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:10px"></div>'
     +'<div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:12px;align-items:center">'
@@ -5597,9 +5597,9 @@ function renderBillLogBody(){
   var logs=_blLogs||[];
 
   // แถบแท็บย่อย + จำนวนในแต่ละกลุ่ม
-  var defs=[{k:"delete",l:"🗑️ บิลที่ถูกลบ"},{k:"paychange",l:"🔁 ต้นทาง → โอน/ปลายทาง"},{k:"other",l:"✏️ กรณีอื่นๆ"}];
-  var counts={delete:0,paychange:0,other:0};
-  logs.forEach(function(L){ counts[_blGroup(L)]++; });
+  var defs=[{k:"delete",l:"🗑️ บิลที่ถูกลบ"},{k:"paychange",l:"🔁 ต้นทาง → โอน/ปลายทาง"},{k:"other",l:"✏️ กรณีอื่นๆ"},{k:"mismatch",l:"⚠ แก้ไม่ตรงที่ขอ"}];
+  var counts={delete:0,paychange:0,other:0,mismatch:0};
+  logs.forEach(function(L){ counts[_blGroup(L)]++; if(L.mismatch) counts.mismatch++; });
   var tabsEl=document.getElementById("billlog-tabs");
   if(tabsEl){
     tabsEl.innerHTML=defs.map(function(t){
@@ -5613,6 +5613,7 @@ function renderBillLogBody(){
   var q=((document.getElementById("bl-search")||{}).value||"").trim().toLowerCase();
   // มีคำค้น = ค้นข้ามทุกแท็บ (เดิมค้นเฉพาะแท็บที่เปิดอยู่ ทำให้หาบิลไม่เจอทั้งที่มีอยู่)
   var rows=logs.filter(function(L){
+    if(!q && billLogFilter==="mismatch") return !!L.mismatch;
     if(!q) return _blGroup(L)===billLogFilter;
     var hay=((L.billNo||"")+" "+(L.editedBy||"")+" "+JSON.stringify(L.deletedBill||L.changes||"")).toLowerCase();
     return hay.indexOf(q)>=0;
@@ -5636,6 +5637,15 @@ function renderBillLogBody(){
     var icon=isDel?"🗑️ ลบ ":(isPay?"🔁 เปลี่ยนการชำระ ":"✏️ แก้ไข ");
     var head='<div style="display:flex;justify-content:space-between;gap:8px"><b style="color:'+tone+'">'+icon+(L.billNo||"")+'</b><span style="color:#999;font-size:11px">'+when+'</span></div>';
     var who='<div style="font-size:11px;color:#888">โดย '+(L.editedBy||"-")+(L.editorCode?(" ("+L.editorCode+")"):"")+'</div>';
+    if(L.askedTopic || L.askedDetail){
+      who += '<div style="font-size:11px;color:#B8860B;margin-top:3px;background:#fffaf0;border:1px solid #f3ddb8;border-radius:5px;padding:3px 7px">'
+           + '📌 ขออนุมัติไว้: <b>'+(L.askedTopic||"—")+'</b>'
+           + (L.askedDetail?('<br><span style="color:#777">'+L.askedDetail+'</span>'):'')
+           + (L.mismatch
+              ? '<br><b style="color:#c0392b">⚠ แก้ไม่ตรงกับที่ขอ — ฟิลด์นอกเหนือ: '+(L.mismatchFields||[]).join(", ")+'</b>'
+              : '<br><span style="color:#0F6E56">✓ แก้ตรงกับที่ขอ</span>')
+           + '</div>';
+    }
     var body="";
     if(isDel){
       var d=L.deletedBill||{}; var parts=[];

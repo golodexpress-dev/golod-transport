@@ -2729,14 +2729,16 @@ const EDIT_WINDOW_MS = 3 * 60 * 60 * 1000; // 3 ชั่วโมง
 function syncEditWindowsFromCloud(){
   var db; try{ db=firebase.firestore(); }catch(e){ return; }
   db.collection("editRequests").where("status","==","approved").get().then(function(snap){
-    var win={}; var now=Date.now();
+    var win={}; var ask={}; var now=Date.now();
     snap.forEach(function(d){
       var r=d.data();
       if(r.approvedUntil && new Date(r.approvedUntil).getTime()>now){
         win[r.billNo]=new Date(r.approvedUntil).getTime();
+        ask[r.billNo]={ id:d.id, topic:r.topic||"", detail:r.detail||"", by:r.requestedBy||"" };
       }
     });
     try{ localStorage.setItem("golod_edit_windows", JSON.stringify(win)); }catch(e){}
+    try{ localStorage.setItem("golod_edit_asked", JSON.stringify(ask)); }catch(e){}
   }).catch(function(){});
 }
 
@@ -2784,7 +2786,10 @@ function EditRequestsPanel({ isAdmin, staffName }) {
         React.createElement("div",{style:{fontSize:12}},
           React.createElement("b",{style:{color:"#0F6E56"}},r.billNo),
           React.createElement("span",{style:{color:"#888",marginLeft:8}},"โดย "+(r.requestedBy||r.requesterCode||"-")+(r.branch?(" · "+r.branch):"")),
-          r.requestedAt?React.createElement("span",{style:{color:"#aaa",marginLeft:8,fontSize:10}}, new Date(r.requestedAt).toLocaleString("th-TH")):null
+          r.requestedAt?React.createElement("span",{style:{color:"#aaa",marginLeft:8,fontSize:10}}, new Date(r.requestedAt).toLocaleString("th-TH")):null,
+          r.topic?React.createElement("div",{style:{marginTop:3,fontSize:12,fontWeight:700,color:"#B8860B"}},"📌 "+r.topic):null,
+          r.detail?React.createElement("div",{style:{marginTop:1,fontSize:11,color:"#555"}},r.detail):null,
+          (!r.topic&&!r.detail)?React.createElement("div",{style:{marginTop:3,fontSize:11,color:"#c0392b"}},"⚠ คำขอเก่า — ไม่ได้ระบุว่าจะแก้เรื่องอะไร"):null
         ),
         React.createElement("div",{style:{display:"flex",gap:6}},
           React.createElement("button",{onClick:()=>approve(r),style:{background:"#0F6E56",color:"#fff",border:"none",borderRadius:6,padding:"4px 12px",fontSize:12,cursor:"pointer",fontWeight:600}},"✓ อนุมัติ"),
@@ -2864,6 +2869,36 @@ function saveEditLog(billNo, oldData, newData, editor) {
       to: newData[k]
     }))
   };
+
+  /* ---- เทียบ "ที่ขอไว้" กับ "ที่แก้จริง" ----
+     ถ้าบิลนี้แก้ได้เพราะแอดมินอนุมัติคำขอ ให้แนบเรื่องที่ขอไว้ลงใน log
+     และติดธง mismatch ถ้าฟิลด์ที่แก้จริงไม่ตรงกับหัวข้อที่ขอ                */
+  try {
+    var _asked = JSON.parse(localStorage.getItem("golod_edit_asked") || "{}")[billNo];
+    if (_asked) {
+      entry.askedTopic  = _asked.topic || "";
+      entry.askedDetail = _asked.detail || "";
+      entry.askedBy     = _asked.by || "";
+      // ฟิลด์ที่คาดว่าจะถูกแก้ ตามหัวข้อที่ขอ
+      var MAP = {
+        "เปลี่ยนประเภทชำระ": ["freightPay","freightNet","summary"],
+        "แก้ค่าขนส่ง":       ["freightNet","freightOnly","discount","summary","items"],
+        "แก้ยอด COD":        ["codTotal","hasCOD","summary","items"],
+        "แก้ชื่อ":           ["receiverName","receiverPhone","receiverAddr","senderName","senderPhone","senderAddr"],
+        "แก้รายการสินค้า":   ["items","summary","freightNet"],
+        "แก้ปลายทาง":        ["destProv","destAmphoe","receiverTambon","receiverZip","receiverAddr"]
+      };
+      var _exp = null;
+      Object.keys(MAP).forEach(function(k){ if(!_exp && entry.askedTopic.indexOf(k)===0) _exp = MAP[k]; });
+      if (_exp && entry.changes.length) {
+        var _off = entry.changes.filter(function(c){ return _exp.indexOf(c.field) < 0; }).map(function(c){ return c.field; });
+        if (_off.length) {
+          entry.mismatch = true;
+          entry.mismatchFields = _off;
+        }
+      }
+    }
+  } catch (e) {}
   // 1) เก็บ local (ใช้งานออฟไลน์/สำรอง)
   try {
     const logs = JSON.parse(localStorage.getItem("golod_edit_logs") || "[]");
@@ -2877,10 +2912,29 @@ function saveEditLog(billNo, oldData, newData, editor) {
     }
   } catch (e) {}
 }
+var EDIT_REQ_TOPICS = [
+  "เปลี่ยนประเภทชำระ (ต้นทาง → โอน/ปลายทาง)",
+  "แก้ค่าขนส่ง / ส่วนลด",
+  "แก้ยอด COD",
+  "แก้ชื่อ/ที่อยู่/เบอร์ ผู้รับ",
+  "แก้ชื่อผู้ส่ง",
+  "แก้รายการสินค้า / ขนาด / น้ำหนัก",
+  "แก้ปลายทาง (อำเภอ/จังหวัด)",
+  "อื่นๆ"
+];
 function requestAdminEdit(billNo) {
   const session = JSON.parse(localStorage.getItem("golod_session") || "{}");
   var db; try { db = firebase.firestore(); } catch(e){}
   if(!db){ alert("เชื่อมต่อฐานข้อมูลไม่ได้ ลองรีเฟรช"); return false; }
+
+  // ถามว่าจะแก้เรื่องอะไร — เดิมส่งไปเปล่าๆ แอดมินกดอนุมัติโดยไม่รู้ว่าเรื่องอะไร
+  var _menu = EDIT_REQ_TOPICS.map(function(t,i){ return (i+1)+". "+t; }).join("\n");
+  var _pick = prompt("ขอแก้ไขบิล "+billNo+"\n\nจะแก้เรื่องอะไร? พิมพ์เลข 1-"+EDIT_REQ_TOPICS.length+"\n\n"+_menu, "1");
+  if(_pick===null) return false;
+  var _idx = parseInt(_pick,10);
+  var _topic = (_idx>=1 && _idx<=EDIT_REQ_TOPICS.length) ? EDIT_REQ_TOPICS[_idx-1] : ("อื่นๆ: "+_pick);
+  var _detail = prompt("รายละเอียด — แก้จากอะไรเป็นอะไร\n(เช่น: ต้นทาง 500 → โอน 500 ลูกค้าโอนแล้ว 14:20)", "");
+  if(_detail===null) return false;
 
   // กันส่งซ้ำ: เช็คคำขอ pending ของบิลนี้ใน Firestore ก่อน
   db.collection("editRequests").where("billNo","==",billNo).where("status","==","pending").limit(1).get()
@@ -2892,6 +2946,8 @@ function requestAdminEdit(billNo) {
         requestedBy: session.name || session.username || "",
         requesterCode: session.clerkCode || "",
         branch: (typeof getSessionBranch==="function"?getSessionBranch():"") || "",
+        topic: _topic,
+        detail: _detail,
         status: "pending"
       }).then(function(){
         alert("✅ ส่งคำขอแก้ไขบิล "+billNo+" ถึง Admin แล้ว\nรอ Admin อนุมัติในหน้า 'คำขอแก้ไขบิล'");
