@@ -777,7 +777,7 @@ tr:hover td{background:#f8fffe}
 <div class="topbar">
   <span class="title">🚛 จัดการขนส่ง</span>
   <span id="session-info" style="font-size:11px;opacity:.8"></span>
-  <span style="font-size:10px;opacity:.65;margin-left:auto">build 2026-09-04b · insurcycle</span>
+  <span style="font-size:10px;opacity:.65;margin-left:auto">build 2026-09-04c · otherexp</span>
   <a href="GolodApp.html" style="margin-left:10px">← หน้าหลัก</a>
 </div>
 <div class="container">
@@ -4959,7 +4959,10 @@ function renderMonthlyView(drivers, allTrips, selMonth, selDriver, dateFrom, dat
       }).reduce(function(a,e){ return a+parseFloat(e.fuelAdvance||0); },0);
       fuelAdvSum += branchFuelAdv;
       var storeAdvSum = dTrips.reduce(function(a,t){ return a+parseFloat(t.drawCash||0); },0);   // เบิกหน้าร้าน = ฟิลด์เดิม "เบิกเงินหน้าร้าน" (t.drawCash)
-      var netIncome   = incomeTotal - tot.diff - fineTotal - insDeduct - storeAdvSum;   // เบิกน้ำมันรวมอยู่ใน "พขร.ค้าง" รายเที่ยวแล้ว — ไม่หักซ้ำ
+      // ค่าใช้จ่ายอื่น (เช่น ประกันสังคมคนรถบริษัท) — กรอกที่หน้าแก้ไขเที่ยว หักจากรายได้ค่าเที่ยว
+      // เดิมบันทึกไว้แต่ไม่มีใครอ่าน จึงไม่เคยขึ้นในสรุปสิ้นเดือน
+      var otherExpSum = dTrips.reduce(function(a,t){ return a+(parseFloat(t.otherExpense||0)||0); },0);
+      var netIncome   = incomeTotal - tot.diff - fineTotal - insDeduct - storeAdvSum - otherExpSum;   // เบิกน้ำมันรวมอยู่ใน "พขร.ค้าง" รายเที่ยวแล้ว — ไม่หักซ้ำ
       var distTotal = dTrips.reduce(function(a,t){ return a+parseFloat((t.clearData&&t.clearData.distReal)||0); },0);
       var fuelAdvOwn = dTrips.reduce(function(a,t){ return a+parseFloat(t.fuelAdvance||0); },0);
       window._monthlyPrintCache = window._monthlyPrintCache || {};
@@ -4967,7 +4970,7 @@ function renderMonthlyView(drivers, allTrips, selMonth, selDriver, dateFrom, dat
         name: dData.name, month: (selMonth||""), dateFrom: (dateFrom||""), dateTo: (dateTo||""),
         tripCount: dTrips.length, fareTotal: tot.fareTotal, bonus: bonus, workFee: tot.workFee,
         pkComm: (tot.pkComm||0), diff: tot.diff, fine: fineTotal, insDeduct: insDeduct, insDraw: insDraw,
-        fuelAdvSum: fuelAdvSum, storeAdvSum: storeAdvSum, netIncome: netIncome,
+        fuelAdvSum: fuelAdvSum, storeAdvSum: storeAdvSum, otherExpSum: otherExpSum, netIncome: netIncome,
         insCarry: insCarry, insCarryOut: insCarryOut,
         distTotal: distTotal, fuelAdvOwn: fuelAdvOwn, fuelRealSum: tot.fuel,
         fuelAudit: (function(){
@@ -5086,6 +5089,7 @@ function renderMonthlyView(drivers, allTrips, selMonth, selDriver, dateFrom, dat
         +'<div><div style="font-size:9px;opacity:.8">เบิกประกัน(เดือน)</div><div style="font-weight:800">'+fmt(insDraw)+'</div></div>'
         +'<div style="opacity:.5">−</div>'
         +'<div><div style="font-size:9px;opacity:.8">เบิกหน้าร้าน(เดือน)</div><div style="font-weight:800">'+fmt(storeAdvSum)+'</div></div>'
+        +(otherExpSum?'<div><div style="font-size:9px;opacity:.8">ค่าใช้จ่ายอื่น(เดือน)</div><div style="font-weight:800">'+fmt(otherExpSum)+'</div></div>':'')
         +'<div style="opacity:.35;margin-left:6px">|</div>'
         +'<div style="opacity:.75"><div style="font-size:9px;opacity:.8">เบิกน้ำมัน(เดือน) — รวมในยอดเคลียร์แล้ว ไม่หักซ้ำ</div><div style="font-weight:800">'+fmt(fuelAdvSum)+'</div></div>'
         +'<div style="background:rgba(255,255,255,.2);border-radius:6px;padding:6px 12px;margin-left:auto">'
@@ -5300,13 +5304,13 @@ function exportMonthlyCSV(mode){
     });
   } else {
     rows.push(["คนรถ","จำนวนเที่ยว","จำนวนบิล","ระยะทางรวม","ค่าเที่ยวรวม","เบี้ยขยัน","ค่าส่งงาน","ค่ารับงาน",
-               "พขร.ค้าง/บ.จ่าย","ค่าเบิกเกิน","หักเข้ากองทุนประกัน","เบิกประกัน","เบิกน้ำมัน","เบิกหน้าร้าน",
+               "พขร.ค้าง/บ.จ่าย","ค่าเบิกเกิน","หักเข้ากองทุนประกัน","เบิกประกัน","เบิกน้ำมัน","เบิกหน้าร้าน","ค่าใช้จ่ายอื่น",
                "รายได้สุทธิ","ประกันยกมา","ประกันยกไป",
                "ส่งไม่ได้(บิล)","ส่งไม่ได้(บาท)","เปลี่ยนเป็นโอน(บิล)","เปลี่ยนเป็นโอน(บาท)","โอนไม่มีสลิป","บิลเพิ่ม","บิลถอด"]);
     names.forEach(function(u){
       var c=cache[u];
       rows.push([c.name, c.tripCount, c.billSum, c.distTotal, c.fareTotal, c.bonus, c.workFee, c.pkComm,
-                 c.diff, c.fine, c.insDeduct, c.insDraw, c.fuelAdvSum, c.storeAdvSum,
+                 c.diff, c.fine, c.insDeduct, c.insDraw, c.fuelAdvSum, c.storeAdvSum, (c.otherExpSum||0),
                  c.netIncome, c.insCarry, c.insCarryOut,
                  (c.behav&&c.behav.failN)||0, (c.behav&&c.behav.failAmt)||0,
                  (c.behav&&c.behav.xferN)||0, (c.behav&&c.behav.xferAmt)||0, (c.behav&&c.behav.xferNoSlip)||0,
@@ -7563,6 +7567,7 @@ function printMonthlySummary(uname, showFuelNote){
     + sl("เบิกประกัน(เดือน)", d.insDraw, true)
     + sl("ค่าประกันยกไป", d.insCarryOut)
     + (d.storeAdvSum ? sl("เบิกหน้าร้าน(เดือน)", d.storeAdvSum, true) : "")
+    + (d.otherExpSum ? sl("ค่าใช้จ่ายอื่น(เดือน)", d.otherExpSum, true) : "")
     + '<div class="sl" style="color:#888;font-size:11.5px;margin-top:2px"><span class="sl-lbl">เบิกน้ำมัน(เดือน)</span><span>'+fmt(d.fuelAdvSum)+' ฿ — รวมในยอดเคลียร์แล้ว ไม่หักซ้ำ</span></div>';
   var manualLines =
       '<div class="sl"><span class="sl-lbl">ค่าใช้จ่ายอื่นๆ</span><input type="text" id="pm-otherDesc" placeholder="ระบุประเภท" class="sl-desc"><input type="number" id="pm-otherAmt" value="0" oninput="pmRecalc()"><span class="sl-suf">฿</span></div>'
