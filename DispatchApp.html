@@ -777,7 +777,7 @@ tr:hover td{background:#f8fffe}
 <div class="topbar">
   <span class="title">🚛 จัดการขนส่ง</span>
   <span id="session-info" style="font-size:11px;opacity:.8"></span>
-  <span style="font-size:10px;opacity:.65;margin-left:auto">build 2026-09-04a · insurmatch</span>
+  <span style="font-size:10px;opacity:.65;margin-left:auto">build 2026-09-04b · insurcycle</span>
   <a href="GolodApp.html" style="margin-left:10px">← หน้าหลัก</a>
 </div>
 <div class="container">
@@ -4883,7 +4883,11 @@ function renderMonthlyView(drivers, allTrips, selMonth, selDriver, dateFrom, dat
         }
         return "bkk";
       })();
-      var _calendarCycle = (_drvBranch==="krt" || _drvBranch==="ssk");
+      // รอบตัดเงินประกัน: ปฏิทิน (1–สิ้นเดือน) ทุกสาขา
+      // เดิม กทม.+ปริมณฑล ใช้รอบ 29–28 — เปลี่ยนเป็นเดือนต่อเดือนให้ตรงกับสรุปสิ้นเดือน
+      // ตั้ง INSUR_CALENDAR_ALL = false ถ้าอยากกลับไปใช้รอบ 29–28 เฉพาะ กทม.
+      var INSUR_CALENDAR_ALL = true;
+      var _calendarCycle = INSUR_CALENDAR_ALL || (_drvBranch==="krt" || _drvBranch==="ssk");
 
       var _cycStart="", _cycEnd="";
       if(dateFrom || dateTo){
